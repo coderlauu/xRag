@@ -6,9 +6,17 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,8 +32,28 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install
-        run: pnpm install --frozen-lockfile
-
       - name: Validate
-        run: pnpm validate
+        run: scripts/ci-validate.sh
+
+  infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate compose config
+        run: scripts/compose-config.sh
+
+      - name: Start infra stack
+        run: docker compose up -d postgres redis minio
+
+      - name: Check infra readiness
+        run: scripts/infra-check.sh
+
+      - name: Show infra status
+        run: docker compose ps
+
+      - name: Tear down infra stack
+        if: always()
+        run: docker compose down -v --remove-orphans
