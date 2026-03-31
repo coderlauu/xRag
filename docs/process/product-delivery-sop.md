@@ -206,7 +206,7 @@
   - Interaction Spec
   - Architecture / API / Data Model
   - 验收标准
-- coder agent 默认先阅读 [docs/handoff/current.md](/Users/christina/Documents/xRag/docs/handoff/current.md)
+- coder agent 默认先阅读 [docs/handoff/current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `current.md` 必须指向本轮版本的阅读顺序、必读文件和输出要求
 
 ---
@@ -284,7 +284,7 @@
 
 `v1` 的对应基线文档：
 
-- [Phase 1A PRD](/Users/christina/Documents/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
-- [v1 Scope 与取舍](/Users/christina/Documents/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
-- [v1 交互说明](/Users/christina/Documents/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
-- [当前版本 Handoff](/Users/christina/Documents/xRag/docs/handoff/current.md)
+- [Phase 1A PRD](/Users/coderlauu/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
+- [v1 Scope 与取舍](/Users/coderlauu/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
+- [v1 交互说明](/Users/coderlauu/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
+- [当前版本 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)

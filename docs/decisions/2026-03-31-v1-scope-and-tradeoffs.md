@@ -3,7 +3,7 @@
 **日期：** 2026-03-31  
 **版本：** `v1 / Phase 1A`  
 **状态：** 已决定  
-**对应原型：** [prototype/v1](/Users/christina/Documents/xRag/prototype/v1/index.html)
+**对应原型：** [prototype/v1](/Users/coderlauu/xRag/prototype/v1/index.html)
 
 ---
 
@@ -107,7 +107,7 @@
 
 ## 5. 与现有 ADR 的关系
 
-仓库中已有 [ADR-001-tags-design](/Users/christina/Documents/xRag/docs/decisions/ADR-001-tags-design.md)，其方向是：
+仓库中已有 [ADR-001-tags-design](/Users/coderlauu/xRag/docs/decisions/ADR-001-tags-design.md)，其方向是：
 
 - 从 free-text 标签输入转为预定义标签选择
 - 支持新增标签入口

@@ -3,7 +3,7 @@
 **日期：** 2026-03-31  
 **版本：** `v1 / Phase 1A`  
 **状态：** 已归档  
-**对应原型：** [prototype/v1](/Users/christina/Documents/xRag/prototype/v1/index.html)
+**对应原型：** [prototype/v1](/Users/coderlauu/xRag/prototype/v1/index.html)
 
 ---
 

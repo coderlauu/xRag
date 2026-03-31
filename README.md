@@ -82,8 +82,8 @@ xRag/
 
 当前仓库的推荐入口文档：
 
-- [产品交付 SOP](/Users/christina/Documents/xRag/docs/process/product-delivery-sop.md)
-- [当前版本 Handoff](/Users/christina/Documents/xRag/docs/handoff/current.md)
-- [Phase 1A PRD](/Users/christina/Documents/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
-- [v1 Scope 与取舍](/Users/christina/Documents/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
-- [v1 交互说明](/Users/christina/Documents/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
+- [产品交付 SOP](/Users/coderlauu/xRag/docs/process/product-delivery-sop.md)
+- [当前版本 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
+- [Phase 1A PRD](/Users/coderlauu/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
+- [v1 Scope 与取舍](/Users/coderlauu/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
+- [v1 交互说明](/Users/coderlauu/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
