@@ -29,6 +29,18 @@
 - `docs/generated/`
   - 自动生成资产，如 OpenAPI、ERD、schema snapshot
 
+## 3.1 项目级 Skill
+
+- 项目内 skill 路径：
+  - [xrag-iteration-governor](/Users/coderlauu/xRag/.codex/skills/xrag-iteration-governor/SKILL.md)
+- 用途：
+  - 新需求分流
+  - 判断是否需要新版本 handoff 或 exec plan
+  - 脚手架生成版本文档
+  - 收口版本归档流程
+- 如果当前 Codex 运行环境不自动发现项目内 skill，可执行：
+  - `/Users/coderlauu/xRag/.codex/skills/xrag-iteration-governor/scripts/install_to_codex_home.sh`
+
 ## 4. 工作规则
 
 1. 开工前先读 `current.md`

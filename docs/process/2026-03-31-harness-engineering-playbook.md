@@ -83,6 +83,7 @@
 - [Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
 - [Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
 - [API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
+- [Project Skill: xrag-iteration-governor](/Users/coderlauu/xRag/.codex/skills/xrag-iteration-governor/SKILL.md)
 
 ### 3.2 计划资产
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "xRag Iteration Governor"
+  short_description: "Repeatable xRag version workflow"
+  default_prompt: "Use $xrag-iteration-governor to classify this xRag request, create the right handoff or exec-plan artifacts, and keep current.md aligned."
