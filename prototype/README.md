@@ -9,6 +9,7 @@
 
 ## Related Docs
 
+- [当前版本 Handoff](/Users/christina/Documents/xRag/docs/handoff/current.md)
 - [Phase 1A PRD](/Users/christina/Documents/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
 - [v1 Scope 与取舍](/Users/christina/Documents/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
 - [v1 交互说明](/Users/christina/Documents/xRag/design/spec/2026-03-31-v1-interaction-spec.md)

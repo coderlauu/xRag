@@ -36,6 +36,7 @@
 - Interaction Spec：`design/spec/YYYY-MM-DD-<version>-interaction-spec.md`
 - Tech Plan：`tech/<area>/YYYY-MM-DD-<version>-<topic>.md`
 - Prototype：`prototype/<version>/`
+- Handoff：`docs/handoff/<version>.md` 与 `docs/handoff/current.md`
 
 ---
 
@@ -195,6 +196,7 @@
 ### 输出物
 
 - 一份 coding handoff 清单，通常附着在技术方案或计划文档中
+- 一份版本 handoff 入口文档，落到 `docs/handoff/`
 
 ### 完成标准
 
@@ -204,6 +206,8 @@
   - Interaction Spec
   - Architecture / API / Data Model
   - 验收标准
+- coder agent 默认先阅读 [docs/handoff/current.md](/Users/christina/Documents/xRag/docs/handoff/current.md)
+- `current.md` 必须指向本轮版本的阅读顺序、必读文件和输出要求
 
 ---
 
@@ -263,6 +267,8 @@
 - [ ] `docs/prd/...-prd.md`
 - [ ] `docs/decisions/...-scope-and-tradeoffs.md`
 - [ ] `design/spec/...-interaction-spec.md`
+- [ ] `docs/handoff/current.md`
+- [ ] `docs/handoff/<version>.md`
 - [ ] `prototype/<version>/`
 - [ ] `tech/architecture/...`
 - [ ] `tech/data-model/...`
@@ -281,4 +287,4 @@
 - [Phase 1A PRD](/Users/christina/Documents/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
 - [v1 Scope 与取舍](/Users/christina/Documents/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
 - [v1 交互说明](/Users/christina/Documents/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
-
+- [当前版本 Handoff](/Users/christina/Documents/xRag/docs/handoff/current.md)

@@ -13,7 +13,8 @@ xRag/
 │   ├── meeting/             # 会议纪要与过程讨论记录
 │   ├── retro/               # 阶段复盘
 │   ├── decisions/           # 关键决策记录，便于后续追溯
-│   └── process/             # 版本迭代 SOP 与交付流程
+│   ├── process/             # 版本迭代 SOP 与交付流程
+│   └── handoff/             # 给 coder / implementer 的固定阅读入口
 ├── design/                  # 设计方案与设计资产
 │   ├── ui/                  # 线框图、界面稿、视觉探索
 │   └── spec/                # 设计规范、交互说明
@@ -82,6 +83,7 @@ xRag/
 当前仓库的推荐入口文档：
 
 - [产品交付 SOP](/Users/christina/Documents/xRag/docs/process/product-delivery-sop.md)
+- [当前版本 Handoff](/Users/christina/Documents/xRag/docs/handoff/current.md)
 - [Phase 1A PRD](/Users/christina/Documents/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
 - [v1 Scope 与取舍](/Users/christina/Documents/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
 - [v1 交互说明](/Users/christina/Documents/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
