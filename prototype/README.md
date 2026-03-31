@@ -7,6 +7,13 @@
 - `v1/`
   对应当前的 Phase 1A 原型，实现 `导入 -> 搜索 -> 详情` 的 MVP 闭环。
 
+## Related Docs
+
+- [Phase 1A PRD](/Users/christina/Documents/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
+- [v1 Scope 与取舍](/Users/christina/Documents/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
+- [v1 交互说明](/Users/christina/Documents/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
+- [产品交付 SOP](/Users/christina/Documents/xRag/docs/process/product-delivery-sop.md)
+
 ## Conventions
 
 - 每个版本目录都保持 `HTML 页面 + assets + mock-data` 的固定结构。
@@ -24,4 +31,3 @@ python3 -m http.server 8000
 ```
 
 然后访问 `http://localhost:8000/prototype/v1/index.html`。
-

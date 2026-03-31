@@ -12,7 +12,8 @@ xRag/
 │   ├── prd/                 # 产品需求文档
 │   ├── meeting/             # 会议纪要与过程讨论记录
 │   ├── retro/               # 阶段复盘
-│   └── decisions/           # 关键决策记录，便于后续追溯
+│   ├── decisions/           # 关键决策记录，便于后续追溯
+│   └── process/             # 版本迭代 SOP 与交付流程
 ├── design/                  # 设计方案与设计资产
 │   ├── ui/                  # 线框图、界面稿、视觉探索
 │   └── spec/                # 设计规范、交互说明
@@ -43,7 +44,7 @@ xRag/
 ## Directory Notes
 
 - `docs/`
-  项目推进过程中的原始文档沉淀区。PRD、会议纪要、复盘、关键决策都放在这里，适合做回顾和对齐。
+  项目推进过程中的原始文档沉淀区。PRD、会议纪要、复盘、关键决策和流程规范都放在这里，适合做回顾和对齐。
 - `design/`
   产品和交互设计输出区。`ui/` 放视觉稿和线框图，`spec/` 放界面结构、交互规则、组件说明。
 - `tech/`
@@ -71,3 +72,16 @@ xRag/
 - 每个版本内部继续保持 `页面 / assets / mock-data` 的固定结构，便于快速对比。
 - 公共资源优先沉淀到 `prototype/shared/`，减少跨版本复制。
 - 如果后续进入正式前端工程阶段，可新增独立的应用目录，但保留 `prototype/` 作为产品验证资产。
+
+## Recommended Workflow
+
+每个版本迭代建议统一遵循这条主线：
+
+`PRD -> Scope Decision -> Prototype -> Interaction Spec -> Tech Plan -> Coding Handoff -> Verification -> Retro`
+
+当前仓库的推荐入口文档：
+
+- [产品交付 SOP](/Users/christina/Documents/xRag/docs/process/product-delivery-sop.md)
+- [Phase 1A PRD](/Users/christina/Documents/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
+- [v1 Scope 与取舍](/Users/christina/Documents/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
+- [v1 交互说明](/Users/christina/Documents/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
