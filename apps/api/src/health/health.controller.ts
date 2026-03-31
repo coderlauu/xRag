@@ -12,9 +12,9 @@ export class HealthController {
     return {
       status: "ready",
       checks: {
-        postgres: "todo",
-        redis: "todo",
-        objectStorage: "todo"
+        postgres: "stubbed",
+        redis: "stubbed",
+        objectStorage: "stubbed"
       }
     };
   }
