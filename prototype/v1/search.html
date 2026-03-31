@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xRag Prototype v1 | 搜索页</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body data-page="search">
+    <div class="shell">
+      <header class="topbar" data-global-header></header>
+
+      <main class="page-grid">
+        <section class="hero-card">
+          <p class="eyebrow">Search</p>
+          <h2 class="hero-title">只记得一个词，也能把内容找回来。</h2>
+          <p class="hero-copy">
+            这里模拟 PRD 里的搜索主场景：输入关键词，结合来源类型、状态、标签和时间范围，快速定位目标内容，再进入详情页确认。
+          </p>
+        </section>
+
+        <section class="panel">
+          <form id="search-form" class="form-grid">
+            <div class="field">
+              <label for="search-input">关键词</label>
+              <input id="search-input" type="search" placeholder="例如：找回 / OCR / 用户研究 / 命中片段" />
+            </div>
+            <div class="toolbar-row">
+              <select id="filter-source">
+                <option value="all">全部来源类型</option>
+                <option value="text">文本</option>
+                <option value="file">文件</option>
+                <option value="pdf">PDF</option>
+                <option value="link">链接</option>
+              </select>
+              <select id="filter-status">
+                <option value="all">全部状态</option>
+                <option value="success">成功</option>
+                <option value="processing">处理中</option>
+                <option value="failed">失败</option>
+                <option value="pending">待处理</option>
+              </select>
+              <select id="filter-tag"></select>
+              <select id="filter-time">
+                <option value="all">全部时间</option>
+                <option value="7d">最近 7 天</option>
+                <option value="30d">最近 30 天</option>
+              </select>
+              <button class="primary-button" type="submit">执行搜索</button>
+              <button class="ghost-button" id="clear-filters" type="button">清空筛选</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="search-layout">
+          <article class="results-shell">
+            <div class="results-heading">
+              <div>
+                <p class="eyebrow">Results</p>
+                <h3 class="section-title">结果列表</h3>
+              </div>
+              <span class="inline-note">当前命中 <strong id="results-count">0</strong> 条</span>
+            </div>
+            <div id="results" class="results-shell"></div>
+          </article>
+
+          <aside class="sidebar-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Insights</p>
+                <h3 class="section-title">检索面板</h3>
+              </div>
+            </div>
+            <ul class="insight-list">
+              <li><span>当前结果</span><strong id="insight-total">0</strong></li>
+              <li><span>可检索文档</span><strong id="insight-success">0</strong></li>
+              <li><span>处理中任务</span><strong id="insight-processing">0</strong></li>
+            </ul>
+
+            <div class="note-card">
+              <strong>高频标签</strong>
+              <ul id="top-tags" class="insight-list"></ul>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="assets/js/seed-data.js"></script>
+    <script src="assets/js/store.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/search.js"></script>
+  </body>
+</html>
+

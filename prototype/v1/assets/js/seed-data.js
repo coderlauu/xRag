@@ -1,0 +1,128 @@
+(function () {
+  window.XRAG_SEED = {
+    version: "v1",
+    documents: [
+      {
+        id: "doc-seed-001",
+        title: "RAG 产品最小闭环拆解",
+        content_raw: "先验证采集到搜索的稳定找回，再讨论语义检索和问答。",
+        content_clean:
+          "先验证采集到搜索的稳定找回，再讨论语义检索和问答。当前阶段更重要的是让用户愿意持续导入资料，并能在几天后通过关键词重新找到它。",
+        content_preview: "先验证采集到搜索的稳定找回，再讨论语义检索和问答。",
+        source_type: "text",
+        source_origin: "manual",
+        source_url: "",
+        file_name: "",
+        mime_type: "text/plain",
+        tags: ["RAG", "MVP", "检索"],
+        created_at: "2026-03-29T09:30:00+08:00",
+        imported_at: "2026-03-29T09:30:00+08:00",
+        parse_status: "success",
+        parse_error_message: "",
+        content_hash: "seed-001",
+        is_deleted: false
+      },
+      {
+        id: "doc-seed-002",
+        title: "用户访谈纪要：为什么收藏之后找不到",
+        content_raw: "用户反馈主要问题不是不收藏，而是收藏后没有统一入口，想回看时记不住标题。",
+        content_clean:
+          "用户反馈主要问题不是不收藏，而是收藏后没有统一入口，想回看时记不住标题。高频场景是在聊天、网页、笔记软件之间切换，最后无法稳定找回内容。",
+        content_preview: "用户反馈主要问题不是不收藏，而是收藏后没有统一入口。",
+        source_type: "pdf",
+        source_origin: "upload",
+        source_url: "",
+        file_name: "user-interview-notes.pdf",
+        mime_type: "application/pdf",
+        tags: ["用户研究", "访谈"],
+        created_at: "2026-03-28T17:00:00+08:00",
+        imported_at: "2026-03-30T11:20:00+08:00",
+        parse_status: "success",
+        parse_error_message: "",
+        content_hash: "seed-002",
+        is_deleted: false
+      },
+      {
+        id: "doc-seed-003",
+        title: "行业观察 2026 Q1",
+        content_raw: "系统仍在处理该文档。",
+        content_clean: "系统仍在处理该文档。",
+        content_preview: "系统仍在处理该文档。",
+        source_type: "pdf",
+        source_origin: "upload",
+        source_url: "",
+        file_name: "industry-report-q1.pdf",
+        mime_type: "application/pdf",
+        tags: ["行业研究", "待处理"],
+        created_at: "2026-03-31T08:55:00+08:00",
+        imported_at: "2026-03-31T08:55:00+08:00",
+        parse_status: "processing",
+        parse_error_message: "",
+        processing_due_at: "2026-03-31T08:59:00+08:00",
+        pending_resolution: "success",
+        content_hash: "seed-003",
+        is_deleted: false
+      },
+      {
+        id: "doc-seed-004",
+        title: "扫描版发票归档",
+        content_raw: "",
+        content_clean: "",
+        content_preview: "OCR 失败，需要重新处理。",
+        source_type: "pdf",
+        source_origin: "upload",
+        source_url: "",
+        file_name: "scan-invoice.pdf",
+        mime_type: "application/pdf",
+        tags: ["财务", "OCR"],
+        created_at: "2026-03-30T14:10:00+08:00",
+        imported_at: "2026-03-30T14:10:00+08:00",
+        parse_status: "failed",
+        parse_error_message: "OCR 失败，当前原型未启用扫描版 PDF 识别。",
+        content_hash: "seed-004",
+        is_deleted: false
+      },
+      {
+        id: "doc-seed-005",
+        title: "搜索体验优化待办",
+        content_raw: "需要在结果列表中展示命中片段、来源类型和时间范围筛选。",
+        content_clean:
+          "需要在结果列表中展示命中片段、来源类型和时间范围筛选。空结果页也要提供改写关键词和缩小范围的引导。",
+        content_preview: "需要在结果列表中展示命中片段、来源类型和时间范围筛选。",
+        source_type: "text",
+        source_origin: "manual",
+        source_url: "",
+        file_name: "",
+        mime_type: "text/plain",
+        tags: ["搜索", "交互"],
+        created_at: "2026-03-31T07:40:00+08:00",
+        imported_at: "2026-03-31T07:40:00+08:00",
+        parse_status: "success",
+        parse_error_message: "",
+        content_hash: "seed-005",
+        is_deleted: false
+      },
+      {
+        id: "doc-seed-006",
+        title: "外部链接保存示例",
+        content_raw: "保留标题、正文和原始链接，失败时至少保留 URL。",
+        content_clean:
+          "保留标题、正文和原始链接，失败时至少保留 URL。该能力在 PRD 中建议放入 P1，但原型保留了结构位置，便于后续扩展。",
+        content_preview: "保留标题、正文和原始链接，失败时至少保留 URL。",
+        source_type: "link",
+        source_origin: "manual",
+        source_url: "https://example.com/knowledge-capture",
+        file_name: "",
+        mime_type: "text/html",
+        tags: ["链接", "P1"],
+        created_at: "2026-03-27T12:15:00+08:00",
+        imported_at: "2026-03-27T12:15:00+08:00",
+        parse_status: "success",
+        parse_error_message: "",
+        content_hash: "seed-006",
+        is_deleted: false
+      }
+    ]
+  };
+})();
+

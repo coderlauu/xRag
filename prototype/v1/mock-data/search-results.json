@@ -1,0 +1,17 @@
+{
+  "queries": [
+    {
+      "query": "关键词 找回",
+      "result_ids": ["doc-seed-001", "doc-seed-002"]
+    },
+    {
+      "query": "OCR",
+      "result_ids": ["doc-seed-004"]
+    },
+    {
+      "query": "命中片段",
+      "result_ids": ["doc-seed-005"]
+    }
+  ]
+}
+

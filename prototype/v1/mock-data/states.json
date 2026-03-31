@@ -1,0 +1,14 @@
+{
+  "status_summary": {
+    "success": 4,
+    "processing": 1,
+    "failed": 1,
+    "pending": 0
+  },
+  "source_summary": {
+    "text": 2,
+    "pdf": 3,
+    "link": 1
+  }
+}
+
