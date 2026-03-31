@@ -1,3 +1,8 @@
 .DS_Store
 Thumbs.db
-
+node_modules
+.turbo
+dist
+build
+coverage
+.pnpm-store

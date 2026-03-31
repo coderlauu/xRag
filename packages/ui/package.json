@@ -1,0 +1,17 @@
+{
+  "name": "@xrag/ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "echo \"ui tests not scaffolded yet\""
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@xrag/config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig/base": "../../tsconfig.base.json"
+  },
+  "scripts": {
+    "build": "echo \"config package has no build output\"",
+    "lint": "echo \"config package has no lint step\"",
+    "typecheck": "echo \"config package has no typecheck step\"",
+    "test": "echo \"config package has no tests\""
+  }
+}
