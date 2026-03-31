@@ -11,7 +11,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "echo \"ui tests not scaffolded yet\""
   },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
     "typescript": "^5.8.2"
   }
 }
