@@ -1,83 +1,53 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query } from "@nestjs/common";
-import type {
-  CreateTextDocumentRequest,
-  DocumentListResponse,
-  RetryDocumentResponse,
-  UpdateDocumentTagsRequest
-} from "@xrag/shared-types";
-import { findDocumentById, sampleDocuments } from "../common/sample-data";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  CreateTextDocumentRequestDto,
+  CreateTextDocumentResponseDto,
+  DocumentDetailDto,
+  DocumentListResponseDto,
+  ListDocumentsQueryDto,
+  RetryDocumentResponseDto,
+  UpdateDocumentTagsRequestDto
+} from "./documents.dto";
+import { DocumentsService } from "./documents.service";
 
+@ApiTags("documents")
 @Controller("api/v1/documents")
 export class DocumentsController {
+  constructor(private readonly documentsService: DocumentsService) {}
+
   @Post("text")
-  createTextDocument(@Body() body: CreateTextDocumentRequest) {
-    return {
-      id: "doc_new",
-      parse_status: "success",
-      title: body.title
-    };
+  @ApiOperation({ summary: "Create a text document" })
+  @ApiCreatedResponse({ type: CreateTextDocumentResponseDto })
+  createTextDocument(@Body() body: CreateTextDocumentRequestDto) {
+    return this.documentsService.createTextDocument(body);
   }
 
   @Get()
-  listDocuments(
-    @Query("q") query = "",
-    @Query("page") page = "1",
-    @Query("page_size") pageSize = "20"
-  ): DocumentListResponse {
-    return {
-      ...sampleDocuments,
-      page: Number(page),
-      page_size: Number(pageSize),
-      items: sampleDocuments.items.filter((item) => {
-        if (!query) {
-          return true;
-        }
-
-        return [item.title, item.content_preview, item.tags.join(" ")]
-          .join(" ")
-          .toLowerCase()
-          .includes(query.toLowerCase());
-      })
-    };
+  @ApiOperation({ summary: "List documents with search and filters" })
+  @ApiOkResponse({ type: DocumentListResponseDto })
+  listDocuments(@Query() query: ListDocumentsQueryDto) {
+    return this.documentsService.listDocuments(query);
   }
 
   @Get(":documentId")
+  @ApiOperation({ summary: "Get a document by id" })
+  @ApiOkResponse({ type: DocumentDetailDto })
   getDocument(@Param("documentId") documentId: string) {
-    const document = findDocumentById(documentId);
-    if (!document) {
-      throw new NotFoundException("Document not found");
-    }
-
-    return document;
+    return this.documentsService.getDocument(documentId);
   }
 
   @Patch(":documentId/tags")
-  updateDocumentTags(
-    @Param("documentId") documentId: string,
-    @Body() body: UpdateDocumentTagsRequest
-  ) {
-    const document = findDocumentById(documentId);
-    if (!document) {
-      throw new NotFoundException("Document not found");
-    }
-
-    return {
-      ...document,
-      tags: body.tags
-    };
+  @ApiOperation({ summary: "Replace a document tag set" })
+  @ApiOkResponse({ type: DocumentDetailDto })
+  updateDocumentTags(@Param("documentId") documentId: string, @Body() body: UpdateDocumentTagsRequestDto) {
+    return this.documentsService.updateDocumentTags(documentId, body);
   }
 
   @Post(":documentId/retry")
-  retryDocument(@Param("documentId") documentId: string): RetryDocumentResponse {
-    const document = findDocumentById(documentId);
-    if (!document) {
-      throw new NotFoundException("Document not found");
-    }
-
-    return {
-      document_id: documentId,
-      job_id: "job_retry_001",
-      parse_status: "pending"
-    };
+  @ApiOperation({ summary: "Retry document parsing" })
+  @ApiCreatedResponse({ type: RetryDocumentResponseDto })
+  retryDocument(@Param("documentId") documentId: string) {
+    return this.documentsService.retryDocument(documentId);
   }
 }

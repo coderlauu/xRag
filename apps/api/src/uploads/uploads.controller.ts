@@ -1,36 +1,29 @@
 import { Body, Controller, Param, Post } from "@nestjs/common";
-import type {
-  UploadCompleteRequest,
-  UploadCompleteResponse,
-  UploadInitiateRequest,
-  UploadInitiateResponse
-} from "@xrag/shared-types";
+import { ApiCreatedResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  UploadCompleteRequestDto,
+  UploadCompleteResponseDto,
+  UploadInitiateRequestDto,
+  UploadInitiateResponseDto
+} from "./uploads.dto";
+import { UploadsService } from "./uploads.service";
 
+@ApiTags("uploads")
 @Controller("api/v1/uploads")
 export class UploadsController {
+  constructor(private readonly uploadsService: UploadsService) {}
+
   @Post("initiate")
-  initiateUpload(@Body() body: UploadInitiateRequest): UploadInitiateResponse {
-    return {
-      upload_id: "upl_123",
-      object_key: `uploads/2026/03/31/upl_123/${body.file_name}`,
-      upload_method: "presigned_put",
-      upload_url: "https://storage.example.com/upload-placeholder",
-      headers: {
-        "content-type": body.mime_type
-      },
-      expires_in: 900
-    };
+  @ApiOperation({ summary: "Create an upload session" })
+  @ApiCreatedResponse({ type: UploadInitiateResponseDto })
+  initiateUpload(@Body() body: UploadInitiateRequestDto) {
+    return this.uploadsService.initiateUpload(body);
   }
 
   @Post(":uploadId/complete")
-  completeUpload(
-    @Param("uploadId") uploadId: string,
-    @Body() _body: UploadCompleteRequest
-  ): UploadCompleteResponse {
-    return {
-      document_id: `doc_for_${uploadId}`,
-      job_id: "job_456",
-      parse_status: "pending"
-    };
+  @ApiOperation({ summary: "Complete an upload and create a document" })
+  @ApiCreatedResponse({ type: UploadCompleteResponseDto })
+  completeUpload(@Param("uploadId") uploadId: string, @Body() body: UploadCompleteRequestDto) {
+    return this.uploadsService.completeUpload(uploadId, body);
   }
 }

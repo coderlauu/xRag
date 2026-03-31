@@ -1,28 +1,24 @@
 import { Body, Controller, Get, Post, Query } from "@nestjs/common";
-import type { CreateTagRequest, TagItem, TagListResponse } from "@xrag/shared-types";
-import { sampleTags } from "../common/sample-data";
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { CreateTagRequestDto, ListTagsQueryDto, TagItemDto, TagListResponseDto } from "./tags.dto";
+import { TagsService } from "./tags.service";
 
+@ApiTags("tags")
 @Controller("api/v1/tags")
 export class TagsController {
-  @Get()
-  listTags(@Query("q") query = ""): TagListResponse {
-    return {
-      items: sampleTags.items.filter((item) => {
-        if (!query) {
-          return true;
-        }
+  constructor(private readonly tagsService: TagsService) {}
 
-        return item.name.toLowerCase().includes(query.toLowerCase());
-      })
-    };
+  @Get()
+  @ApiOperation({ summary: "List available tags" })
+  @ApiOkResponse({ type: TagListResponseDto })
+  listTags(@Query() query: ListTagsQueryDto) {
+    return this.tagsService.listTags(query);
   }
 
   @Post()
-  createTag(@Body() body: CreateTagRequest): TagItem {
-    return {
-      id: "tag_new",
-      name: body.name,
-      status: "active"
-    };
+  @ApiOperation({ summary: "Create or upsert a tag" })
+  @ApiCreatedResponse({ type: TagItemDto })
+  createTag(@Body() body: CreateTagRequestDto) {
+    return this.tagsService.createTag(body);
   }
 }

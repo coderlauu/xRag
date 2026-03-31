@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-1a-persistence-and-api-layer`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `classification`: `medium-feature`
 - `related_docs`: [Current Handoff](/Users/coderlauu/xRag/docs/handoff/current.md), [Phase 1A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
@@ -64,3 +64,4 @@
 
 - `2026-03-31`: 本任务归类为 `medium-feature`，不创建新 handoff 版本
 - `2026-03-31`: 先让数据库成为 API 的事实来源，worker 状态推进留到下一阶段
+- `2026-03-31`: Drizzle schema、首版 migration、OpenAPI 产物与 API repository/service 分层已完成并通过本地验证

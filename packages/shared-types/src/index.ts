@@ -2,6 +2,9 @@ export type ParseStatus = "pending" | "processing" | "success" | "failed";
 export type SourceType = "text" | "file" | "link";
 export type SourceOrigin = "manual_input" | "upload" | "link";
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "dead";
+export type TagStatus = "active" | "archived";
+export type UploadStatus = "initiated" | "uploaded" | "completed" | "expired";
+export type DocumentJobType = "parse_document" | "reparse_document" | "refresh_search_projection";
 
 export interface HealthResponse {
   status: string;
@@ -49,6 +52,11 @@ export interface CreateTextDocumentRequest {
   tags: string[];
 }
 
+export interface CreateTextDocumentResponse {
+  id: string;
+  parse_status: ParseStatus;
+}
+
 export interface RetryDocumentResponse {
   document_id: string;
   job_id: string;
@@ -85,7 +93,7 @@ export interface UploadCompleteResponse {
 export interface TagItem {
   id: string;
   name: string;
-  status: "active" | "archived";
+  status: TagStatus;
 }
 
 export interface TagListResponse {
@@ -99,7 +107,7 @@ export interface CreateTagRequest {
 export interface JobStatusResponse {
   id: string;
   document_id: string;
-  job_type: "parse_document" | "reparse_document" | "refresh_search_projection";
+  job_type: DocumentJobType;
   status: JobStatus;
   attempt: number;
   error_message: string | null;

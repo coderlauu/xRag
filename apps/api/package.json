@@ -3,8 +3,11 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/main.ts",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "tsx src/database/migrate.ts",
+    "dev": "nodemon --watch src --ext ts --exec \"node -r ts-node/register/transpile-only -r tsconfig-paths/register src/main.ts\"",
     "lint": "tsc --noEmit -p tsconfig.json",
+    "openapi:generate": "tsx src/openapi.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "echo \"api tests not scaffolded yet\""
   },
@@ -16,6 +19,8 @@
     "@nestjs/swagger": "^11.0.6",
     "@xrag/shared-types": "workspace:*",
     "bullmq": "^5.43.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.6.0",
     "pg": "^8.20.0",
@@ -25,9 +30,10 @@
   "devDependencies": {
     "@types/node": "^22.13.10",
     "@types/pg": "^8.20.0",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
     "drizzle-kit": "^0.31.10",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
