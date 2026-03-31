@@ -1,3 +1,6 @@
+import { Badge } from "./badge";
+import { cn } from "../lib/utils";
+
 interface StatCardProps {
   label: string;
   value: string;
@@ -6,22 +9,18 @@ interface StatCardProps {
 }
 
 export function StatCard({ label, value, hint, tone = "default" }: StatCardProps) {
-  const accent = tone === "warning" ? "#f4c15a" : "#8ad3ff";
+  const toneClass =
+    tone === "warning"
+      ? "border-amber-200/80 bg-amber-50/80"
+      : "border-sky-200/80 bg-linear-to-br from-sky-50 to-white";
 
   return (
-    <article
-      style={{
-        border: `1px solid ${accent}40`,
-        borderRadius: 18,
-        padding: 18,
-        background: "rgba(255,255,255,0.04)",
-        display: "grid",
-        gap: 8
-      }}
-    >
-      <span style={{ fontSize: 12, letterSpacing: 1, textTransform: "uppercase", opacity: 0.75 }}>{label}</span>
-      <strong style={{ fontSize: 34, lineHeight: 1 }}>{value}</strong>
-      {hint ? <span style={{ opacity: 0.78 }}>{hint}</span> : null}
+    <article className={cn("grid gap-3 rounded-[22px] border p-5 shadow-sm", toneClass)}>
+      <div className="flex items-start justify-between gap-3">
+        <Badge variant={tone === "warning" ? "warning" : "info"}>{label}</Badge>
+      </div>
+      <strong className="text-3xl font-semibold tracking-[-0.05em] text-slate-950 md:text-4xl">{value}</strong>
+      {hint ? <span className="text-sm leading-6 text-slate-600">{hint}</span> : null}
     </article>
   );
 }

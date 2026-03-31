@@ -15,11 +15,19 @@
     "@nestjs/platform-fastify": "^11.0.11",
     "@nestjs/swagger": "^11.0.6",
     "@xrag/shared-types": "workspace:*",
+    "bullmq": "^5.43.2",
+    "drizzle-orm": "^0.45.2",
+    "ioredis": "^5.6.0",
+    "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
+    "@types/pg": "^8.20.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }

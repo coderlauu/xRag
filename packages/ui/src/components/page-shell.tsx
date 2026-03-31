@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
+import { Button } from "./button";
+import { cn } from "../lib/utils";
 
 interface PageAction {
   label: string;
   href: string;
+  variant?: "default" | "outline" | "secondary" | "ghost";
 }
 
 interface PageShellProps {
@@ -15,22 +18,28 @@ interface PageShellProps {
 
 export function PageShell({ eyebrow, title, description, actions, children }: PageShellProps) {
   return (
-    <section style={{ display: "grid", gap: 24 }}>
-      <header style={{ display: "grid", gap: 12 }}>
-        <p style={{ margin: 0, textTransform: "uppercase", letterSpacing: 1.6, fontSize: 12 }}>{eyebrow}</p>
-        <h1 style={{ margin: 0, fontSize: 40, lineHeight: 1.1 }}>{title}</h1>
-        <p style={{ margin: 0, maxWidth: 760 }}>{description}</p>
-        {actions ? (
-          <nav style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {actions.map((action) => (
-              <a key={action.href} href={action.href}>
-                {action.label}
-              </a>
-            ))}
-          </nav>
-        ) : null}
+    <section className="grid gap-6">
+      <header className="grid gap-4 rounded-[28px] border border-white/60 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur xl:p-8">
+        <p className="m-0 text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">{eyebrow}</p>
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+          <div className="grid gap-3">
+            <h1 className="m-0 max-w-4xl text-4xl font-semibold tracking-[-0.04em] text-slate-950 md:text-5xl">
+              {title}
+            </h1>
+            <p className="m-0 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">{description}</p>
+          </div>
+          {actions ? (
+            <nav className="flex flex-wrap gap-3">
+              {actions.map((action) => (
+                <Button asChild key={action.href} variant={action.variant ?? "outline"}>
+                  <a href={action.href}>{action.label}</a>
+                </Button>
+              ))}
+            </nav>
+          ) : null}
+        </div>
       </header>
-      {children}
+      <div className={cn("grid gap-6")}>{children}</div>
     </section>
   );
 }

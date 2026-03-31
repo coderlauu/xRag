@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-1a-engineering-bootstrap`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [Phase 1A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
 
@@ -55,3 +55,4 @@
 ## 9. Decision Log
 
 - `2026-03-31`: 先搭正式工程骨架，再开 worktree 并行
+- `2026-03-31`: monorepo/web/api/worker/ci 骨架已完成，计划移入 completed
