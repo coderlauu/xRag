@@ -65,7 +65,7 @@ docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f 
 
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" pull
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d postgres redis minio
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm api-migrate
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm -T api-migrate </dev/null
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d api worker web caddy
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps
 
