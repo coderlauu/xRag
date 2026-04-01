@@ -25,6 +25,7 @@ Required artifacts:
 
 - code change
 - affected doc update if behavior changed
+- update active `docs/status/*.md` only if milestone or release state changed
 
 Usually not required:
 
@@ -49,6 +50,7 @@ Typical examples:
 Required artifacts:
 
 - exec plan in `docs/exec-plans/active/`
+- update active `docs/status/*.md`
 - code, tests, and doc updates
 
 Usually not required:
@@ -74,6 +76,7 @@ Typical examples:
 Required artifacts:
 
 - new `docs/handoff/vN.md`
+- new `docs/status/vN-*.md`
 - update `docs/handoff/current.md`
 - usually create an exec plan
 - update affected `docs/`, `design/`, and `tech/` assets

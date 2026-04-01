@@ -3,6 +3,7 @@
 当前默认阅读入口始终指向“本轮正在推进的版本 + 当前可执行技术方案”。
 
 当前有效版本：[v1 / Phase 1A](/Users/coderlauu/xRag/docs/handoff/v1.md)
+当前版本状态：[v1 / Phase 1A Status](/Users/coderlauu/xRag/docs/status/v1-phase-1a.md)
 
 当前技术方案：
 
@@ -188,17 +189,19 @@
 ## 6. 当前建议阅读顺序
 
 1. [v1 Handoff](/Users/coderlauu/xRag/docs/handoff/v1.md)
-2. [Phase 1A PRD](/Users/coderlauu/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
-3. [v1 Scope And Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
-4. [v1 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
-5. [Phase 1A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
-6. [Phase 1A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
-7. [Phase 1A API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
-8. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
-9. [产品交付 SOP](/Users/coderlauu/xRag/docs/process/product-delivery-sop.md)
-10. [prototype/v1/index.html](/Users/coderlauu/xRag/prototype/v1/index.html)
-11. [prototype/v1/search.html](/Users/coderlauu/xRag/prototype/v1/search.html)
-12. [prototype/v1/detail.html](/Users/coderlauu/xRag/prototype/v1/detail.html)
+2. [v1 Status](/Users/coderlauu/xRag/docs/status/v1-phase-1a.md)
+3. [Phase 1A PRD](/Users/coderlauu/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
+4. [v1 Scope And Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
+5. [v1 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
+6. [Phase 1A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
+7. [Phase 1A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
+8. [Phase 1A API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
+9. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
+10. [Version Lifecycle](/Users/coderlauu/xRag/docs/process/version-lifecycle.md)
+11. [产品交付 SOP](/Users/coderlauu/xRag/docs/process/product-delivery-sop.md)
+12. [prototype/v1/index.html](/Users/coderlauu/xRag/prototype/v1/index.html)
+13. [prototype/v1/search.html](/Users/coderlauu/xRag/prototype/v1/search.html)
+14. [prototype/v1/detail.html](/Users/coderlauu/xRag/prototype/v1/detail.html)
 
 ---
 

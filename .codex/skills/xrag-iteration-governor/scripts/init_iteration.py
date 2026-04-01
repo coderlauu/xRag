@@ -80,14 +80,67 @@ def scaffold_exec_plan(
     return exec_plan_path
 
 
-def update_current(repo_root: Path, version: str, phase: str | None, handoff_path: Path) -> None:
+def build_status_filename(version: str, phase: str | None) -> str:
+    if phase:
+        return f"{version}-{slugify(phase)}.md"
+    return f"{version}.md"
+
+
+def scaffold_status(
+    repo_root: Path,
+    version: str,
+    phase: str | None,
+    version_status: str,
+    owner: str | None,
+    goal: str | None,
+    force: bool,
+    today: str,
+) -> Path:
+    template_path = repo_root / "docs/status/_template.md"
+    status_path = repo_root / "docs/status" / build_status_filename(version, phase)
+    template = template_path.read_text(encoding="utf-8")
+
+    phase_label = phase or "TBD"
+    body = template
+    body = body.replace("# Version Status Template", f"# {version}{f' / {phase}' if phase else ''} Status")
+    body = body.replace("- `version`: `<version>`", f"- `version`: `{version}`")
+    body = body.replace("- `phase`: `<phase>`", f"- `phase`: `{phase_label}`")
+    body = body.replace(
+        "- `status`: `not-started | in-progress | blocked | completed | archived`",
+        f"- `status`: `{version_status}`"
+    )
+    body = body.replace("- `owner`: `unassigned`", f"- `owner`: `{owner or 'unassigned'}`")
+    body = body.replace("- `updated_at`: `YYYY-MM-DD`", f"- `updated_at`: `{today}`")
+    if goal:
+        body = body.replace("### In Scope\n\n- ", f"### In Scope\n\n- {goal}\n- ")
+
+    write_file(status_path, body, force)
+    return status_path
+
+
+def update_current(repo_root: Path, version: str, phase: str | None, handoff_path: Path, status_path: Path) -> None:
     current_path = repo_root / "docs/handoff/current.md"
     current_text = current_path.read_text(encoding="utf-8")
     version_label = version if not phase else f"{version} / {phase}"
-    replacement = f"当前有效版本：[{version_label}]({handoff_path.as_posix()})"
-    updated, count = re.subn(r"当前有效版本：\[.*?\]\([^)]+\)", replacement, current_text, count=1)
-    if count != 1:
+    handoff_replacement = f"当前有效版本：[{version_label}]({handoff_path.as_posix()})"
+    updated, handoff_count = re.subn(
+        r"当前有效版本：\[.*?\]\([^)]+\)",
+        handoff_replacement,
+        current_text,
+        count=1,
+    )
+    if handoff_count != 1:
         raise RuntimeError("Could not update current.md: expected one active-version line.")
+
+    status_replacement = f"当前版本状态：[{version_label} Status]({status_path.as_posix()})"
+    updated, status_count = re.subn(
+        r"当前版本状态：\[.*?\]\([^)]+\)",
+        status_replacement,
+        updated,
+        count=1,
+    )
+    if status_count != 1:
+        raise RuntimeError("Could not update current.md: expected one version-status line.")
     current_path.write_text(updated, encoding="utf-8")
 
 
@@ -99,6 +152,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--version", required=True, help="Version file name, for example v2")
     parser.add_argument("--phase", help="Phase label, for example Phase 1B")
     parser.add_argument("--status", default="draft", help="Handoff status")
+    parser.add_argument(
+        "--version-status",
+        default="not-started",
+        help="Version status value for docs/status, for example not-started or in-progress",
+    )
     parser.add_argument("--goal", help="One-line iteration goal")
     parser.add_argument("--create-exec-plan", action="store_true", help="Create an active exec plan")
     parser.add_argument("--exec-plan-id", help="Exec plan id / slug")
@@ -125,7 +183,22 @@ def main() -> int:
         )
         print(f"[OK] created handoff: {handoff_path}")
 
-        related_docs = [f"`{handoff_path.relative_to(repo_root).as_posix()}`"]
+        status_path = scaffold_status(
+            repo_root=repo_root,
+            version=args.version,
+            phase=args.phase,
+            version_status=args.version_status,
+            owner=args.owner,
+            goal=args.goal,
+            force=args.force,
+            today=today,
+        )
+        print(f"[OK] created status: {status_path}")
+
+        related_docs = [
+            f"`{handoff_path.relative_to(repo_root).as_posix()}`",
+            f"`{status_path.relative_to(repo_root).as_posix()}`",
+        ]
 
         if args.create_exec_plan:
             plan_id = args.exec_plan_id or slugify(f"{args.version}-{args.goal or 'iteration'}")
@@ -146,6 +219,7 @@ def main() -> int:
                 version=args.version,
                 phase=args.phase,
                 handoff_path=handoff_path,
+                status_path=status_path,
             )
             print(f"[OK] updated current handoff: {repo_root / 'docs/handoff/current.md'}")
     except Exception as exc:  # noqa: BLE001

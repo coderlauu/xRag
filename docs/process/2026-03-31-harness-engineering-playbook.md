@@ -80,16 +80,19 @@
 
 - [AGENTS.md](/Users/coderlauu/xRag/AGENTS.md)
 - [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
+- [当前版本状态](/Users/coderlauu/xRag/docs/status/v1-phase-1a.md)
 - [Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
 - [Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
 - [API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
 - [Project Skill: xrag-iteration-governor](/Users/coderlauu/xRag/.codex/skills/xrag-iteration-governor/SKILL.md)
+- [Version Lifecycle](/Users/coderlauu/xRag/docs/process/version-lifecycle.md)
 
 ### 3.2 计划资产
 
 新增目录：
 
 ```text
+docs/status/
 docs/exec-plans/active/
 docs/exec-plans/completed/
 docs/generated/
@@ -97,6 +100,7 @@ docs/generated/
 
 规则：
 
+- 每个活动版本必须有一份 `docs/status/*.md`
 - 大于半天的开发项，必须先写执行计划
 - 完成后从 `active` 挪到 `completed`
 - 自动生成资产统一放 `docs/generated/`
@@ -155,6 +159,7 @@ packages/ui
 
 - 写清目标、范围、风险、接口影响、测试计划、回滚点
 - 复杂任务拆里程碑，不允许一句话直接开干
+- 如果任务属于当前版本主链路，同时更新该版本 `status` 中的当前节点与里程碑状态
 
 ### 4.3 阶段 2：agent 实现
 
@@ -242,6 +247,27 @@ packages/ui
 
 - 行为变化必须同步更新文档
 - 发现无效文档要删或修，不能堆积
+- 版本进入下一阶段时，要同步更新 `status` 与 `current.md`
+
+---
+
+## 4.8 版本资产规则
+
+每个版本默认维护以下固定资产：
+
+- `docs/handoff/vN.md`
+- `docs/status/vN-*.md`
+- `docs/exec-plans/active/*.md`
+- 受影响的 `tech/*`
+
+职责分工：
+
+- `handoff`：版本入口、边界、阅读顺序
+- `status`：当前节点、阻塞项、最近验证
+- `exec plan`：具体执行、验证、回滚
+- `tech`：架构、数据模型、API 事实来源
+
+状态流转统一遵循 [Version Lifecycle](/Users/coderlauu/xRag/docs/process/version-lifecycle.md)。
 
 ---
 
