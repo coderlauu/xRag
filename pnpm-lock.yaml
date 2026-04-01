@@ -38,6 +38,12 @@ importers:
       bullmq:
         specifier: ^5.43.2
         version: 5.71.1
+      class-transformer:
+        specifier: ^0.5.1
+        version: 0.5.1
+      class-validator:
+        specifier: ^0.14.1
+        version: 0.14.1
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.20.0)(pg@8.20.0)
@@ -60,12 +66,6 @@ importers:
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
-      class-transformer:
-        specifier: ^0.5.1
-        version: 0.5.1
-      class-validator:
-        specifier: ^0.14.1
-        version: 0.14.1
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
