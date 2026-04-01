@@ -23,6 +23,6 @@ wait_for() {
   return 1
 }
 
-wait_for "web root" 20 curl -fsS "${base_url}/" >/dev/null
-wait_for "api health" 20 curl -fsS "${base_url}/api/v1/health" >/dev/null
-wait_for "api ready" 20 curl -fsS "${base_url}/api/v1/health/ready" >/dev/null
+wait_for "web root" 40 curl --connect-timeout 5 --max-time 15 -fsS "${base_url}/" >/dev/null
+wait_for "api health" 40 curl --connect-timeout 5 --max-time 15 -fsS "${base_url}/api/v1/health" >/dev/null
+wait_for "api ready" 40 curl --connect-timeout 5 --max-time 15 -fsS "${base_url}/api/v1/health/ready" >/dev/null

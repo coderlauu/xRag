@@ -11,6 +11,7 @@
 - Linux 主机
 - Docker Engine + Docker Compose
 - 可访问 `ghcr.io`
+- 对外放行 `80` 和 `443`
 
 ## Recommended Layout
 
@@ -107,11 +108,26 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `SSH_USER=deploy`
 - `DEPLOY_PATH=/srv/xrag`
 - `APP_BASE_URL=https://xrag.coderlau.cn`
+- `APP_DOMAIN=xrag.coderlau.cn`
 
 `staging` 有两种做法：
 
 - 推荐：增加 `staging.xrag.coderlau.cn`
 - 临时：先用同一台机器的公网 IP 和一个非 80/443 端口做 smoke
+
+## HTTPS Termination
+
+当前生产基线使用 `Caddy` 做外层反向代理和自动 TLS：
+
+- `80/443` 由 `Caddy` 监听
+- `Caddy` 自动为 `APP_DOMAIN` 申请和续期证书
+- `web` 仅在内网暴露 `8080`
+
+前提：
+
+- `APP_DOMAIN` 已解析到服务器公网 IP
+- 服务器安全组和系统防火墙已放行 `80/443`
+- 80 端口未被其他 Web 服务占用
 
 ## Local Validation
 
