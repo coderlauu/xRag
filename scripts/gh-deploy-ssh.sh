@@ -44,6 +44,18 @@ ssh_base_args=(
   -p "${ssh_port}"
   -o BatchMode=yes
   -o ConnectTimeout=10
+  -o ServerAliveInterval=15
+  -o ServerAliveCountMax=3
+  -o StrictHostKeyChecking=no
+)
+
+scp_base_args=(
+  -i "${key_file}"
+  -P "${ssh_port}"
+  -o BatchMode=yes
+  -o ConnectTimeout=10
+  -o ServerAliveInterval=15
+  -o ServerAliveCountMax=3
   -o StrictHostKeyChecking=no
 )
 
@@ -61,7 +73,7 @@ EOF
   exit 1
 fi
 
-scp "${ssh_base_args[@]}" "${bundle_file}" "${SSH_USER}@${SSH_HOST}:${bundle_path}"
+scp "${scp_base_args[@]}" "${bundle_file}" "${SSH_USER}@${SSH_HOST}:${bundle_path}"
 
 env_file_b64="$(printf '%s' "${DEPLOY_ENV_FILE}" | base64 | tr -d '\n')"
 
