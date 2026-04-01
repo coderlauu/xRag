@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -35,6 +36,53 @@ jobs:
 
       - name: Validate
         run: scripts/ci-validate.sh
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Run API integration tests
+        run: scripts/run-api-integration.sh
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: corepack pnpm --filter @xrag/web exec playwright install --with-deps chromium
+
+      - name: Run smoke E2E
+        run: scripts/run-e2e-smoke.sh
 
   infra:
     runs-on: ubuntu-latest
@@ -60,3 +108,165 @@ jobs:
       - name: Tear down infra stack
         if: always()
         run: docker compose down -v --remove-orphans
+
+  build-images:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: [validate, integration, e2e, infra]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            image_name: xrag-api
+            dockerfile: deploy/docker/api.Dockerfile
+          - service: worker
+            image_name: xrag-worker
+            dockerfile: deploy/docker/worker.Dockerfile
+          - service: web
+            image_name: xrag-web
+            dockerfile: deploy/docker/web.Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          provenance: false
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image_name }}:${{ github.sha }}
+
+  deploy-staging:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: build-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check staging deploy secrets
+        id: staging-preflight
+        run: |
+          if [[ -z "${{ secrets.SSH_HOST }}" || -z "${{ secrets.SSH_USER }}" || -z "${{ secrets.SSH_PRIVATE_KEY }}" || -z "${{ secrets.DEPLOY_PATH }}" || -z "${{ secrets.DEPLOY_ENV_FILE }}" || -z "${{ secrets.GHCR_USERNAME }}" || -z "${{ secrets.GHCR_TOKEN }}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Staging deploy secrets are missing; skipping deploy."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy staging over SSH
+        if: ${{ steps.staging-preflight.outputs.enabled == 'true' }}
+        env:
+          DEPLOY_ENVIRONMENT: staging
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          XRAG_API_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-api:${{ github.sha }}
+          XRAG_IMAGE_TAG: ${{ github.sha }}
+          XRAG_WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-web:${{ github.sha }}
+          XRAG_WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-worker:${{ github.sha }}
+        run: scripts/gh-deploy-ssh.sh
+
+  smoke-staging:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check staging smoke target
+        id: staging-smoke-preflight
+        run: |
+          if [[ -z "${{ secrets.APP_BASE_URL }}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Staging APP_BASE_URL is missing; skipping smoke."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run staging smoke
+        if: ${{ steps.staging-smoke-preflight.outputs.enabled == 'true' }}
+        run: scripts/smoke-http.sh "${{ secrets.APP_BASE_URL }}"
+
+  deploy-production:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: smoke-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check production deploy secrets
+        id: production-preflight
+        run: |
+          if [[ -z "${{ secrets.SSH_HOST }}" || -z "${{ secrets.SSH_USER }}" || -z "${{ secrets.SSH_PRIVATE_KEY }}" || -z "${{ secrets.DEPLOY_PATH }}" || -z "${{ secrets.DEPLOY_ENV_FILE }}" || -z "${{ secrets.GHCR_USERNAME }}" || -z "${{ secrets.GHCR_TOKEN }}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Production deploy secrets are missing; skipping deploy."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy production over SSH
+        if: ${{ steps.production-preflight.outputs.enabled == 'true' }}
+        env:
+          DEPLOY_ENVIRONMENT: production
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          XRAG_API_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-api:${{ github.sha }}
+          XRAG_IMAGE_TAG: ${{ github.sha }}
+          XRAG_WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-web:${{ github.sha }}
+          XRAG_WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-worker:${{ github.sha }}
+        run: scripts/gh-deploy-ssh.sh
+
+  smoke-production:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check production smoke target
+        id: production-smoke-preflight
+        run: |
+          if [[ -z "${{ secrets.APP_BASE_URL }}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Production APP_BASE_URL is missing; skipping smoke."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run production smoke
+        if: ${{ steps.production-smoke-preflight.outputs.enabled == 'true' }}
+        run: scripts/smoke-http.sh "${{ secrets.APP_BASE_URL }}"

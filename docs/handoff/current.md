@@ -63,6 +63,8 @@
 - AI 问答
 - 语义搜索
 - 真实 OCR
+- `pdf` 真实解析
+- multipart 大文件上传
 - 浏览器插件
 - 团队协作
 - 移动端
@@ -128,7 +130,7 @@
 - 文件上传走 `预签名 URL / 直传对象存储`
 - 上传完成后创建文档并入队解析任务
 - Worker 流式读取文件并更新 `pending -> processing -> success/failed`
-- 大文件通过 multipart upload 承接，避免 API 直接吞文件流量
+- `Phase 1A` 只要求单对象 presigned upload 闭环；multipart 大文件上传放到下一阶段
 
 ### 4.5 搜索方案
 
@@ -157,6 +159,7 @@
 - PR 自动执行 `lint / typecheck / test / build`
 - 合并到 `main` 自动部署 `staging`
 - 通过 smoke test 后自动部署 `production` 或按 release tag 发布
+- 当前仓库基线采用 `GHCR + SSH + docker compose`，部署资产见 [deploy/README.md](/Users/coderlauu/xRag/deploy/README.md)
 
 如果团队已有 Harness 平台，可以把同一流程映射到 Harness Pipeline，但这不是前提条件。
 

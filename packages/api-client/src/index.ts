@@ -6,6 +6,8 @@ import type {
   DocumentListResponse,
   HealthResponse,
   JobStatusResponse,
+  ListDocumentsQuery,
+  ListTagsQuery,
   RetryDocumentResponse,
   TagItem,
   TagListResponse,
@@ -25,12 +27,25 @@ async function requestJson<T>(path: string, init?: RequestInit, baseUrl = "http:
   return response.json() as Promise<T>;
 }
 
+function buildSearchParams(query: object) {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query as Record<string, string | number | undefined>)) {
+    if (value !== undefined && value !== "") {
+      params.set(key, String(value));
+    }
+  }
+
+  const encoded = params.toString();
+  return encoded ? `?${encoded}` : "";
+}
+
 export async function fetchHealth(baseUrl = "http://localhost:3001"): Promise<HealthResponse> {
   return requestJson<HealthResponse>("/api/v1/health", undefined, baseUrl);
 }
 
-export async function listDocuments(baseUrl = "http://localhost:3001", query?: string) {
-  const search = query ? `?q=${encodeURIComponent(query)}` : "";
+export async function listDocuments(baseUrl = "http://localhost:3001", query: ListDocumentsQuery = {}) {
+  const search = buildSearchParams(query);
   return requestJson<DocumentListResponse>(`/api/v1/documents${search}`, undefined, baseUrl);
 }
 
@@ -79,8 +94,9 @@ export async function retryDocument(documentId: string, baseUrl = "http://localh
   );
 }
 
-export async function listTags(baseUrl = "http://localhost:3001") {
-  return requestJson<TagListResponse>("/api/v1/tags", undefined, baseUrl);
+export async function listTags(baseUrl = "http://localhost:3001", query: ListTagsQuery = {}) {
+  const search = buildSearchParams(query);
+  return requestJson<TagListResponse>(`/api/v1/tags${search}`, undefined, baseUrl);
 }
 
 export async function createTag(body: CreateTagRequest, baseUrl = "http://localhost:3001") {

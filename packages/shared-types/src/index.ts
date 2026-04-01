@@ -5,6 +5,18 @@ export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "dead";
 export type TagStatus = "active" | "archived";
 export type UploadStatus = "initiated" | "uploaded" | "completed" | "expired";
 export type DocumentJobType = "parse_document" | "reparse_document" | "refresh_search_projection";
+export type DocumentProcessingJobName =
+  | "parse-document"
+  | "reparse-document"
+  | "refresh-search-projection";
+
+export const DOCUMENT_PROCESSING_QUEUE_NAME = "document-processing" as const;
+
+export const DOCUMENT_PROCESSING_JOB_NAMES = {
+  parseDocument: "parse-document",
+  reparseDocument: "reparse-document",
+  refreshSearchProjection: "refresh-search-projection"
+} as const;
 
 export interface HealthResponse {
   status: string;
@@ -40,6 +52,17 @@ export interface DocumentListResponse {
   page: number;
   page_size: number;
   total: number;
+}
+
+export interface ListDocumentsQuery {
+  q?: string;
+  source_type?: SourceType;
+  parse_status?: string;
+  tags?: string;
+  date_from?: string;
+  date_to?: string;
+  page?: number;
+  page_size?: number;
 }
 
 export interface UpdateDocumentTagsRequest {
@@ -98,6 +121,11 @@ export interface TagItem {
 
 export interface TagListResponse {
   items: TagItem[];
+}
+
+export interface ListTagsQuery {
+  q?: string;
+  status?: TagStatus;
 }
 
 export interface CreateTagRequest {

@@ -5,10 +5,14 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
+    "e2e:smoke": "pnpm test:e2e",
     "lint": "turbo run lint",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "test:e2e": "./scripts/run-e2e-smoke.sh",
+    "test:integration": "./scripts/run-api-integration.sh",
+    "test:unit": "pnpm --filter @xrag/worker test:unit",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
-    "validate": "pnpm lint && pnpm typecheck && pnpm test"
+    "validate": "pnpm lint && pnpm typecheck"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

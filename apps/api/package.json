@@ -3,15 +3,22 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:test": "tsc -p tsconfig.integration.json",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate:compiled": "node dist/apps/api/src/database/migrate.js",
     "db:migrate": "tsx src/database/migrate.ts",
-    "dev": "nodemon --watch src --ext ts --exec \"node -r ts-node/register/transpile-only -r tsconfig-paths/register src/main.ts\"",
+    "dev": "nodemon --watch src --ext ts --exec \"node --loader ts-node/esm src/main.ts\"",
     "lint": "tsc --noEmit -p tsconfig.json",
     "openapi:generate": "tsx src/openapi.ts",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "echo \"api tests not scaffolded yet\""
+    "start": "node dist/apps/api/src/main.js",
+    "test": "pnpm test:integration",
+    "test:integration": "pnpm build:test && node --test dist-integration/apps/api/test/integration/*.test.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1021.0",
+    "@aws-sdk/s3-request-presigner": "^3.1021.0",
+    "@aws-sdk/util-format-url": "^3.972.8",
     "@fastify/cors": "^10.0.2",
     "@nestjs/common": "^11.0.11",
     "@nestjs/core": "^11.0.11",

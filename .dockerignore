@@ -1,0 +1,14 @@
+.git
+.github
+.turbo
+node_modules
+**/node_modules
+coverage
+dist
+build
+apps/api/dist
+apps/api/dist-integration
+apps/web/dist
+apps/web/test-results
+apps/worker/dist
+prototype

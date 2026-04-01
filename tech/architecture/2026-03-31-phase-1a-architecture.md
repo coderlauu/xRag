@@ -39,8 +39,8 @@
 ### 2.3 本方案采用的关键假设
 
 - 首期按 `单用户 / 单租户` 私有测试设计，数据模型预留 `owner_id` 扩展位
-- 首期支持 `txt / md / 文本型 pdf`，扫描版 PDF 直接失败并给出原因
-- 首期单文件大小建议上限 `50MB`，但上传架构按更大文件可扩展方案设计
+- 首期支持 `txt / md` 文本类文件；`pdf` 真实解析放到下一阶段
+- 首期单文件大小按单对象 presigned upload 闭环设计；multipart 大文件上传放到下一阶段
 - 检索目标是“稳定关键词找回”，不是“智能问答”
 - 内容以中英混合文本为主，因此搜索不能只依赖纯英文分词方案
 
@@ -312,7 +312,7 @@ Browser
 ### 11.1 上传链路
 
 - 前端先请求 `/uploads/initiate`
-- API 返回预签名 URL 或 multipart upload 参数
+- `Phase 1A` API 返回单对象预签名 URL
 - 浏览器直传对象存储
 - 上传完成后调用 `/uploads/{id}/complete`
 - API 创建文档记录并投递解析任务
@@ -327,7 +327,7 @@ Browser
 
 - Worker 从对象存储流式读取
 - 文本型 `txt/md` 直接解析
-- `pdf` 走专用文本抽取适配器
+- `pdf` 真实解析放到下一阶段
 - 解析结果写回 `content_clean`、`content_preview`、`search_text`
 
 ### 11.4 安全与稳定性
@@ -359,9 +359,8 @@ Browser
 
 1. 文本录入并成功搜索找回
 2. 上传 `txt/md` 后进入 `success`
-3. 上传文本型 `pdf` 后经历 `processing -> success`
-4. 上传不支持文件后进入 `failed`
-5. 搜索筛选与详情页跳转
+3. 上传不支持文件后进入 `failed`
+4. 搜索筛选与详情页跳转
 
 ### 12.4 补充测试
 

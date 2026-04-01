@@ -1,12 +1,15 @@
 import { QueueEvents, Worker } from "bullmq";
 import { createLogger } from "../logging/logger";
 import { loadWorkerEnv } from "../config/env";
+import { createDatabasePool } from "../database/database";
+import { WorkerRepository } from "../database/repository";
 import {
   DOCUMENT_PROCESSING_JOB_NAMES,
   DOCUMENT_PROCESSING_QUEUE_NAME,
   type DocumentProcessingJobName
 } from "../queue/constants";
-import { documentProcessingHandlers, type DocumentProcessingJobData } from "../jobs/document-processing";
+import { createDocumentProcessingHandlers, type DocumentProcessingJobData } from "../jobs/document-processing";
+import { WorkerStorageService } from "../storage/storage";
 
 function createRedisConnection(env: ReturnType<typeof loadWorkerEnv>) {
   if (env.redisUrl) {
@@ -34,6 +37,14 @@ export async function bootstrapWorker() {
   const env = loadWorkerEnv();
   const logger = createLogger(env.logLevel);
   const redisConnection = createRedisConnection(env);
+  const databasePool = createDatabasePool();
+  const repository = new WorkerRepository(databasePool);
+  const storage = new WorkerStorageService();
+  const documentProcessingHandlers = createDocumentProcessingHandlers({
+    repository,
+    storage,
+    logger
+  });
 
   const worker = new Worker<DocumentProcessingJobData>(
     env.queueName,
@@ -59,8 +70,7 @@ export async function bootstrapWorker() {
           id: job.id ?? "unknown",
           data: job.data,
           attemptsMade: job.attemptsMade
-        },
-        logger
+        }
       );
     },
     {
@@ -113,5 +123,19 @@ export async function bootstrapWorker() {
     queueName: env.queueName,
     concurrency: env.concurrency,
     redis: env.redisUrl ? "url" : `${env.redisHost}:${env.redisPort}/${env.redisDb}`
+  });
+
+  const shutdown = async () => {
+    await queueEvents.close();
+    await worker.close();
+    await databasePool.end();
+    storage.destroy();
+  };
+
+  process.once("SIGINT", () => {
+    void shutdown();
+  });
+  process.once("SIGTERM", () => {
+    void shutdown();
   });
 }

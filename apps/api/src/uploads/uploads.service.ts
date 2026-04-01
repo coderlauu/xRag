@@ -2,24 +2,25 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { randomUUID } from "node:crypto";
 import type { UploadCompleteResponse, UploadInitiateResponse } from "@xrag/shared-types";
 import { buildSearchText, normalizeWhitespace, sanitizeFileName } from "../common/document-utils";
-import { loadApiEnv } from "../config/env";
 import { DatabaseService } from "../database/database.service";
 import { DocumentsRepository } from "../documents/documents.repository";
 import { JobsRepository } from "../jobs/jobs.repository";
+import { QueueService } from "../queue/queue.service";
+import { StorageService } from "../storage/storage.service";
 import { TagsRepository } from "../tags/tags.repository";
 import { UploadCompleteRequestDto, UploadInitiateRequestDto } from "./uploads.dto";
 import { UploadsRepository } from "./uploads.repository";
 
 @Injectable()
 export class UploadsService {
-  private readonly env = loadApiEnv();
-
   constructor(
     private readonly database: DatabaseService,
     private readonly uploadsRepository: UploadsRepository,
     private readonly documentsRepository: DocumentsRepository,
     private readonly tagsRepository: TagsRepository,
-    private readonly jobsRepository: JobsRepository
+    private readonly jobsRepository: JobsRepository,
+    private readonly queueService: QueueService,
+    private readonly storageService: StorageService
   ) {}
 
   async initiateUpload(body: UploadInitiateRequestDto): Promise<UploadInitiateResponse> {
@@ -42,20 +43,25 @@ export class UploadsService {
       objectKey
     });
 
+    const presigned = await this.storageService.createPresignedUpload({
+      objectKey: upload.objectKey,
+      contentType: upload.mimeType
+    });
+
     return {
       upload_id: upload.id,
       object_key: upload.objectKey,
       upload_method: "presigned_put",
-      upload_url: `${this.env.uploadUrlBase.replace(/\/$/, "")}/${upload.objectKey}`,
+      upload_url: presigned.uploadUrl,
       headers: {
         "content-type": upload.mimeType
       },
-      expires_in: this.env.uploadUrlExpiresIn
+      expires_in: presigned.expiresIn
     };
   }
 
   async completeUpload(uploadId: string, body: UploadCompleteRequestDto): Promise<UploadCompleteResponse> {
-    return this.database.db.transaction(async (tx) => {
+    const result = await this.database.db.transaction(async (tx) => {
       const upload = await this.uploadsRepository.getUploadById(uploadId, tx);
       if (!upload) {
         throw new NotFoundException("Upload not found");
@@ -68,6 +74,8 @@ export class UploadsService {
       if (upload.status === "completed") {
         throw new BadRequestException("Upload already completed");
       }
+
+      await this.storageService.assertObjectExists(upload.objectKey);
 
       const title = normalizeWhitespace(body.title);
       const tagRows = await this.tagsRepository.upsertTags(body.tags, tx);
@@ -120,5 +128,25 @@ export class UploadsService {
         parse_status: document.parseStatus
       };
     });
+
+    try {
+      const queueJobId = await this.queueService.enqueueParseDocument(result.document_id, uploadId);
+      await this.jobsRepository.updateJob(result.job_id, {
+        queueJobId
+      });
+    } catch (error) {
+      await this.jobsRepository.updateJob(result.job_id, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Failed to enqueue parse job",
+        finishedAt: new Date()
+      });
+      await this.documentsRepository.updateDocumentProjection(result.document_id, {
+        parseStatus: "failed",
+        parseErrorMessage: "Failed to enqueue parse job"
+      });
+      throw new BadRequestException("Failed to enqueue parse job");
+    }
+
+    return result;
   }
 }

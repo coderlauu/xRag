@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { DatabaseService, type DatabaseClient } from "../database/database.service";
 import { documentParseJobs } from "../database/schema";
 
-type DatabaseExecutor = Pick<DatabaseClient, "select" | "insert">;
+type DatabaseExecutor = Pick<DatabaseClient, "select" | "insert" | "update">;
 
 @Injectable()
 export class JobsRepository {
@@ -16,6 +16,20 @@ export class JobsRepository {
 
   async createJob(values: typeof documentParseJobs.$inferInsert, db: DatabaseExecutor = this.database.db) {
     const [job] = await db.insert(documentParseJobs).values(values).returning();
+    return job;
+  }
+
+  async updateJob(
+    jobId: string,
+    values: Partial<typeof documentParseJobs.$inferInsert>,
+    db: DatabaseExecutor = this.database.db
+  ) {
+    const [job] = await db
+      .update(documentParseJobs)
+      .set(values)
+      .where(eq(documentParseJobs.id, jobId))
+      .returning();
+
     return job;
   }
 

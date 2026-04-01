@@ -53,6 +53,10 @@
 5. API 变更必须更新 OpenAPI 和前端 SDK
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
+8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`
+9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
+10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
+11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口
 
 ## 5. 未来正式工程建议结构
 

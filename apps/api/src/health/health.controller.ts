@@ -1,9 +1,15 @@
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
+import { QueueService } from "../queue/queue.service";
+import { StorageService } from "../storage/storage.service";
 
 @Controller("api/v1/health")
 export class HealthController {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly queueService: QueueService,
+    private readonly storageService: StorageService
+  ) {}
 
   @Get()
   getHealth() {
@@ -14,16 +20,18 @@ export class HealthController {
   async getReadiness() {
     try {
       await this.database.checkConnection();
+      await this.queueService.checkConnection();
+      await this.storageService.checkConnection();
     } catch {
-      throw new ServiceUnavailableException("Postgres is unavailable");
+      throw new ServiceUnavailableException("Dependencies are unavailable");
     }
 
     return {
       status: "ready",
       checks: {
         postgres: "ok",
-        redis: "not-wired",
-        objectStorage: "not-wired"
+        redis: "ok",
+        objectStorage: "ok"
       }
     };
   }

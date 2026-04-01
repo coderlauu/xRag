@@ -86,6 +86,7 @@ xRag/
 - [产品交付 SOP](/Users/coderlauu/xRag/docs/process/product-delivery-sop.md)
 - [当前版本 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 - [当前版本 Status](/Users/coderlauu/xRag/docs/status/v1-phase-1a.md)
+- [Deployment Baseline](/Users/coderlauu/xRag/deploy/README.md)
 - [Phase 1A PRD](/Users/coderlauu/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
 - [v1 Scope 与取舍](/Users/coderlauu/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
 - [v1 交互说明](/Users/coderlauu/xRag/design/spec/2026-03-31-v1-interaction-spec.md)

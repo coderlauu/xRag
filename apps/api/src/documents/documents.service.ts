@@ -18,6 +18,7 @@ import {
 import { DatabaseService } from "../database/database.service";
 import { documents } from "../database/schema";
 import { JobsRepository } from "../jobs/jobs.repository";
+import { QueueService } from "../queue/queue.service";
 import { TagsRepository } from "../tags/tags.repository";
 import { CreateTextDocumentRequestDto, ListDocumentsQueryDto, UpdateDocumentTagsRequestDto } from "./documents.dto";
 import { DocumentsRepository } from "./documents.repository";
@@ -30,7 +31,8 @@ export class DocumentsService {
     private readonly database: DatabaseService,
     private readonly documentsRepository: DocumentsRepository,
     private readonly tagsRepository: TagsRepository,
-    private readonly jobsRepository: JobsRepository
+    private readonly jobsRepository: JobsRepository,
+    private readonly queueService: QueueService
   ) {}
 
   async createTextDocument(body: CreateTextDocumentRequestDto): Promise<CreateTextDocumentResponse> {
@@ -141,7 +143,7 @@ export class DocumentsService {
   }
 
   async retryDocument(documentId: string): Promise<RetryDocumentResponse> {
-    return this.database.db.transaction(async (tx) => {
+    const retryResult = await this.database.db.transaction(async (tx) => {
       const document = await this.documentsRepository.getDocumentById(documentId, tx);
       if (!document) {
         throw new NotFoundException("Document not found");
@@ -176,9 +178,29 @@ export class DocumentsService {
       return {
         document_id: documentId,
         job_id: job.id,
-        parse_status: "pending"
+        parse_status: "pending" as const
       };
     });
+
+    try {
+      const queueJobId = await this.queueService.enqueueReparseDocument(documentId);
+      await this.jobsRepository.updateJob(retryResult.job_id, {
+        queueJobId
+      });
+    } catch (error) {
+      await this.jobsRepository.updateJob(retryResult.job_id, {
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Failed to enqueue reparse job",
+        finishedAt: new Date()
+      });
+      await this.documentsRepository.updateDocumentProjection(documentId, {
+        parseStatus: "failed",
+        parseErrorMessage: "Failed to enqueue reparse job"
+      });
+      throw new BadRequestException("Failed to enqueue reparse job");
+    }
+
+    return retryResult;
   }
 
   private toDocumentSummary(document: DocumentRow, tagNames: string[]): DocumentSummary {
