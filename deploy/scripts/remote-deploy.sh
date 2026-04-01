@@ -61,6 +61,8 @@ resolve_docker_access
 
 echo "${GHCR_TOKEN}" | docker_run login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
 
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" down --remove-orphans || true
+
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" pull
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d postgres redis minio
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm api-migrate
