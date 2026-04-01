@@ -52,14 +52,14 @@ if [[ ! -f "${env_file}" ]]; then
   exit 1
 fi
 
-if [[ -z "${GHCR_USERNAME:-}" || -z "${GHCR_TOKEN:-}" ]]; then
-  echo "Missing GHCR credentials" >&2
+if [[ -z "${REGISTRY_HOST:-}" || -z "${REGISTRY_USERNAME:-}" || -z "${REGISTRY_PASSWORD:-}" ]]; then
+  echo "Missing registry credentials" >&2
   exit 1
 fi
 
 resolve_docker_access
 
-echo "${GHCR_TOKEN}" | docker_run login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+echo "${REGISTRY_PASSWORD}" | docker_run login "${REGISTRY_HOST}" -u "${REGISTRY_USERNAME}" --password-stdin
 
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" down --remove-orphans || true
 

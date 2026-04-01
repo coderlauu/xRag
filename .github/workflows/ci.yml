@@ -114,6 +114,7 @@ jobs:
     needs: [validate, integration, e2e, infra]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: production
     strategy:
       fail-fast: false
       matrix:
@@ -131,12 +132,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Log in to GHCR
+      - name: Log in to registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ secrets.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v6
@@ -145,7 +146,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           provenance: false
-          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image_name }}:${{ github.sha }}
+          tags: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/${{ matrix.image_name }}:${{ github.sha }}
 
   deploy-staging:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -160,7 +161,7 @@ jobs:
       - name: Check staging deploy secrets
         id: staging-preflight
         run: |
-          if [[ -z "${{ secrets.SSH_HOST }}" || -z "${{ secrets.SSH_USER }}" || -z "${{ secrets.SSH_PRIVATE_KEY }}" || -z "${{ secrets.DEPLOY_PATH }}" || -z "${{ secrets.DEPLOY_ENV_FILE }}" || -z "${{ secrets.GHCR_USERNAME }}" || -z "${{ secrets.GHCR_TOKEN }}" ]]; then
+          if [[ -z "${{ secrets.SSH_HOST }}" || -z "${{ secrets.SSH_USER }}" || -z "${{ secrets.SSH_PRIVATE_KEY }}" || -z "${{ secrets.DEPLOY_PATH }}" || -z "${{ secrets.DEPLOY_ENV_FILE }}" || -z "${{ secrets.REGISTRY_HOST }}" || -z "${{ secrets.REGISTRY_USERNAME }}" || -z "${{ secrets.REGISTRY_PASSWORD }}" || -z "${{ secrets.REGISTRY_NAMESPACE }}" ]]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "Staging deploy secrets are missing; skipping deploy."
           else
@@ -173,16 +174,18 @@ jobs:
           DEPLOY_ENVIRONMENT: staging
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
+          REGISTRY_NAMESPACE: ${{ secrets.REGISTRY_NAMESPACE }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_USER: ${{ secrets.SSH_USER }}
-          XRAG_API_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-api:${{ github.sha }}
+          XRAG_API_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-api:${{ github.sha }}
           XRAG_IMAGE_TAG: ${{ github.sha }}
-          XRAG_WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-web:${{ github.sha }}
-          XRAG_WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-worker:${{ github.sha }}
+          XRAG_WEB_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-web:${{ github.sha }}
+          XRAG_WORKER_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-worker:${{ github.sha }}
         run: scripts/gh-deploy-ssh.sh
 
   smoke-staging:
@@ -222,7 +225,7 @@ jobs:
       - name: Check production deploy secrets
         id: production-preflight
         run: |
-          if [[ -z "${{ secrets.SSH_HOST }}" || -z "${{ secrets.SSH_USER }}" || -z "${{ secrets.SSH_PRIVATE_KEY }}" || -z "${{ secrets.DEPLOY_PATH }}" || -z "${{ secrets.DEPLOY_ENV_FILE }}" || -z "${{ secrets.GHCR_USERNAME }}" || -z "${{ secrets.GHCR_TOKEN }}" ]]; then
+          if [[ -z "${{ secrets.SSH_HOST }}" || -z "${{ secrets.SSH_USER }}" || -z "${{ secrets.SSH_PRIVATE_KEY }}" || -z "${{ secrets.DEPLOY_PATH }}" || -z "${{ secrets.DEPLOY_ENV_FILE }}" || -z "${{ secrets.REGISTRY_HOST }}" || -z "${{ secrets.REGISTRY_USERNAME }}" || -z "${{ secrets.REGISTRY_PASSWORD }}" || -z "${{ secrets.REGISTRY_NAMESPACE }}" ]]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "Production deploy secrets are missing; skipping deploy."
           else
@@ -235,16 +238,18 @@ jobs:
           DEPLOY_ENVIRONMENT: production
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
+          REGISTRY_NAMESPACE: ${{ secrets.REGISTRY_NAMESPACE }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_USER: ${{ secrets.SSH_USER }}
-          XRAG_API_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-api:${{ github.sha }}
+          XRAG_API_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-api:${{ github.sha }}
           XRAG_IMAGE_TAG: ${{ github.sha }}
-          XRAG_WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-web:${{ github.sha }}
-          XRAG_WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/xrag-worker:${{ github.sha }}
+          XRAG_WEB_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-web:${{ github.sha }}
+          XRAG_WORKER_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-worker:${{ github.sha }}
         run: scripts/gh-deploy-ssh.sh
 
   smoke-production:

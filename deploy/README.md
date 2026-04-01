@@ -10,7 +10,7 @@
 
 - Linux 主机
 - Docker Engine + Docker Compose
-- 可访问 `ghcr.io`
+- 可访问你的镜像仓库地址，例如阿里云 ACR
 - 对外放行 `80` 和 `443`
 
 ## Recommended Layout
@@ -87,17 +87,20 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `SSH_PRIVATE_KEY`
 - `DEPLOY_PATH`
 - `DEPLOY_ENV_FILE`
-- `GHCR_USERNAME`
-- `GHCR_TOKEN`
+- `REGISTRY_HOST`
+- `REGISTRY_NAMESPACE`
+- `REGISTRY_USERNAME`
+- `REGISTRY_PASSWORD`
 - `APP_BASE_URL`
 
 说明：
 
 - `DEPLOY_ENV_FILE` 为完整多行 `.env` 内容，可参考 [staging.env.example](/Users/coderlauu/xRag/deploy/env/staging.env.example) 和 [production.env.example](/Users/coderlauu/xRag/deploy/env/production.env.example)
 - `APP_BASE_URL` 为部署后的 Web 外部访问地址，例如 `https://staging.example.com`
-- `GHCR_TOKEN` 需要具备镜像拉取权限
-- `GHCR_USERNAME` 通常为 GitHub 用户名
-- `GHCR_TOKEN` 可使用 PAT，至少具备 `read:packages`
+- `REGISTRY_HOST` 例如 `crpi-9zaebevr54ofetmt.cn-guangzhou.personal.cr.aliyuncs.com`
+- `REGISTRY_NAMESPACE` 例如 `coderlau`
+- `REGISTRY_USERNAME` 例如 `coderlau`
+- `REGISTRY_PASSWORD` 为镜像仓库登录密码或 token
 
 ## Suggested Values For Current Project
 

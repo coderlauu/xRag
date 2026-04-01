@@ -7,8 +7,9 @@ cd "${repo_root}"
 : "${DEPLOY_ENVIRONMENT:?DEPLOY_ENVIRONMENT is required}"
 : "${DEPLOY_PATH:?DEPLOY_PATH is required}"
 : "${DEPLOY_ENV_FILE:?DEPLOY_ENV_FILE is required}"
-: "${GHCR_USERNAME:?GHCR_USERNAME is required}"
-: "${GHCR_TOKEN:?GHCR_TOKEN is required}"
+: "${REGISTRY_HOST:?REGISTRY_HOST is required}"
+: "${REGISTRY_USERNAME:?REGISTRY_USERNAME is required}"
+: "${REGISTRY_PASSWORD:?REGISTRY_PASSWORD is required}"
 : "${SSH_HOST:?SSH_HOST is required}"
 : "${SSH_PRIVATE_KEY:?SSH_PRIVATE_KEY is required}"
 : "${SSH_USER:?SSH_USER is required}"
@@ -78,8 +79,9 @@ scp "${scp_base_args[@]}" "${bundle_file}" "${SSH_USER}@${SSH_HOST}:${bundle_pat
 env_file_b64="$(printf '%s' "${DEPLOY_ENV_FILE}" | base64 | tr -d '\n')"
 
 printf -v env_file_b64_q '%q' "${env_file_b64}"
-printf -v ghcr_user_q '%q' "${GHCR_USERNAME}"
-printf -v ghcr_token_q '%q' "${GHCR_TOKEN}"
+printf -v registry_host_q '%q' "${REGISTRY_HOST}"
+printf -v registry_user_q '%q' "${REGISTRY_USERNAME}"
+printf -v registry_password_q '%q' "${REGISTRY_PASSWORD}"
 printf -v api_image_q '%q' "${XRAG_API_IMAGE}"
 printf -v worker_image_q '%q' "${XRAG_WORKER_IMAGE}"
 printf -v web_image_q '%q' "${XRAG_WEB_IMAGE}"
@@ -89,5 +91,5 @@ printf -v image_tag_q '%q' "${XRAG_IMAGE_TAG}"
 printf -v bundle_path_q '%q' "${bundle_path}"
 
 ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" \
-  "XRAG_ENV_FILE_B64=${env_file_b64_q} GHCR_USERNAME=${ghcr_user_q} GHCR_TOKEN=${ghcr_token_q} XRAG_API_IMAGE=${api_image_q} XRAG_WORKER_IMAGE=${worker_image_q} XRAG_WEB_IMAGE=${web_image_q} bash -s -- ${deploy_path_q} ${deploy_env_q} ${image_tag_q} ${bundle_path_q}" \
+  "XRAG_ENV_FILE_B64=${env_file_b64_q} REGISTRY_HOST=${registry_host_q} REGISTRY_USERNAME=${registry_user_q} REGISTRY_PASSWORD=${registry_password_q} XRAG_API_IMAGE=${api_image_q} XRAG_WORKER_IMAGE=${worker_image_q} XRAG_WEB_IMAGE=${web_image_q} bash -s -- ${deploy_path_q} ${deploy_env_q} ${image_tag_q} ${bundle_path_q}" \
   < "${repo_root}/deploy/scripts/remote-deploy.sh"
