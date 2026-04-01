@@ -151,7 +151,7 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
-      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${XRAG_CADDYFILE_PATH}:/etc/caddy/Caddyfile:ro
 
 volumes:
   postgres_data:

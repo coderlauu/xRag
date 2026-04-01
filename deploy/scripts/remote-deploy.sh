@@ -9,6 +9,7 @@ bundle_path="${4:?bundle path is required}"
 release_dir="${deploy_root}/releases/${image_tag}"
 shared_dir="${deploy_root}/shared"
 env_file="${shared_dir}/${environment}.env"
+caddyfile_path="${shared_dir}/Caddyfile"
 compose_file="${release_dir}/deploy/compose/stack.compose.yml"
 project_name="xrag-${environment}"
 
@@ -42,6 +43,8 @@ mkdir -p "${release_dir}" "${shared_dir}"
 rm -rf "${release_dir:?}"/*
 tar -xzf "${bundle_path}" -C "${release_dir}"
 
+cp "${release_dir}/deploy/caddy/Caddyfile" "${caddyfile_path}"
+
 if [[ -n "${XRAG_ENV_FILE_B64:-}" ]]; then
   printf '%s' "${XRAG_ENV_FILE_B64}" | base64 --decode > "${env_file}"
   chmod 600 "${env_file}"
@@ -63,6 +66,7 @@ echo "${REGISTRY_PASSWORD}" | docker_run login "${REGISTRY_HOST}" -u "${REGISTRY
 
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" down --remove-orphans || true
 
+export XRAG_CADDYFILE_PATH="${caddyfile_path}"
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" pull
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d postgres redis minio
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm -T api-migrate </dev/null
