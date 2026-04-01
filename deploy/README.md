@@ -21,6 +21,13 @@
   - 对 `/srv/xrag` 的读写权限
   - Docker 执行权限
 
+如果你不想把 `deploy` 用户加入 `docker` 组，也可以给它配置免密 sudo 用于 Docker：
+
+```bash
+echo 'deploy ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/bin/docker compose' | sudo tee /etc/sudoers.d/xrag-deploy
+sudo chmod 440 /etc/sudoers.d/xrag-deploy
+```
+
 示例：
 
 ```bash
@@ -60,6 +67,14 @@ cat ~/.ssh/xrag_github_actions
 - `SSH_PORT=22`
 - `SSH_USER=deploy`
 - `DEPLOY_PATH=/srv/xrag`
+
+5. 在启用 GitHub Actions 前，先在本机做一次真实登录验证：
+
+```bash
+ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
+```
+
+如果这一步都不能成功，GitHub Actions 一定也会失败。
 
 ## Required GitHub Environment Secrets
 

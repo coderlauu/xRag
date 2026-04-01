@@ -29,10 +29,39 @@ cleanup() {
 trap cleanup EXIT
 
 printf '%s\n' "${SSH_PRIVATE_KEY}" > "${key_file}"
+tr -d '\r' < "${key_file}" > "${key_file}.normalized"
+mv "${key_file}.normalized" "${key_file}"
 chmod 600 "${key_file}"
 tar -czf "${bundle_file}" deploy
 
-scp -i "${key_file}" -P "${ssh_port}" -o StrictHostKeyChecking=no "${bundle_file}" "${SSH_USER}@${SSH_HOST}:${bundle_path}"
+if ! ssh-keygen -y -f "${key_file}" >/dev/null 2>&1; then
+  echo "SSH_PRIVATE_KEY is not a valid private key" >&2
+  exit 1
+fi
+
+ssh_base_args=(
+  -i "${key_file}"
+  -p "${ssh_port}"
+  -o BatchMode=yes
+  -o ConnectTimeout=10
+  -o StrictHostKeyChecking=no
+)
+
+if ! ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "echo xrag-ssh-ok" >/dev/null 2>&1; then
+  cat >&2 <<EOF
+Remote SSH authentication failed.
+Check these values and server state:
+- SSH_HOST
+- SSH_PORT
+- SSH_USER
+- SSH_PRIVATE_KEY
+- the matching public key in ~${SSH_USER}/.ssh/authorized_keys
+- whether the ${SSH_USER} user is allowed to log in via public key
+EOF
+  exit 1
+fi
+
+scp "${ssh_base_args[@]}" "${bundle_file}" "${SSH_USER}@${SSH_HOST}:${bundle_path}"
 
 env_file_b64="$(printf '%s' "${DEPLOY_ENV_FILE}" | base64 | tr -d '\n')"
 
@@ -47,6 +76,6 @@ printf -v deploy_env_q '%q' "${DEPLOY_ENVIRONMENT}"
 printf -v image_tag_q '%q' "${XRAG_IMAGE_TAG}"
 printf -v bundle_path_q '%q' "${bundle_path}"
 
-ssh -i "${key_file}" -p "${ssh_port}" -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
+ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" \
   "XRAG_ENV_FILE_B64=${env_file_b64_q} GHCR_USERNAME=${ghcr_user_q} GHCR_TOKEN=${ghcr_token_q} XRAG_API_IMAGE=${api_image_q} XRAG_WORKER_IMAGE=${worker_image_q} XRAG_WEB_IMAGE=${web_image_q} bash -s -- ${deploy_path_q} ${deploy_env_q} ${image_tag_q} ${bundle_path_q}" \
   < "${repo_root}/deploy/scripts/remote-deploy.sh"

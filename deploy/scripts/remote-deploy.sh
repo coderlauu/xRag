@@ -12,6 +12,32 @@ env_file="${shared_dir}/${environment}.env"
 compose_file="${release_dir}/deploy/compose/stack.compose.yml"
 project_name="xrag-${environment}"
 
+docker_cmd=(docker)
+
+resolve_docker_access() {
+  if docker info >/dev/null 2>&1; then
+    docker_cmd=(docker)
+    return 0
+  fi
+
+  if sudo -n docker info >/dev/null 2>&1; then
+    docker_cmd=(sudo -n docker)
+    return 0
+  fi
+
+  cat >&2 <<EOF
+Docker daemon is not accessible for the current remote user.
+Fix one of these on the server:
+- add the deploy user to the docker group, then re-login
+- allow passwordless sudo for docker commands
+EOF
+  return 1
+}
+
+docker_run() {
+  "${docker_cmd[@]}" "$@"
+}
+
 mkdir -p "${release_dir}" "${shared_dir}"
 rm -rf "${release_dir:?}"/*
 tar -xzf "${bundle_path}" -C "${release_dir}"
@@ -31,13 +57,15 @@ if [[ -z "${GHCR_USERNAME:-}" || -z "${GHCR_TOKEN:-}" ]]; then
   exit 1
 fi
 
-echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+resolve_docker_access
 
-docker compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" pull
-docker compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d postgres redis minio
-docker compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm api-migrate
-docker compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d api worker web
-docker compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps
+echo "${GHCR_TOKEN}" | docker_run login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" pull
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d postgres redis minio
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm api-migrate
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d api worker web
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps
 
 rm -f "${bundle_path}"
-docker image prune -f >/dev/null 2>&1 || true
+docker_run image prune -f >/dev/null 2>&1 || true
