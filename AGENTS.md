@@ -5,7 +5,7 @@
 ## 1. 先看哪里
 
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
-2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v1-phase-1a.md)
+2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)
 3. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
 4. [Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
 5. [Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
@@ -14,7 +14,7 @@
 ## 2. 当前项目状态
 
 - 当前仓库已经完成正式工程 scaffold
-- `v1 / Phase 1A` 仍在开发中，当前状态以 `docs/status/` 为准
+- `v1 / Phase 1A` 已完成并归档，当前活跃版本为 `v2 / Phase 1B`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源

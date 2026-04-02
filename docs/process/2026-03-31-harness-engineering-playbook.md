@@ -80,7 +80,7 @@
 
 - [AGENTS.md](/Users/coderlauu/xRag/AGENTS.md)
 - [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
-- [当前版本状态](/Users/coderlauu/xRag/docs/status/v1-phase-1a.md)
+- [当前版本状态](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)
 - [Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
 - [Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
 - [API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
@@ -142,7 +142,7 @@ packages/ui
 标准：
 
 - 明确目标用户
-- 明确是否属于 `Phase 1A`
+- 明确是否属于当前活跃版本
 - 明确 In / Out of Scope
 
 ### 4.2 阶段 1：写执行计划
