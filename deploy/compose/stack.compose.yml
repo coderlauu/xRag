@@ -145,6 +145,7 @@ services:
         condition: service_started
     environment:
       APP_DOMAIN: ${APP_DOMAIN:-xrag.coderlau.cn}
+      STORAGE_PUBLIC_HOST: ${STORAGE_PUBLIC_HOST:-storage.xrag.coderlau.cn}
     ports:
       - "80:80"
       - "443:443"

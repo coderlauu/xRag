@@ -28,6 +28,15 @@ export class StorageService implements OnApplicationShutdown {
       secretAccessKey: this.env.storageSecretAccessKey
     }
   });
+  private readonly publicClient = new S3Client({
+    region: this.env.storageRegion,
+    endpoint: this.env.storagePublicUrl,
+    forcePathStyle: this.env.storageForcePathStyle,
+    credentials: {
+      accessKeyId: this.env.storageAccessKeyId,
+      secretAccessKey: this.env.storageSecretAccessKey
+    }
+  });
 
   async createPresignedUpload(params: PresignedUploadParams) {
     await this.ensureBucketExists();
@@ -38,7 +47,7 @@ export class StorageService implements OnApplicationShutdown {
       ContentType: params.contentType
     });
 
-    const signedUrl = await getSignedUrl(this.client, command, {
+    const signedUrl = await getSignedUrl(this.publicClient, command, {
       expiresIn: this.env.uploadUrlExpiresIn
     });
 
@@ -89,6 +98,7 @@ export class StorageService implements OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     this.client.destroy();
+    this.publicClient.destroy();
   }
 
   private async ensureBucketExists(): Promise<void> {

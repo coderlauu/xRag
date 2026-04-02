@@ -3,3 +3,7 @@
 
   reverse_proxy web:8080
 }
+
+{$STORAGE_PUBLIC_HOST} {
+  reverse_proxy minio:9000
+}

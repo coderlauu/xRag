@@ -101,6 +101,7 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `REGISTRY_NAMESPACE` 例如 `coderlau`
 - `REGISTRY_USERNAME` 例如 `coderlau`
 - `REGISTRY_PASSWORD` 为镜像仓库登录密码或 token
+- `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST` 与 `STORAGE_PUBLIC_URL`
 
 ## Suggested Values For Current Project
 
@@ -112,6 +113,8 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `DEPLOY_PATH=/srv/xrag`
 - `APP_BASE_URL=https://xrag.coderlau.cn`
 - `APP_DOMAIN=xrag.coderlau.cn`
+- `STORAGE_PUBLIC_HOST=storage.xrag.coderlau.cn`
+- `STORAGE_PUBLIC_URL=https://storage.xrag.coderlau.cn`
 
 `staging` 有两种做法：
 
@@ -124,11 +127,13 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 
 - `80/443` 由 `Caddy` 监听
 - `Caddy` 自动为 `APP_DOMAIN` 申请和续期证书
+- `Caddy` 同时为 `STORAGE_PUBLIC_HOST` 代理对象存储上传 API
 - `web` 仅在内网暴露 `8080`
 
 前提：
 
 - `APP_DOMAIN` 已解析到服务器公网 IP
+- `STORAGE_PUBLIC_HOST` 已解析到服务器公网 IP
 - 服务器安全组和系统防火墙已放行 `80/443`
 - 80 端口未被其他 Web 服务占用
 
@@ -139,6 +144,12 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `api / worker / web / postgres / redis / minio` 可通过 `deploy/compose/stack.compose.yml` 拉起
 - `/api/v1/health` 返回 `{"status":"ok"}`
 - 通过外部入口成功完成了 `create text document -> list -> detail` 的最小业务闭环
+
+## Inspection And Debugging
+
+如果你需要查看 production 当前跑了什么、数据库里有什么、MinIO 里有什么，直接看：
+
+- [Production Inspection Guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 
 ## Deploy Flow
 
