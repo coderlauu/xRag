@@ -39,6 +39,25 @@ docker_run() {
   "${docker_cmd[@]}" "$@"
 }
 
+docker_login_with_retry() {
+  local attempts=5
+  local attempt
+  for attempt in $(seq 1 "${attempts}"); do
+    if printf '%s' "${REGISTRY_PASSWORD}" | docker_run login "${REGISTRY_HOST}" -u "${REGISTRY_USERNAME}" --password-stdin; then
+      return 0
+    fi
+
+    if [[ "${attempt}" -eq "${attempts}" ]]; then
+      echo "Registry login failed after ${attempts} attempts." >&2
+      return 1
+    fi
+
+    local sleep_seconds=$((attempt * 5))
+    echo "Registry login failed on attempt ${attempt}/${attempts}, retrying in ${sleep_seconds}s..." >&2
+    sleep "${sleep_seconds}"
+  done
+}
+
 mkdir -p "${release_dir}" "${shared_dir}"
 rm -rf "${release_dir:?}"/*
 tar -xzf "${bundle_path}" -C "${release_dir}"
@@ -62,7 +81,7 @@ fi
 
 resolve_docker_access
 
-echo "${REGISTRY_PASSWORD}" | docker_run login "${REGISTRY_HOST}" -u "${REGISTRY_USERNAME}" --password-stdin
+docker_login_with_retry
 
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" down --remove-orphans || true
 

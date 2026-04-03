@@ -132,12 +132,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Log in to registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.REGISTRY_HOST }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Log in to registry with retry
+        env:
+          REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          attempts=5
+          for attempt in $(seq 1 "$attempts"); do
+            if printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY_HOST" -u "$REGISTRY_USERNAME" --password-stdin; then
+              exit 0
+            fi
+
+            if [[ "$attempt" -eq "$attempts" ]]; then
+              echo "Registry login failed after ${attempts} attempts." >&2
+              exit 1
+            fi
+
+            sleep_seconds=$((attempt * 5))
+            echo "Registry login failed on attempt ${attempt}/${attempts}, retrying in ${sleep_seconds}s..."
+            sleep "$sleep_seconds"
+          done
 
       - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v6
