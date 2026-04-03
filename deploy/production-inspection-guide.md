@@ -34,7 +34,7 @@ docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep xrag-produ
 如果想看端口监听：
 
 ```bash
-ss -lntp | grep -E ':80|:443|:9000|:9001'
+ss -lntp | grep -E ':80|:443'
 ```
 
 ---
@@ -160,12 +160,15 @@ order by created_at desc;
 
 ### 5.1 最直观的方式：打开 MinIO Console
 
-当前 compose 对外开放了：
+正式生产建议通过独立域名访问：
 
-- API：`9000`
-- Console：`9001`
+```text
+https://console.xrag.coderlau.cn
+```
 
-如果你的安全组没有开放 `9001`，不要直接暴露 Console 到公网。推荐通过 SSH 隧道访问：
+这个入口通过 `Caddy` 反代到 `minio:9001`，并加了一层 basic auth。
+
+如果 Console 域名尚未接通，才临时使用 SSH 隧道：
 
 ```bash
 ssh -L 9001:127.0.0.1:9001 deploy@8.134.122.242
@@ -177,15 +180,11 @@ ssh -L 9001:127.0.0.1:9001 deploy@8.134.122.242
 http://127.0.0.1:9001
 ```
 
-如果你已经显式开放了 `9001`，也可以直接访问：
-
-```text
-http://8.134.122.242:9001
-```
-
 或如果你已做额外反向代理，也可以用对应域名。
 
-登录账号密码来自：
+到达 Console 登录页后，先通过 basic auth，再输入 MinIO 自身账号密码。
+
+MinIO 登录账号密码来自：
 
 - `MINIO_ROOT_USER`
 - `MINIO_ROOT_PASSWORD`
@@ -200,11 +199,11 @@ http://8.134.122.242:9001
 uploads/YYYY/MM/DD/<upload_id>/<file_name>
 ```
 
-### 5.2 用 API 健康检查快速确认 MinIO 活着
+### 5.2 用公网存储域名快速确认 MinIO API 活着
 
 ```bash
-curl -fsS http://127.0.0.1:9000/minio/health/live
-curl -fsS http://127.0.0.1:9000/minio/health/ready
+curl -fsS https://storage.xrag.coderlau.cn/minio/health/live
+curl -fsS https://storage.xrag.coderlau.cn/minio/health/ready
 ```
 
 ---

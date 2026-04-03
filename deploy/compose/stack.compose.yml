@@ -30,9 +30,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    expose:
+      - "9000"
+      - "9001"
     volumes:
       - minio_data:/data
 
@@ -146,6 +146,9 @@ services:
     environment:
       APP_DOMAIN: ${APP_DOMAIN:-xrag.coderlau.cn}
       STORAGE_PUBLIC_HOST: ${STORAGE_PUBLIC_HOST:-storage.xrag.coderlau.cn}
+      CONSOLE_PUBLIC_HOST: ${CONSOLE_PUBLIC_HOST:-console.xrag.coderlau.cn}
+      CONSOLE_BASICAUTH_USERNAME: ${CONSOLE_BASICAUTH_USERNAME:-admin}
+      CONSOLE_BASICAUTH_PASSWORD_HASH: ${CONSOLE_BASICAUTH_PASSWORD_HASH}
     ports:
       - "80:80"
       - "443:443"

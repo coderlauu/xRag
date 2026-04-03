@@ -7,3 +7,11 @@
 {$STORAGE_PUBLIC_HOST} {
   reverse_proxy minio:9000
 }
+
+{$CONSOLE_PUBLIC_HOST} {
+  basic_auth {
+    {$CONSOLE_BASICAUTH_USERNAME} {$CONSOLE_BASICAUTH_PASSWORD_HASH}
+  }
+
+  reverse_proxy minio:9001
+}
