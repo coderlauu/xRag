@@ -166,7 +166,7 @@ order by created_at desc;
 https://console.xrag.coderlau.cn
 ```
 
-这个入口通过 `Caddy` 反代到 `minio:9001`，并加了一层 basic auth。
+这个入口通过 `Caddy` 反代到 `minio:9001`。
 
 如果 Console 域名尚未接通，才临时使用 SSH 隧道：
 
@@ -181,8 +181,6 @@ http://127.0.0.1:9001
 ```
 
 或如果你已做额外反向代理，也可以用对应域名。
-
-到达 Console 登录页后，先通过 basic auth，再输入 MinIO 自身账号密码。
 
 MinIO 登录账号密码来自：
 

@@ -101,12 +101,7 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `REGISTRY_NAMESPACE` 例如 `coderlau`
 - `REGISTRY_USERNAME` 例如 `coderlau`
 - `REGISTRY_PASSWORD` 为镜像仓库登录密码或 token
-- `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST`、`STORAGE_PUBLIC_URL`、`CONSOLE_PUBLIC_HOST`、`CONSOLE_PUBLIC_URL`、`CONSOLE_BASICAUTH_USERNAME`、`CONSOLE_BASICAUTH_PASSWORD_HASH`
-
-注意：
-
-- `CONSOLE_BASICAUTH_PASSWORD_HASH` 如果是 bcrypt，写进 `.env` 时要把每个 `$` 转义成 `$$`
-- 例如原始哈希 `$2y$10$...`，在 `.env` 中应写成 `$$2y$$10$$...`
+- `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST`、`STORAGE_PUBLIC_URL`、`CONSOLE_PUBLIC_HOST`、`CONSOLE_PUBLIC_URL`
 
 ## Suggested Values For Current Project
 
@@ -135,7 +130,7 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `80/443` 由 `Caddy` 监听
 - `Caddy` 自动为 `APP_DOMAIN` 申请和续期证书
 - `Caddy` 同时为 `STORAGE_PUBLIC_HOST` 代理对象存储上传 API
-- `Caddy` 为 `CONSOLE_PUBLIC_HOST` 代理 MinIO Console，并要求 basic auth
+- `Caddy` 为 `CONSOLE_PUBLIC_HOST` 代理 MinIO Console
 - `web` 仅在内网暴露 `8080`
 
 前提：

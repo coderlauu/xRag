@@ -6,7 +6,7 @@
 - `phase`: `Phase 1B`
 - `status`: `in-progress`
 - `owner`: `codex`
-- `updated_at`: `2026-04-02`
+- `updated_at`: `2026-04-04`
 
 ## 2. Goal
 
@@ -38,8 +38,8 @@
 
 ## 4. Current Node
 
-- `now`: 除了 `Phase 1B` 规划外，已记录一个当前 production 基线 bug：点击 `Upload File` 后接口报错，表现为 `MinIO / storage` 相关错误，归类到当前版本的 `upload-storage` lane
-- `next`: 先排查并修复上传链路中的 `MinIO` 相关错误，再继续冻结 `pdf / multipart / observability` 的新增 contract
+- `now`: 当前阶段并行推进两个运维可用性问题：一是收敛 `MinIO Console` 访问方案，避免双层登录；二是为 `GitHub Actions` 失败引入标准化 incident / repair loop 方案
+- `next`: 先完成单层 `console` 访问配置与验证，再产出 `CI` 失败闭环的实现计划和仓库资产
 
 ## 5. Blockers
 
@@ -62,6 +62,7 @@
 - `version_handoff`: [v2.md](/Users/coderlauu/xRag/docs/handoff/v2.md)
 - `tech_docs`: [Phase 1A architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A data model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A api design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
 - `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
+- `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md)
 - `ops_runbook`: [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 - `key_commits`: `d15399b`, `cb8efc1`, `92f55a7`
 - `latest_ci_run`: `23856744666`
