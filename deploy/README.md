@@ -101,7 +101,7 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `REGISTRY_NAMESPACE` 例如 `coderlau`
 - `REGISTRY_USERNAME` 例如 `coderlau`
 - `REGISTRY_PASSWORD` 为镜像仓库登录密码或 token
-- `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST`、`STORAGE_PUBLIC_URL`、`CONSOLE_PUBLIC_HOST`、`CONSOLE_BASICAUTH_USERNAME`、`CONSOLE_BASICAUTH_PASSWORD_HASH`
+- `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST`、`STORAGE_PUBLIC_URL`、`CONSOLE_PUBLIC_HOST`、`CONSOLE_PUBLIC_URL`、`CONSOLE_BASICAUTH_USERNAME`、`CONSOLE_BASICAUTH_PASSWORD_HASH`
 
 注意：
 
@@ -121,6 +121,7 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `STORAGE_PUBLIC_HOST=storage.xrag.coderlau.cn`
 - `STORAGE_PUBLIC_URL=https://storage.xrag.coderlau.cn`
 - `CONSOLE_PUBLIC_HOST=console.xrag.coderlau.cn`
+- `CONSOLE_PUBLIC_URL=https://console.xrag.coderlau.cn`
 
 `staging` 有两种做法：
 
