@@ -113,10 +113,11 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: [validate, integration, e2e, infra]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     environment: production
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - service: api
@@ -154,14 +155,31 @@ jobs:
             sleep "$sleep_seconds"
           done
 
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: true
-          provenance: false
-          tags: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/${{ matrix.image_name }}:${{ github.sha }}
+      - name: Build and push ${{ matrix.service }} with retry
+        env:
+          IMAGE_TAG: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/${{ matrix.image_name }}:${{ github.sha }}
+          DOCKERFILE: ${{ matrix.dockerfile }}
+        run: |
+          attempts=3
+          for attempt in $(seq 1 "$attempts"); do
+            if docker buildx build \
+              --file "$DOCKERFILE" \
+              --tag "$IMAGE_TAG" \
+              --push \
+              --provenance=false \
+              .; then
+              exit 0
+            fi
+
+            if [[ "$attempt" -eq "$attempts" ]]; then
+              echo "Build/push failed after ${attempts} attempts." >&2
+              exit 1
+            fi
+
+            sleep_seconds=$((attempt * 20))
+            echo "Build/push failed on attempt ${attempt}/${attempts}, retrying in ${sleep_seconds}s..."
+            sleep "$sleep_seconds"
+          done
 
   deploy-staging:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
