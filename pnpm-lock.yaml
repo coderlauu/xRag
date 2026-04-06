@@ -81,6 +81,9 @@ importers:
       nodemon:
         specifier: ^3.1.14
         version: 3.1.14
+      pdf-parse:
+        specifier: ^2.4.5
+        version: 2.4.5
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@22.19.15)(typescript@5.9.3)

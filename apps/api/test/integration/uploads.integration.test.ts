@@ -2,8 +2,50 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Pool } from "pg";
 import { createApp } from "../../src/bootstrap";
+import { WorkerRepository } from "../../../../apps/worker/src/database/repository";
+import { createDocumentProcessingHandlers } from "../../../../apps/worker/src/jobs/document-processing";
+import { DOCUMENT_PROCESSING_JOB_NAMES } from "../../../../apps/worker/src/queue/constants";
+import { WorkerStorageService } from "../../../../apps/worker/src/storage/storage";
 
 const databaseUrl = process.env.DATABASE_URL || "postgresql://xrag:xrag@127.0.0.1:5432/xrag";
+
+const SAMPLE_PDF_CONTENT = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 44 >>
+stream
+BT
+/F1 24 Tf
+72 96 Td
+(Hello PDF) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000063 00000 n 
+0000000122 00000 n 
+0000000248 00000 n 
+0000000342 00000 n 
+trailer
+<< /Root 1 0 R /Size 6 >>
+startxref
+412
+%%EOF`;
+const SAMPLE_PDF_BYTES = Buffer.from(SAMPLE_PDF_CONTENT, "utf8");
 
 async function resetDatabase() {
   const pool = new Pool({
@@ -15,6 +57,43 @@ async function resetDatabase() {
       "truncate table upload_parts, document_parse_jobs, document_tags, uploads, tags, documents restart identity cascade"
     );
   } finally {
+    await pool.end();
+  }
+}
+
+async function runLatestParseJob(documentId: string) {
+  const pool = new Pool({
+    connectionString: databaseUrl
+  });
+  const storage = new WorkerStorageService();
+  const handlers = createDocumentProcessingHandlers({
+    repository: new WorkerRepository(pool),
+    storage,
+    logger: {
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    },
+    parsePdf: async () => ({
+      text: "Hello PDF\n\n-- 1 of 1 --\n\n",
+      pageCount: 1,
+      parserName: "pdf-parse",
+      parserVersion: "2.4.5"
+    })
+  });
+
+  try {
+    return await handlers[DOCUMENT_PROCESSING_JOB_NAMES.parseDocument]({
+      name: DOCUMENT_PROCESSING_JOB_NAMES.parseDocument,
+      id: "integration-worker-job",
+      data: {
+        documentId
+      },
+      attemptsMade: 0
+    });
+  } finally {
+    storage.destroy();
     await pool.end();
   }
 }
@@ -237,6 +316,84 @@ test("uploads API completes a multipart upload and projects document state", asy
     assert.equal(detail.upload.uploaded_part_count, 3);
     assert.ok(detail.upload.verified_at);
     assert.equal(detail.latest_job.status, "queued");
+  } finally {
+    await app.close();
+  }
+});
+
+test("uploads API plus worker parses PDF and exposes search/detail diagnostics", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const initiateResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/uploads/initiate",
+      payload: {
+        file_name: "phase-1b-sample.pdf",
+        mime_type: "application/pdf",
+        file_size: SAMPLE_PDF_BYTES.byteLength
+      }
+    });
+
+    assert.equal(initiateResponse.statusCode, 201);
+    const initiated = initiateResponse.json();
+    assert.equal(initiated.upload_mode, "single");
+
+    const putResponse = await fetch(initiated.upload_url, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/pdf"
+      },
+      body: SAMPLE_PDF_BYTES
+    });
+    assert.equal(putResponse.ok, true);
+
+    const completeResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/uploads/${initiated.upload_id}/complete`,
+      payload: {
+        title: "Phase 1B PDF 回归样本",
+        tags: ["pdf", "integration"],
+        checksum_sha256: "c".repeat(64)
+      }
+    });
+
+    assert.equal(completeResponse.statusCode, 201);
+    const completed = completeResponse.json();
+    assert.equal(completed.upload_status, "uploaded");
+    assert.equal(completed.parse_status, "pending");
+
+    const workerResult = await runLatestParseJob(completed.document_id);
+    assert.equal(workerResult.status, "success", workerResult.reason);
+
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/documents/${completed.document_id}`
+    });
+    assert.equal(detailResponse.statusCode, 200);
+    const detail = detailResponse.json();
+    assert.equal(detail.parse_status, "success");
+    assert.equal(detail.upload_status, "uploaded");
+    assert.equal(detail.diagnosis_code, null);
+    assert.equal(detail.latest_job.status, "succeeded");
+    assert.equal(detail.page_count, 1);
+    assert.equal(detail.parser_name, "pdf-parse");
+    assert.match(detail.content_preview, /Hello PDF/);
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/documents?q=Hello%20PDF&source_type=file"
+    });
+    assert.equal(listResponse.statusCode, 200);
+    const list = listResponse.json();
+    assert.equal(list.total, 1);
+    assert.equal(list.items[0].title, "Phase 1B PDF 回归样本");
+    assert.equal(list.items[0].parse_status, "success");
+    assert.equal(list.items[0].latest_job_status, "succeeded");
+    assert.equal(list.items[0].page_count, 1);
+    assert.equal(list.items[0].parser_name, "pdf-parse");
   } finally {
     await app.close();
   }

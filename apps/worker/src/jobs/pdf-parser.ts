@@ -22,7 +22,7 @@ export async function parsePdfDocument(bytes: Uint8Array): Promise<ParsedPdfDocu
   }
 
   const parser = new PDFParse({
-    data: bytes
+    data: toArrayBuffer(bytes)
   });
 
   try {
@@ -45,6 +45,12 @@ export async function parsePdfDocument(bytes: Uint8Array): Promise<ParsedPdfDocu
   } finally {
     await parser.destroy();
   }
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {

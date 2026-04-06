@@ -39,13 +39,13 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane A/B/C/D` 的核心闭环补强，并落地 `CI Auto Repair` 第一版，实现“失败发现 -> 低风险自动修复 -> 自动提 PR”的半自动闭环
-- `next`: 观察首轮自动修复运行结果，同时补一条更接近真实上传链路的 PDF 回归证据
+- `now`: 已完成 `Lane A/B/C/D` 的核心闭环补强，落地 `CI Auto Repair` 第一版，并补上“上传 PDF -> worker 处理 -> 搜索/详情投影”的回归证据
+- `next`: 继续打磨 `Ops Board` 与剩余诊断态，准备评估 `Phase 1B` 收口边界
 
 ## 5. Blockers
 
-- `blocker`: 当前仍缺一条更接近真实用户路径的 PDF 上传回归证据，用于覆盖“上传 PDF -> worker 解析 -> 搜索/详情呈现 -> 诊断可见”的整链路
-  - `impact`: `Phase 1B` 的核心能力已可用，但在收口前还缺一条更强的回归样本
+- `blocker`: 当前主链路 blocker 已清空，剩余工作集中在 `Ops Board` 原型贴合度和 observability 展示细节
+  - `impact`: 不阻塞主链路可用性，但影响 `Phase 1B` 的最终验收完整度
   - `owner`: `codex`
 - `secondary_blocker`: 当前 `CI Auto Repair` 只覆盖低风险规则型错误；deploy、smoke、外部环境类失败仍需人工处理
   - `impact`: 当前只减少一部分重复修复劳动，不能替代生产发布判定
@@ -53,7 +53,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`，并通过 GitHub Actions run `24034875537` 的 `validate / integration / e2e / infra / build-images / deploy-production / smoke-production`
+- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`，并新增通过“上传 PDF -> worker 处理 -> 搜索/详情投影”的 integration 回归样本；最近全绿 GitHub Actions 基线为 `24034875537`
 - `result`: `passed`
 - `latest_failure`: 最近一次失败是 `run 24035771933` 的 `Playwright` selector 与中文文案漂移；当前已为此类错误加入自动修复规则
 
