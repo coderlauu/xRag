@@ -21,9 +21,9 @@
 当前正在推进的下一阶段需求资产：
 
 - [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
-- [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
+- [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md)
 - [CI Failure Loop Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md)
-- [Phase 1B Prototype & Interaction Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md)
+- [Phase 1B Prototype & Interaction Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-prototype-and-interaction.md)
 - [Phase 1B Harness Hardening Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-harness-hardening.md)
 - [Phase 1B Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
 - [Phase 1B Prototype](/Users/coderlauu/xRag/prototype/v2/index.html)
@@ -77,7 +77,7 @@
 7. [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
 8. [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
 9. [Phase 1B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-implementation-lanes.md)
-10. [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
+10. [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md)
 
 ---
 

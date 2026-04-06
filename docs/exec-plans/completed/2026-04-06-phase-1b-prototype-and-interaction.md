@@ -3,9 +3,9 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-1b-prototype-and-interaction`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
-- `related_docs`: [current handoff](/Users/coderlauu/xRag/docs/handoff/current.md), [v2 status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md), [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md), [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
+- `related_docs`: [current handoff](/Users/coderlauu/xRag/docs/handoff/current.md), [v2 status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md), [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md), [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md)
 
 ## 2. Objective
 
@@ -55,3 +55,4 @@
 ## 9. Decision Log
 
 - `2026-04-06`: `Phase 1B` 必须先补原型与交互说明，再进入增量 contract 冻结和实现拆分
+- `2026-04-06`: `prototype/v2` 与 `v2 interaction spec` 已完成并进入 repo 基线，本计划完成并归档

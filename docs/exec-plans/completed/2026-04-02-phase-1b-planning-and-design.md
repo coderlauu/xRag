@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-1b-planning-and-design`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [current handoff](/Users/coderlauu/xRag/docs/handoff/current.md), [v2 status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md), [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md), [Phase 1A retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-02-phase-1a-retrospective.md)
 
@@ -57,3 +57,4 @@
 ## 9. Decision Log
 
 - `2026-04-02`: `Phase 1A` 已完成并归档，下一阶段聚焦 `pdf` 真实解析、multipart 上传和 production hardening
+- `2026-04-06`: `Phase 1B` 的 PRD、prototype、interaction spec、architecture、data model、api design 与 implementation lanes 已落库，本计划完成并归档
