@@ -248,7 +248,12 @@ export class UploadsService {
         });
       }
 
-      await this.storageService.assertObjectExists(upload.objectKey);
+      const metadata = await this.storageService.getObjectMetadata(upload.objectKey);
+      if (metadata.size !== null && metadata.size !== upload.fileSize) {
+        throw new Error(
+          `Uploaded object size mismatch: expected ${upload.fileSize} bytes but received ${metadata.size} bytes`
+        );
+      }
     } catch (error) {
       const code: DiagnosisCode =
         upload.uploadMode === "multipart" ? "upload_complete_invalid_parts" : "object_missing_on_complete";

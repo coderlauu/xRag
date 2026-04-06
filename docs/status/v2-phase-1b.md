@@ -35,11 +35,12 @@
 - `web-integration`: `not-started`
 - `testing`: `in-progress`
 - `ci-cd`: `completed`
+- `contract-freeze`: `completed`
 
 ## 4. Current Node
 
-- `now`: `Phase 1B` 的 prototype、interaction spec 和 tech docs 已齐备，当前进入 `implementation lanes` 阶段：先由主线程冻结 `schema / shared-types / API contract / diagnosis code`
-- `next`: contract 冻结后，按 `multipart upload / pdf parse worker / frontend diagnostics / ops` 四条 lane 并行实现
+- `now`: `Phase 1B` 的 prototype、interaction spec、tech docs 与代码基线已完成一次对齐校验；`schema / shared-types / API contract / diagnosis code` 已完成主线程冻结，且 OpenAPI 生成通过
+- `next`: 按 `multipart upload / pdf parse worker / frontend diagnostics / ops` 四条 lane 并行实现
 
 ## 5. Blockers
 
@@ -52,7 +53,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`，包含 `lint + typecheck + contract:check + structure:check + docs:check`
+- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`，并补充通过 `pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`
 - `result`: `passed`
 - `latest_failure`: 本地 `API integration` 因当前 shell 缺少 Docker daemon 未执行；`CI` 失败闭环仍待线上自动归档验证
 
@@ -63,6 +64,7 @@
 - `prototype`: [prototype/v2](/Users/coderlauu/xRag/prototype/v2/index.html)
 - `interaction_spec`: [v2 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
 - `tech_docs`: [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md), [Phase 1A architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A data model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A api design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
+- `generated_contract`: [Phase 1B OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1b-api.json)
 - `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md), [Phase 1B prototype and interaction](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md), [Phase 1B harness hardening](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-harness-hardening.md), [Phase 1B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-implementation-lanes.md)
 - `ops_runbook`: [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 - `key_commits`: `431e4cc`, `62401b9`, `b997aea`

@@ -83,8 +83,8 @@
 
 ## 4. 执行规则
 
-1. 主线程先冻结 `schema / shared-types / API contract / state machine`
-2. 再把实现层任务交给子 agent 并行
+1. 当前 `Phase 1B` 已完成主线程的 `schema / shared-types / API contract / diagnosis code` 冻结，并已重新生成 [Phase 1B OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1b-api.json)
+2. 接下来直接按 lane 把实现层任务交给子 agent 并行
 3. 版本的真实进度统一写入 `docs/status/`
 4. 复杂任务先写 `docs/exec-plans/active/*.md`
 5. 历史版本只归档，不覆盖

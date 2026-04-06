@@ -218,4 +218,6 @@
 
 ## 9. Decision Log
 
+- `2026-04-06`: 主线程已完成一次 `schema / shared-types / API contract / diagnosis code` 对齐校验；`@xrag/shared-types`、`@xrag/api` typecheck 与 `@xrag/api openapi:generate` 全部通过，作为 lane 并行开发起点。
+
 - `2026-04-06`: `Phase 1B` 先冻结 contract，再用 `multipart / pdf parse / frontend diagnostics / ops` 四条 lane 并行实现

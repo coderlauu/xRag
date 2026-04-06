@@ -138,3 +138,106 @@ test("uploads API exposes multipart session URLs and part completion contract", 
     await app.close();
   }
 });
+
+test("uploads API completes a multipart upload and projects document state", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const initiateResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/uploads/initiate",
+      payload: {
+        file_name: "phase-1b-complete.pdf",
+        mime_type: "application/pdf",
+        file_size: 11 * 1024 * 1024
+      }
+    });
+
+    assert.equal(initiateResponse.statusCode, 201);
+    const initiated = initiateResponse.json();
+    assert.equal(initiated.upload_mode, "multipart");
+    assert.equal(initiated.part_count, 3);
+
+    const partsResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/uploads/${initiated.upload_id}/parts`,
+      payload: {
+        part_numbers: [1, 2, 3]
+      }
+    });
+
+    assert.equal(partsResponse.statusCode, 201);
+    const multipart = partsResponse.json();
+    assert.equal(multipart.parts.length, 3);
+
+    const payloads = [
+      Buffer.alloc(5 * 1024 * 1024, "a"),
+      Buffer.alloc(5 * 1024 * 1024, "b"),
+      Buffer.alloc(1 * 1024 * 1024, "c")
+    ];
+    const completedParts: Array<{ part_number: number; etag: string }> = [];
+
+    for (let index = 0; index < multipart.parts.length; index += 1) {
+      const part = multipart.parts[index];
+      const uploadResponse = await fetch(part.upload_url, {
+        method: "PUT",
+        body: payloads[index]
+      });
+      assert.equal(uploadResponse.ok, true);
+
+      const etag = uploadResponse.headers.get("etag");
+      assert.ok(etag);
+
+      const partCompleteResponse = await app.inject({
+        method: "POST",
+        url: `/api/v1/uploads/${initiated.upload_id}/parts/${part.part_number}/complete`,
+        payload: {
+          etag,
+          size_bytes: payloads[index].byteLength
+        }
+      });
+
+      assert.equal(partCompleteResponse.statusCode, 201);
+      completedParts.push({
+        part_number: part.part_number,
+        etag
+      });
+    }
+
+    const completeResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/uploads/${initiated.upload_id}/complete`,
+      payload: {
+        title: "Phase 1B multipart integration",
+        tags: ["integration", "multipart"],
+        checksum_sha256: "b".repeat(64),
+        parts: completedParts
+      }
+    });
+
+    assert.equal(completeResponse.statusCode, 201);
+    const completed = completeResponse.json();
+    assert.equal(completed.upload_id, initiated.upload_id);
+    assert.equal(completed.upload_status, "uploaded");
+    assert.equal(completed.parse_status, "pending");
+    assert.equal(completed.diagnosis_code, null);
+
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/documents/${completed.document_id}`
+    });
+    assert.equal(detailResponse.statusCode, 200);
+    const detail = detailResponse.json();
+    assert.equal(detail.upload_status, "uploaded");
+    assert.equal(detail.upload.upload_mode, "multipart");
+    assert.equal(detail.upload.status, "uploaded");
+    assert.equal(detail.upload.part_count, 3);
+    assert.equal(detail.upload.uploaded_part_count, 3);
+    assert.ok(detail.upload.verified_at);
+    assert.equal(detail.latest_job.status, "queued");
+  } finally {
+    await app.close();
+  }
+});
