@@ -13,8 +13,8 @@ test("inbox to search to detail flow works", async ({ page }) => {
   await expect(page.getByText(title)).toBeVisible();
 
   await page.getByRole("link", { name: "Back to search" }).click();
-  await page.getByLabel("Search documents").fill(title);
-  await page.getByRole("button", { name: "Search" }).click();
+  await page.locator("#search-query").fill(title);
+  await page.locator("#search-submit").click();
   await expect(page.getByRole("link", { name: title })).toBeVisible();
   await page.getByRole("link", { name: title }).click();
 

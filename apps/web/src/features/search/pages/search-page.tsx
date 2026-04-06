@@ -71,6 +71,7 @@ export function SearchPage() {
           <form className="grid gap-3" onSubmit={submitFilters}>
             <div className="grid gap-2">
               <Input
+                id="search-query"
                 aria-label="搜索文档"
                 placeholder="按标题、正文、标签或文件名搜索"
                 value={draftFilters.q}
@@ -164,7 +165,7 @@ export function SearchPage() {
                   <option value="20">每页 20 条</option>
                   <option value="50">每页 50 条</option>
                 </Select>
-                <Button type="submit">开始检索</Button>
+                <Button id="search-submit" type="submit">开始检索</Button>
               </div>
             </div>
           </form>
