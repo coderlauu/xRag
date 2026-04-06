@@ -71,6 +71,13 @@ function ensure(condition, message) {
   }
 }
 
+function contentIncludesPathLink(content, targetPath) {
+  const absolutePosix = toPosix(targetPath);
+  const repoRelativePosix = toPosix(path.relative(repoRoot, targetPath));
+
+  return content.includes(absolutePosix) || content.includes(repoRelativePosix);
+}
+
 const currentPath = path.join(repoRoot, "docs/handoff/current.md");
 const currentContent = await readFile(currentPath);
 const currentVersionHandoff = extractLink(currentContent, "当前有效版本：");
@@ -103,11 +110,11 @@ if (currentVersionHandoff && currentStatus) {
     const planStatus = extractMetadataValue(planContent, "status");
     ensure(planStatus === "active", `${rel}: active exec plan must declare \`status: active\``);
     ensure(
-      statusContent.includes(planPath) || statusContent.includes(toPosix(planPath)),
+      contentIncludesPathLink(statusContent, planPath),
       `docs/status consistency: status file must link active exec plan ${rel}`
     );
     ensure(
-      currentContent.includes(planPath) || currentContent.includes(toPosix(planPath)),
+      contentIncludesPathLink(currentContent, planPath),
       `docs/handoff/current.md must link active exec plan ${rel}`
     );
   }
