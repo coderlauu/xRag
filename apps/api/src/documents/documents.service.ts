@@ -2,9 +2,14 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { randomUUID } from "node:crypto";
 import type {
   CreateTextDocumentResponse,
+  DiagnosisCode,
   DocumentDetail,
+  DocumentLatestJobInfo,
   DocumentListResponse,
   DocumentSummary,
+  DocumentUploadInfo,
+  DocumentUploadStatus,
+  UploadSessionStatus,
   ParseStatus,
   RetryDocumentResponse
 } from "@xrag/shared-types";
@@ -20,6 +25,7 @@ import { documents } from "../database/schema";
 import { JobsRepository } from "../jobs/jobs.repository";
 import { QueueService } from "../queue/queue.service";
 import { TagsRepository } from "../tags/tags.repository";
+import { UploadsRepository } from "../uploads/uploads.repository";
 import { CreateTextDocumentRequestDto, ListDocumentsQueryDto, UpdateDocumentTagsRequestDto } from "./documents.dto";
 import { DocumentsRepository } from "./documents.repository";
 
@@ -32,6 +38,7 @@ export class DocumentsService {
     private readonly documentsRepository: DocumentsRepository,
     private readonly tagsRepository: TagsRepository,
     private readonly jobsRepository: JobsRepository,
+    private readonly uploadsRepository: UploadsRepository,
     private readonly queueService: QueueService
   ) {}
 
@@ -79,11 +86,17 @@ export class DocumentsService {
     const parseStatuses = parseCommaSeparated(query.parse_status).filter(
       (value): value is ParseStatus => ["pending", "processing", "success", "failed"].includes(value)
     );
+    const uploadStatuses = parseCommaSeparated(query.upload_status).filter(
+      (value): value is DocumentUploadStatus =>
+        ["draft", "initiated", "uploading", "verifying", "uploaded", "failed"].includes(value)
+    );
     const tags = parseCommaSeparated(query.tags);
     const result = await this.documentsRepository.listDocuments({
       q: query.q,
       sourceType: query.source_type,
       parseStatuses,
+      uploadStatuses,
+      diagnosisCode: query.diagnosis_code,
       tags,
       dateFrom: query.date_from,
       dateTo: query.date_to,
@@ -91,9 +104,13 @@ export class DocumentsService {
       pageSize: query.page_size
     });
     const tagMap = await this.documentsRepository.loadTagsByDocumentIds(result.items.map((item) => item.id));
+    const latestJobs = await this.jobsRepository.listLatestJobsByDocumentIds(result.items.map((item) => item.id));
+    const latestJobMap = new Map(latestJobs.map((job) => [job.documentId, job]));
 
     return {
-      items: result.items.map((document) => this.toDocumentSummary(document, tagMap.get(document.id) || [])),
+      items: result.items.map((document) =>
+        this.toDocumentSummary(document, tagMap.get(document.id) || [], latestJobMap.get(document.id) || null)
+      ),
       page: query.page,
       page_size: query.page_size,
       total: result.total
@@ -107,7 +124,9 @@ export class DocumentsService {
     }
 
     const tagMap = await this.documentsRepository.loadTagsByDocumentIds([document.id]);
-    return this.toDocumentDetail(document, tagMap.get(document.id) || []);
+    const latestJob = await this.jobsRepository.getLatestJobByDocumentId(document.id);
+    const upload = document.uploadId ? await this.uploadsRepository.getUploadById(document.uploadId) : null;
+    return this.toDocumentDetail(document, tagMap.get(document.id) || [], latestJob, upload);
   }
 
   async updateDocumentTags(documentId: string, body: UpdateDocumentTagsRequestDto): Promise<DocumentDetail> {
@@ -138,7 +157,10 @@ export class DocumentsService {
         tx
       );
 
-      return this.toDocumentDetail(updated, tagRows.map((tag) => tag.name));
+      const latestJob = await this.jobsRepository.getLatestJobByDocumentId(document.id, tx);
+      const upload = updated.uploadId ? await this.uploadsRepository.getUploadById(updated.uploadId, tx) : null;
+
+      return this.toDocumentDetail(updated, tagRows.map((tag) => tag.name), latestJob, upload);
     });
   }
 
@@ -161,7 +183,10 @@ export class DocumentsService {
           queueJobId: null,
           jobType: "reparse_document",
           status: "queued",
-          attempt: nextAttempt
+          attempt: nextAttempt,
+          diagnosisCode: null,
+          incidentRef: null,
+          runtimeMs: null
         },
         tx
       );
@@ -170,7 +195,9 @@ export class DocumentsService {
         documentId,
         {
           parseStatus: "pending",
-          parseErrorMessage: null
+          parseErrorMessage: null,
+          diagnosisCode: null,
+          diagnosisSummary: null
         },
         tx
       );
@@ -178,7 +205,8 @@ export class DocumentsService {
       return {
         document_id: documentId,
         job_id: job.id,
-        parse_status: "pending" as const
+        parse_status: "pending" as const,
+        diagnosis_code: null
       };
     });
 
@@ -190,12 +218,16 @@ export class DocumentsService {
     } catch (error) {
       await this.jobsRepository.updateJob(retryResult.job_id, {
         status: "failed",
+        errorCode: "queue_backlog",
         errorMessage: error instanceof Error ? error.message : "Failed to enqueue reparse job",
+        diagnosisCode: "queue_backlog",
         finishedAt: new Date()
       });
       await this.documentsRepository.updateDocumentProjection(documentId, {
         parseStatus: "failed",
-        parseErrorMessage: "Failed to enqueue reparse job"
+        parseErrorMessage: "Failed to enqueue reparse job",
+        diagnosisCode: "queue_backlog",
+        diagnosisSummary: "重试任务未能入队，请稍后重试。"
       });
       throw new BadRequestException("Failed to enqueue reparse job");
     }
@@ -203,7 +235,13 @@ export class DocumentsService {
     return retryResult;
   }
 
-  private toDocumentSummary(document: DocumentRow, tagNames: string[]): DocumentSummary {
+  private toDocumentSummary(
+    document: DocumentRow,
+    tagNames: string[],
+    latestJob: {
+      status: DocumentLatestJobInfo["status"];
+    } | null
+  ): DocumentSummary {
     return {
       id: document.id,
       title: document.title,
@@ -213,19 +251,88 @@ export class DocumentsService {
       source_origin: document.sourceOrigin,
       file_name: document.fileName,
       parse_status: document.parseStatus,
+      upload_status: this.toDocumentUploadStatus(document.uploadStatus),
+      diagnosis_code: this.toDiagnosisCode(document.diagnosisCode),
+      diagnosis_summary: document.diagnosisSummary,
+      latest_job_status: latestJob?.status ?? null,
       imported_at: toIsoString(document.importedAt)
     };
   }
 
-  private toDocumentDetail(document: DocumentRow, tagNames: string[]): DocumentDetail {
+  private toDocumentDetail(
+    document: DocumentRow,
+    tagNames: string[],
+    latestJobRow: {
+      id: string;
+      status: DocumentLatestJobInfo["status"];
+      diagnosisCode: string | null;
+      incidentRef: string | null;
+      runtimeMs: number | null;
+      finishedAt: Date | null;
+    } | null,
+    uploadRow: {
+      id: string;
+      uploadMode: DocumentUploadInfo["upload_mode"];
+      status: string;
+      partCount: number | null;
+      uploadedPartCount: number;
+      verifiedAt: Date | null;
+    } | null
+  ): DocumentDetail {
+    const latestJob = latestJobRow
+      ? {
+          id: latestJobRow.id,
+          status: latestJobRow.status,
+          diagnosis_code: this.toDiagnosisCode(latestJobRow.diagnosisCode),
+          finished_at: latestJobRow.finishedAt ? toIsoString(latestJobRow.finishedAt) : null
+        }
+      : null;
+
+    const upload = uploadRow
+      ? {
+          id: uploadRow.id,
+          upload_mode: uploadRow.uploadMode,
+          status: this.toUploadSessionStatus(uploadRow.status),
+          part_count: uploadRow.partCount,
+          uploaded_part_count: uploadRow.uploadedPartCount,
+          verified_at: uploadRow.verifiedAt ? toIsoString(uploadRow.verifiedAt) : null
+        }
+      : null;
+
     return {
-      ...this.toDocumentSummary(document, tagNames),
+      ...this.toDocumentSummary(document, tagNames, latestJob),
       content_raw: document.contentRaw,
       content_clean: document.contentClean,
       source_url: document.sourceUrl,
       mime_type: document.mimeType,
       parse_error_message: document.parseErrorMessage,
+      upload,
+      latest_job: latestJob,
+      last_incident_ref: document.lastIncidentRef,
+      page_count: document.pageCount,
+      parser_name: document.parserName,
+      parser_version: document.parserVersion,
       created_at: toIsoString(document.createdAt)
     };
+  }
+
+  private toDiagnosisCode(value: string | null): DiagnosisCode | null {
+    if (!value) {
+      return null;
+    }
+
+    return value as DiagnosisCode;
+  }
+
+  private toDocumentUploadStatus(value: string | null): DocumentUploadStatus | null {
+    if (!value) {
+      return null;
+    }
+
+    return value === "expired" ? "failed" : (value as DocumentUploadStatus);
+  }
+
+  private toUploadSessionStatus(value: string): UploadSessionStatus {
+    return value === "draft" ? "initiated" : (value as UploadSessionStatus);
   }
 }

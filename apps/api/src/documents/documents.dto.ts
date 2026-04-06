@@ -2,14 +2,21 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import type {
   CreateTextDocumentRequest,
   CreateTextDocumentResponse,
+  DiagnosisCode,
   DocumentDetail,
+  DocumentLatestJobInfo,
   DocumentListResponse,
   DocumentSummary,
+  DocumentUploadInfo,
+  DocumentUploadStatus,
+  JobStatus,
   ParseStatus,
   RetryDocumentResponse,
   SourceOrigin,
   SourceType,
-  UpdateDocumentTagsRequest
+  UpdateDocumentTagsRequest,
+  UploadMode,
+  UploadSessionStatus
 } from "@xrag/shared-types";
 import { Type } from "class-transformer";
 import {
@@ -27,14 +34,46 @@ import {
   MinLength
 } from "class-validator";
 
+const PARSE_STATUS_VALUES: ParseStatus[] = ["pending", "processing", "success", "failed"];
+const SOURCE_TYPE_VALUES: SourceType[] = ["text", "file", "link"];
+const SOURCE_ORIGIN_VALUES: SourceOrigin[] = ["manual_input", "upload", "link"];
+const DOCUMENT_UPLOAD_STATUS_VALUES: DocumentUploadStatus[] = [
+  "draft",
+  "initiated",
+  "uploading",
+  "verifying",
+  "uploaded",
+  "failed"
+];
+const JOB_STATUS_VALUES: JobStatus[] = ["queued", "running", "succeeded", "failed", "dead"];
+const UPLOAD_MODE_VALUES: UploadMode[] = ["single", "multipart"];
+const UPLOAD_SESSION_STATUS_VALUES: UploadSessionStatus[] = [
+  "initiated",
+  "uploading",
+  "verifying",
+  "uploaded",
+  "failed",
+  "expired"
+];
+const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
+  "storage_presign_failed",
+  "multipart_part_failed",
+  "upload_complete_invalid_parts",
+  "object_missing_on_complete",
+  "pdf_parse_unsupported",
+  "pdf_parse_timeout",
+  "pdf_parse_empty_text",
+  "queue_backlog"
+];
+
 export class CreateTextDocumentRequestDto implements CreateTextDocumentRequest {
-  @ApiProperty({ example: "RAG 产品最小闭环拆解" })
+  @ApiProperty({ type: String, example: "RAG 产品最小闭环拆解" })
   @IsString()
   @MinLength(1)
   @MaxLength(255)
   title!: string;
 
-  @ApiProperty({ example: "这里是一段用户手动输入的正文" })
+  @ApiProperty({ type: String, example: "这里是一段用户手动输入的正文" })
   @IsString()
   @MinLength(1)
   content!: string;
@@ -57,63 +96,76 @@ export class UpdateDocumentTagsRequestDto implements UpdateDocumentTagsRequest {
 }
 
 export class CreateTextDocumentResponseDto implements CreateTextDocumentResponse {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   id!: string;
 
-  @ApiProperty({ enum: ["pending", "processing", "success", "failed"] })
+  @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })
   parse_status!: ParseStatus;
 }
 
 export class RetryDocumentResponseDto implements RetryDocumentResponse {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   document_id!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   job_id!: string;
 
-  @ApiProperty({ enum: ["pending", "processing", "success", "failed"] })
+  @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })
   parse_status!: ParseStatus;
+
+  @ApiPropertyOptional({ type: String, enum: DIAGNOSIS_CODE_VALUES, nullable: true })
+  diagnosis_code!: DiagnosisCode | null;
 }
 
 export class ListDocumentsQueryDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
   q?: string;
 
-  @ApiPropertyOptional({ enum: ["text", "file", "link"] })
+  @ApiPropertyOptional({ type: String, enum: SOURCE_TYPE_VALUES })
   @IsOptional()
-  @IsIn(["text", "file", "link"])
+  @IsIn(SOURCE_TYPE_VALUES)
   source_type?: SourceType;
 
-  @ApiPropertyOptional({ example: "pending,failed" })
+  @ApiPropertyOptional({ type: String, example: "pending,failed" })
   @IsOptional()
   @IsString()
   parse_status?: string;
 
-  @ApiPropertyOptional({ example: "RAG,MVP" })
+  @ApiPropertyOptional({ type: String, example: "uploaded,failed" })
+  @IsOptional()
+  @IsString()
+  upload_status?: string;
+
+  @ApiPropertyOptional({ type: String, enum: DIAGNOSIS_CODE_VALUES })
+  @IsOptional()
+  @IsIn(DIAGNOSIS_CODE_VALUES)
+  diagnosis_code?: DiagnosisCode;
+
+  @ApiPropertyOptional({ type: String, example: "RAG,MVP" })
   @IsOptional()
   @IsString()
   tags?: string;
 
-  @ApiPropertyOptional({ example: "2026-03-01T00:00:00.000Z" })
+  @ApiPropertyOptional({ type: String, example: "2026-03-01T00:00:00.000Z" })
   @IsOptional()
   @IsISO8601()
   date_from?: string;
 
-  @ApiPropertyOptional({ example: "2026-03-31T23:59:59.999Z" })
+  @ApiPropertyOptional({ type: String, example: "2026-03-31T23:59:59.999Z" })
   @IsOptional()
   @IsISO8601()
   date_to?: string;
 
-  @ApiPropertyOptional({ default: 1 })
+  @ApiPropertyOptional({ type: Number, default: 1 })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
   @Min(1)
   page = 1;
 
-  @ApiPropertyOptional({ default: 20, maximum: 100 })
+  @ApiPropertyOptional({ type: Number, default: 20, maximum: 100 })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
@@ -122,52 +174,116 @@ export class ListDocumentsQueryDto {
   page_size = 20;
 }
 
-export class DocumentSummaryDto implements DocumentSummary {
-  @ApiProperty()
+export class DocumentUploadInfoDto implements DocumentUploadInfo {
+  @ApiProperty({ type: String })
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String, enum: UPLOAD_MODE_VALUES })
+  upload_mode!: UploadMode;
+
+  @ApiProperty({ type: String, enum: UPLOAD_SESSION_STATUS_VALUES })
+  status!: UploadSessionStatus;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  part_count!: number | null;
+
+  @ApiProperty({ type: Number })
+  uploaded_part_count!: number;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  verified_at!: string | null;
+}
+
+export class DocumentLatestJobInfoDto implements DocumentLatestJobInfo {
+  @ApiProperty({ type: String })
+  id!: string;
+
+  @ApiProperty({ type: String, enum: JOB_STATUS_VALUES })
+  status!: JobStatus;
+
+  @ApiPropertyOptional({ type: String, enum: DIAGNOSIS_CODE_VALUES, nullable: true })
+  diagnosis_code!: DiagnosisCode | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  finished_at!: string | null;
+}
+
+export class DocumentSummaryDto implements DocumentSummary {
+  @ApiProperty({ type: String })
+  id!: string;
+
+  @ApiProperty({ type: String })
   title!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   content_preview!: string;
 
   @ApiProperty({ type: () => String, isArray: true })
   tags!: string[];
 
-  @ApiProperty({ enum: ["text", "file", "link"] })
+  @ApiProperty({ type: String, enum: SOURCE_TYPE_VALUES })
   source_type!: SourceType;
 
-  @ApiProperty({ enum: ["manual_input", "upload", "link"] })
+  @ApiProperty({ type: String, enum: SOURCE_ORIGIN_VALUES })
   source_origin!: SourceOrigin;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   file_name!: string | null;
 
-  @ApiProperty({ enum: ["pending", "processing", "success", "failed"] })
+  @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })
   parse_status!: ParseStatus;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: String, enum: DOCUMENT_UPLOAD_STATUS_VALUES, nullable: true })
+  upload_status!: DocumentUploadStatus | null;
+
+  @ApiPropertyOptional({ type: String, enum: DIAGNOSIS_CODE_VALUES, nullable: true })
+  diagnosis_code!: DiagnosisCode | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  diagnosis_summary!: string | null;
+
+  @ApiPropertyOptional({ type: String, enum: JOB_STATUS_VALUES, nullable: true })
+  latest_job_status!: JobStatus | null;
+
+  @ApiProperty({ type: String })
   imported_at!: string;
 }
 
 export class DocumentDetailDto extends DocumentSummaryDto implements DocumentDetail {
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   content_raw!: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   content_clean!: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   source_url!: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   mime_type!: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   parse_error_message!: string | null;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ type: () => DocumentUploadInfoDto, nullable: true })
+  upload!: DocumentUploadInfo | null;
+
+  @ApiPropertyOptional({ type: () => DocumentLatestJobInfoDto, nullable: true })
+  latest_job!: DocumentLatestJobInfo | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  last_incident_ref!: string | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  page_count!: number | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  parser_name!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  parser_version!: string | null;
+
+  @ApiProperty({ type: String })
   created_at!: string;
 }
 
@@ -175,12 +291,12 @@ export class DocumentListResponseDto implements DocumentListResponse {
   @ApiProperty({ type: () => DocumentSummaryDto, isArray: true })
   items!: DocumentSummaryDto[];
 
-  @ApiProperty()
+  @ApiProperty({ type: Number })
   page!: number;
 
-  @ApiProperty()
+  @ApiProperty({ type: Number })
   page_size!: number;
 
-  @ApiProperty()
+  @ApiProperty({ type: Number })
   total!: number;
 }

@@ -18,6 +18,7 @@ export interface WorkerJobRecord {
   status: string;
   queue_job_id: string | null;
   attempt: number;
+  started_at?: Date | null;
 }
 
 export class WorkerRepository {
@@ -27,7 +28,7 @@ export class WorkerRepository {
     if (queueJobId) {
       const queueMatch = await this.pool.query<WorkerJobRecord>(
         `
-          select id, document_id, job_type, status, queue_job_id, attempt
+          select id, document_id, job_type, status, queue_job_id, attempt, started_at
           from document_parse_jobs
           where queue_job_id = $1
           limit 1
@@ -42,7 +43,7 @@ export class WorkerRepository {
 
     const fallback = await this.pool.query<WorkerJobRecord>(
       `
-        select id, document_id, job_type, status, queue_job_id, attempt
+        select id, document_id, job_type, status, queue_job_id, attempt, started_at
         from document_parse_jobs
         where document_id = $1 and job_type = $2
         order by created_at desc
@@ -91,7 +92,11 @@ export class WorkerRepository {
             queue_job_id = coalesce($2, queue_job_id),
             started_at = now(),
             error_message = null,
-            error_code = null
+            error_code = null,
+            diagnosis_code = null,
+            incident_ref = null,
+            runtime_ms = null,
+            worker_name = 'document-processing-worker'
         where id = $1
       `,
       [jobId, queueJobId]
@@ -105,23 +110,27 @@ export class WorkerRepository {
         set status = 'succeeded',
             finished_at = now(),
             error_message = null,
-            error_code = null
+            error_code = null,
+            diagnosis_code = null,
+            runtime_ms = coalesce(floor(extract(epoch from (now() - started_at)) * 1000)::int, runtime_ms)
         where id = $1
       `,
       [jobId]
     );
   }
 
-  async markJobFailed(jobId: string, message: string, dead = false) {
+  async markJobFailed(jobId: string, message: string, diagnosisCode: string | null, dead = false) {
     await this.pool.query(
       `
         update document_parse_jobs
         set status = $2,
             finished_at = now(),
-            error_message = $3
+            error_message = $3,
+            diagnosis_code = $4,
+            runtime_ms = coalesce(floor(extract(epoch from (now() - started_at)) * 1000)::int, runtime_ms)
         where id = $1
       `,
-      [jobId, dead ? "dead" : "failed", message]
+      [jobId, dead ? "dead" : "failed", message, diagnosisCode]
     );
   }
 
@@ -131,6 +140,8 @@ export class WorkerRepository {
         update documents
         set parse_status = 'processing',
             parse_error_message = null,
+            diagnosis_code = null,
+            diagnosis_summary = null,
             updated_at = now()
         where id = $1
       `,
@@ -154,6 +165,8 @@ export class WorkerRepository {
             search_vector = to_tsvector('simple', $5),
             parse_status = 'success',
             parse_error_message = null,
+            diagnosis_code = null,
+            diagnosis_summary = null,
             updated_at = now()
         where id = $1
       `,
@@ -161,16 +174,18 @@ export class WorkerRepository {
     );
   }
 
-  async markDocumentFailed(documentId: string, message: string) {
+  async markDocumentFailed(documentId: string, message: string, diagnosisCode: string | null) {
     await this.pool.query(
       `
         update documents
         set parse_status = 'failed',
             parse_error_message = $2,
+            diagnosis_code = $3,
+            diagnosis_summary = $2,
             updated_at = now()
         where id = $1
       `,
-      [documentId, message]
+      [documentId, message, diagnosisCode]
     );
   }
 }

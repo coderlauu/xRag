@@ -4,6 +4,8 @@
   "packageManager": "pnpm@10.7.1",
   "scripts": {
     "build": "turbo run build",
+    "contract:check": "./scripts/check-generated-contract.sh",
+    "contract:generate": "pnpm --filter @xrag/api openapi:generate",
     "dev": "turbo run dev --parallel",
     "e2e:smoke": "pnpm test:e2e",
     "lint": "turbo run lint",
@@ -12,7 +14,7 @@
     "test:integration": "./scripts/run-api-integration.sh",
     "test:unit": "pnpm --filter @xrag/worker test:unit",
     "typecheck": "turbo run typecheck",
-    "validate": "pnpm lint && pnpm typecheck"
+    "validate": "pnpm lint && pnpm typecheck && pnpm contract:check"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

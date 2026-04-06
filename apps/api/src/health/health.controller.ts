@@ -1,8 +1,11 @@
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
+import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { DatabaseService } from "../database/database.service";
 import { QueueService } from "../queue/queue.service";
 import { StorageService } from "../storage/storage.service";
+import { HealthResponseDto, ReadinessResponseDto } from "./health.dto";
 
+@ApiTags("health")
 @Controller("api/v1/health")
 export class HealthController {
   constructor(
@@ -12,11 +15,15 @@ export class HealthController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: "Get service liveness" })
+  @ApiOkResponse({ type: HealthResponseDto })
   getHealth() {
     return { status: "ok" };
   }
 
   @Get("ready")
+  @ApiOperation({ summary: "Get dependency readiness" })
+  @ApiOkResponse({ type: ReadinessResponseDto })
   async getReadiness() {
     try {
       await this.database.checkConnection();

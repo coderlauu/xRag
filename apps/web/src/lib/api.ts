@@ -14,6 +14,7 @@ import {
 import type {
   CreateTagRequest,
   CreateTextDocumentRequest,
+  CreateTextDocumentResponse,
   DocumentDetail,
   DocumentListResponse,
   HealthResponse,
@@ -40,7 +41,7 @@ export function listDocuments(query: ListDocumentsQuery = {}): Promise<DocumentL
   return listDocumentsRequest(API_BASE_URL, query);
 }
 
-export function createTextDocument(body: CreateTextDocumentRequest): Promise<{ id: string; parse_status: "pending" | "processing" | "success" | "failed" }> {
+export function createTextDocument(body: CreateTextDocumentRequest): Promise<CreateTextDocumentResponse> {
   return createTextDocumentRequest(body, API_BASE_URL);
 }
 

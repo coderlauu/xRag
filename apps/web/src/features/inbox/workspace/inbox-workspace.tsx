@@ -93,13 +93,18 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
       const initiate = await initiateUpload({
         file_name: file.name,
         mime_type: file.type || "application/octet-stream",
-        file_size: file.size
+        file_size: file.size,
+        checksum_sha256: checksum
       });
+
+      if (initiate.upload_mode !== "single" || !initiate.upload_url) {
+        throw new Error("Multipart upload is not wired in the web client yet.");
+      }
 
       const uploadResponse = await fetch(initiate.upload_url, {
         method: "PUT",
         headers: {
-          ...initiate.headers,
+          ...(initiate.headers || {}),
           "content-type": file.type || "application/octet-stream"
         },
         body: file

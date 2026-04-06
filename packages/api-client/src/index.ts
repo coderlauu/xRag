@@ -6,8 +6,11 @@ import type {
   DocumentListResponse,
   HealthResponse,
   JobStatusResponse,
+  LatestDeploymentResponse,
   ListDocumentsQuery,
   ListTagsQuery,
+  OpsHealthSummaryResponse,
+  OpsIncidentListResponse,
   RetryDocumentResponse,
   TagItem,
   TagListResponse,
@@ -15,7 +18,11 @@ import type {
   UploadCompleteRequest,
   UploadCompleteResponse,
   UploadInitiateRequest,
-  UploadInitiateResponse
+  UploadInitiateResponse,
+  UploadPartCompleteRequest,
+  UploadPartCompleteResponse,
+  UploadPartUrlRequest,
+  UploadPartUrlResponse
 } from "@xrag/shared-types";
 
 async function requestJson<T>(path: string, init?: RequestInit, baseUrl = "http://localhost:3001"): Promise<T> {
@@ -127,6 +134,39 @@ export async function initiateUpload(body: UploadInitiateRequest, baseUrl = "htt
   );
 }
 
+export async function getUploadPartUrls(
+  uploadId: string,
+  body: UploadPartUrlRequest,
+  baseUrl = "http://localhost:3001"
+) {
+  return requestJson<UploadPartUrlResponse>(
+    `/api/v1/uploads/${uploadId}/parts`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    baseUrl
+  );
+}
+
+export async function completeUploadPart(
+  uploadId: string,
+  partNumber: number,
+  body: UploadPartCompleteRequest,
+  baseUrl = "http://localhost:3001"
+) {
+  return requestJson<UploadPartCompleteResponse>(
+    `/api/v1/uploads/${uploadId}/parts/${partNumber}/complete`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    baseUrl
+  );
+}
+
 export async function completeUpload(
   uploadId: string,
   body: UploadCompleteRequest,
@@ -141,4 +181,16 @@ export async function completeUpload(
     },
     baseUrl
   );
+}
+
+export async function fetchOpsHealthSummary(baseUrl = "http://localhost:3001") {
+  return requestJson<OpsHealthSummaryResponse>("/api/v1/ops/health-summary", undefined, baseUrl);
+}
+
+export async function listOpsIncidents(baseUrl = "http://localhost:3001") {
+  return requestJson<OpsIncidentListResponse>("/api/v1/ops/incidents", undefined, baseUrl);
+}
+
+export async function getLatestDeployment(baseUrl = "http://localhost:3001") {
+  return requestJson<LatestDeploymentResponse>("/api/v1/ops/deployments/latest", undefined, baseUrl);
 }

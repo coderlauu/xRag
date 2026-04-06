@@ -3,7 +3,7 @@ import type { CreateTagRequest, TagItem, TagListResponse } from "@xrag/shared-ty
 import { IsIn, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 export class CreateTagRequestDto implements CreateTagRequest {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   @IsString()
   @MinLength(1)
   @MaxLength(64)
@@ -11,25 +11,25 @@ export class CreateTagRequestDto implements CreateTagRequest {
 }
 
 export class ListTagsQueryDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String })
   @IsOptional()
   @IsString()
   q?: string;
 
-  @ApiPropertyOptional({ enum: ["active", "archived"] })
+  @ApiPropertyOptional({ type: String, enum: ["active", "archived"] })
   @IsOptional()
   @IsIn(["active", "archived"])
   status?: "active" | "archived";
 }
 
 export class TagItemDto implements TagItem {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   name!: string;
 
-  @ApiProperty({ enum: ["active", "archived"] })
+  @ApiProperty({ type: String, enum: ["active", "archived"] })
   status!: "active" | "archived";
 }
 

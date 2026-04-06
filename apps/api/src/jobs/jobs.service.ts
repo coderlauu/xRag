@@ -18,7 +18,10 @@ export class JobsService {
       job_type: job.jobType,
       status: job.status,
       attempt: job.attempt,
-      error_message: job.errorMessage
+      error_message: job.errorMessage,
+      diagnosis_code: (job.diagnosisCode as JobStatusResponse["diagnosis_code"]) ?? null,
+      incident_ref: job.incidentRef,
+      runtime_ms: job.runtimeMs
     };
   }
 }

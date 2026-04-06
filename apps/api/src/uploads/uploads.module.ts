@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { DocumentsModule } from "../documents/documents.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { TagsModule } from "../tags/tags.module";
@@ -7,8 +7,9 @@ import { UploadsRepository } from "./uploads.repository";
 import { UploadsService } from "./uploads.service";
 
 @Module({
-  imports: [DocumentsModule, TagsModule, JobsModule],
+  imports: [forwardRef(() => DocumentsModule), TagsModule, JobsModule],
   controllers: [UploadsController],
-  providers: [UploadsRepository, UploadsService]
+  providers: [UploadsRepository, UploadsService],
+  exports: [UploadsRepository]
 })
 export class UploadsModule {}

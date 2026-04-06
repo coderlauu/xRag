@@ -58,6 +58,9 @@ test("documents API persists a created text document and returns it from list/de
     assert.equal(detail.id, created.id);
     assert.deepEqual(detail.tags, ["integration", "phase-1a"]);
     assert.equal(detail.parse_status, "success");
+    assert.equal(detail.upload_status, null);
+    assert.equal(detail.diagnosis_code, null);
+    assert.equal(detail.latest_job_status, null);
   } finally {
     await app.close();
   }

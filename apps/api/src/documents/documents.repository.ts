@@ -12,7 +12,7 @@ import {
   sql,
   type SQL
 } from "drizzle-orm";
-import type { ParseStatus, SourceType } from "@xrag/shared-types";
+import type { DiagnosisCode, DocumentUploadStatus, ParseStatus, SourceType } from "@xrag/shared-types";
 import { normalizeTagName } from "../common/document-utils";
 import { DatabaseService, type DatabaseClient } from "../database/database.service";
 import { documentTags, documents, tags } from "../database/schema";
@@ -23,6 +23,8 @@ export interface ListDocumentsFilters {
   q?: string;
   sourceType?: SourceType;
   parseStatuses: ParseStatus[];
+  uploadStatuses: DocumentUploadStatus[];
+  diagnosisCode?: DiagnosisCode;
   tags: string[];
   dateFrom?: string;
   dateTo?: string;
@@ -41,6 +43,11 @@ export class DocumentsRepository {
 
   async getDocumentById(documentId: string, db: DatabaseExecutor = this.database.db) {
     const [document] = await db.select().from(documents).where(eq(documents.id, documentId)).limit(1);
+    return document ?? null;
+  }
+
+  async getDocumentByUploadId(uploadId: string, db: DatabaseExecutor = this.database.db) {
+    const [document] = await db.select().from(documents).where(eq(documents.uploadId, uploadId)).limit(1);
     return document ?? null;
   }
 
@@ -140,6 +147,14 @@ export class DocumentsRepository {
 
     if (filters.parseStatuses.length > 0) {
       conditions.push(inArray(documents.parseStatus, filters.parseStatuses));
+    }
+
+    if (filters.uploadStatuses.length > 0) {
+      conditions.push(inArray(documents.uploadStatus, filters.uploadStatuses));
+    }
+
+    if (filters.diagnosisCode) {
+      conditions.push(eq(documents.diagnosisCode, filters.diagnosisCode));
     }
 
     if (filters.dateFrom) {

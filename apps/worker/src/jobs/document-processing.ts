@@ -50,7 +50,7 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
 
   const document = await repository.findDocument(context.data.documentId);
   if (!document) {
-    await repository.markJobFailed(job.id, "document not found", context.attemptsMade >= 2);
+    await repository.markJobFailed(job.id, "document not found", null, context.attemptsMade >= 2);
     return {
       documentId: context.data.documentId,
       status: "failed",
@@ -116,14 +116,33 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
   } catch (error) {
     const reason = error instanceof Error ? error.message : "document processing failed";
     const dead = context.attemptsMade >= 2;
-    await repository.markDocumentFailed(document.id, reason);
-    await repository.markJobFailed(job.id, reason, dead);
+    const diagnosisCode = mapDiagnosisCode(reason, document.mime_type);
+    await repository.markDocumentFailed(document.id, reason, diagnosisCode);
+    await repository.markJobFailed(job.id, reason, diagnosisCode, dead);
     return {
       documentId: document.id,
       status: "failed",
       reason
     };
   }
+}
+
+function mapDiagnosisCode(message: string, mimeType: string | null): string | null {
+  const normalized = message.toLowerCase();
+
+  if (mimeType === "application/pdf" || normalized.includes("pdf")) {
+    if (normalized.includes("timeout")) {
+      return "pdf_parse_timeout";
+    }
+
+    if (normalized.includes("empty")) {
+      return "pdf_parse_empty_text";
+    }
+
+    return "pdf_parse_unsupported";
+  }
+
+  return null;
 }
 
 function resolveDocumentSource(
