@@ -8,6 +8,35 @@ function toPosix(value) {
   return value.split(path.sep).join("/");
 }
 
+function resolveRepoPath(target) {
+  const normalized = path.normalize(target);
+
+  if (!path.isAbsolute(normalized)) {
+    return path.resolve(repoRoot, normalized);
+  }
+
+  try {
+    return path.relative(repoRoot, normalized).startsWith("..")
+      ? resolveRepoAbsoluteTarget(normalized) ?? normalized
+      : normalized;
+  } catch {
+    return resolveRepoAbsoluteTarget(normalized) ?? normalized;
+  }
+}
+
+function resolveRepoAbsoluteTarget(target) {
+  const repoName = path.basename(repoRoot);
+  const marker = `${path.sep}${repoName}${path.sep}`;
+  const markerIndex = target.lastIndexOf(marker);
+
+  if (markerIndex === -1) {
+    return null;
+  }
+
+  const repoRelativePath = target.slice(markerIndex + marker.length);
+  return path.join(repoRoot, repoRelativePath);
+}
+
 async function readFile(filePath) {
   return fs.readFile(filePath, "utf8");
 }
@@ -51,7 +80,7 @@ ensure(Boolean(currentVersionHandoff), "docs/handoff/current.md: missing current
 ensure(Boolean(currentStatus), "docs/handoff/current.md: missing current status link");
 
 if (currentVersionHandoff && currentStatus) {
-  const statusPath = currentStatus;
+  const statusPath = resolveRepoPath(currentStatus);
   const statusContent = await readFile(statusPath);
 
   const linkedCurrentHandoff = extractLink(statusContent, "`current_handoff`:");
@@ -59,11 +88,11 @@ if (currentVersionHandoff && currentStatus) {
   const updatedAt = extractMetadataValue(statusContent, "updated_at");
 
   ensure(
-    linkedCurrentHandoff === currentPath,
+    resolveRepoPath(linkedCurrentHandoff) === currentPath,
     `docs/status consistency: current_handoff should point to ${toPosix(currentPath)}`
   );
   ensure(
-    linkedVersionHandoff === currentVersionHandoff,
+    resolveRepoPath(linkedVersionHandoff) === resolveRepoPath(currentVersionHandoff),
     `docs/status consistency: version_handoff should point to ${currentVersionHandoff}`
   );
 
@@ -73,8 +102,14 @@ if (currentVersionHandoff && currentStatus) {
     const rel = toPosix(path.relative(repoRoot, planPath));
     const planStatus = extractMetadataValue(planContent, "status");
     ensure(planStatus === "active", `${rel}: active exec plan must declare \`status: active\``);
-    ensure(statusContent.includes(planPath), `docs/status consistency: status file must link active exec plan ${rel}`);
-    ensure(currentContent.includes(planPath), `docs/handoff/current.md must link active exec plan ${rel}`);
+    ensure(
+      statusContent.includes(planPath) || statusContent.includes(toPosix(planPath)),
+      `docs/status consistency: status file must link active exec plan ${rel}`
+    );
+    ensure(
+      currentContent.includes(planPath) || currentContent.includes(toPosix(planPath)),
+      `docs/handoff/current.md must link active exec plan ${rel}`
+    );
   }
 
   const completedPlans = await collectPlanFiles(path.join(repoRoot, "docs/exec-plans/completed"));

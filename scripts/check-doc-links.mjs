@@ -39,6 +39,25 @@ function stripFragment(target) {
   return target.split("#")[0];
 }
 
+function resolveRepoAbsoluteTarget(target) {
+  const normalized = path.normalize(target);
+
+  if (!path.isAbsolute(normalized)) {
+    return null;
+  }
+
+  const repoName = path.basename(repoRoot);
+  const marker = `${path.sep}${repoName}${path.sep}`;
+  const markerIndex = normalized.lastIndexOf(marker);
+
+  if (markerIndex === -1) {
+    return null;
+  }
+
+  const repoRelativePath = normalized.slice(markerIndex + marker.length);
+  return path.join(repoRoot, repoRelativePath);
+}
+
 function isSkippable(target) {
   return (
     target.startsWith("http://") ||
@@ -50,7 +69,8 @@ function isSkippable(target) {
 
 function resolveTarget(filePath, target) {
   if (target.startsWith("/")) {
-    return stripFragment(target);
+    const stripped = stripFragment(target);
+    return resolveRepoAbsoluteTarget(stripped) ?? stripped;
   }
 
   return path.resolve(path.dirname(filePath), stripFragment(target));
