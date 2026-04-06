@@ -1,9 +1,11 @@
 import {
   completeUpload as completeUploadRequest,
+  completeUploadPart as completeUploadPartRequest,
   createTag as createTagRequest,
   createTextDocument as createTextDocumentRequest,
   fetchHealth as fetchHealthRequest,
   getDocument as getDocumentRequest,
+  getUploadPartUrls as getUploadPartUrlsRequest,
   getJob as getJobRequest,
   initiateUpload as initiateUploadRequest,
   listDocuments as listDocumentsRequest,
@@ -29,6 +31,11 @@ import type {
   UploadCompleteResponse,
   UploadInitiateRequest,
   UploadInitiateResponse
+  ,
+  UploadPartCompleteRequest,
+  UploadPartCompleteResponse,
+  UploadPartUrlRequest,
+  UploadPartUrlResponse
 } from "@xrag/shared-types";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -71,6 +78,21 @@ export function getJob(jobId: string): Promise<JobStatusResponse> {
 
 export function initiateUpload(body: UploadInitiateRequest): Promise<UploadInitiateResponse> {
   return initiateUploadRequest(body, API_BASE_URL);
+}
+
+export function getUploadPartUrls(
+  uploadId: string,
+  body: UploadPartUrlRequest
+): Promise<UploadPartUrlResponse> {
+  return getUploadPartUrlsRequest(uploadId, body, API_BASE_URL);
+}
+
+export function completeUploadPart(
+  uploadId: string,
+  partNumber: number,
+  body: UploadPartCompleteRequest
+): Promise<UploadPartCompleteResponse> {
+  return completeUploadPartRequest(uploadId, partNumber, body, API_BASE_URL);
 }
 
 export function completeUpload(uploadId: string, body: UploadCompleteRequest): Promise<UploadCompleteResponse> {

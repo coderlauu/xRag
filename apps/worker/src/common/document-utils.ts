@@ -48,7 +48,7 @@ export function inferTextSupport(mimeType: string | null): { supported: boolean;
   }
 
   if (mimeType === "application/pdf") {
-    return { supported: false, reason: "pdf parsing not wired yet" };
+    return { supported: true };
   }
 
   return { supported: false, reason: `unsupported mime type: ${mimeType}` };

@@ -1,6 +1,7 @@
 import { normalizeWhitespace, createContentPreview, buildSearchText, inferTextSupport } from "../common/document-utils";
 import type { WorkerRepository } from "../database/repository";
 import type { Logger } from "../logging/logger";
+import { parsePdfDocument } from "./pdf-parser";
 import { DOCUMENT_PROCESSING_JOB_NAMES, type DocumentProcessingJobName } from "../queue/constants";
 import type { WorkerStorageService } from "../storage/storage";
 
@@ -88,6 +89,36 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
     const support = inferTextSupport(document.mime_type);
     if (!support.supported) {
       throw new Error(support.reason || "unsupported document source");
+    }
+
+    if (document.mime_type === "application/pdf") {
+      const pdfBytes = await storage.getObjectBytes(source.objectKey);
+      const parsedPdf = await parsePdfDocument(pdfBytes);
+      const tagNames = await repository.listDocumentTags(document.id);
+      const contentRaw = parsedPdf.text;
+      const contentClean = normalizeWhitespace(parsedPdf.text);
+
+      await repository.markDocumentSuccess(document.id, {
+        contentRaw,
+        contentClean,
+        contentPreview: createContentPreview(contentClean),
+        searchText: buildSearchText({
+          title: document.title,
+          contentClean,
+          tags: tagNames,
+          fileName: document.file_name,
+          sourceUrl: document.source_url
+        }),
+        pageCount: parsedPdf.pageCount,
+        parserName: parsedPdf.parserName,
+        parserVersion: parsedPdf.parserVersion
+      });
+      await repository.markJobCompleted(job.id);
+
+      return {
+        documentId: document.id,
+        status: "success"
+      };
     }
 
     const objectBody = await storage.getObjectBody(source.objectKey);

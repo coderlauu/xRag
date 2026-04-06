@@ -14,6 +14,11 @@ export class WorkerStorageService {
   });
 
   async getObjectBody(objectKey: string): Promise<string> {
+    const bytes = await this.getObjectBytes(objectKey);
+    return Buffer.from(bytes).toString("utf8");
+  }
+
+  async getObjectBytes(objectKey: string): Promise<Uint8Array> {
     const response = await this.client.send(
       new GetObjectCommand({
         Bucket: this.env.storageBucket,
@@ -22,10 +27,10 @@ export class WorkerStorageService {
     );
 
     if (!response.Body) {
-      return "";
+      return new Uint8Array();
     }
 
-    return response.Body.transformToString();
+    return response.Body.transformToByteArray();
   }
 
   destroy() {

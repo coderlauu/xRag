@@ -12,7 +12,7 @@
     "openapi:generate": "tsx src/openapi.ts",
     "start": "node dist/apps/api/src/main.js",
     "test": "pnpm test:integration",
-    "test:integration": "pnpm build:test && node --test dist-integration/apps/api/test/integration/*.test.js",
+    "test:integration": "pnpm build:test && node --test --test-concurrency=1 dist-integration/apps/api/test/integration/*.test.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

@@ -154,6 +154,9 @@ export class WorkerRepository {
     contentClean: string;
     contentPreview: string;
     searchText: string;
+    pageCount?: number | null;
+    parserName?: string | null;
+    parserVersion?: string | null;
   }) {
     await this.pool.query(
       `
@@ -163,6 +166,9 @@ export class WorkerRepository {
             content_preview = $4,
             search_text = $5,
             search_vector = to_tsvector('simple', $5),
+            page_count = coalesce($6, page_count),
+            parser_name = coalesce($7, parser_name),
+            parser_version = coalesce($8, parser_version),
             parse_status = 'success',
             parse_error_message = null,
             diagnosis_code = null,
@@ -170,7 +176,16 @@ export class WorkerRepository {
             updated_at = now()
         where id = $1
       `,
-      [documentId, values.contentRaw, values.contentClean, values.contentPreview, values.searchText]
+      [
+        documentId,
+        values.contentRaw,
+        values.contentClean,
+        values.contentPreview,
+        values.searchText,
+        values.pageCount ?? null,
+        values.parserName ?? null,
+        values.parserVersion ?? null
+      ]
     );
   }
 

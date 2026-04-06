@@ -32,30 +32,30 @@
 - `api-persistence`: `completed`
 - `upload-storage`: `in-progress`
 - `worker-pipeline`: `in-progress`
-- `web-integration`: `not-started`
+- `web-integration`: `in-progress`
 - `testing`: `in-progress`
 - `ci-cd`: `completed`
 - `contract-freeze`: `completed`
 
 ## 4. Current Node
 
-- `now`: `Phase 1B` 的 prototype、interaction spec、tech docs 与代码基线已完成一次对齐校验；`schema / shared-types / API contract / diagnosis code` 已完成主线程冻结，且 OpenAPI 生成通过
-- `next`: 按 `multipart upload / pdf parse worker / frontend diagnostics / ops` 四条 lane 并行实现
+- `now`: 已完成 `Lane A` 的 multipart 完成校验与 integration 证据补强，并接通 `Lane B` 的文本型 PDF 解析基线和 `Lane C` 的 web multipart 上传入口
+- `next`: 继续补 `pdf` 解析成功/失败的更细验证，并推进 diagnostics / ops 读接口接入
 
 ## 5. Blockers
 
-- `blocker`: 当前 production 基线存在文件上传接口错误，疑似发生在 `uploads/initiate` 或 `uploads/complete` 调用 `MinIO / S3-compatible storage` 的环节
-  - `impact`: 当前文件导入主链路不可稳定验证，会影响 `upload-storage` 与后续 `pdf / multipart` 增量设计
+- `blocker`: 当前 `Lane B / Lane C` 仍缺少 `pdf` 解析结果在前端详情页和搜索页中的完整呈现，以及 `Ops Board` 的真实读接口联调
+  - `impact`: `Phase 1B` 的“可规模化使用”目标还未完全闭环，尤其是失败诊断与运维可见性
   - `owner`: `codex`
-- `secondary_blocker`: 当前 shell 环境未连接 Docker daemon，尚未完成本轮新增 migration 与上传 contract 的 integration 验证
-  - `impact`: `P0` 代码与生成链已落库，但 `upload -> complete -> queue` 的本地集成证据仍待补齐
+- `secondary_blocker`: 当前 worker 只完成了文本型 PDF 解析基线，尚未补 `pdf_parse_unsupported / pdf_parse_timeout` 的更细测试证据
+  - `impact`: 失败分类已定义，但 `Phase 1B` 的 parser lane 还缺更强的回归保护
   - `owner`: `codex`
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`，并补充通过 `pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`
+- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`
 - `result`: `passed`
-- `latest_failure`: 本地 `API integration` 因当前 shell 缺少 Docker daemon 未执行；`CI` 失败闭环仍待线上自动归档验证
+- `latest_failure`: `CI` 失败闭环仍待线上自动归档验证；`pdf` 失败分类的更细粒度测试尚未补齐
 
 ## 7. Linked Artifacts
 

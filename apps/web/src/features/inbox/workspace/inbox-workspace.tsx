@@ -2,7 +2,7 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button, Input, SectionCard, Textarea, Badge } from "@xrag/ui";
-import { completeUpload, createTextDocument, initiateUpload, listDocuments } from "../../../lib/api";
+import { completeUpload, completeUploadPart, createTextDocument, getUploadPartUrls, initiateUpload, listDocuments } from "../../../lib/api";
 import {
   formatDateTime,
   formatRelativeTime,
@@ -97,21 +97,70 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
         checksum_sha256: checksum
       });
 
-      if (initiate.upload_mode !== "single" || !initiate.upload_url) {
-        throw new Error("Multipart upload is not wired in the web client yet.");
-      }
+      if (initiate.upload_mode === "single") {
+        if (!initiate.upload_url) {
+          throw new Error("上传会话缺少单文件上传地址。");
+        }
 
-      const uploadResponse = await fetch(initiate.upload_url, {
-        method: "PUT",
-        headers: {
-          ...(initiate.headers || {}),
-          "content-type": file.type || "application/octet-stream"
-        },
-        body: file
-      });
+        const uploadResponse = await fetch(initiate.upload_url, {
+          method: "PUT",
+          headers: {
+            ...(initiate.headers || {}),
+            "content-type": file.type || "application/octet-stream"
+          },
+          body: file
+        });
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+        if (!uploadResponse.ok) {
+          throw new Error(`上传失败，状态码 ${uploadResponse.status}`);
+        }
+      } else {
+        if (!initiate.part_count || !initiate.part_size_bytes) {
+          throw new Error("分片上传会话缺少分片参数。");
+        }
+
+        const partNumbers = Array.from({ length: initiate.part_count }, (_, index) => index + 1);
+        const partUrlResponse = await getUploadPartUrls(initiate.upload_id, {
+          part_numbers: partNumbers
+        });
+        const completedParts: Array<{ part_number: number; etag: string }> = [];
+
+        for (const part of partUrlResponse.parts) {
+          const start = (part.part_number - 1) * initiate.part_size_bytes;
+          const end = Math.min(start + initiate.part_size_bytes, file.size);
+          const chunk = file.slice(start, end);
+          const uploadResponse = await fetch(part.upload_url, {
+            method: "PUT",
+            headers: part.headers,
+            body: chunk
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error(`分片 ${part.part_number} 上传失败，状态码 ${uploadResponse.status}`);
+          }
+
+          const etag = uploadResponse.headers.get("etag");
+          if (!etag) {
+            throw new Error(`分片 ${part.part_number} 未返回 etag。`);
+          }
+
+          await completeUploadPart(initiate.upload_id, part.part_number, {
+            etag,
+            size_bytes: chunk.size
+          });
+
+          completedParts.push({
+            part_number: part.part_number,
+            etag
+          });
+        }
+
+        return completeUpload(initiate.upload_id, {
+          title: uploadForm.title,
+          tags: splitTags(uploadForm.tags),
+          checksum_sha256: checksum,
+          parts: completedParts
+        });
       }
 
       return completeUpload(initiate.upload_id, {
