@@ -172,6 +172,18 @@ export function DetailPage() {
         <div className="grid gap-6">
           <SectionCard title="Metadata" description="Update tags and inspect the source metadata.">
             <div className="grid gap-3 text-sm leading-6 text-slate-700">
+              {document.parse_error_message ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
+                  <strong className="block text-sm">解析错误</strong>
+                  <span>{document.parse_error_message}</span>
+                </div>
+              ) : null}
+              {document.diagnosis_summary ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+                  <strong className="block text-sm">诊断摘要</strong>
+                  <span>{document.diagnosis_summary}</span>
+                </div>
+              ) : null}
               <article>Tags: {document.tags.length > 0 ? joinTags(document.tags) : "None"}</article>
               <article>File name: {document.file_name || "Manual input"}</article>
               <article>Source URL: {document.source_url || "N/A"}</article>

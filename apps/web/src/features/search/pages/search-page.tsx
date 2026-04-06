@@ -13,7 +13,8 @@ import {
   parseStatusTone,
   serializeSearchFilters,
   sourceTypeLabel,
-  splitTags
+  splitTags,
+  uploadStatusLabel
 } from "../../../lib/document-state";
 
 export function SearchPage() {
@@ -75,7 +76,7 @@ export function SearchPage() {
                 onChange={(event) => setDraftFilters((current) => ({ ...current, q: event.target.value }))}
               />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Select
                 aria-label="Source type"
                 value={draftFilters.source_type}
@@ -96,6 +97,34 @@ export function SearchPage() {
                 <option value="processing">Processing</option>
                 <option value="success">Success</option>
                 <option value="failed">Failed</option>
+              </Select>
+              <Select
+                aria-label="Upload status"
+                value={draftFilters.upload_status}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, upload_status: event.target.value }))}
+              >
+                <option value="">All upload states</option>
+                <option value="draft">草稿</option>
+                <option value="initiated">已初始化</option>
+                <option value="uploading">上传中</option>
+                <option value="verifying">校验中</option>
+                <option value="uploaded">已上传</option>
+                <option value="failed">上传失败</option>
+              </Select>
+              <Select
+                aria-label="Diagnosis code"
+                value={draftFilters.diagnosis_code}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, diagnosis_code: event.target.value }))}
+              >
+                <option value="">All diagnosis</option>
+                <option value="storage_presign_failed">存储签名失败</option>
+                <option value="multipart_part_failed">分片上传失败</option>
+                <option value="upload_complete_invalid_parts">上传完成校验失败</option>
+                <option value="object_missing_on_complete">对象校验失败</option>
+                <option value="pdf_parse_unsupported">PDF 暂不支持解析</option>
+                <option value="pdf_parse_timeout">PDF 解析超时</option>
+                <option value="pdf_parse_empty_text">PDF 未提取到文本</option>
+                <option value="queue_backlog">解析任务入队失败</option>
               </Select>
             </div>
             <div className="grid gap-3">
@@ -163,6 +192,8 @@ export function SearchPage() {
                       q: "",
                       source_type: "",
                       parse_status: "",
+                      upload_status: "",
+                      diagnosis_code: "",
                       tags: "",
                       date_from: "",
                       date_to: "",
@@ -199,7 +230,7 @@ export function SearchPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant={parseStatusTone(item.parse_status)}>{parseStatusLabel(item.parse_status)}</Badge>
-                      {item.upload_status ? <Badge variant="info">{item.upload_status}</Badge> : null}
+                      {item.upload_status ? <Badge variant="info">{uploadStatusLabel(item.upload_status)}</Badge> : null}
                     </div>
                   </div>
                   <p className="m-0 text-sm leading-6 text-slate-600">{item.content_preview || "No preview available."}</p>

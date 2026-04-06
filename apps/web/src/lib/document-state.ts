@@ -13,6 +13,8 @@ export interface SearchFilters {
   q: string;
   source_type: string;
   parse_status: string;
+  upload_status: string;
+  diagnosis_code: string;
   tags: string;
   date_from: string;
   date_to: string;
@@ -24,6 +26,8 @@ export const defaultSearchFilters: SearchFilters = {
   q: "",
   source_type: "",
   parse_status: "",
+  upload_status: "",
+  diagnosis_code: "",
   tags: "",
   date_from: "",
   date_to: "",
@@ -36,6 +40,8 @@ export function normalizeSearchFilters(input: Record<string, unknown>): SearchFi
     q: typeof input.q === "string" ? input.q : "",
     source_type: typeof input.source_type === "string" ? input.source_type : "",
     parse_status: typeof input.parse_status === "string" ? input.parse_status : "",
+    upload_status: typeof input.upload_status === "string" ? input.upload_status : "",
+    diagnosis_code: typeof input.diagnosis_code === "string" ? input.diagnosis_code : "",
     tags: typeof input.tags === "string" ? input.tags : "",
     date_from: typeof input.date_from === "string" ? input.date_from : "",
     date_to: typeof input.date_to === "string" ? input.date_to : "",
@@ -49,6 +55,8 @@ export function serializeSearchFilters(filters: SearchFilters): Record<string, s
     q: filters.q.trim() || undefined,
     source_type: filters.source_type || undefined,
     parse_status: filters.parse_status || undefined,
+    upload_status: filters.upload_status || undefined,
+    diagnosis_code: filters.diagnosis_code || undefined,
     tags: filters.tags || undefined,
     date_from: filters.date_from || undefined,
     date_to: filters.date_to || undefined,
@@ -62,6 +70,8 @@ export function buildDocumentsQuery(filters: SearchFilters) {
     q: filters.q.trim() || undefined,
     source_type: normalizeSourceType(filters.source_type),
     parse_status: filters.parse_status || undefined,
+    upload_status: filters.upload_status || undefined,
+    diagnosis_code: filters.diagnosis_code || undefined,
     tags: filters.tags || undefined,
     date_from: filters.date_from || undefined,
     date_to: filters.date_to || undefined,
