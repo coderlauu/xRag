@@ -38,8 +38,8 @@
 
 ## 4. Current Node
 
-- `now`: `Phase 1B harness hardening` 的 `P1/P2` 最小闭环已落库，已补 `retry regression / structure check / docs check / ops inspect script / deploy evidence archive`
-- `next`: 在 Docker 可用环境补跑 `integration / smoke` 后，进入 `multipart web flow / pdf parse / frontend diagnostics / ops board` 并行实现
+- `now`: `Phase 1B` 的 prototype、interaction spec 和 tech docs 已齐备，当前进入 `implementation lanes` 阶段：先由主线程冻结 `schema / shared-types / API contract / diagnosis code`
+- `next`: contract 冻结后，按 `multipart upload / pdf parse worker / frontend diagnostics / ops` 四条 lane 并行实现
 
 ## 5. Blockers
 
@@ -63,7 +63,7 @@
 - `prototype`: [prototype/v2](/Users/coderlauu/xRag/prototype/v2/index.html)
 - `interaction_spec`: [v2 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
 - `tech_docs`: [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md), [Phase 1A architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A data model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A api design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
-- `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md), [Phase 1B prototype and interaction](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md), [Phase 1B harness hardening](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-harness-hardening.md)
+- `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md), [Phase 1B prototype and interaction](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md), [Phase 1B harness hardening](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-harness-hardening.md), [Phase 1B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-implementation-lanes.md)
 - `ops_runbook`: [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 - `key_commits`: `431e4cc`, `62401b9`, `b997aea`
 - `latest_ci_run`: `23969230230`
