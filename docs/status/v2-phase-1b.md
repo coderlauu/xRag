@@ -38,8 +38,8 @@
 
 ## 4. Current Node
 
-- `now`: `CI Failure Loop` 第一版已落库，当前正在补齐 `Phase 1B` 的 `prototype/v2` 与 interaction spec，为 `pdf / multipart / observability` 的增量 contract 提供产品事实源
-- `next`: 以 `prototype/v2` 和 `v2 interaction spec` 为基础，冻结 `Phase 1B` 的页面状态、数据对象和 API 增量边界
+- `now`: `Phase 1B` 的 `prototype/v2`、interaction spec 与增量技术方案已落库，当前进入 contract 冻结与实现 lane 拆分前的评审阶段
+- `next`: 基于新的 architecture / data model / api 方案，先冻结 `schema / shared-types / API contract / diagnosis code`，再进入 `multipart / pdf parse / frontend diagnostics / ops` 并行实现
 
 ## 5. Blockers
 
@@ -62,7 +62,7 @@
 - `version_handoff`: [v2.md](/Users/coderlauu/xRag/docs/handoff/v2.md)
 - `prototype`: [prototype/v2](/Users/coderlauu/xRag/prototype/v2/index.html)
 - `interaction_spec`: [v2 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
-- `tech_docs`: [Phase 1A architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A data model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A api design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
+- `tech_docs`: [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md), [Phase 1A architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A data model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A api design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
 - `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md), [Phase 1B prototype and interaction](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md)
 - `ops_runbook`: [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 - `key_commits`: `431e4cc`, `62401b9`, `b997aea`

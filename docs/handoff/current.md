@@ -26,6 +26,9 @@
 - [Phase 1B Prototype & Interaction Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md)
 - [Phase 1B Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
 - [Phase 1B Prototype](/Users/coderlauu/xRag/prototype/v2/index.html)
+- [Phase 1B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md)
+- [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
+- [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
 
 ---
 
@@ -68,11 +71,11 @@
 3. [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
 4. [Phase 1B Prototype](/Users/coderlauu/xRag/prototype/v2/index.html)
 5. [Phase 1B Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
-6. [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
-7. [Phase 1A Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-02-phase-1a-retrospective.md)
-8. [Phase 1A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
-9. [Phase 1A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
-10. [Phase 1A API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
+6. [Phase 1B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md)
+7. [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
+8. [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
+9. [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
+10. [Phase 1A Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-02-phase-1a-retrospective.md)
 
 ---
 
