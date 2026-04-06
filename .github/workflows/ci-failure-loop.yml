@@ -1,0 +1,91 @@
+name: CI Failure Loop
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  collect-failure-context:
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion != 'success' &&
+        github.event.workflow_run.conclusion != 'skipped' &&
+        github.event.workflow_run.head_branch == 'main'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Collect failed run context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          OUTPUT_DIR: artifacts/ci-failure
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: scripts/collect-ci-failure-context.sh
+
+      - name: Upload incident artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-${{ github.event.workflow_run.id }}
+          path: artifacts/ci-failure
+          if-no-files-found: error
+
+      - name: Ensure ci-failure label exists
+        uses: actions/github-script@v8
+        with:
+          script: |
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'ci-failure',
+              });
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'ci-failure',
+                color: 'd73a4a',
+                description: 'Failure incident generated from GitHub Actions CI',
+              });
+            }
+
+      - name: Create incident issue
+        uses: actions/github-script@v8
+        env:
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'artifacts/ci-failure/incident.md';
+            const incident = JSON.parse(fs.readFileSync('artifacts/ci-failure/incident.json', 'utf8'));
+            const shortSha = incident.run.head_sha.slice(0, 7);
+            const title = `[CI Failure] run ${process.env.RUN_ID} failed on ${incident.run.head_branch} (${shortSha})`;
+            const body = [
+              fs.readFileSync(path, 'utf8'),
+              '',
+              `Artifact: \`ci-failure-${process.env.RUN_ID}\``,
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['ci-failure'],
+            });

@@ -22,6 +22,7 @@
 
 - [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
 - [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
+- [CI Failure Loop Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md)
 
 ---
 
@@ -89,4 +90,3 @@
 3. 当前活跃 `exec plan`
 
 如果需要再深入，再看对应 `tech/*` 和 retrospective。
-
