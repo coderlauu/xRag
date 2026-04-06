@@ -125,4 +125,13 @@ export class UploadsRepository {
 
     return part ?? null;
   }
+
+  async listRecentFailedUploads(limit = 20, db: DatabaseExecutor = this.database.db) {
+    return db
+      .select()
+      .from(uploads)
+      .where(eq(uploads.status, "failed"))
+      .orderBy(desc(uploads.completedAt), desc(uploads.createdAt))
+      .limit(limit);
+  }
 }

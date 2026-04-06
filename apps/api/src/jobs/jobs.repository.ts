@@ -77,4 +77,13 @@ export class JobsRepository {
 
     return (latestJob?.attempt ?? 0) + 1;
   }
+
+  async listRecentIncidentCandidates(limit = 20, db: DatabaseExecutor = this.database.db) {
+    return db
+      .select()
+      .from(documentParseJobs)
+      .where(inArray(documentParseJobs.status, ["failed", "dead"]))
+      .orderBy(desc(documentParseJobs.finishedAt), desc(documentParseJobs.createdAt))
+      .limit(limit);
+  }
 }
