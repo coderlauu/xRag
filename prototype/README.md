@@ -4,12 +4,16 @@
 
 ## Current Version
 
+- `v2/`
+  对应当前的 `Phase 1B` 原型，强化 `pdf` 真实解析、multipart 上传、失败诊断和运维可见性。
 - `v1/`
   对应当前的 Phase 1A 原型，实现 `导入 -> 搜索 -> 详情` 的 MVP 闭环。
 
 ## Related Docs
 
 - [当前版本 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
+- [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
+- [v2 交互说明](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
 - [Phase 1A PRD](/Users/coderlauu/xRag/docs/prd/2026-03-31-xrag-phase-1a-prd.md)
 - [v1 Scope 与取舍](/Users/coderlauu/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
 - [v1 交互说明](/Users/coderlauu/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
@@ -23,7 +27,10 @@
 
 ## How To Open
 
-可以直接在浏览器打开 [prototype/v1/index.html](/Users/coderlauu/xRag/prototype/v1/index.html)。
+可以直接在浏览器打开：
+
+- [prototype/v2/index.html](/Users/coderlauu/xRag/prototype/v2/index.html)
+- [prototype/v1/index.html](/Users/coderlauu/xRag/prototype/v1/index.html)
 
 如果希望用本地服务预览，也可以在仓库根目录运行：
 
@@ -31,4 +38,7 @@
 python3 -m http.server 8000
 ```
 
-然后访问 `http://localhost:8000/prototype/v1/index.html`。
+然后访问：
+
+- `http://localhost:8000/prototype/v2/index.html`
+- `http://localhost:8000/prototype/v1/index.html`

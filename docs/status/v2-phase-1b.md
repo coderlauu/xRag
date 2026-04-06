@@ -38,8 +38,8 @@
 
 ## 4. Current Node
 
-- `now`: `MinIO Console` 访问问题已收口，当前正在实现 `GitHub Actions` 失败闭环第一版：监听 `CI` 失败 run、采集上下文、生成 incident artifact 与 GitHub issue
-- `next`: 验证一次失败 run 的 artifact / issue 生成链路，再决定是否增加 repo 状态自动更新或 agent 自动修复入口
+- `now`: `CI Failure Loop` 第一版已落库，当前正在补齐 `Phase 1B` 的 `prototype/v2` 与 interaction spec，为 `pdf / multipart / observability` 的增量 contract 提供产品事实源
+- `next`: 以 `prototype/v2` 和 `v2 interaction spec` 为基础，冻结 `Phase 1B` 的页面状态、数据对象和 API 增量边界
 
 ## 5. Blockers
 
@@ -60,8 +60,10 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v2.md](/Users/coderlauu/xRag/docs/handoff/v2.md)
+- `prototype`: [prototype/v2](/Users/coderlauu/xRag/prototype/v2/index.html)
+- `interaction_spec`: [v2 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
 - `tech_docs`: [Phase 1A architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md), [Phase 1A data model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md), [Phase 1A api design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
-- `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md)
+- `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md), [Phase 1B prototype and interaction](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md)
 - `ops_runbook`: [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
-- `key_commits`: `431e4cc`, `62401b9`
+- `key_commits`: `431e4cc`, `62401b9`, `b997aea`
 - `latest_ci_run`: `23969230230`

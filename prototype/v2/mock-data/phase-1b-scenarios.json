@@ -1,0 +1,32 @@
+{
+  "version": "v2",
+  "phase": "Phase 1B",
+  "focus": [
+    "pdf real parsing",
+    "multipart uploads",
+    "failure diagnosis",
+    "ops and rollback"
+  ],
+  "scenarios": [
+    {
+      "id": "doc-pdf-success",
+      "name": "Text PDF parsed successfully",
+      "result": "searchable"
+    },
+    {
+      "id": "doc-uploading",
+      "name": "Multipart upload interrupted on part 17",
+      "result": "resume upload"
+    },
+    {
+      "id": "doc-object-missing",
+      "name": "Complete upload failed because object is missing",
+      "result": "diagnose storage"
+    },
+    {
+      "id": "doc-parse-failed",
+      "name": "Scanned PDF uploaded but parse rejected",
+      "result": "explain no OCR in current scope"
+    }
+  ]
+}

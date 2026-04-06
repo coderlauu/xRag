@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xRag Prototype v2 | 文档控制台</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body data-page="detail">
+    <div class="shell">
+      <header class="topbar" data-global-header></header>
+
+      <main class="page-grid">
+        <section class="detail-grid">
+          <article class="panel panel-strong">
+            <div data-detail-header></div>
+            <div class="button-row">
+              <a class="secondary-button" data-search-link href="search.html">带着当前诊断去搜索</a>
+              <button class="ghost-button" type="button" data-next-doc>切换下一个样例</button>
+              <a class="ghost-button" href="ops.html">打开运维看板</a>
+            </div>
+            <section class="subsection">
+              <h3>提取结果</h3>
+              <div class="detail-content" data-detail-content></div>
+            </section>
+            <section class="subsection">
+              <h3>上传与解析时间线</h3>
+              <ol class="timeline" data-detail-timeline></ol>
+            </section>
+          </article>
+
+          <aside class="panel">
+            <section class="subsection">
+              <h3>上传会话</h3>
+              <div data-detail-upload></div>
+            </section>
+            <section class="subsection">
+              <h3>失败诊断</h3>
+              <div data-detail-diagnosis></div>
+            </section>
+            <section class="subsection">
+              <h3>事件与排查手册</h3>
+              <div data-detail-incident></div>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/detail.js"></script>
+  </body>
+</html>

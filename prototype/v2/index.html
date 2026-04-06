@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xRag Prototype v2 | 导入工作台</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body data-page="inbox">
+    <div class="shell">
+      <header class="topbar" data-global-header></header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card--phase2">
+          <p class="eyebrow">Phase 1B 原型</p>
+          <h2 class="hero-title">把导入链路从“能用”推进到“可诊断、可回滚、可规模化”。</h2>
+          <p class="hero-copy">
+            这个版本不再只演示“上传后成功/失败”，而是把上传会话、对象校验、解析任务、失败诊断和运维入口都显式展开，
+            为 `pdf` 真实解析、multipart 上传和 production observability 做交互定稿。
+          </p>
+          <div class="hero-actions">
+            <div class="action-chip">
+              <strong>上传会话</strong>
+              <span>从 `initiate`、分片上传、完成校验到入队解析，全链路可见。</span>
+            </div>
+            <div class="action-chip">
+              <strong>失败诊断</strong>
+              <span>失败不再只是一个红 badge，而是有分类、有影响面、有补救动作。</span>
+            </div>
+            <div class="action-chip">
+              <strong>运维看板</strong>
+              <span>部署、健康检查、事件与回滚路径被统一收拢到同一视图。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="metric-grid" data-metrics></section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">场景切换</p>
+                <h3 class="section-title">导入实验台</h3>
+              </div>
+              <a class="ghost-button" href="ops.html">去运维页看事件</a>
+            </div>
+            <div class="scenario-grid" data-scenario-list></div>
+          </article>
+
+          <aside class="panel panel-strong">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">当前会话</p>
+                <h3 class="section-title">当前上传会话</h3>
+              </div>
+            </div>
+            <div data-session-summary></div>
+            <ol class="timeline" data-session-steps></ol>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">诊断</p>
+                <h3 class="section-title">失败诊断与补救动作</h3>
+              </div>
+            </div>
+            <div data-diagnosis-panel></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">队列与信号</p>
+                <h3 class="section-title">解析队列与运维信号</h3>
+              </div>
+            </div>
+            <div data-queue-summary></div>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">最近导入</p>
+                <h3 class="section-title">最近导入与处理结果</h3>
+              </div>
+              <a class="ghost-button" href="search.html">带着诊断去搜索</a>
+            </div>
+            <div class="list-shell" data-recent-docs></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">原型说明</p>
+                <h3 class="section-title">本页要表达什么</h3>
+              </div>
+            </div>
+            <ul class="note-list">
+              <li>一个上传动作要拆成会话、对象、解析、事件四层状态。</li>
+              <li>用户和开发者都应看得懂失败发生在哪一层。</li>
+              <li>运维入口不再是隐形能力，而是产品设计的一部分。</li>
+            </ul>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/inbox.js"></script>
+  </body>
+</html>
