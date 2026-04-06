@@ -1,0 +1,56 @@
+name: CI Auto Repair
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-repair:
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion != 'success' &&
+        github.event.workflow_run.conclusion != 'skipped' &&
+        github.event.workflow_run.head_branch == 'main'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout failed SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Run auto repair dispatcher
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          OUTPUT_DIR: ${{ runner.temp }}/ci-auto-repair
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: scripts/run-ci-auto-repair.sh
+
+      - name: Upload auto repair artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-auto-repair-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/ci-auto-repair
+          if-no-files-found: error
