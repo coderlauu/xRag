@@ -1284,6 +1284,14 @@
             ],
             "nullable": true
           },
+          "page_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "parser_name": {
+            "type": "string",
+            "nullable": true
+          },
           "imported_at": {
             "type": "string"
           }
@@ -1496,6 +1504,14 @@
             ],
             "nullable": true
           },
+          "page_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "parser_name": {
+            "type": "string",
+            "nullable": true
+          },
           "imported_at": {
             "type": "string"
           },
@@ -1536,14 +1552,6 @@
             ]
           },
           "last_incident_ref": {
-            "type": "string",
-            "nullable": true
-          },
-          "page_count": {
-            "type": "number",
-            "nullable": true
-          },
-          "parser_name": {
             "type": "string",
             "nullable": true
           },

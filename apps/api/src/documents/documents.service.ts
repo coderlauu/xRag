@@ -255,6 +255,8 @@ export class DocumentsService {
       diagnosis_code: this.toDiagnosisCode(document.diagnosisCode),
       diagnosis_summary: document.diagnosisSummary,
       latest_job_status: latestJob?.status ?? null,
+      page_count: document.pageCount,
+      parser_name: document.parserName,
       imported_at: toIsoString(document.importedAt)
     };
   }

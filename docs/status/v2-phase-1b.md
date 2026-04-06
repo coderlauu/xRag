@@ -30,32 +30,29 @@
 
 - `foundation`: `completed`
 - `api-persistence`: `completed`
-- `upload-storage`: `in-progress`
-- `worker-pipeline`: `in-progress`
-- `web-integration`: `in-progress`
+- `upload-storage`: `completed`
+- `worker-pipeline`: `completed`
+- `web-integration`: `completed`
 - `testing`: `in-progress`
 - `ci-cd`: `completed`
 - `contract-freeze`: `completed`
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane A` 的 multipart 完成校验与 integration 证据补强，并接通 `Lane B` 的文本型 PDF 解析基线和 `Lane C` 的 web multipart 上传入口
-- `next`: 继续补 `pdf` 解析成功/失败的更细验证，并推进 diagnostics / ops 读接口接入
+- `now`: 已完成 `Lane A/B/C/D` 的核心闭环补强，包括 multipart 完成校验、PDF 解析成功/失败单测、Search/Detail 的诊断可视化，以及 Ops Board 的真实读接口与运营态
+- `next`: 继续补一条更接近真实上传链路的 PDF 回归证据，并评估 `Phase 1B` 是否可以进入收口验收
 
 ## 5. Blockers
 
-- `blocker`: 当前 `Lane B / Lane C` 仍缺少 `pdf` 解析结果在前端详情页和搜索页中的完整呈现，以及 `Ops Board` 的真实读接口联调
-  - `impact`: `Phase 1B` 的“可规模化使用”目标还未完全闭环，尤其是失败诊断与运维可见性
-  - `owner`: `codex`
-- `secondary_blocker`: 当前 worker 只完成了文本型 PDF 解析基线，尚未补 `pdf_parse_unsupported / pdf_parse_timeout` 的更细测试证据
-  - `impact`: 失败分类已定义，但 `Phase 1B` 的 parser lane 还缺更强的回归保护
+- `blocker`: 当前仍缺一条更接近真实用户路径的 PDF 上传回归证据，用于覆盖“上传 PDF -> worker 解析 -> 搜索/详情呈现 -> 诊断可见”的整链路
+  - `impact`: `Phase 1B` 的核心能力已可用，但在收口前还缺一条更强的回归样本
   - `owner`: `codex`
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`
+- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`，并通过 GitHub Actions run `24034875537` 的 `validate / integration / e2e / infra / build-images / deploy-production / smoke-production`
 - `result`: `passed`
-- `latest_failure`: `CI` 失败闭环仍待线上自动归档验证；`pdf` 失败分类的更细粒度测试尚未补齐
+- `latest_failure`: `CI` 失败闭环已验证可自动归档；当前残留仅是更贴近真实用户路径的 PDF 整链路回归样本尚未补齐
 
 ## 7. Linked Artifacts
 
@@ -67,5 +64,5 @@
 - `generated_contract`: [Phase 1B OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1b-api.json)
 - `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md), [Phase 1B prototype and interaction](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-prototype-and-interaction.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md), [Phase 1B harness hardening](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-harness-hardening.md), [Phase 1B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-implementation-lanes.md)
 - `ops_runbook`: [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
-- `key_commits`: `431e4cc`, `62401b9`, `b997aea`
-- `latest_ci_run`: `23969230230`
+- `key_commits`: `62401b9`, `b997aea`, `c20835e`, `e3832ef`
+- `latest_ci_run`: `24034875537`

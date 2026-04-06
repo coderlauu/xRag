@@ -1,7 +1,7 @@
 import { normalizeWhitespace, createContentPreview, buildSearchText, inferTextSupport } from "../common/document-utils";
 import type { WorkerRepository } from "../database/repository";
 import type { Logger } from "../logging/logger";
-import { parsePdfDocument } from "./pdf-parser";
+import { parsePdfDocument, type ParsedPdfDocument } from "./pdf-parser";
 import { DOCUMENT_PROCESSING_JOB_NAMES, type DocumentProcessingJobName } from "../queue/constants";
 import type { WorkerStorageService } from "../storage/storage";
 
@@ -28,10 +28,12 @@ export interface DocumentProcessingDependencies {
   repository: WorkerRepository;
   storage: WorkerStorageService;
   logger: Logger;
+  parsePdf?: (bytes: Uint8Array) => Promise<ParsedPdfDocument>;
 }
 
 async function processDocument(context: JobContext, deps: DocumentProcessingDependencies): Promise<DocumentProcessingJobResult> {
   const { repository, storage, logger } = deps;
+  const parsePdf = deps.parsePdf ?? parsePdfDocument;
   const jobType =
     context.name === DOCUMENT_PROCESSING_JOB_NAMES.reparseDocument ? "reparse_document" : "parse_document";
   const job = await repository.findJob(context.id, context.data.documentId, jobType);
@@ -93,7 +95,7 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
 
     if (document.mime_type === "application/pdf") {
       const pdfBytes = await storage.getObjectBytes(source.objectKey);
-      const parsedPdf = await parsePdfDocument(pdfBytes);
+      const parsedPdf = await parsePdf(pdfBytes);
       const tagNames = await repository.listDocumentTags(document.id);
       const contentRaw = parsedPdf.text;
       const contentClean = normalizeWhitespace(parsedPdf.text);

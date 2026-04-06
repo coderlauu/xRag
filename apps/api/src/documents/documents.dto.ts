@@ -245,6 +245,12 @@ export class DocumentSummaryDto implements DocumentSummary {
   @ApiPropertyOptional({ type: String, enum: JOB_STATUS_VALUES, nullable: true })
   latest_job_status!: JobStatus | null;
 
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  page_count: number | null = null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  parser_name: string | null = null;
+
   @ApiProperty({ type: String })
   imported_at!: string;
 }
@@ -273,12 +279,6 @@ export class DocumentDetailDto extends DocumentSummaryDto implements DocumentDet
 
   @ApiPropertyOptional({ type: String, nullable: true })
   last_incident_ref!: string | null;
-
-  @ApiPropertyOptional({ type: Number, nullable: true })
-  page_count!: number | null;
-
-  @ApiPropertyOptional({ type: String, nullable: true })
-  parser_name!: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   parser_version!: string | null;

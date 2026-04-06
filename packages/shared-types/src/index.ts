@@ -56,6 +56,8 @@ export interface DocumentSummary {
   diagnosis_code: DiagnosisCode | null;
   diagnosis_summary: string | null;
   latest_job_status: JobStatus | null;
+  page_count: number | null;
+  parser_name: string | null;
   imported_at: string;
 }
 

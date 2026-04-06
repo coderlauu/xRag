@@ -2,6 +2,50 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, PageShell, SectionCard, StatCard } from "@xrag/ui";
 import { fetchOpsHealthSummary, getLatestDeployment, listOpsIncidents } from "../../../lib/api";
 
+function serviceStatusLabel(status: "healthy" | "warning" | "critical") {
+  switch (status) {
+    case "healthy":
+      return "健康";
+    case "warning":
+      return "注意";
+    case "critical":
+      return "严重";
+  }
+}
+
+function incidentStatusLabel(status: "open" | "tracked" | "resolved") {
+  switch (status) {
+    case "open":
+      return "待处理";
+    case "tracked":
+      return "处理中";
+    case "resolved":
+      return "已解决";
+  }
+}
+
+function incidentSeverityLabel(severity: "low" | "medium" | "high") {
+  switch (severity) {
+    case "low":
+      return "低";
+    case "medium":
+      return "中";
+    case "high":
+      return "高";
+  }
+}
+
+function deploymentSmokeLabel(status: "passed" | "failed" | "unknown") {
+  switch (status) {
+    case "passed":
+      return "通过";
+    case "failed":
+      return "失败";
+    case "unknown":
+      return "未知";
+  }
+}
+
 export function OpsPage() {
   const healthQuery = useQuery({
     queryKey: ["ops", "health-summary"],
@@ -24,26 +68,36 @@ export function OpsPage() {
   const health = healthQuery.data;
   const incidents = incidentsQuery.data?.items || [];
   const deployment = deploymentQuery.data;
+  const openIncidents = incidents.filter((incident) => incident.status !== "resolved").length;
+  const warningServices = health?.services.filter((service) => service.status !== "healthy").length || 0;
 
   return (
-    <PageShell eyebrow="运维" title="Ops Board" description="服务健康、近期事件和最新部署状态的一体化只读视图。">
+    <PageShell eyebrow="运维" title="运维总览" description="服务健康、近期事件和最新部署状态的一体化只读视图。">
       <section className="grid gap-4 md:grid-cols-3">
         <StatCard
           label="健康服务数"
           value={String(health?.services.length || 0)}
-          hint={health?.generated_at ? `更新时间 ${health.generated_at}` : "等待接口返回"}
+          hint={
+            healthQuery.isError
+              ? "健康摘要读取失败"
+              : health?.generated_at
+                ? `更新时间 ${health.generated_at}`
+                : "等待接口返回"
+          }
         />
-        <StatCard label="近期事件数" value={String(incidents.length)} hint="来自只读 incidents 接口" />
+        <StatCard label="待处理事件" value={String(openIncidents)} hint={`总事件 ${incidents.length} 条`} />
         <StatCard
           label="最近部署"
           value={deployment?.current_image_tag || "未知"}
-          hint={deployment?.last_smoke_status || "unknown"}
+          hint={deployment ? `Smoke ${deploymentSmokeLabel(deployment.last_smoke_status)}` : "等待部署摘要"}
         />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <SectionCard title="服务健康" description="面向内部使用的服务连通性摘要。">
-          {health ? (
+          {healthQuery.isError ? (
+            <p className="m-0 text-sm leading-6 text-rose-700">健康摘要加载失败，请检查 API 与依赖服务。</p>
+          ) : health ? (
             <div className="grid gap-3">
               {health.services.map((service) => (
                 <article
@@ -55,7 +109,7 @@ export function OpsPage() {
                     <span>{service.detail}</span>
                   </div>
                   <Badge variant={service.status === "healthy" ? "success" : service.status === "warning" ? "warning" : "info"}>
-                    {service.status}
+                    {serviceStatusLabel(service.status)}
                   </Badge>
                 </article>
               ))}
@@ -63,11 +117,19 @@ export function OpsPage() {
           ) : (
             <p className="m-0 text-sm leading-6 text-slate-600">正在加载健康摘要。</p>
           )}
+
+          {health ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700">
+              当前共有 {warningServices} 个服务处于非健康状态。
+            </div>
+          ) : null}
         </SectionCard>
 
         <div className="grid gap-6">
           <SectionCard title="近期事件" description="如果链路失败，这里会优先展示 incident 摘要。">
-            {incidents.length > 0 ? (
+            {incidentsQuery.isError ? (
+              <p className="m-0 text-sm leading-6 text-rose-700">事件摘要加载失败，请稍后重试。</p>
+            ) : incidents.length > 0 ? (
               <div className="grid gap-3">
                 {incidents.map((incident) => (
                   <article
@@ -77,11 +139,11 @@ export function OpsPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <strong className="text-slate-950">{incident.title}</strong>
                       <Badge variant={incident.status === "resolved" ? "success" : incident.severity === "high" ? "warning" : "info"}>
-                        {incident.status}
+                        {incidentStatusLabel(incident.status)}
                       </Badge>
                     </div>
                     <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                      {incident.source} · {incident.severity} · {incident.incident_ref}
+                      {incident.source} · 风险 {incidentSeverityLabel(incident.severity)} · {incident.incident_ref}
                     </div>
                     <p className="m-0">{incident.summary}</p>
                   </article>
@@ -93,11 +155,13 @@ export function OpsPage() {
           </SectionCard>
 
           <SectionCard title="部署摘要" description="读取最新镜像 tag 和 smoke 状态。">
-            {deployment ? (
+            {deploymentQuery.isError ? (
+              <p className="m-0 text-sm leading-6 text-rose-700">部署摘要读取失败，请检查最近一次 deploy workflow。</p>
+            ) : deployment ? (
               <div className="grid gap-2 text-sm leading-6 text-slate-700">
                 <article>当前镜像：{deployment.current_image_tag || "未知"}</article>
                 <article>上一稳定版本：{deployment.previous_stable_image_tag || "未知"}</article>
-                <article>最近 smoke：{deployment.last_smoke_status}</article>
+                <article>最近 smoke：{deploymentSmokeLabel(deployment.last_smoke_status)}</article>
                 <article>最近 smoke 时间：{deployment.last_smoke_at || "未知"}</article>
               </div>
             ) : (
