@@ -1,5 +1,6 @@
 import type {
   DocumentDetail,
+  DocumentUploadStatus,
   DocumentListResponse,
   JobStatusResponse,
   ListDocumentsQuery,
@@ -174,6 +175,48 @@ export function parseStatusTone(status: ParseStatus | string | undefined) {
   }
 
   return "info" as const;
+}
+
+export function uploadStatusLabel(status: DocumentUploadStatus | string | null | undefined): string {
+  switch (status) {
+    case "draft":
+      return "草稿";
+    case "initiated":
+      return "已初始化";
+    case "uploading":
+      return "上传中";
+    case "verifying":
+      return "校验中";
+    case "uploaded":
+      return "已上传";
+    case "failed":
+      return "上传失败";
+    default:
+      return "未上传";
+  }
+}
+
+export function diagnosisLabel(code: string | null | undefined): string {
+  switch (code) {
+    case "storage_presign_failed":
+      return "存储签名失败";
+    case "multipart_part_failed":
+      return "分片上传失败";
+    case "upload_complete_invalid_parts":
+      return "上传完成校验失败";
+    case "object_missing_on_complete":
+      return "对象校验失败";
+    case "pdf_parse_unsupported":
+      return "PDF 暂不支持解析";
+    case "pdf_parse_timeout":
+      return "PDF 解析超时";
+    case "pdf_parse_empty_text":
+      return "PDF 未提取到文本";
+    case "queue_backlog":
+      return "解析任务入队失败";
+    default:
+      return "无诊断";
+  }
 }
 
 export function jobStatusTone(status: JobStatusResponse["status"] | string | undefined) {

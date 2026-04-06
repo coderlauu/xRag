@@ -12,10 +12,10 @@ export function AppShell({ children }: AppShellProps) {
       <header className="grid gap-4 rounded-[32px] border border-white/60 bg-slate-950 px-6 py-6 text-slate-50 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="grid gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-300">xRag Phase 1A</span>
-            <h1 className="m-0 text-3xl font-semibold tracking-[-0.05em] md:text-4xl">Knowledge Inbox</h1>
+            <span className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-300">xRag Phase 1B</span>
+            <h1 className="m-0 text-3xl font-semibold tracking-[-0.05em] md:text-4xl">知识导入工作台</h1>
             <p className="m-0 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
-              Frontend engineering foundation is now using Tailwind utility styling and shadcn-style components.
+              面向 `pdf / multipart / observability` 的导入与诊断基线，当前包含 Inbox、Search、Detail 和 Ops 四个入口。
             </p>
           </div>
         </div>
@@ -44,6 +44,14 @@ export function AppShell({ children }: AppShellProps) {
             )}
           >
             Detail
+          </Link>
+          <Link
+            to="/ops"
+            className={cn(
+              "rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-slate-50 transition hover:bg-white/18"
+            )}
+          >
+            Ops
           </Link>
         </nav>
       </header>

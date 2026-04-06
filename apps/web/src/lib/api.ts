@@ -4,12 +4,15 @@ import {
   createTag as createTagRequest,
   createTextDocument as createTextDocumentRequest,
   fetchHealth as fetchHealthRequest,
+  fetchOpsHealthSummary as fetchOpsHealthSummaryRequest,
   getDocument as getDocumentRequest,
   getUploadPartUrls as getUploadPartUrlsRequest,
   getJob as getJobRequest,
+  getLatestDeployment as getLatestDeploymentRequest,
   initiateUpload as initiateUploadRequest,
   listDocuments as listDocumentsRequest,
   listTags as listTagsRequest,
+  listOpsIncidents as listOpsIncidentsRequest,
   retryDocument as retryDocumentRequest,
   updateDocumentTags as updateDocumentTagsRequest
 } from "@xrag/api-client";
@@ -21,8 +24,11 @@ import type {
   DocumentListResponse,
   HealthResponse,
   JobStatusResponse,
+  LatestDeploymentResponse,
   ListDocumentsQuery,
   ListTagsQuery,
+  OpsHealthSummaryResponse,
+  OpsIncidentListResponse,
   RetryDocumentResponse,
   TagItem,
   TagListResponse,
@@ -74,6 +80,18 @@ export function createTag(body: CreateTagRequest): Promise<TagItem> {
 
 export function getJob(jobId: string): Promise<JobStatusResponse> {
   return getJobRequest(jobId, API_BASE_URL);
+}
+
+export function fetchOpsHealthSummary(): Promise<OpsHealthSummaryResponse> {
+  return fetchOpsHealthSummaryRequest(API_BASE_URL);
+}
+
+export function listOpsIncidents(): Promise<OpsIncidentListResponse> {
+  return listOpsIncidentsRequest(API_BASE_URL);
+}
+
+export function getLatestDeployment(): Promise<LatestDeploymentResponse> {
+  return getLatestDeploymentRequest(API_BASE_URL);
 }
 
 export function initiateUpload(body: UploadInitiateRequest): Promise<UploadInitiateResponse> {

@@ -2,6 +2,7 @@ import { Outlet, RouterProvider, createRootRoute, createRoute, createRouter } fr
 import { AppShell } from "../shell/app-shell";
 import { DetailPage } from "../features/detail/pages/detail-page";
 import { InboxPage } from "../features/inbox/pages/inbox-page";
+import { OpsPage } from "../features/ops/pages/ops-page";
 import { SearchPage } from "../features/search/pages/search-page";
 
 const rootRoute = createRootRoute({
@@ -30,7 +31,13 @@ const detailRoute = createRoute({
   component: () => <DetailPage />
 });
 
-const routeTree = rootRoute.addChildren([inboxRoute, searchRoute, detailRoute]);
+const opsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ops",
+  component: OpsPage
+});
+
+const routeTree = rootRoute.addChildren([inboxRoute, searchRoute, detailRoute, opsRoute]);
 
 const router = createRouter({
   routeTree

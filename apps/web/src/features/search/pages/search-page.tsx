@@ -5,6 +5,7 @@ import { Badge, Button, Input, PageShell, SectionCard, Select, StatCard } from "
 import { listDocuments } from "../../../lib/api";
 import {
   buildDocumentsQuery,
+  diagnosisLabel,
   formatDateTime,
   joinTags,
   normalizeSearchFilters,
@@ -196,10 +197,19 @@ export function SearchPage() {
                         <span>{formatDateTime(item.imported_at)}</span>
                       </div>
                     </div>
-                    <Badge variant={parseStatusTone(item.parse_status)}>{parseStatusLabel(item.parse_status)}</Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={parseStatusTone(item.parse_status)}>{parseStatusLabel(item.parse_status)}</Badge>
+                      {item.upload_status ? <Badge variant="info">{item.upload_status}</Badge> : null}
+                    </div>
                   </div>
                   <p className="m-0 text-sm leading-6 text-slate-600">{item.content_preview || "No preview available."}</p>
                   {item.tags.length > 0 ? <p className="m-0 text-xs text-slate-500">Tags: {joinTags(item.tags)}</p> : null}
+                  {(item.diagnosis_code || item.latest_job_status) ? (
+                    <div className="grid gap-1 text-xs text-slate-500">
+                      {item.diagnosis_code ? <span>诊断：{diagnosisLabel(item.diagnosis_code)}</span> : null}
+                      {item.latest_job_status ? <span>最近任务：{item.latest_job_status}</span> : null}
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>

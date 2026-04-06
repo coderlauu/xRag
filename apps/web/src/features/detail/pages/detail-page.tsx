@@ -4,6 +4,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Badge, Button, PageShell, SectionCard, StatCard, Textarea, Input } from "@xrag/ui";
 import { getDocument, getJob, retryDocument, updateDocumentTags } from "../../../lib/api";
 import {
+  diagnosisLabel,
   formatDateTime,
   formatRelativeTime,
   isJobActive,
@@ -14,7 +15,8 @@ import {
   parseStatusLabel,
   parseStatusTone,
   splitTags,
-  sourceTypeLabel
+  sourceTypeLabel,
+  uploadStatusLabel
 } from "../../../lib/document-state";
 import { loadJobId, rememberJobId } from "../../../lib/job-store";
 
@@ -175,6 +177,12 @@ export function DetailPage() {
               <article>Source URL: {document.source_url || "N/A"}</article>
               <article>Mime type: {document.mime_type || "N/A"}</article>
               <article>Imported: {formatDateTime(document.imported_at)}</article>
+              <article>Upload status: {uploadStatusLabel(document.upload_status)}</article>
+              <article>Diagnosis: {diagnosisLabel(document.diagnosis_code)}</article>
+              <article>Diagnosis summary: {document.diagnosis_summary || "None"}</article>
+              <article>Parser: {document.parser_name || "N/A"}</article>
+              <article>Pages: {document.page_count ?? "N/A"}</article>
+              <article>Incident ref: {document.last_incident_ref || "N/A"}</article>
             </div>
           </SectionCard>
 
@@ -236,7 +244,16 @@ export function DetailPage() {
                 <>
                   <article>Job id: {job.id}</article>
                   <article>Attempts: {job.attempt}</article>
+                  <article>Job diagnosis: {diagnosisLabel(job.diagnosis_code)}</article>
+                  <article>Incident ref: {job.incident_ref || "None"}</article>
                   <article>Error: {job.error_message || "None"}</article>
+                </>
+              ) : null}
+              {document.upload ? (
+                <>
+                  <article>Upload mode: {document.upload.upload_mode}</article>
+                  <article>Uploaded parts: {document.upload.uploaded_part_count} / {document.upload.part_count ?? 1}</article>
+                  <article>Verified at: {formatDateTime(document.upload.verified_at)}</article>
                 </>
               ) : null}
             </div>
