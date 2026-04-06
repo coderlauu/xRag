@@ -3,6 +3,10 @@ import path from "node:path";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { createApp } from "./bootstrap";
 
+function isIgnorableShutdownError(error: unknown): boolean {
+  return error instanceof Error && error.message === "Connection is closed.";
+}
+
 async function main() {
   const app = await createApp();
   await app.init();
@@ -23,5 +27,21 @@ async function main() {
     await app.close();
   }
 }
+
+process.on("uncaughtException", (error) => {
+  if (isIgnorableShutdownError(error)) {
+    return;
+  }
+
+  throw error;
+});
+
+process.on("unhandledRejection", (reason) => {
+  if (isIgnorableShutdownError(reason)) {
+    return;
+  }
+
+  throw reason;
+});
 
 void main();
