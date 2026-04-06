@@ -245,6 +245,26 @@ jobs:
         if: ${{ steps.staging-smoke-preflight.outputs.enabled == 'true' }}
         run: scripts/smoke-http.sh "${{ secrets.APP_BASE_URL }}"
 
+      - name: Record staging smoke evidence
+        if: always()
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          ARTIFACT_DIR: artifacts/deploy-evidence/staging
+          DEPLOY_ENVIRONMENT: staging
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+          XRAG_SMOKE_STATUS: ${{ job.status }}
+        run: scripts/record-deploy-evidence.sh
+
+      - name: Upload staging smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence-staging-${{ github.run_id }}
+          path: artifacts/deploy-evidence/staging
+          if-no-files-found: error
+
   deploy-production:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     needs: smoke-staging
@@ -308,3 +328,23 @@ jobs:
       - name: Run production smoke
         if: ${{ steps.production-smoke-preflight.outputs.enabled == 'true' }}
         run: scripts/smoke-http.sh "${{ secrets.APP_BASE_URL }}"
+
+      - name: Record production smoke evidence
+        if: always()
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          ARTIFACT_DIR: artifacts/deploy-evidence/production
+          DEPLOY_ENVIRONMENT: production
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+          XRAG_SMOKE_STATUS: ${{ job.status }}
+        run: scripts/record-deploy-evidence.sh
+
+      - name: Upload production smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence-production-${{ github.run_id }}
+          path: artifacts/deploy-evidence/production
+          if-no-files-found: error

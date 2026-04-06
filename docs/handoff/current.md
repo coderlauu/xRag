@@ -24,6 +24,7 @@
 - [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-02-phase-1b-planning-and-design.md)
 - [CI Failure Loop Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-04-ci-failure-loop.md)
 - [Phase 1B Prototype & Interaction Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-prototype-and-interaction.md)
+- [Phase 1B Harness Hardening Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-06-phase-1b-harness-hardening.md)
 - [Phase 1B Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
 - [Phase 1B Prototype](/Users/coderlauu/xRag/prototype/v2/index.html)
 - [Phase 1B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md)

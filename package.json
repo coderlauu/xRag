@@ -7,14 +7,21 @@
     "contract:check": "./scripts/check-generated-contract.sh",
     "contract:generate": "pnpm --filter @xrag/api openapi:generate",
     "dev": "turbo run dev --parallel",
+    "docs:check": "node ./scripts/check-doc-links.mjs && node ./scripts/check-doc-consistency.mjs",
     "e2e:smoke": "pnpm test:e2e",
+    "harness:check": "pnpm structure:check && pnpm docs:check",
     "lint": "turbo run lint",
+    "ops:inspect:ci-run": "./scripts/ops-inspect-ci-run.sh",
+    "ops:inspect:document": "./scripts/ops-inspect-document.sh",
+    "ops:inspect:upload": "./scripts/ops-inspect-upload.sh",
+    "record:deploy:evidence": "./scripts/record-deploy-evidence.sh",
+    "structure:check": "node ./scripts/check-structure.mjs",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:e2e": "./scripts/run-e2e-smoke.sh",
     "test:integration": "./scripts/run-api-integration.sh",
     "test:unit": "pnpm --filter @xrag/worker test:unit",
     "typecheck": "turbo run typecheck",
-    "validate": "pnpm lint && pnpm typecheck && pnpm contract:check"
+    "validate": "pnpm lint && pnpm typecheck && pnpm contract:check && pnpm harness:check"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

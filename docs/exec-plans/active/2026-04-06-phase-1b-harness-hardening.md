@@ -77,8 +77,9 @@
 
 当前证据：
 
-- `2026-04-06`: `pnpm validate` 已通过，包含 `lint + typecheck + contract:check`
+- `2026-04-06`: `pnpm validate` 已通过，包含 `lint + typecheck + contract:check + structure:check + docs:check`
 - `2026-04-06`: `openapi:generate` 已产出 `docs/generated/openapi/phase-1b-api.json`
+- `2026-04-06`: 新增 `structure check + docs link/consistency check + deploy evidence archiving + ops inspect scripts`
 - `2026-04-06`: 本地 `API integration` 受 Docker daemon 不可用影响，尚未补齐
 
 ## 8. Rollback
@@ -92,3 +93,5 @@
 - `2026-04-06`: 将 harness hardening 归类为 `medium-feature`，纳入 `v2 / Phase 1B` 当前版本推进，不新开版本
 - `2026-04-06`: 优先级确定为 `P0 contract mechanicalization > P1 evaluation and ops tooling > P2 governance polish`
 - `2026-04-06`: `P0` 已完成 contract mechanicalization，新增 migration、Phase 1B OpenAPI 生成链与 drift check
+- `2026-04-06`: `P1/P2` 已补最小闭环：状态机 retry 回归、结构边界检查、ops inspect 脚本、docs link/consistency check、deploy evidence 归档
+- `2026-04-06`: 当前不额外引入 repo 内 CI incident 索引；`workflow artifact + incident issue + ops-inspect-ci-run` 作为 `Phase 1B` 最小 incident 记忆层

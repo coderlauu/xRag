@@ -19,6 +19,28 @@ async function resetDatabase() {
   }
 }
 
+async function updateDocumentFailureState(documentId: string) {
+  const pool = new Pool({
+    connectionString: databaseUrl
+  });
+
+  try {
+    await pool.query(
+      `
+        update documents
+        set parse_status = 'failed',
+            parse_error_message = 'pdf parser timeout',
+            diagnosis_code = 'pdf_parse_timeout',
+            diagnosis_summary = '解析超时'
+        where id = $1
+      `,
+      [documentId]
+    );
+  } finally {
+    await pool.end();
+  }
+}
+
 test("documents API persists a created text document and returns it from list/detail", async () => {
   await resetDatabase();
   const app = await createApp();
@@ -61,6 +83,54 @@ test("documents API persists a created text document and returns it from list/de
     assert.equal(detail.upload_status, null);
     assert.equal(detail.diagnosis_code, null);
     assert.equal(detail.latest_job_status, null);
+  } finally {
+    await app.close();
+  }
+});
+
+test("documents API retry clears diagnosis and enqueues a reparse job", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/documents/text",
+      payload: {
+        title: "Retryable PDF document",
+        content: "needs reparse",
+        tags: ["retry", "integration"]
+      }
+    });
+
+    assert.equal(createResponse.statusCode, 201);
+    const created = createResponse.json();
+    await updateDocumentFailureState(created.id);
+
+    const retryResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/documents/${created.id}/retry`
+    });
+
+    assert.equal(retryResponse.statusCode, 201);
+    const retried = retryResponse.json();
+    assert.equal(retried.document_id, created.id);
+    assert.equal(retried.parse_status, "pending");
+    assert.equal(retried.diagnosis_code, null);
+    assert.ok(retried.job_id);
+
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/documents/${created.id}`
+    });
+    assert.equal(detailResponse.statusCode, 200);
+    const detail = detailResponse.json();
+    assert.equal(detail.parse_status, "pending");
+    assert.equal(detail.diagnosis_code, null);
+    assert.equal(detail.latest_job_status, "queued");
+    assert.equal(detail.latest_job.status, "queued");
+    assert.equal(detail.latest_job.diagnosis_code, null);
   } finally {
     await app.close();
   }

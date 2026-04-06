@@ -71,6 +71,8 @@
 - OpenAPI diff
 - link check
 - smoke test
+- docs consistency check
+- deploy evidence archive
 
 ---
 

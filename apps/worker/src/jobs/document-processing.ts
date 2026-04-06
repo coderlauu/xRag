@@ -127,7 +127,7 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
   }
 }
 
-function mapDiagnosisCode(message: string, mimeType: string | null): string | null {
+export function mapDiagnosisCode(message: string, mimeType: string | null): string | null {
   const normalized = message.toLowerCase();
 
   if (mimeType === "application/pdf" || normalized.includes("pdf")) {

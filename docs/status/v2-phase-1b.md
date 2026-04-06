@@ -38,7 +38,7 @@
 
 ## 4. Current Node
 
-- `now`: `Phase 1B` 的 `P0 contract mechanicalization` 已落库，`schema / shared-types / OpenAPI / api-client / docs/generated` 与核心 ingestion contract 已同步
+- `now`: `Phase 1B harness hardening` 的 `P1/P2` 最小闭环已落库，已补 `retry regression / structure check / docs check / ops inspect script / deploy evidence archive`
 - `next`: 在 Docker 可用环境补跑 `integration / smoke` 后，进入 `multipart web flow / pdf parse / frontend diagnostics / ops board` 并行实现
 
 ## 5. Blockers
@@ -52,7 +52,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`，包含 `lint + typecheck + contract:check`
+- `latest_validation`: `2026-04-06` 已通过 `pnpm validate`，包含 `lint + typecheck + contract:check + structure:check + docs:check`
 - `result`: `passed`
 - `latest_failure`: 本地 `API integration` 因当前 shell 缺少 Docker daemon 未执行；`CI` 失败闭环仍待线上自动归档验证
 

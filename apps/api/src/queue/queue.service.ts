@@ -31,6 +31,24 @@ export class QueueService implements OnApplicationShutdown {
     prefix: "xrag"
   });
 
+  constructor() {
+    this.connection.on("error", (error) => {
+      if (this.isIgnorableConnectionError(error)) {
+        return;
+      }
+
+      console.error("[QueueService] Redis connection error", error);
+    });
+
+    this.queue.on("error", (error) => {
+      if (this.isIgnorableConnectionError(error)) {
+        return;
+      }
+
+      console.error("[QueueService] BullMQ queue error", error);
+    });
+  }
+
   async enqueueDocumentJob(params: EnqueueDocumentJobParams): Promise<string> {
     const job = await this.queue.add(
       params.name,
@@ -81,5 +99,9 @@ export class QueueService implements OnApplicationShutdown {
   async onApplicationShutdown(): Promise<void> {
     await this.queue.close();
     await this.connection.quit();
+  }
+
+  private isIgnorableConnectionError(error: Error): boolean {
+    return error.message === "Connection is closed.";
   }
 }

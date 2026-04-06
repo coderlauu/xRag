@@ -5,6 +5,19 @@
 1. 当前 production 到底跑了哪些服务
 2. 数据库和对象存储里到底存了哪些数据与文件
 
+如果仓库已经在目标机上，可优先用 repo 内脚本而不是临时拼命令：
+
+- `./scripts/ops-inspect-upload.sh <upload-id-or-file-name-fragment>`
+- `./scripts/ops-inspect-document.sh <document-id-or-title-fragment>`
+- `./scripts/ops-inspect-ci-run.sh <github-actions-run-id>`
+
+脚本默认读取：
+
+- `XRAG_ENV_FILE=/srv/xrag/shared/production.env`
+- `XRAG_POSTGRES_CONTAINER=xrag-production-postgres-1`
+
+如果生产环境变量或容器名不同，可在执行前覆盖这两个环境变量。
+
 默认基于当前生产部署：
 
 - 服务器：`8.134.122.242`
