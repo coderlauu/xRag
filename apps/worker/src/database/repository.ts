@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 
 export interface WorkerDocumentRecord {
@@ -9,6 +10,13 @@ export interface WorkerDocumentRecord {
   file_name: string | null;
   mime_type: string | null;
   object_key: string | null;
+}
+
+export interface WorkerSourceFetchRecord {
+  id: string;
+  document_id: string;
+  source_url: string;
+  fetch_status: "queued" | "fetching" | "extracting" | "success" | "failed";
 }
 
 export interface WorkerJobRecord {
@@ -150,10 +158,12 @@ export class WorkerRepository {
   }
 
   async markDocumentSuccess(documentId: string, values: {
+    title?: string | null;
     contentRaw: string | null;
     contentClean: string;
     contentPreview: string;
     searchText: string;
+    mimeType?: string | null;
     pageCount?: number | null;
     parserName?: string | null;
     parserVersion?: string | null;
@@ -161,14 +171,16 @@ export class WorkerRepository {
     await this.pool.query(
       `
         update documents
-        set content_raw = coalesce($2, content_raw),
-            content_clean = $3,
-            content_preview = $4,
-            search_text = $5,
-            search_vector = to_tsvector('simple', $5),
-            page_count = coalesce($6, page_count),
-            parser_name = coalesce($7, parser_name),
-            parser_version = coalesce($8, parser_version),
+        set title = coalesce($2, title),
+            content_raw = coalesce($3, content_raw),
+            content_clean = $4,
+            content_preview = $5,
+            search_text = $6,
+            search_vector = to_tsvector('simple', $6),
+            mime_type = coalesce($7, mime_type),
+            page_count = coalesce($8, page_count),
+            parser_name = coalesce($9, parser_name),
+            parser_version = coalesce($10, parser_version),
             parse_status = 'success',
             parse_error_message = null,
             diagnosis_code = null,
@@ -178,10 +190,12 @@ export class WorkerRepository {
       `,
       [
         documentId,
+        values.title ?? null,
         values.contentRaw,
         values.contentClean,
         values.contentPreview,
         values.searchText,
+        values.mimeType ?? null,
         values.pageCount ?? null,
         values.parserName ?? null,
         values.parserVersion ?? null
@@ -201,6 +215,114 @@ export class WorkerRepository {
         where id = $1
       `,
       [documentId, message, diagnosisCode]
+    );
+  }
+
+  async createSourceFetch(documentId: string, sourceUrl: string): Promise<WorkerSourceFetchRecord> {
+    const fetchId = randomUUID();
+    const result = await this.pool.query<WorkerSourceFetchRecord>(
+      `
+        insert into document_source_fetches (id, document_id, source_url, fetch_status)
+        values ($1, $2, $3, 'queued')
+        returning id, document_id, source_url, fetch_status
+      `,
+      [fetchId, documentId, sourceUrl]
+    );
+
+    return result.rows[0];
+  }
+
+  async markSourceFetchRunning(fetchId: string) {
+    await this.pool.query(
+      `
+        update document_source_fetches
+        set fetch_status = 'fetching',
+            started_at = now(),
+            error_message = null,
+            diagnosis_code = null
+        where id = $1
+      `,
+      [fetchId]
+    );
+  }
+
+  async markSourceFetchSucceeded(fetchId: string, values: {
+    contentType: string | null;
+    canonicalUrl: string | null;
+    titleExtracted: string | null;
+  }) {
+    await this.pool.query(
+      `
+        update document_source_fetches
+        set fetch_status = 'success',
+            content_type = $2,
+            canonical_url = $3,
+            title_extracted = $4,
+            finished_at = now()
+        where id = $1
+      `,
+      [fetchId, values.contentType, values.canonicalUrl, values.titleExtracted]
+    );
+  }
+
+  async markSourceFetchFailed(
+    fetchId: string,
+    values: {
+      diagnosisCode: string | null;
+      errorMessage: string;
+      httpStatus?: number | null;
+      contentType?: string | null;
+    }
+  ) {
+    await this.pool.query(
+      `
+        update document_source_fetches
+        set fetch_status = 'failed',
+            diagnosis_code = $2,
+            error_message = $3,
+            http_status = $4,
+            content_type = $5,
+            finished_at = now()
+        where id = $1
+      `,
+      [fetchId, values.diagnosisCode, values.errorMessage, values.httpStatus ?? null, values.contentType ?? null]
+    );
+  }
+
+  async createProcessingEvent(values: {
+    documentId: string;
+    eventType: string;
+    stage: "upload" | "parse" | "ocr" | "fetch" | "projection" | "ops";
+    status: "pending" | "processing" | "success" | "failed";
+    summary: string;
+    diagnosisCode?: string | null;
+    payload?: Record<string, unknown> | null;
+  }) {
+    const eventId = randomUUID();
+    await this.pool.query(
+      `
+        insert into document_processing_events (
+          id,
+          document_id,
+          event_type,
+          stage,
+          status,
+          diagnosis_code,
+          summary,
+          payload
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+      `,
+      [
+        eventId,
+        values.documentId,
+        values.eventType,
+        values.stage,
+        values.status,
+        values.diagnosisCode ?? null,
+        values.summary,
+        values.payload ? JSON.stringify(values.payload) : null
+      ]
     );
   }
 }

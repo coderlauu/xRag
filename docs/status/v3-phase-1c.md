@@ -31,16 +31,16 @@
 
 - `foundation`: `completed`
 - `api-persistence`: `completed`
-- `upload-storage`: `not-started`
-- `worker-pipeline`: `not-started`
+- `upload-storage`: `in-progress`
+- `worker-pipeline`: `in-progress`
 - `web-integration`: `not-started`
-- `testing`: `not-started`
+- `testing`: `in-progress`
 - `ci-cd`: `not-started`
 
 ## 4. Current Node
 
-- `now`: 已完成 `Phase 1C` 主线程第一阶段的 `schema / shared-types / API contract / diagnosis code` 冻结，并生成 `Phase 1C OpenAPI`
-- `next`: 在主线程 contract 不再抖动的前提下，进入 `OCR / 链接抓取 / 检索解释 / 时间线` 多 lane 实现
+- `now`: 已完成 `Lane B` 的链接正文抓取主链路，worker 能真实抓取 HTML 正文、写入搜索投影，并补齐 API integration 与 worker unit 回归证据
+- `next`: 继续推进 `Lane A OCR` 与 `Lane C 检索解释 / 时间线展示`，并在主线程收口后再并行扩展前端与观测页
 
 ## 5. Blockers
 
@@ -50,7 +50,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: 已完成 `Phase 1C` 的主线程 contract freeze，当前已通过 `@xrag/shared-types typecheck`、`@xrag/api typecheck`、`@xrag/worker typecheck`、`@xrag/web typecheck`、`@xrag/api openapi:generate` 与 `pnpm validate`
+- `latest_validation`: 已通过 `@xrag/worker test:unit`、`./scripts/run-api-integration.sh` 与 `pnpm validate`；其中新增链路覆盖 `documents/link -> fetch_link worker -> detail/timeline`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -63,5 +63,5 @@
 - `tech_docs`: [Phase 1C architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md), [Phase 1C data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md), [Phase 1C api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md), [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
 - `exec_plans`: [Phase 1C Planning and Design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md), [Phase 1C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-implementation-lanes.md)
 - `generated_contract`: [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)
-- `key_commits`: `2e14f94`
-- `latest_ci_run`: `24063610902`
+- `key_commits`: `2e14f94`, `2df032a`, `2ed1ecb`
+- `latest_ci_run`: `24067191296`

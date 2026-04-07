@@ -6,6 +6,7 @@ import {
   type DocumentProcessingDependencies
 } from "./document-processing";
 import { DOCUMENT_PROCESSING_JOB_NAMES } from "../queue/constants";
+import { LinkFetchError } from "./link-parser";
 
 test("mapDiagnosisCode returns timeout code for PDF timeout failures", () => {
   assert.equal(mapDiagnosisCode("PDF parser timeout exceeded", "application/pdf"), "pdf_parse_timeout");
@@ -96,13 +97,26 @@ test("parse-document marks PDF document success and records parser metadata", as
   const deps = createDeps({
     repository: {
       ...(createDeps().repository as object),
-      markDocumentSuccess: async (_documentId, values) => {
+      markDocumentSuccess: async (
+        _documentId: string,
+        values: {
+          title?: string | null;
+          contentRaw: string | null;
+          contentClean: string;
+          contentPreview: string;
+          searchText: string;
+          mimeType?: string | null;
+          pageCount?: number | null;
+          parserName?: string | null;
+          parserVersion?: string | null;
+        }
+      ) => {
         successPayload = values;
       },
-      markJobCompleted: async (jobId) => {
+      markJobCompleted: async (jobId: string) => {
         completedJobId = jobId;
       }
-    } as DocumentProcessingDependencies["repository"],
+    } as unknown as DocumentProcessingDependencies["repository"],
     parsePdf: async () => ({
       text: "第一页\n第二页",
       pageCount: 2,
@@ -147,20 +161,25 @@ test("parse-document maps PDF timeout failures into diagnosis codes", async () =
   const deps = createDeps({
     repository: {
       ...(createDeps().repository as object),
-      markDocumentFailed: async (_documentId, message, diagnosisCode) => {
+      markDocumentFailed: async (_documentId: string, message: string, diagnosisCode: string | null) => {
         failedDocument = {
           message,
           diagnosisCode
         };
       },
-      markJobFailed: async (_jobId, message, diagnosisCode, dead) => {
+      markJobFailed: async (
+        _jobId: string,
+        message: string,
+        diagnosisCode: string | null,
+        dead?: boolean
+      ) => {
         failedJob = {
           message,
           diagnosisCode,
           dead: Boolean(dead)
         };
       }
-    } as DocumentProcessingDependencies["repository"],
+    } as unknown as DocumentProcessingDependencies["repository"],
     parsePdf: async () => {
       throw new Error("PDF parser timeout exceeded");
     }
@@ -180,4 +199,167 @@ test("parse-document maps PDF timeout failures into diagnosis codes", async () =
   assert.equal(failedDocument?.diagnosisCode, "pdf_parse_timeout");
   assert.equal(failedJob?.diagnosisCode, "pdf_parse_timeout");
   assert.equal(failedJob?.dead, true);
+});
+
+test("fetch-link stores extracted text and completes the job", async () => {
+  let successPayload:
+    | {
+        title?: string | null;
+        contentRaw: string | null;
+        contentClean: string;
+        contentPreview: string;
+        searchText: string;
+        mimeType?: string | null;
+        parserName?: string | null;
+        parserVersion?: string | null;
+      }
+    | undefined;
+  let sourceFetchSucceeded = false;
+  let completedJobId: string | undefined;
+
+  const deps = createDeps({
+    repository: {
+      ...(createDeps().repository as object),
+      findJob: async () => ({
+        id: "job-link-1",
+        document_id: "doc-1",
+        job_type: "fetch_link",
+        status: "queued",
+        queue_job_id: null,
+        attempt: 0,
+        started_at: null
+      }),
+      findDocument: async () => ({
+        id: "doc-1",
+        title: "https://example.com/roadmap",
+        content_raw: null,
+        content_clean: null,
+        source_url: "https://example.com/roadmap",
+        file_name: null,
+        mime_type: null,
+        object_key: null
+      }),
+      createSourceFetch: async () => ({
+        id: "fetch-1",
+        document_id: "doc-1",
+        source_url: "https://example.com/roadmap",
+        fetch_status: "queued"
+      }),
+      markSourceFetchRunning: async () => {},
+      markSourceFetchSucceeded: async () => {
+        sourceFetchSucceeded = true;
+      },
+      createProcessingEvent: async () => {},
+      markDocumentSuccess: async (
+        _documentId: string,
+        values: {
+          title?: string | null;
+          contentRaw: string | null;
+          contentClean: string;
+          contentPreview: string;
+          searchText: string;
+          mimeType?: string | null;
+          pageCount?: number | null;
+          parserName?: string | null;
+          parserVersion?: string | null;
+        }
+      ) => {
+        successPayload = values;
+      },
+      markJobCompleted: async (jobId: string) => {
+        completedJobId = jobId;
+      }
+    } as unknown as DocumentProcessingDependencies["repository"],
+    fetchLink: async () => ({
+      sourceUrl: "https://example.com/roadmap",
+      canonicalUrl: "https://example.com/roadmap",
+      contentType: "text/html",
+      title: "路线图更新",
+      text: "这是抓取到的正文。",
+      parserName: "link-fetcher",
+      parserVersion: "1.0.0"
+    })
+  });
+
+  const handlers = createDocumentProcessingHandlers(deps);
+  const result = await handlers[DOCUMENT_PROCESSING_JOB_NAMES.fetchLink]({
+    name: DOCUMENT_PROCESSING_JOB_NAMES.fetchLink,
+    id: "queue-job-link-1",
+    data: {
+      documentId: "doc-1"
+    },
+    attemptsMade: 0
+  });
+
+  assert.equal(result.status, "success");
+  assert.equal(completedJobId, "job-link-1");
+  assert.equal(sourceFetchSucceeded, true);
+  assert.equal(successPayload?.title, "路线图更新");
+  assert.equal(successPayload?.parserName, "link-fetcher");
+  assert.match(successPayload?.contentPreview || "", /抓取到的正文/);
+});
+
+test("fetch-link maps blocked errors into diagnosis codes", async () => {
+  let failedDocument:
+    | {
+        message: string;
+        diagnosisCode: string | null;
+      }
+    | undefined;
+
+  const deps = createDeps({
+    repository: {
+      ...(createDeps().repository as object),
+      findJob: async () => ({
+        id: "job-link-1",
+        document_id: "doc-1",
+        job_type: "fetch_link",
+        status: "queued",
+        queue_job_id: null,
+        attempt: 0,
+        started_at: null
+      }),
+      findDocument: async () => ({
+        id: "doc-1",
+        title: "https://example.com/roadmap",
+        content_raw: null,
+        content_clean: null,
+        source_url: "https://example.com/roadmap",
+        file_name: null,
+        mime_type: null,
+        object_key: null
+      }),
+      createSourceFetch: async () => ({
+        id: "fetch-1",
+        document_id: "doc-1",
+        source_url: "https://example.com/roadmap",
+        fetch_status: "queued"
+      }),
+      markSourceFetchRunning: async () => {},
+      markSourceFetchFailed: async () => {},
+      createProcessingEvent: async () => {},
+      markDocumentFailed: async (_documentId: string, message: string, diagnosisCode: string | null) => {
+        failedDocument = {
+          message,
+          diagnosisCode
+        };
+      }
+    } as unknown as DocumentProcessingDependencies["repository"],
+    fetchLink: async () => {
+      throw new LinkFetchError("Link fetch failed with status 403", "link_fetch_blocked", 403, "text/html");
+    }
+  });
+
+  const handlers = createDocumentProcessingHandlers(deps);
+  const result = await handlers[DOCUMENT_PROCESSING_JOB_NAMES.fetchLink]({
+    name: DOCUMENT_PROCESSING_JOB_NAMES.fetchLink,
+    id: "queue-job-link-1",
+    data: {
+      documentId: "doc-1"
+    },
+    attemptsMade: 0
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(failedDocument?.diagnosisCode, "link_fetch_blocked");
 });
