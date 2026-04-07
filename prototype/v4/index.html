@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xRag Prototype v4 | 问答工作台</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body data-page="inbox">
+    <div class="shell">
+      <header class="topbar" data-global-header></header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card--phase2">
+          <p class="eyebrow">Phase 2A 原型</p>
+          <h2 class="hero-title">把知识收件箱从“可找回”推进到“可提问、可引用、可拒答”。</h2>
+          <p class="hero-copy">
+            这个版本的主问题不再是“资料怎么导入”，而是“问出的问题为什么可信”。原型重点冻结 AI 问答、scope、引用、拒答、索引 freshness
+            和评估运维的统一交互。
+          </p>
+          <div class="hero-actions">
+            <div class="action-chip">
+              <strong>可信答案</strong>
+              <span>每条答案都需要有 citation，没有证据时允许系统拒答。</span>
+            </div>
+            <div class="action-chip">
+              <strong>混合检索</strong>
+              <span>关键词与语义召回合并后，再进入 rerank 与答案生成。</span>
+            </div>
+            <div class="action-chip">
+              <strong>可评估上线</strong>
+              <span>不是先接模型再补指标，而是先冻结 groundedness、latency 与 cost 基线。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="metric-grid" data-metrics></section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">问题场景</p>
+                <h3 class="section-title">问答工作台</h3>
+              </div>
+              <a class="ghost-button" href="ops.html">去评估与运维板</a>
+            </div>
+            <div class="scenario-grid" data-scenario-list></div>
+          </article>
+
+          <aside class="panel panel-strong">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">当前会话</p>
+                <h3 class="section-title">答案与处理流</h3>
+              </div>
+            </div>
+            <div data-session-summary></div>
+            <ol class="timeline" data-session-steps></ol>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">拒答与补救</p>
+                <h3 class="section-title">当前结论为什么可信，或为什么暂时答不了</h3>
+              </div>
+            </div>
+            <div data-diagnosis-panel></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">索引与信号</p>
+                <h3 class="section-title">Freshness / Cost / Scope 信号</h3>
+              </div>
+            </div>
+            <div data-queue-summary></div>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">最近问题</p>
+                <h3 class="section-title">最近问题与证据引用</h3>
+              </div>
+              <a class="ghost-button" href="search.html">去检索实验台</a>
+            </div>
+            <div class="list-shell" data-recent-docs></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">原型说明</p>
+                <h3 class="section-title">本页要表达什么</h3>
+              </div>
+            </div>
+            <ul class="note-list">
+              <li>答案必须带引用，引用必须能跳回文档详情和 chunk 位置。</li>
+              <li>scope 是正式 contract，不是产品后补的筛选提示。</li>
+              <li>拒答是正常结果，不是失败兜底。</li>
+            </ul>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/inbox.js"></script>
+  </body>
+</html>

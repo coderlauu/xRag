@@ -1,0 +1,10 @@
+{
+  "version": "v4",
+  "phase": "Phase 2A",
+  "scenarios": [
+    "priority-answer",
+    "contract-answer",
+    "filter-needs-scope",
+    "insufficient-evidence-refusal"
+  ]
+}

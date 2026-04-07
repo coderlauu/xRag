@@ -4,16 +4,20 @@
 
 ## Current Version
 
+- `v4/`
+  对应当前的 `Phase 2A` 原型，强化 AI 问答、混合检索、证据引用、拒答与评估运维。
 - `v3/`
-  对应当前的 `Phase 1C` 原型，强化扫描件 OCR、链接抓取、搜索命中解释和文档处理时间线。
+  对应上一阶段的 `Phase 1C` 原型，强化扫描件 OCR、链接抓取、搜索命中解释和文档处理时间线。
 - `v2/`
-  对应上一阶段 `Phase 1B` 原型，强化 `pdf` 真实解析、multipart 上传、失败诊断和运维可见性。
+  对应历史阶段 `Phase 1B` 原型，强化 `pdf` 真实解析、multipart 上传、失败诊断和运维可见性。
 - `v1/`
-  对应当前的 Phase 1A 原型，实现 `导入 -> 搜索 -> 详情` 的 MVP 闭环。
+  对应历史阶段 `Phase 1A` 原型，实现 `导入 -> 搜索 -> 详情` 的 MVP 闭环。
 
 ## Related Docs
 
 - [当前版本 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
+- [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
+- [v4 交互说明](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
 - [Phase 1C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-1c-prd.md)
 - [v3 交互说明](/Users/coderlauu/xRag/design/spec/2026-04-07-v3-interaction-spec.md)
 - [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
@@ -34,6 +38,7 @@
 可以直接在浏览器打开：
 
 - [prototype/v3/index.html](/Users/coderlauu/xRag/prototype/v3/index.html)
+- [prototype/v4/index.html](/Users/coderlauu/xRag/prototype/v4/index.html)
 - [prototype/v2/index.html](/Users/coderlauu/xRag/prototype/v2/index.html)
 - [prototype/v1/index.html](/Users/coderlauu/xRag/prototype/v1/index.html)
 
@@ -45,6 +50,7 @@ python3 -m http.server 8000
 
 然后访问：
 
+- `http://localhost:8000/prototype/v4/index.html`
 - `http://localhost:8000/prototype/v3/index.html`
 - `http://localhost:8000/prototype/v2/index.html`
 - `http://localhost:8000/prototype/v1/index.html`

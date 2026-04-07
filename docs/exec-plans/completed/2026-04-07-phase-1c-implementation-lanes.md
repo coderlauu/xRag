@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-1c-implementation-lanes`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v3 handoff](/Users/coderlauu/xRag/docs/handoff/v3.md), [v3 status](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md), [Phase 1C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-1c-prd.md), [v3 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v3-interaction-spec.md), [Phase 1C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md), [Phase 1C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md), [Phase 1C API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md)
 
@@ -73,3 +73,9 @@
 - 若 OCR 与链接抓取同时改 contract，容易造成 worker 和前端都返工
 - 若先写页面再补事件模型，时间线容易成为临时拼装逻辑
 - 若排序解释放在前端拼装，搜索页和详情页会出现不一致
+
+## 8. Decision Log
+
+- `2026-04-07`: 主线程先冻结 `schema / shared-types / API contract / diagnosis code / document processing event`，再按 `OCR / link ingest / search explain & timeline / ops` 四条 lane 推进实现
+- `2026-04-07`: GitHub Actions `24081424992` 已成功完成 `infra / validate / integration / e2e / build-images / deploy-production / smoke-production`，`Phase 1C` 正式关闭，本计划移入 `completed`
+- `2026-04-07`: 生产运维入口补齐 `https://db.xrag.coderlau.cn` 的 `pgweb` 管理台，以及 PostgreSQL `127.0.0.1:5432` 回环映射，供 `Navicat / TablePlus / DBeaver` 通过 `SSH Tunnel` 访问
