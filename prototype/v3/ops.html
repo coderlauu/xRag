@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xRag Prototype v3 | 运维看板</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body data-page="ops">
+    <div class="shell">
+      <header class="topbar" data-global-header></header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card--ops">
+          <p class="eyebrow">运维看板</p>
+          <h2 class="hero-title">把 OCR、抓取器、搜索投影和回滚证据合到同一块板上。</h2>
+          <p class="hero-copy">
+            `Phase 1C` 引入了 OCR 与链接抓取两个新运行时，因此运维页不再只看部署，而要能快速判断问题发生在 OCR、抓取器、搜索投影还是基础服务。
+          </p>
+        </section>
+
+        <section class="metric-grid" data-ops-metrics></section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">服务健康</p>
+                <h3 class="section-title">服务健康</h3>
+              </div>
+            </div>
+            <div class="service-grid" data-service-health></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">回滚</p>
+                <h3 class="section-title">降级与回滚基线</h3>
+              </div>
+            </div>
+            <div data-rollback-panel></div>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">事件</p>
+                <h3 class="section-title">最近 OCR / 抓取 / CI 事件</h3>
+              </div>
+            </div>
+            <div class="list-shell" data-incident-list></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">推荐动作</p>
+                <h3 class="section-title">推荐动作</h3>
+              </div>
+            </div>
+            <ul class="note-list" data-ops-actions></ul>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/ops.js"></script>
+  </body>
+</html>

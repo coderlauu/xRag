@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xRag Prototype v3 | 导入工作台</title>
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body data-page="inbox">
+    <div class="shell">
+      <header class="topbar" data-global-header></header>
+
+      <main class="page-grid">
+        <section class="hero-card hero-card--phase2">
+          <p class="eyebrow">Phase 1C 原型</p>
+          <h2 class="hero-title">把导入链路从“可用”推进到“能处理扫描件、链接和可解释搜索”。</h2>
+          <p class="hero-copy">
+            这个版本不再只展示文件上传，而是把扫描版 PDF OCR、网页链接抓取、搜索命中解释、文档处理时间线和运维证据统一到同一套交互里，
+            为 `Phase 1C` 的增量架构和状态机定稿。
+          </p>
+          <div class="hero-actions">
+            <div class="action-chip">
+              <strong>OCR 闭环</strong>
+              <span>明确扫描版 PDF 从对象校验、OCR 到搜索投影的关键步骤与失败诊断。</span>
+            </div>
+            <div class="action-chip">
+              <strong>链接抓取</strong>
+              <span>把正文抓取、反爬失败和替代动作一起落进导入工作台。</span>
+            </div>
+            <div class="action-chip">
+              <strong>搜索解释</strong>
+              <span>结果不只告诉用户“命中了什么”，还要说明“为什么排在这里”。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="metric-grid" data-metrics></section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">场景切换</p>
+                <h3 class="section-title">导入实验台</h3>
+              </div>
+              <a class="ghost-button" href="ops.html">去运维页看证据</a>
+            </div>
+            <div class="scenario-grid" data-scenario-list></div>
+          </article>
+
+          <aside class="panel panel-strong">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">当前会话</p>
+                <h3 class="section-title">当前处理会话</h3>
+              </div>
+            </div>
+            <div data-session-summary></div>
+            <ol class="timeline" data-session-steps></ol>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">诊断</p>
+                <h3 class="section-title">失败诊断与补救动作</h3>
+              </div>
+            </div>
+            <div data-diagnosis-panel></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">队列与信号</p>
+                <h3 class="section-title">OCR / 抓取 / 搜索信号</h3>
+              </div>
+            </div>
+            <div data-queue-summary></div>
+          </aside>
+        </section>
+
+        <section class="two-column">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">最近导入</p>
+                <h3 class="section-title">最近导入与处理结果</h3>
+              </div>
+              <a class="ghost-button" href="search.html">带着解释去搜索</a>
+            </div>
+            <div class="list-shell" data-recent-docs></div>
+          </article>
+
+          <aside class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">原型说明</p>
+                <h3 class="section-title">本页要表达什么</h3>
+              </div>
+            </div>
+            <ul class="note-list">
+              <li>扫描件与网页链接都必须走入统一文档状态机，而不是新开一条旁路。</li>
+              <li>搜索结果要显式展示匹配解释、命中来源与排序信号。</li>
+              <li>时间线和运维证据不是附属信息，而是本版本的主交互之一。</li>
+            </ul>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/inbox.js"></script>
+  </body>
+</html>

@@ -7,9 +7,9 @@
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
 3. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
-4. [Phase 1B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md)
-5. [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
-6. [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
+4. [Phase 1C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md)
+5. [Phase 1C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md)
+6. [Phase 1C API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md)
 
 ## 2. 当前项目状态
 

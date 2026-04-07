@@ -29,7 +29,7 @@
 
 ## 3. Milestones
 
-- `foundation`: `in-progress`
+- `foundation`: `completed`
 - `api-persistence`: `not-started`
 - `upload-storage`: `not-started`
 - `worker-pipeline`: `not-started`
@@ -39,18 +39,18 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `Phase 1B` 收口，当前进入 `Phase 1C` 规划与设计阶段，先冻结版本边界、PRD 和首个 planning exec plan
-- `next`: 补齐 `Phase 1C` 原型、交互说明、增量架构 / 数据模型 / API 方案，再决定实现 lane 拆分
+- `now`: 已完成 `Phase 1C` 的 PRD、原型、交互说明、增量技术方案和实现 lane 设计，当前进入主线程冻结 `schema / shared-types / API contract / diagnosis code`
+- `next`: 主线程先收口 OCR、链接抓取、时间线和匹配解释所需 contract，再进入多 lane 实现
 
 ## 5. Blockers
 
-- `blocker`: `Phase 1C` 尚未完成原型、交互说明和增量技术方案冻结
-  - `impact`: 现在不适合直接进入多 lane 实现，否则范围和 contract 会重新漂移
-  - `owner`: `codex`
+- `blocker`: 无
+  - `impact`: 无
+  - `owner`: 无
 
 ## 6. Validation
 
-- `latest_validation`: 版本切换已完成，`v2 / Phase 1B` 线上热修验证通过；`Phase 1C` 当前阶段为文档与规划启动，暂未进入代码验证
+- `latest_validation`: 已完成 `Phase 1C` 的 PRD、原型、交互说明、增量架构 / 数据模型 / API 设计与实现 lane 计划，并已通过 `pnpm validate` 与 `node --check prototype/v3/assets/js/*.js`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -58,7 +58,9 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v3.md](/Users/coderlauu/xRag/docs/handoff/v3.md)
-- `tech_docs`: [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
-- `exec_plans`: [Phase 1C Planning and Design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-planning-and-design.md)
-- `key_commits`: `513e50b`
-- `latest_ci_run`: `Phase 1B` 热修线上验证已通过
+- `prototype`: [prototype/v3](/Users/coderlauu/xRag/prototype/v3/index.html)
+- `interaction_spec`: [v3 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v3-interaction-spec.md)
+- `tech_docs`: [Phase 1C architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md), [Phase 1C data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md), [Phase 1C api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md), [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
+- `exec_plans`: [Phase 1C Planning and Design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md), [Phase 1C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-implementation-lanes.md)
+- `key_commits`: `2e14f94`
+- `latest_ci_run`: `24063610902`
