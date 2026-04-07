@@ -5,16 +5,16 @@
 ## 1. 先看哪里
 
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
-2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)
+2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
 3. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
-4. [Architecture](/Users/coderlauu/xRag/tech/architecture/2026-03-31-phase-1a-architecture.md)
-5. [Data Model](/Users/coderlauu/xRag/tech/data-model/2026-03-31-phase-1a-data-model.md)
-6. [API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
+4. [Phase 1B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md)
+5. [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
+6. [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
 
 ## 2. 当前项目状态
 
 - 当前仓库已经完成正式工程 scaffold
-- `v1 / Phase 1A` 已完成并归档，当前活跃版本为 `v2 / Phase 1B`
+- `v1 / Phase 1A` 与 `v2 / Phase 1B` 已完成并归档，当前活跃版本为 `v3 / Phase 1C`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源

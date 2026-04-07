@@ -2,14 +2,16 @@
 
 当前默认入口始终指向“当前正在推进的版本”。
 
-当前有效版本：[v2 / Phase 1B](/Users/coderlauu/xRag/docs/handoff/v2.md)  
-当前版本状态：[v2 / Phase 1B Status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)（因 PDF 生产缺陷热修处理中）
+当前有效版本：[v3 / Phase 1C](/Users/coderlauu/xRag/docs/handoff/v3.md)  
+当前版本状态：[v3 / Phase 1C Status](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
 
 上一阶段归档：
 
 - [Phase 1A Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-02-phase-1a-retrospective.md)
 - [v1 / Phase 1A Status](/Users/coderlauu/xRag/docs/status/v1-phase-1a.md)
 - [v1 Handoff](/Users/coderlauu/xRag/docs/handoff/v1.md)
+- [v2 / Phase 1B Status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)
+- [v2 Handoff](/Users/coderlauu/xRag/docs/handoff/v2.md)
 
 当前基线技术资产：
 
@@ -20,26 +22,18 @@
 
 当前活跃版本资产：
 
-- [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
-- [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md)
-- [CI Failure Loop Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-04-ci-failure-loop.md)
-- [CI Auto Repair Loop Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-ci-auto-repair-loop.md)
-- [Phase 1B Prototype & Interaction Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-prototype-and-interaction.md)
-- [Phase 1B Harness Hardening Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-harness-hardening.md)
-- [Phase 1B Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
-- [Phase 1B Prototype](/Users/coderlauu/xRag/prototype/v2/index.html)
+- [Phase 1C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-1c-prd.md)
+- [Phase 1C Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-planning-and-design.md)
+- [CI 自动修复闭环方案](/Users/coderlauu/xRag/docs/process/2026-04-06-ci-auto-repair-loop.md)
 - [Phase 1B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md)
 - [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
 - [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
-- [Phase 1B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-implementation-lanes.md)
-- [Phase 1B PDF Parser Runtime Hotfix](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1b-pdf-parser-runtime-hotfix.md)
-- [CI 自动修复闭环方案](/Users/coderlauu/xRag/docs/process/2026-04-06-ci-auto-repair-loop.md)
 
 ---
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 1A` 已可用的生产基线上，完成导入链路与生产稳态能力增强；当前因 PDF 生产解析缺陷进入热修阶段。
+在 `Phase 1B` 已稳定的导入与解析基线上，扩展扫描件与链接内容接入能力，并提升检索质量与处理过程可观测性。
 
 ---
 
@@ -47,16 +41,15 @@
 
 ### 必须实现
 
-- 支持 `pdf` 真实解析闭环
-- 支持 multipart 大文件上传
-- 补齐解析失败诊断与重试可见性
-- 建立 production 观测与回滚基线
+- 扫描版 PDF OCR 解析闭环
+- 链接正文抓取与入库闭环
+- 搜索排序、匹配解释与结果可读性增强
+- 文档处理时间线与诊断可见性增强
 
 ### 明确不做
 
 - AI 问答
-- 语义搜索
-- OCR
+- 向量检索 / 语义召回
 - 浏览器插件
 - 团队协作
 - 移动端
@@ -71,26 +64,23 @@
 
 ## 3. 建议阅读顺序
 
-1. [v2 Handoff](/Users/coderlauu/xRag/docs/handoff/v2.md)
-2. [v2 Status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)
-3. [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
-4. [Phase 1B Prototype](/Users/coderlauu/xRag/prototype/v2/index.html)
-5. [Phase 1B Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-06-v2-interaction-spec.md)
+1. [v3 Handoff](/Users/coderlauu/xRag/docs/handoff/v3.md)
+2. [v3 Status](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
+3. [Phase 1C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-1c-prd.md)
+4. [Phase 1C Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-planning-and-design.md)
+5. [v2 / Phase 1B Status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)
 6. [Phase 1B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md)
 7. [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
 8. [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
-9. [Phase 1B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-implementation-lanes.md)
-10. [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md)
 
 ---
 
 ## 4. 执行规则
 
-1. 当前 `Phase 1B` 已完成主线程的 `schema / shared-types / API contract / diagnosis code` 冻结，并已重新生成 [Phase 1B OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1b-api.json)
-2. 当前存在一个生产热修计划：[Phase 1B PDF Parser Runtime Hotfix](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1b-pdf-parser-runtime-hotfix.md)
-3. 版本的真实进度统一写入 `docs/status/`
-4. 复杂任务先写 `docs/exec-plans/active/*.md`
-5. 历史版本只归档，不覆盖
+1. 当前 `Phase 1C` 仍处于规划与设计阶段，先冻结边界，再进入实现
+2. 新版本的真实进度统一写入 `docs/status/`
+3. 复杂任务先写 `docs/exec-plans/active/*.md`
+4. 历史版本只归档，不覆盖
 
 ---
 
