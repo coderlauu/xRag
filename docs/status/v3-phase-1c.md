@@ -31,16 +31,16 @@
 
 - `foundation`: `completed`
 - `api-persistence`: `completed`
-- `upload-storage`: `in-progress`
+- `upload-storage`: `completed`
 - `worker-pipeline`: `completed`
-- `web-integration`: `not-started`
-- `testing`: `in-progress`
+- `web-integration`: `completed`
+- `testing`: `completed`
 - `ci-cd`: `not-started`
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane A OCR` 与 `Lane B Link Ingest` 的后端主链路，worker 能在 PDF 文本层为空时转入 OCR，并完成链接抓取、OCR 投影与时间线事件写入
-- `next`: 进入 `Lane C 检索解释 / 时间线展示`，把前端搜索页、详情页与 E2E 覆盖收口到 `Phase 1C` 原型要求
+- `now`: 已完成 `Lane C 检索解释 / 时间线展示`，搜索页会展示命中说明、排序提示和命中字段，详情页接入真实处理时间线并完成 E2E 回归
+- `next`: 进入 `Lane D 运维可见性 / observability`，把 OCR、抓取、投影和回滚基线进一步收口到运维看板
 
 ## 5. Blockers
 
@@ -50,7 +50,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: 已通过 `@xrag/worker test:unit`、`./scripts/run-api-integration.sh` 与 `pnpm validate`；其中新增链路覆盖 `documents/link -> fetch_link worker -> detail/timeline` 以及 `scanned pdf -> run_ocr -> detail/timeline`
+- `latest_validation`: 已通过 `@xrag/api typecheck`、`@xrag/web typecheck`、`@xrag/web build`、`./scripts/run-e2e-smoke.sh` 以及 `PATH="/Users/coderlauu/xRag/scripts/bin:$PATH" pnpm validate`；其中新增覆盖 `搜索解释展示 -> 详情时间线 -> E2E 路径回归`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -63,5 +63,5 @@
 - `tech_docs`: [Phase 1C architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md), [Phase 1C data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md), [Phase 1C api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md), [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
 - `exec_plans`: [Phase 1C Planning and Design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md), [Phase 1C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-implementation-lanes.md)
 - `generated_contract`: [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)
-- `key_commits`: `2e14f94`, `2df032a`, `2ed1ecb`, `479a152`
-- `latest_ci_run`: `24067191296`
+- `key_commits`: `2e14f94`, `2df032a`, `479a152`, `ba10dd5`
+- `latest_ci_run`: `待下一个 Lane C 提交触发`

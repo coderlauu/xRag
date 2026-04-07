@@ -6,6 +6,7 @@ import {
   fetchHealth as fetchHealthRequest,
   fetchOpsHealthSummary as fetchOpsHealthSummaryRequest,
   getDocument as getDocumentRequest,
+  getDocumentTimeline as getDocumentTimelineRequest,
   getUploadPartUrls as getUploadPartUrlsRequest,
   getJob as getJobRequest,
   getLatestDeployment as getLatestDeploymentRequest,
@@ -22,6 +23,7 @@ import type {
   CreateTextDocumentResponse,
   DocumentDetail,
   DocumentListResponse,
+  DocumentTimelineResponse,
   HealthResponse,
   JobStatusResponse,
   LatestDeploymentResponse,
@@ -60,6 +62,10 @@ export function createTextDocument(body: CreateTextDocumentRequest): Promise<Cre
 
 export function getDocument(documentId: string): Promise<DocumentDetail> {
   return getDocumentRequest(documentId, API_BASE_URL);
+}
+
+export function getDocumentTimeline(documentId: string): Promise<DocumentTimelineResponse> {
+  return getDocumentTimelineRequest(documentId, API_BASE_URL);
 }
 
 export function updateDocumentTags(documentId: string, body: UpdateDocumentTagsRequest): Promise<DocumentDetail> {

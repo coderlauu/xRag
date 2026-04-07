@@ -260,9 +260,31 @@ export function SearchPage() {
                   </div>
                   <p className="m-0 text-sm leading-6 text-slate-600">{item.content_preview || "暂无预览内容。"}</p>
                   {item.tags.length > 0 ? <p className="m-0 text-xs text-slate-500">标签：{joinTags(item.tags)}</p> : null}
+                  {item.match_explanation ? (
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                      <p className="m-0 font-medium">命中说明</p>
+                      <p className="m-0 mt-1">{item.match_explanation}</p>
+                    </div>
+                  ) : null}
+                  {item.ranking_hint ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                      <p className="m-0 font-medium text-slate-900">排序提示</p>
+                      <p className="m-0 mt-1">{item.ranking_hint}</p>
+                    </div>
+                  ) : null}
+                  {item.matched_fields && item.matched_fields.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {item.matched_fields.map((field) => (
+                        <Badge key={`${item.id}-${field}`} variant="info">
+                          {matchedFieldLabel(field)}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                   {(item.diagnosis_code || item.latest_job_status || item.page_count || item.parser_name) ? (
                     <div className="grid gap-1 text-xs text-slate-500">
                       {item.diagnosis_code ? <span>诊断：{diagnosisLabel(item.diagnosis_code)}</span> : null}
+                      {item.diagnosis_summary ? <span>建议：{item.diagnosis_summary}</span> : null}
                       {item.latest_job_status ? <span>最近任务：{jobStatusLabel(item.latest_job_status)}</span> : null}
                       {item.page_count ? <span>页数：{item.page_count} 页</span> : null}
                       {item.parser_name ? <span>解析器：{item.parser_name}</span> : null}
@@ -310,4 +332,19 @@ export function SearchPage() {
       </section>
     </PageShell>
   );
+}
+
+function matchedFieldLabel(field: string) {
+  switch (field) {
+    case "title":
+      return "标题命中";
+    case "ocr_text":
+      return "OCR 正文";
+    case "link_body":
+      return "链接正文";
+    case "body":
+      return "正文命中";
+    default:
+      return field;
+  }
 }

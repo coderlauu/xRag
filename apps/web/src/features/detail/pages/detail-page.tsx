@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
+import type { DocumentProcessingEventItem } from "@xrag/shared-types";
 import { Badge, Button, PageShell, SectionCard, StatCard, Textarea, Input } from "@xrag/ui";
-import { getDocument, getJob, retryDocument, updateDocumentTags } from "../../../lib/api";
+import { getDocument, getDocumentTimeline, getJob, retryDocument, updateDocumentTags } from "../../../lib/api";
 import {
   diagnosisLabel,
   formatDateTime,
@@ -56,6 +57,16 @@ export function DetailPage() {
     queryFn: () => getJob(trackedJobId || ""),
     enabled: Boolean(trackedJobId),
     refetchInterval: (query) => (query.state.data && isJobActive(query.state.data.status) ? 3000 : false)
+  });
+
+  const timelineQuery = useQuery({
+    queryKey: ["document", documentId, "timeline"],
+    queryFn: () => getDocumentTimeline(documentId),
+    enabled: hasValidDocumentId,
+    refetchInterval: () =>
+      documentQuery.data && (isParseActive(documentQuery.data.parse_status) || trackedJobQuery.data && isJobActive(trackedJobQuery.data.status))
+        ? 3000
+        : false
   });
 
   const updateTagsMutation = useMutation({
@@ -136,6 +147,7 @@ export function DetailPage() {
 
   const document = documentQuery.data;
   const job = trackedJobQuery.data;
+  const timelineItems = timelineQuery.data?.items || [];
 
   return (
     <PageShell
@@ -182,6 +194,18 @@ export function DetailPage() {
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
                   <strong className="block text-sm">诊断摘要</strong>
                   <span>{document.diagnosis_summary}</span>
+                </div>
+              ) : null}
+              {document.match_explanation ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900">
+                  <strong className="block text-sm">命中说明</strong>
+                  <span>{document.match_explanation}</span>
+                </div>
+              ) : null}
+              {document.ranking_hint ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700">
+                  <strong className="block text-sm text-slate-900">排序提示</strong>
+                  <span>{document.ranking_hint}</span>
                 </div>
               ) : null}
               <article>标签：{document.tags.length > 0 ? joinTags(document.tags) : "暂无"}</article>
@@ -270,8 +294,64 @@ export function DetailPage() {
               ) : null}
             </div>
           </SectionCard>
+
+          <SectionCard title="处理时间线" description="按阶段展示上传、解析、OCR、抓取和搜索投影的处理证据。">
+            {timelineQuery.isLoading ? (
+              <p className="m-0 text-sm leading-6 text-slate-600">正在加载处理时间线。</p>
+            ) : timelineItems.length === 0 ? (
+              <p className="m-0 text-sm leading-6 text-slate-600">当前文档还没有可展示的处理事件。</p>
+            ) : (
+              <div className="grid gap-3">
+                {timelineItems.map((item, index) => (
+                  <article
+                    className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3"
+                    key={`${item.event_type}-${item.created_at}-${index}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="grid gap-1">
+                        <p className="m-0 text-sm font-medium text-slate-900">{timelineStageLabel(item)}</p>
+                        <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">
+                          {formatDateTime(item.created_at)}
+                        </p>
+                      </div>
+                      <Badge variant={timelineStatusTone(item.status)}>{parseStatusLabel(item.status)}</Badge>
+                    </div>
+                    <p className="m-0 text-sm leading-6 text-slate-700">{item.summary}</p>
+                    {item.diagnosis_code ? (
+                      <p className="m-0 text-xs text-slate-500">诊断：{diagnosisLabel(item.diagnosis_code)}</p>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            )}
+          </SectionCard>
         </div>
       </section>
     </PageShell>
   );
+}
+
+function timelineStageLabel(item: DocumentProcessingEventItem) {
+  const stagePrefix = {
+    upload: "上传阶段",
+    parse: "解析阶段",
+    ocr: "OCR 阶段",
+    fetch: "抓取阶段",
+    projection: "搜索投影",
+    ops: "运维事件"
+  }[item.stage];
+
+  return `${stagePrefix} · ${item.summary}`;
+}
+
+function timelineStatusTone(status: DocumentProcessingEventItem["status"]) {
+  if (status === "success") {
+    return "success" as const;
+  }
+
+  if (status === "failed") {
+    return "warning" as const;
+  }
+
+  return "info" as const;
 }

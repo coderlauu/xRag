@@ -250,7 +250,7 @@ export class DocumentsService {
 
     return {
       items: result.items.map((document) =>
-        this.toDocumentSummary(document, tagMap.get(document.id) || [], latestJobMap.get(document.id) || null)
+        this.toDocumentSummary(document, tagMap.get(document.id) || [], latestJobMap.get(document.id) || null, query.q)
       ),
       page: query.page,
       page_size: query.page_size,
@@ -439,8 +439,11 @@ export class DocumentsService {
     tagNames: string[],
     latestJob: {
       status: DocumentLatestJobInfo["status"];
-    } | null
+    } | null,
+    query?: string
   ): DocumentSummary {
+    const searchSignals = this.buildSearchSignals(document, query);
+
     return {
       id: document.id,
       title: document.title,
@@ -455,9 +458,9 @@ export class DocumentsService {
       upload_status: this.toDocumentUploadStatus(document.uploadStatus),
       diagnosis_code: this.toDiagnosisCode(document.diagnosisCode),
       diagnosis_summary: document.diagnosisSummary,
-      match_explanation: document.matchExplanation,
-      ranking_hint: document.rankingHint,
-      matched_fields: document.matchedFields,
+      match_explanation: searchSignals.matchExplanation,
+      ranking_hint: searchSignals.rankingHint,
+      matched_fields: searchSignals.matchedFields,
       latest_job_status: latestJob?.status ?? null,
       page_count: document.pageCount,
       parser_name: document.parserName,
@@ -485,6 +488,7 @@ export class DocumentsService {
       verifiedAt: Date | null;
     } | null
   ): DocumentDetail {
+    const searchSignals = this.buildSearchSignals(document);
     const latestJob = latestJobRow
       ? {
           id: latestJobRow.id,
@@ -514,6 +518,9 @@ export class DocumentsService {
       parse_error_message: document.parseErrorMessage,
       ocr_engine: document.ocrEngine,
       ocr_language: document.ocrLanguage,
+      match_explanation: searchSignals.matchExplanation,
+      ranking_hint: searchSignals.rankingHint,
+      matched_fields: searchSignals.matchedFields,
       upload,
       latest_job: latestJob,
       last_incident_ref: document.lastIncidentRef,
@@ -562,5 +569,136 @@ export class DocumentsService {
     }
 
     return "reparse_document";
+  }
+
+  private buildSearchSignals(document: DocumentRow, query?: string | null) {
+    const storedMatchedFields = document.matchedFields && document.matchedFields.length > 0 ? document.matchedFields : null;
+    const storedMatchExplanation = document.matchExplanation?.trim() || null;
+    const storedRankingHint = document.rankingHint?.trim() || null;
+
+    if (storedMatchedFields || storedMatchExplanation || storedRankingHint) {
+      return {
+        matchedFields: storedMatchedFields,
+        matchExplanation: storedMatchExplanation,
+        rankingHint: storedRankingHint
+      };
+    }
+
+    const normalizedQuery = query?.trim().toLowerCase() || "";
+    const matchedFields: string[] = [];
+    const title = document.title.toLowerCase();
+    const content = document.contentClean?.toLowerCase() || "";
+
+    if (normalizedQuery) {
+      if (title.includes(normalizedQuery)) {
+        matchedFields.push("title");
+      }
+
+      if (content.includes(normalizedQuery)) {
+        if (document.sourceType === "link") {
+          matchedFields.push("link_body");
+        } else if (document.ocrStatus === "success") {
+          matchedFields.push("ocr_text");
+        } else {
+          matchedFields.push("body");
+        }
+      }
+    } else {
+      matchedFields.push("title");
+      if (document.sourceType === "link" && content) {
+        matchedFields.push("link_body");
+      } else if (document.ocrStatus === "success" && content) {
+        matchedFields.push("ocr_text");
+      } else if (content) {
+        matchedFields.push("body");
+      }
+    }
+
+    const uniqueFields = [...new Set(matchedFields)];
+
+    if (document.parseStatus === "failed" && document.diagnosisCode) {
+      return {
+        matchedFields: uniqueFields.length > 0 ? uniqueFields : null,
+        matchExplanation: `当前文档停留在「${this.toDiagnosisSummary(document.diagnosisCode)}」阶段，因此结果主要用于排查，不保证正文检索完整。`,
+        rankingHint: "失败文档保留在结果中，便于定位阻塞环节和后续重试。"
+      };
+    }
+
+    return {
+      matchedFields: uniqueFields.length > 0 ? uniqueFields : null,
+      matchExplanation: this.buildMatchExplanation(uniqueFields, normalizedQuery),
+      rankingHint: this.buildRankingHint(uniqueFields, document)
+    };
+  }
+
+  private buildMatchExplanation(fields: string[], query: string) {
+    if (fields.length === 0) {
+      return query ? `关键词“${query}”尚未形成稳定命中解释。` : "当前文档暂无可展示的命中解释。";
+    }
+
+    const labels = fields.map((field) => this.matchFieldLabel(field));
+    return query
+      ? `关键词“${query}”命中了${labels.join("、")}。`
+      : `当前文档的可检索信号主要来自${labels.join("、")}。`;
+  }
+
+  private buildRankingHint(fields: string[], document: DocumentRow) {
+    const hints: string[] = [];
+
+    if (fields.includes("title")) {
+      hints.push("标题命中");
+    }
+
+    if (fields.includes("ocr_text")) {
+      hints.push("OCR 正文命中");
+    } else if (fields.includes("link_body")) {
+      hints.push("链接正文命中");
+    } else if (fields.includes("body")) {
+      hints.push("正文命中");
+    }
+
+    if (document.importedAt) {
+      hints.push("最近导入加权");
+    }
+
+    return hints.length > 0 ? hints.join(" + ") : "当前暂无稳定排序提示。";
+  }
+
+  private matchFieldLabel(field: string) {
+    switch (field) {
+      case "title":
+        return "标题";
+      case "ocr_text":
+        return "OCR 正文";
+      case "link_body":
+        return "链接正文";
+      case "body":
+        return "正文";
+      default:
+        return field;
+    }
+  }
+
+  private toDiagnosisSummary(code: string) {
+    switch (code) {
+      case "ocr_runtime_error":
+        return "OCR 运行时异常";
+      case "ocr_timeout":
+        return "OCR 处理超时";
+      case "ocr_no_text_detected":
+        return "OCR 未识别到有效文本";
+      case "link_fetch_timeout":
+        return "链接抓取超时";
+      case "link_fetch_blocked":
+        return "链接抓取被阻止";
+      case "link_extract_empty":
+        return "链接正文提取为空";
+      case "search_projection_stale":
+        return "搜索投影需要刷新";
+      case "queue_backlog":
+        return "任务入队失败";
+      default:
+        return code;
+    }
   }
 }

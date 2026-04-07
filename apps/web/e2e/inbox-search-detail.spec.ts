@@ -16,8 +16,10 @@ test("inbox to search to detail flow works", async ({ page }) => {
   await page.locator("#search-query").fill(title);
   await page.locator("#search-submit").click();
   await expect(page.getByRole("link", { name: title })).toBeVisible();
+  await expect(page.getByText("命中说明")).toBeVisible();
   await page.getByRole("link", { name: title }).click();
 
   await expect(page).toHaveURL(/\/detail\//);
   await expect(page.getByText(title)).toBeVisible();
+  await expect(page.getByText("处理时间线")).toBeVisible();
 });
