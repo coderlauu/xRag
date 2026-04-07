@@ -3,7 +3,7 @@
 当前默认入口始终指向“当前正在推进的版本”。
 
 当前有效版本：[v2 / Phase 1B](/Users/coderlauu/xRag/docs/handoff/v2.md)  
-当前版本状态：[v2 / Phase 1B Status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)（已完成）
+当前版本状态：[v2 / Phase 1B Status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)（因 PDF 生产缺陷热修处理中）
 
 上一阶段归档：
 
@@ -18,7 +18,7 @@
 - [Phase 1A API Design](/Users/coderlauu/xRag/tech/api/2026-03-31-phase-1a-api.md)
 - [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
 
-当前最近完成版本资产：
+当前活跃版本资产：
 
 - [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
 - [Phase 1B Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md)
@@ -32,13 +32,14 @@
 - [Phase 1B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md)
 - [Phase 1B API Design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
 - [Phase 1B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-implementation-lanes.md)
+- [Phase 1B PDF Parser Runtime Hotfix](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1b-pdf-parser-runtime-hotfix.md)
 - [CI 自动修复闭环方案](/Users/coderlauu/xRag/docs/process/2026-04-06-ci-auto-repair-loop.md)
 
 ---
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 1A` 已可用的生产基线上，完成导入链路与生产稳态能力增强，重点解决 `pdf` 真实解析、multipart 上传和 observability。
+在 `Phase 1A` 已可用的生产基线上，完成导入链路与生产稳态能力增强；当前因 PDF 生产解析缺陷进入热修阶段。
 
 ---
 
@@ -86,7 +87,7 @@
 ## 4. 执行规则
 
 1. 当前 `Phase 1B` 已完成主线程的 `schema / shared-types / API contract / diagnosis code` 冻结，并已重新生成 [Phase 1B OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1b-api.json)
-2. 当前没有活跃中的 `exec plan`；如进入下一轮需求，先按版本流程创建新的 `handoff / status / exec plan`
+2. 当前存在一个生产热修计划：[Phase 1B PDF Parser Runtime Hotfix](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1b-pdf-parser-runtime-hotfix.md)
 3. 版本的真实进度统一写入 `docs/status/`
 4. 复杂任务先写 `docs/exec-plans/active/*.md`
 5. 历史版本只归档，不覆盖
