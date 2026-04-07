@@ -11,6 +11,7 @@ import {
 import { WorkerQueueProducer } from "../queue/producer";
 import { createDocumentProcessingHandlers, type DocumentProcessingJobData } from "../jobs/document-processing";
 import { WorkerStorageService } from "../storage/storage";
+import { fetchAndExtractLinkDocument } from "../jobs/link-parser";
 
 function createRedisConnection(env: ReturnType<typeof loadWorkerEnv>) {
   if (env.redisUrl) {
@@ -46,7 +47,13 @@ export async function bootstrapWorker() {
     repository,
     storage,
     logger,
-    enqueueOcr: (documentId, uploadId) => queueProducer.enqueueRunOcr(documentId, uploadId)
+    enqueueOcr: (documentId, uploadId) => queueProducer.enqueueRunOcr(documentId, uploadId),
+    fetchLink: (url) =>
+      fetchAndExtractLinkDocument(url, fetch, {
+        timeoutMs: env.linkFetchTimeoutMs,
+        retryCount: env.linkFetchRetryCount,
+        retryBackoffMs: env.linkFetchRetryBackoffMs
+      })
   });
 
   const worker = new Worker<DocumentProcessingJobData>(

@@ -17,6 +17,9 @@ export interface WorkerEnv {
   storageForcePathStyle: boolean;
   ocrLanguage: string;
   ocrTimeoutMs: number;
+  linkFetchTimeoutMs: number;
+  linkFetchRetryCount: number;
+  linkFetchRetryBackoffMs: number;
 }
 
 function parseInteger(value: string | undefined, fallback: number): number {
@@ -61,6 +64,9 @@ export function loadWorkerEnv(env: NodeJS.ProcessEnv = process.env): WorkerEnv {
     storageSecretAccessKey: env.STORAGE_SECRET_ACCESS_KEY || "xragminio",
     storageForcePathStyle: parseBoolean(env.STORAGE_FORCE_PATH_STYLE, true),
     ocrLanguage: env.OCR_LANGUAGE || "chi_sim+eng",
-    ocrTimeoutMs: parseInteger(env.OCR_TIMEOUT_MS, 30000)
+    ocrTimeoutMs: parseInteger(env.OCR_TIMEOUT_MS, 30000),
+    linkFetchTimeoutMs: parseInteger(env.LINK_FETCH_TIMEOUT_MS, 20000),
+    linkFetchRetryCount: parseInteger(env.LINK_FETCH_RETRY_COUNT, 2),
+    linkFetchRetryBackoffMs: parseInteger(env.LINK_FETCH_RETRY_BACKOFF_MS, 1500)
   };
 }

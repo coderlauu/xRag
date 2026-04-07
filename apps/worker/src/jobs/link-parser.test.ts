@@ -44,3 +44,53 @@ test("fetchAndExtractLinkDocument throws blocked diagnosis for 403 responses", a
       error.httpStatus === 403
   );
 });
+
+test("fetchAndExtractLinkDocument retries timeout-like failures and eventually succeeds", async () => {
+  let attempt = 0;
+
+  const parsed = await fetchAndExtractLinkDocument(
+    "https://example.com/retry",
+    async () => {
+      attempt += 1;
+      if (attempt < 3) {
+        throw new Error("fetch failed");
+      }
+
+      return new Response(SAMPLE_HTML, {
+        status: 200,
+        headers: {
+          "content-type": "text/html; charset=utf-8"
+        }
+      });
+    },
+    {
+      timeoutMs: 1000,
+      retryCount: 2,
+      retryBackoffMs: 0
+    }
+  );
+
+  assert.equal(attempt, 3);
+  assert.equal(parsed.title, "路线图更新");
+  assert.match(parsed.text, /第一段正文/);
+});
+
+test("fetchAndExtractLinkDocument exposes readable network error summary", async () => {
+  await assert.rejects(
+    () =>
+      fetchAndExtractLinkDocument(
+        "https://example.com/broken",
+        async () => {
+          throw new Error("fetch failed");
+        },
+        {
+          timeoutMs: 1000,
+          retryCount: 0
+        }
+      ),
+    (error: unknown) =>
+      error instanceof LinkFetchError &&
+      error.diagnosisCode === "link_fetch_timeout" &&
+      error.message.includes("Link fetch network error")
+  );
+});
