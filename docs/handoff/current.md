@@ -28,6 +28,7 @@
 - [Phase 1C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md)
 - [Phase 1C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md)
 - [Phase 1C API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md)
+- [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)
 - [Phase 1C Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md)
 - [Phase 1C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-implementation-lanes.md)
 - [CI 自动修复闭环方案](/Users/coderlauu/xRag/docs/process/2026-04-06-ci-auto-repair-loop.md)
@@ -84,7 +85,7 @@
 
 ## 4. 执行规则
 
-1. 当前 `Phase 1C` 已完成需求、原型、交互和增量技术方案冻结，下一步是主线程先冻结 contract，再进入实现
+1. 当前 `Phase 1C` 已完成需求、原型、交互、增量技术方案和主线程 contract freeze，下一步是按 lane 进入实现
 2. 新版本的真实进度统一写入 `docs/status/`
 3. 复杂任务先写 `docs/exec-plans/active/*.md`
 4. 历史版本只归档，不覆盖

@@ -53,6 +53,12 @@ function sourceLabel(source: IncidentSource) {
       return "上传";
     case "parse":
       return "解析";
+    case "ocr":
+      return "OCR";
+    case "fetch":
+      return "抓取";
+    case "projection":
+      return "投影";
     case "deploy":
       return "部署";
     case "ci":
@@ -101,7 +107,7 @@ export function OpsPage() {
       ...groups,
       [incident.source]: groups[incident.source] + 1
     }),
-    { upload: 0, parse: 0, deploy: 0, ci: 0 }
+    { upload: 0, parse: 0, ocr: 0, fetch: 0, projection: 0, deploy: 0, ci: 0 }
   );
   const groupedBySeverity = incidents.reduce<Record<IncidentSeverity, number>>(
     (groups, incident) => ({

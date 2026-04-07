@@ -5,6 +5,7 @@ import {
   customType,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -21,9 +22,10 @@ const tsvector = customType<{ data: string }>({
   }
 });
 
-export const sourceTypeEnum = pgEnum("source_type", ["text", "file", "link"]);
+export const sourceTypeEnum = pgEnum("source_type", ["text", "file", "pdf", "link"]);
 export const sourceOriginEnum = pgEnum("source_origin", ["manual_input", "upload", "link"]);
 export const parseStatusEnum = pgEnum("parse_status", ["pending", "processing", "success", "failed"]);
+export const ocrStatusEnum = pgEnum("ocr_status", ["not_required", "queued", "processing", "success", "failed"]);
 export const tagStatusEnum = pgEnum("tag_status", ["active", "archived"]);
 export const uploadStatusEnum = pgEnum("upload_status", [
   "draft",
@@ -38,10 +40,28 @@ export const uploadModeEnum = pgEnum("upload_mode", ["single", "multipart"]);
 export const jobTypeEnum = pgEnum("job_type", [
   "parse_document",
   "reparse_document",
-  "refresh_search_projection"
+  "refresh_search_projection",
+  "run_ocr",
+  "fetch_link",
+  "rebuild_search_projection"
 ]);
 export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed", "dead"]);
 export const uploadPartStatusEnum = pgEnum("upload_part_status", ["initiated", "uploaded", "failed"]);
+export const sourceFetchStatusEnum = pgEnum("source_fetch_status", [
+  "queued",
+  "fetching",
+  "extracting",
+  "success",
+  "failed"
+]);
+export const processingEventStageEnum = pgEnum("processing_event_stage", [
+  "upload",
+  "parse",
+  "ocr",
+  "fetch",
+  "projection",
+  "ops"
+]);
 
 export const documents = pgTable(
   "documents",
@@ -63,14 +83,21 @@ export const documents = pgTable(
     objectKey: text("object_key"),
     contentSha256: char("content_sha256", { length: 64 }),
     parseStatus: parseStatusEnum("parse_status").notNull().default("pending"),
+    ocrStatus: ocrStatusEnum("ocr_status"),
+    ocrEngine: varchar("ocr_engine", { length: 64 }),
+    ocrLanguage: varchar("ocr_language", { length: 64 }),
     uploadStatus: uploadStatusEnum("upload_status"),
     diagnosisCode: varchar("diagnosis_code", { length: 64 }),
     diagnosisSummary: text("diagnosis_summary"),
+    matchedFields: jsonb("matched_fields").$type<string[] | null>(),
+    matchExplanation: text("match_explanation"),
+    rankingHint: text("ranking_hint"),
     uploadId: uuid("upload_id"),
     pageCount: integer("page_count"),
     parserName: varchar("parser_name", { length: 64 }),
     parserVersion: varchar("parser_version", { length: 64 }),
     lastIncidentRef: varchar("last_incident_ref", { length: 64 }),
+    timelineCursor: varchar("timeline_cursor", { length: 64 }),
     parseErrorMessage: text("parse_error_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
@@ -78,6 +105,8 @@ export const documents = pgTable(
   },
   (table) => ({
     parseStatusIdx: index("idx_documents_parse_status").on(table.parseStatus),
+    sourceTypeIdx: index("idx_documents_source_type").on(table.sourceType),
+    ocrStatusIdx: index("idx_documents_ocr_status").on(table.ocrStatus),
     uploadStatusIdx: index("idx_documents_upload_status").on(table.uploadStatus),
     diagnosisCodeIdx: index("idx_documents_diagnosis_code").on(table.diagnosisCode),
     importedAtIdx: index("idx_documents_imported_at").on(table.importedAt)
@@ -189,6 +218,7 @@ export const documentParseJobs = pgTable(
     incidentRef: varchar("incident_ref", { length: 64 }),
     workerName: varchar("worker_name", { length: 64 }),
     runtimeMs: integer("runtime_ms"),
+    attemptGroup: varchar("attempt_group", { length: 64 }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
@@ -200,9 +230,59 @@ export const documentParseJobs = pgTable(
   })
 );
 
+export const documentSourceFetches = pgTable(
+  "document_source_fetches",
+  {
+    id: uuid("id").primaryKey(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    sourceUrl: text("source_url").notNull(),
+    fetchStatus: sourceFetchStatusEnum("fetch_status").notNull().default("queued"),
+    httpStatus: integer("http_status"),
+    contentType: varchar("content_type", { length: 128 }),
+    canonicalUrl: text("canonical_url"),
+    titleExtracted: varchar("title_extracted", { length: 255 }),
+    diagnosisCode: varchar("diagnosis_code", { length: 64 }),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    documentIdIdx: index("idx_document_source_fetches_document_id").on(table.documentId)
+  })
+);
+
+export const documentProcessingEvents = pgTable(
+  "document_processing_events",
+  {
+    id: uuid("id").primaryKey(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    eventType: varchar("event_type", { length: 64 }).notNull(),
+    stage: processingEventStageEnum("stage").notNull(),
+    status: parseStatusEnum("status").notNull(),
+    diagnosisCode: varchar("diagnosis_code", { length: 64 }),
+    summary: text("summary").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    documentCreatedIdx: index("idx_document_processing_events_document_created").on(
+      table.documentId,
+      table.createdAt
+    ),
+    stageStatusIdx: index("idx_document_processing_events_stage_status").on(table.stage, table.status)
+  })
+);
+
 export const documentsRelations = relations(documents, ({ many, one }) => ({
   documentTags: many(documentTags),
   parseJobs: many(documentParseJobs),
+  sourceFetches: many(documentSourceFetches),
+  processingEvents: many(documentProcessingEvents),
   upload: one(uploads, {
     fields: [documents.uploadId],
     references: [uploads.id]
@@ -242,11 +322,27 @@ export const documentParseJobsRelations = relations(documentParseJobs, ({ one })
   })
 }));
 
+export const documentSourceFetchesRelations = relations(documentSourceFetches, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentSourceFetches.documentId],
+    references: [documents.id]
+  })
+}));
+
+export const documentProcessingEventsRelations = relations(documentProcessingEvents, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentProcessingEvents.documentId],
+    references: [documents.id]
+  })
+}));
+
 export const schema = {
   documents,
   tags,
   documentTags,
   uploads,
   uploadParts,
-  documentParseJobs
+  documentParseJobs,
+  documentSourceFetches,
+  documentProcessingEvents
 };

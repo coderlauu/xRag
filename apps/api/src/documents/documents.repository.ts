@@ -12,16 +12,17 @@ import {
   sql,
   type SQL
 } from "drizzle-orm";
-import type { DiagnosisCode, DocumentUploadStatus, ParseStatus, SourceType } from "@xrag/shared-types";
+import type { DiagnosisCode, DocumentUploadStatus, OcrStatus, ParseStatus, SourceType } from "@xrag/shared-types";
 import { normalizeTagName } from "../common/document-utils";
 import { DatabaseService, type DatabaseClient } from "../database/database.service";
-import { documentTags, documents, tags } from "../database/schema";
+import { documentProcessingEvents, documentTags, documents, tags } from "../database/schema";
 
 type DatabaseExecutor = Pick<DatabaseClient, "select" | "insert" | "update" | "delete">;
 
 export interface ListDocumentsFilters {
   q?: string;
   sourceType?: SourceType;
+  ocrStatuses: OcrStatus[];
   parseStatuses: ParseStatus[];
   uploadStatuses: DocumentUploadStatus[];
   diagnosisCode?: DiagnosisCode;
@@ -133,6 +134,19 @@ export class DocumentsRepository {
     return tagMap;
   }
 
+  async createProcessingEvent(values: typeof documentProcessingEvents.$inferInsert, db: DatabaseExecutor = this.database.db) {
+    const [event] = await db.insert(documentProcessingEvents).values(values).returning();
+    return event;
+  }
+
+  async listProcessingEventsByDocumentId(documentId: string, db: DatabaseExecutor = this.database.db) {
+    return db
+      .select()
+      .from(documentProcessingEvents)
+      .where(eq(documentProcessingEvents.documentId, documentId))
+      .orderBy(asc(documentProcessingEvents.createdAt));
+  }
+
   private buildWhere(filters: ListDocumentsFilters, db: DatabaseExecutor): SQL<unknown> | undefined {
     const conditions: SQL<unknown>[] = [];
 
@@ -143,6 +157,10 @@ export class DocumentsRepository {
 
     if (filters.sourceType) {
       conditions.push(eq(documents.sourceType, filters.sourceType));
+    }
+
+    if (filters.ocrStatuses.length > 0) {
+      conditions.push(inArray(documents.ocrStatus, filters.ocrStatuses));
     }
 
     if (filters.parseStatuses.length > 0) {

@@ -12,6 +12,7 @@ import type {
 export interface SearchFilters {
   q: string;
   source_type: string;
+  ocr_status: string;
   parse_status: string;
   upload_status: string;
   diagnosis_code: string;
@@ -25,6 +26,7 @@ export interface SearchFilters {
 export const defaultSearchFilters: SearchFilters = {
   q: "",
   source_type: "",
+  ocr_status: "",
   parse_status: "",
   upload_status: "",
   diagnosis_code: "",
@@ -39,6 +41,7 @@ export function normalizeSearchFilters(input: Record<string, unknown>): SearchFi
   return {
     q: typeof input.q === "string" ? input.q : "",
     source_type: typeof input.source_type === "string" ? input.source_type : "",
+    ocr_status: typeof input.ocr_status === "string" ? input.ocr_status : "",
     parse_status: typeof input.parse_status === "string" ? input.parse_status : "",
     upload_status: typeof input.upload_status === "string" ? input.upload_status : "",
     diagnosis_code: typeof input.diagnosis_code === "string" ? input.diagnosis_code : "",
@@ -54,6 +57,7 @@ export function serializeSearchFilters(filters: SearchFilters): Record<string, s
   return {
     q: filters.q.trim() || undefined,
     source_type: filters.source_type || undefined,
+    ocr_status: filters.ocr_status || undefined,
     parse_status: filters.parse_status || undefined,
     upload_status: filters.upload_status || undefined,
     diagnosis_code: filters.diagnosis_code || undefined,
@@ -69,6 +73,7 @@ export function buildDocumentsQuery(filters: SearchFilters) {
   return {
     q: filters.q.trim() || undefined,
     source_type: normalizeSourceType(filters.source_type),
+    ocr_status: normalizeOcrStatus(filters.ocr_status),
     parse_status: filters.parse_status || undefined,
     upload_status: filters.upload_status || undefined,
     diagnosis_code: filters.diagnosis_code || undefined,
@@ -168,6 +173,8 @@ export function sourceTypeLabel(value: string | undefined): string {
       return "文本";
     case "file":
       return "文件";
+    case "pdf":
+      return "PDF";
     case "link":
       return "链接";
     default:
@@ -224,6 +231,22 @@ export function diagnosisLabel(code: string | null | undefined): string {
       return "PDF 解析超时";
     case "pdf_parse_empty_text":
       return "PDF 未提取到文本";
+    case "ocr_runtime_error":
+      return "OCR 运行时异常";
+    case "ocr_timeout":
+      return "OCR 超时";
+    case "ocr_no_text_detected":
+      return "OCR 未识别到有效文本";
+    case "link_fetch_timeout":
+      return "链接抓取超时";
+    case "link_fetch_blocked":
+      return "链接抓取被阻止";
+    case "link_extract_empty":
+      return "链接正文提取为空";
+    case "link_invalid_url":
+      return "链接地址无效";
+    case "search_projection_stale":
+      return "搜索投影需要刷新";
     case "queue_backlog":
       return "解析任务入队失败";
     default:
@@ -270,7 +293,15 @@ function normalizePositiveNumber(value: unknown, fallback: number): number {
 }
 
 function normalizeSourceType(value: string): SourceType | undefined {
-  if (value === "text" || value === "file" || value === "link") {
+  if (value === "text" || value === "file" || value === "pdf" || value === "link") {
+    return value;
+  }
+
+  return undefined;
+}
+
+function normalizeOcrStatus(value: string) {
+  if (value === "not_required" || value === "queued" || value === "processing" || value === "success" || value === "failed") {
     return value;
   }
 

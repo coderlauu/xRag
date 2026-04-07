@@ -1,10 +1,13 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import {
+  CreateLinkDocumentRequestDto,
+  CreateLinkDocumentResponseDto,
   CreateTextDocumentRequestDto,
   CreateTextDocumentResponseDto,
   DocumentDetailDto,
   DocumentListResponseDto,
+  DocumentTimelineResponseDto,
   ListDocumentsQueryDto,
   RetryDocumentResponseDto,
   UpdateDocumentTagsRequestDto
@@ -24,11 +27,20 @@ export class DocumentsController {
     return this.documentsService.createTextDocument(body);
   }
 
+  @Post("link")
+  @ApiOperation({ summary: "Create a link document and enqueue fetch job" })
+  @ApiCreatedResponse({ type: CreateLinkDocumentResponseDto })
+  @ApiBody({ type: CreateLinkDocumentRequestDto })
+  createLinkDocument(@Body() body: CreateLinkDocumentRequestDto) {
+    return this.documentsService.createLinkDocument(body);
+  }
+
   @Get()
   @ApiOperation({ summary: "List documents with search and filters" })
   @ApiOkResponse({ type: DocumentListResponseDto })
   @ApiQuery({ name: "q", required: false, type: String })
-  @ApiQuery({ name: "source_type", required: false, enum: ["text", "file", "link"] })
+  @ApiQuery({ name: "source_type", required: false, enum: ["text", "file", "pdf", "link"] })
+  @ApiQuery({ name: "ocr_status", required: false, type: String })
   @ApiQuery({ name: "parse_status", required: false, type: String })
   @ApiQuery({ name: "upload_status", required: false, type: String })
   @ApiQuery({ name: "diagnosis_code", required: false, type: String })
@@ -47,6 +59,14 @@ export class DocumentsController {
   @ApiParam({ name: "documentId", type: String })
   getDocument(@Param("documentId") documentId: string) {
     return this.documentsService.getDocument(documentId);
+  }
+
+  @Get(":documentId/timeline")
+  @ApiOperation({ summary: "Get a document processing timeline" })
+  @ApiOkResponse({ type: DocumentTimelineResponseDto })
+  @ApiParam({ name: "documentId", type: String })
+  getDocumentTimeline(@Param("documentId") documentId: string) {
+    return this.documentsService.getDocumentTimeline(documentId);
   }
 
   @Patch(":documentId/tags")

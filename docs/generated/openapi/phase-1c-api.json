@@ -1,0 +1,2029 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get service liveness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "HealthController_getReadiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get dependency readiness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/ops/health-summary": {
+      "get": {
+        "operationId": "OpsController_getHealthSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsHealthSummaryResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a read-only health summary for core services",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/incidents": {
+      "get": {
+        "operationId": "OpsController_listIncidents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsIncidentListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List recent incidents",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/deployments/latest": {
+      "get": {
+        "operationId": "OpsController_getLatestDeployment",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatestDeploymentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get the latest deployment summary",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/jobs/{jobId}": {
+      "get": {
+        "operationId": "JobsController_getJob",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get background job status",
+        "tags": [
+          "jobs"
+        ]
+      }
+    },
+    "/api/v1/uploads/initiate": {
+      "post": {
+        "operationId": "UploadsController_initiateUpload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadInitiateRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadInitiateResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an upload session",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/v1/uploads/{uploadId}/parts": {
+      "post": {
+        "operationId": "UploadsController_getUploadParts",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadPartUrlRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPartUrlResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get multipart upload URLs",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/v1/uploads/{uploadId}/parts/{partNumber}/complete": {
+      "post": {
+        "operationId": "UploadsController_completeUploadPart",
+        "parameters": [
+          {
+            "name": "partNumber",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadPartCompleteRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPartCompleteResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Record multipart part completion",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/v1/uploads/{uploadId}/complete": {
+      "post": {
+        "operationId": "UploadsController_completeUpload",
+        "parameters": [
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadCompleteRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadCompleteResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Complete an upload and create a document",
+        "tags": [
+          "uploads"
+        ]
+      }
+    },
+    "/api/v1/documents/text": {
+      "post": {
+        "operationId": "DocumentsController_createTextDocument",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTextDocumentRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTextDocumentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a text document",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/link": {
+      "post": {
+        "operationId": "DocumentsController_createLinkDocument",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLinkDocumentRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateLinkDocumentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a link document and enqueue fetch job",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/documents": {
+      "get": {
+        "operationId": "DocumentsController_listDocuments",
+        "parameters": [
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "date_to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tags",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "diagnosis_code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upload_status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "parse_status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ocr_status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "text",
+                "file",
+                "pdf",
+                "link"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List documents with search and filters",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{documentId}": {
+      "get": {
+        "operationId": "DocumentsController_getDocument",
+        "parameters": [
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a document by id",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{documentId}/timeline": {
+      "get": {
+        "operationId": "DocumentsController_getDocumentTimeline",
+        "parameters": [
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentTimelineResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a document processing timeline",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{documentId}/tags": {
+      "patch": {
+        "operationId": "DocumentsController_updateDocumentTags",
+        "parameters": [
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDocumentTagsRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Replace a document tag set",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/documents/{documentId}/retry": {
+      "post": {
+        "operationId": "DocumentsController_retryDocument",
+        "parameters": [
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryDocumentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Retry document parsing",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/v1/tags": {
+      "get": {
+        "operationId": "TagsController_listTags",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "active",
+                "archived"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List available tags",
+        "tags": [
+          "tags"
+        ]
+      },
+      "post": {
+        "operationId": "TagsController_createTag",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTagRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagItemDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create or upsert a tag",
+        "tags": [
+          "tags"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "xRag API",
+    "description": "Phase 1C API contract",
+    "version": "0.4.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "http://localhost:3001"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ReadinessResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ]
+      },
+      "OpsHealthServiceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "warning",
+              "critical"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ]
+      },
+      "OpsHealthSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsHealthServiceDto"
+            }
+          },
+          "generated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "services",
+          "generated_at"
+        ]
+      },
+      "OpsIncidentSummaryDto": {
+        "type": "object",
+        "properties": {
+          "incident_ref": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "upload",
+              "parse",
+              "ocr",
+              "fetch",
+              "projection",
+              "deploy",
+              "ci"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "tracked",
+              "resolved"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "external_url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "incident_ref",
+          "source",
+          "severity",
+          "status",
+          "title",
+          "summary"
+        ]
+      },
+      "OpsIncidentListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsIncidentSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "LatestDeploymentResponseDto": {
+        "type": "object",
+        "properties": {
+          "current_image_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "previous_stable_image_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "last_smoke_status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "unknown"
+            ]
+          },
+          "last_smoke_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "last_smoke_status"
+        ]
+      },
+      "JobStatusResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "job_type": {
+            "type": "string",
+            "enum": [
+              "parse_document",
+              "reparse_document",
+              "refresh_search_projection",
+              "run_ocr",
+              "fetch_link",
+              "rebuild_search_projection"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "dead"
+            ]
+          },
+          "attempt": {
+            "type": "number"
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog",
+              "ocr_runtime_error",
+              "ocr_timeout",
+              "ocr_no_text_detected",
+              "link_fetch_timeout",
+              "link_fetch_blocked",
+              "link_extract_empty",
+              "link_invalid_url",
+              "search_projection_stale"
+            ],
+            "nullable": true
+          },
+          "incident_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "runtime_ms": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "document_id",
+          "job_type",
+          "status",
+          "attempt"
+        ]
+      },
+      "UploadInitiateRequestDto": {
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string"
+          },
+          "mime_type": {
+            "type": "string"
+          },
+          "file_size": {
+            "type": "number"
+          },
+          "checksum_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_name",
+          "mime_type",
+          "file_size"
+        ]
+      },
+      "UploadInitiateResponseDto": {
+        "type": "object",
+        "properties": {
+          "upload_id": {
+            "type": "string"
+          },
+          "upload_mode": {
+            "type": "string",
+            "enum": [
+              "single",
+              "multipart"
+            ]
+          },
+          "object_key": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "initiated",
+              "uploading",
+              "verifying",
+              "uploaded",
+              "failed",
+              "expired"
+            ]
+          },
+          "upload_method": {
+            "type": "string",
+            "enum": [
+              "presigned_put"
+            ]
+          },
+          "upload_url": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "part_size_bytes": {
+            "type": "number"
+          },
+          "part_count": {
+            "type": "number"
+          },
+          "provider_upload_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "expires_in": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "upload_id",
+          "upload_mode",
+          "object_key",
+          "status",
+          "expires_in"
+        ]
+      },
+      "UploadPartUrlRequestDto": {
+        "type": "object",
+        "properties": {
+          "part_numbers": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "part_numbers"
+        ]
+      },
+      "UploadPartUrlItemDto": {
+        "type": "object",
+        "properties": {
+          "part_number": {
+            "type": "number"
+          },
+          "upload_url": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "part_number",
+          "upload_url",
+          "headers"
+        ]
+      },
+      "UploadPartUrlResponseDto": {
+        "type": "object",
+        "properties": {
+          "upload_id": {
+            "type": "string"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadPartUrlItemDto"
+            }
+          }
+        },
+        "required": [
+          "upload_id",
+          "parts"
+        ]
+      },
+      "UploadPartCompleteRequestDto": {
+        "type": "object",
+        "properties": {
+          "etag": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "etag",
+          "size_bytes"
+        ]
+      },
+      "UploadPartCompleteResponseDto": {
+        "type": "object",
+        "properties": {
+          "upload_id": {
+            "type": "string"
+          },
+          "part_number": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "initiated",
+              "uploaded",
+              "failed"
+            ]
+          },
+          "uploaded_part_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "upload_id",
+          "part_number",
+          "status",
+          "uploaded_part_count"
+        ]
+      },
+      "CompletedUploadPartDto": {
+        "type": "object",
+        "properties": {
+          "part_number": {
+            "type": "number"
+          },
+          "etag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_number",
+          "etag"
+        ]
+      },
+      "UploadCompleteRequestDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "checksum_sha256": {
+            "type": "string"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompletedUploadPartDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "tags",
+          "checksum_sha256"
+        ]
+      },
+      "UploadCompleteResponseDto": {
+        "type": "object",
+        "properties": {
+          "upload_id": {
+            "type": "string"
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "upload_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "initiated",
+              "uploading",
+              "verifying",
+              "uploaded",
+              "failed"
+            ]
+          },
+          "parse_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "success",
+              "failed"
+            ]
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "upload_id",
+          "document_id",
+          "job_id",
+          "upload_status",
+          "parse_status"
+        ]
+      },
+      "CreateTextDocumentRequestDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "RAG 产品最小闭环拆解"
+          },
+          "content": {
+            "type": "string",
+            "example": "这里是一段用户手动输入的正文"
+          },
+          "tags": {
+            "example": [
+              "RAG",
+              "MVP",
+              "检索"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "content",
+          "tags"
+        ]
+      },
+      "CreateTextDocumentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parse_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "success",
+              "failed"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "parse_status"
+        ]
+      },
+      "CreateLinkDocumentRequestDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "站点公告：春季产品路线图"
+          },
+          "source_url": {
+            "type": "string",
+            "example": "https://news.example.com/roadmap"
+          },
+          "tags": {
+            "example": [
+              "链接",
+              "路线图"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "source_url",
+          "tags"
+        ]
+      },
+      "CreateLinkDocumentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parse_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "success",
+              "failed"
+            ]
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog",
+              "ocr_runtime_error",
+              "ocr_timeout",
+              "ocr_no_text_detected",
+              "link_fetch_timeout",
+              "link_fetch_blocked",
+              "link_extract_empty",
+              "link_invalid_url",
+              "search_projection_stale"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "parse_status"
+        ]
+      },
+      "DocumentSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content_preview": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "file",
+              "pdf",
+              "link"
+            ]
+          },
+          "source_origin": {
+            "type": "string",
+            "enum": [
+              "manual_input",
+              "upload",
+              "link"
+            ]
+          },
+          "source_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "file_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "parse_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "success",
+              "failed"
+            ]
+          },
+          "ocr_status": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "queued",
+              "processing",
+              "success",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "upload_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "initiated",
+              "uploading",
+              "verifying",
+              "uploaded",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog",
+              "ocr_runtime_error",
+              "ocr_timeout",
+              "ocr_no_text_detected",
+              "link_fetch_timeout",
+              "link_fetch_blocked",
+              "link_extract_empty",
+              "link_invalid_url",
+              "search_projection_stale"
+            ],
+            "nullable": true
+          },
+          "diagnosis_summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "match_explanation": {
+            "type": "string",
+            "nullable": true
+          },
+          "ranking_hint": {
+            "type": "string",
+            "nullable": true
+          },
+          "matched_fields": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "latest_job_status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "dead"
+            ],
+            "nullable": true
+          },
+          "page_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "parser_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "imported_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content_preview",
+          "tags",
+          "source_type",
+          "source_origin",
+          "parse_status",
+          "imported_at"
+        ]
+      },
+      "DocumentListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentSummaryDto"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "page_size": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
+      },
+      "DocumentUploadInfoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "upload_mode": {
+            "type": "string",
+            "enum": [
+              "single",
+              "multipart"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "initiated",
+              "uploading",
+              "verifying",
+              "uploaded",
+              "failed",
+              "expired"
+            ]
+          },
+          "part_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "uploaded_part_count": {
+            "type": "number"
+          },
+          "verified_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "upload_mode",
+          "status",
+          "uploaded_part_count"
+        ]
+      },
+      "DocumentLatestJobInfoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "dead"
+            ]
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog",
+              "ocr_runtime_error",
+              "ocr_timeout",
+              "ocr_no_text_detected",
+              "link_fetch_timeout",
+              "link_fetch_blocked",
+              "link_extract_empty",
+              "link_invalid_url",
+              "search_projection_stale"
+            ],
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "DocumentDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content_preview": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "file",
+              "pdf",
+              "link"
+            ]
+          },
+          "source_origin": {
+            "type": "string",
+            "enum": [
+              "manual_input",
+              "upload",
+              "link"
+            ]
+          },
+          "source_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "file_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "parse_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "success",
+              "failed"
+            ]
+          },
+          "ocr_status": {
+            "type": "string",
+            "enum": [
+              "not_required",
+              "queued",
+              "processing",
+              "success",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "upload_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "initiated",
+              "uploading",
+              "verifying",
+              "uploaded",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog",
+              "ocr_runtime_error",
+              "ocr_timeout",
+              "ocr_no_text_detected",
+              "link_fetch_timeout",
+              "link_fetch_blocked",
+              "link_extract_empty",
+              "link_invalid_url",
+              "search_projection_stale"
+            ],
+            "nullable": true
+          },
+          "diagnosis_summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "match_explanation": {
+            "type": "string",
+            "nullable": true
+          },
+          "ranking_hint": {
+            "type": "string",
+            "nullable": true
+          },
+          "matched_fields": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "latest_job_status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "dead"
+            ],
+            "nullable": true
+          },
+          "page_count": {
+            "type": "number",
+            "nullable": true
+          },
+          "parser_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "imported_at": {
+            "type": "string"
+          },
+          "content_raw": {
+            "type": "string",
+            "nullable": true
+          },
+          "content_clean": {
+            "type": "string",
+            "nullable": true
+          },
+          "mime_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "parse_error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "ocr_engine": {
+            "type": "string",
+            "nullable": true
+          },
+          "ocr_language": {
+            "type": "string",
+            "nullable": true
+          },
+          "upload": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentUploadInfoDto"
+              }
+            ]
+          },
+          "latest_job": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentLatestJobInfoDto"
+              }
+            ]
+          },
+          "last_incident_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "parser_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content_preview",
+          "tags",
+          "source_type",
+          "source_origin",
+          "parse_status",
+          "imported_at",
+          "created_at"
+        ]
+      },
+      "DocumentProcessingEventItemDto": {
+        "type": "object",
+        "properties": {
+          "event_type": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "upload",
+              "parse",
+              "ocr",
+              "fetch",
+              "projection",
+              "ops"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "success",
+              "failed"
+            ]
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog",
+              "ocr_runtime_error",
+              "ocr_timeout",
+              "ocr_no_text_detected",
+              "link_fetch_timeout",
+              "link_fetch_blocked",
+              "link_extract_empty",
+              "link_invalid_url",
+              "search_projection_stale"
+            ],
+            "nullable": true
+          },
+          "summary": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_type",
+          "stage",
+          "status",
+          "summary",
+          "created_at"
+        ]
+      },
+      "DocumentTimelineResponseDto": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentProcessingEventItemDto"
+            }
+          }
+        },
+        "required": [
+          "document_id",
+          "items"
+        ]
+      },
+      "UpdateDocumentTagsRequestDto": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "example": [
+              "用户研究",
+              "访谈",
+              "P1"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "tags"
+        ]
+      },
+      "RetryDocumentResponseDto": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string"
+          },
+          "parse_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "success",
+              "failed"
+            ]
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "enum": [
+              "storage_presign_failed",
+              "multipart_part_failed",
+              "upload_complete_invalid_parts",
+              "object_missing_on_complete",
+              "pdf_parse_runtime_error",
+              "pdf_parse_unsupported",
+              "pdf_parse_timeout",
+              "pdf_parse_empty_text",
+              "queue_backlog",
+              "ocr_runtime_error",
+              "ocr_timeout",
+              "ocr_no_text_detected",
+              "link_fetch_timeout",
+              "link_fetch_blocked",
+              "link_extract_empty",
+              "link_invalid_url",
+              "search_projection_stale"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "document_id",
+          "job_id",
+          "parse_status"
+        ]
+      },
+      "TagItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status"
+        ]
+      },
+      "TagListResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagItemDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CreateTagRequestDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  }
+}

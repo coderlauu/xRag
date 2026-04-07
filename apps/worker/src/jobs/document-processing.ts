@@ -223,10 +223,25 @@ export function createDocumentProcessingHandlers(deps: DocumentProcessingDepende
   return {
     [DOCUMENT_PROCESSING_JOB_NAMES.parseDocument]: (context: JobContext) => processDocument(context, deps),
     [DOCUMENT_PROCESSING_JOB_NAMES.reparseDocument]: (context: JobContext) => processDocument(context, deps),
+    [DOCUMENT_PROCESSING_JOB_NAMES.runOcr]: async (context: JobContext) => ({
+      documentId: context.data.documentId,
+      status: "skipped" as const,
+      reason: "ocr pipeline not wired yet"
+    }),
+    [DOCUMENT_PROCESSING_JOB_NAMES.fetchLink]: async (context: JobContext) => ({
+      documentId: context.data.documentId,
+      status: "skipped" as const,
+      reason: "link fetch pipeline not wired yet"
+    }),
     [DOCUMENT_PROCESSING_JOB_NAMES.refreshSearchProjection]: async (context: JobContext) => ({
       documentId: context.data.documentId,
       status: "skipped" as const,
       reason: "search projection refresh not wired yet"
+    }),
+    [DOCUMENT_PROCESSING_JOB_NAMES.rebuildSearchProjection]: async (context: JobContext) => ({
+      documentId: context.data.documentId,
+      status: "skipped" as const,
+      reason: "search projection rebuild not wired yet"
     })
   } satisfies Record<DocumentProcessingJobName, (context: JobContext) => Promise<DocumentProcessingJobResult>>;
 }

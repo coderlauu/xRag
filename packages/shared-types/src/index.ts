@@ -1,5 +1,5 @@
 export type ParseStatus = "pending" | "processing" | "success" | "failed";
-export type SourceType = "text" | "file" | "link";
+export type SourceType = "text" | "file" | "pdf" | "link";
 export type SourceOrigin = "manual_input" | "upload" | "link";
 export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "dead";
 export type TagStatus = "active" | "archived";
@@ -7,11 +7,21 @@ export type UploadMode = "single" | "multipart";
 export type DocumentUploadStatus = "draft" | "initiated" | "uploading" | "verifying" | "uploaded" | "failed";
 export type UploadSessionStatus = "initiated" | "uploading" | "verifying" | "uploaded" | "failed" | "expired";
 export type UploadPartStatus = "initiated" | "uploaded" | "failed";
-export type DocumentJobType = "parse_document" | "reparse_document" | "refresh_search_projection";
+export type OcrStatus = "not_required" | "queued" | "processing" | "success" | "failed";
+export type DocumentJobType =
+  | "parse_document"
+  | "reparse_document"
+  | "refresh_search_projection"
+  | "run_ocr"
+  | "fetch_link"
+  | "rebuild_search_projection";
 export type DocumentProcessingJobName =
   | "parse-document"
   | "reparse-document"
-  | "refresh-search-projection";
+  | "refresh-search-projection"
+  | "run-ocr"
+  | "fetch-link"
+  | "rebuild-search-projection";
 export type DiagnosisCode =
   | "storage_presign_failed"
   | "multipart_part_failed"
@@ -21,19 +31,31 @@ export type DiagnosisCode =
   | "pdf_parse_unsupported"
   | "pdf_parse_timeout"
   | "pdf_parse_empty_text"
-  | "queue_backlog";
+  | "queue_backlog"
+  | "ocr_runtime_error"
+  | "ocr_timeout"
+  | "ocr_no_text_detected"
+  | "link_fetch_timeout"
+  | "link_fetch_blocked"
+  | "link_extract_empty"
+  | "link_invalid_url"
+  | "search_projection_stale";
 export type OpsServiceStatus = "healthy" | "warning" | "critical";
-export type IncidentSource = "upload" | "parse" | "deploy" | "ci";
+export type IncidentSource = "upload" | "parse" | "ocr" | "fetch" | "projection" | "deploy" | "ci";
 export type IncidentSeverity = "low" | "medium" | "high";
 export type IncidentStatus = "open" | "tracked" | "resolved";
 export type DeploymentSmokeStatus = "passed" | "failed" | "unknown";
+export type ProcessingEventStage = "upload" | "parse" | "ocr" | "fetch" | "projection" | "ops";
 
 export const DOCUMENT_PROCESSING_QUEUE_NAME = "document-processing" as const;
 
 export const DOCUMENT_PROCESSING_JOB_NAMES = {
   parseDocument: "parse-document",
   reparseDocument: "reparse-document",
-  refreshSearchProjection: "refresh-search-projection"
+  refreshSearchProjection: "refresh-search-projection",
+  runOcr: "run-ocr",
+  fetchLink: "fetch-link",
+  rebuildSearchProjection: "rebuild-search-projection"
 } as const;
 
 export interface HealthResponse {
@@ -51,11 +73,16 @@ export interface DocumentSummary {
   tags: string[];
   source_type: SourceType;
   source_origin: SourceOrigin;
+  source_url: string | null;
   file_name: string | null;
   parse_status: ParseStatus;
+  ocr_status: OcrStatus | null;
   upload_status: DocumentUploadStatus | null;
   diagnosis_code: DiagnosisCode | null;
   diagnosis_summary: string | null;
+  match_explanation: string | null;
+  ranking_hint: string | null;
+  matched_fields: string[] | null;
   latest_job_status: JobStatus | null;
   page_count: number | null;
   parser_name: string | null;
@@ -81,9 +108,10 @@ export interface DocumentLatestJobInfo {
 export interface DocumentDetail extends DocumentSummary {
   content_raw: string | null;
   content_clean: string | null;
-  source_url: string | null;
   mime_type: string | null;
   parse_error_message: string | null;
+  ocr_engine: string | null;
+  ocr_language: string | null;
   upload: DocumentUploadInfo | null;
   latest_job: DocumentLatestJobInfo | null;
   last_incident_ref: string | null;
@@ -103,6 +131,7 @@ export interface DocumentListResponse {
 export interface ListDocumentsQuery {
   q?: string;
   source_type?: SourceType;
+  ocr_status?: OcrStatus;
   parse_status?: string;
   upload_status?: string;
   diagnosis_code?: string;
@@ -126,6 +155,18 @@ export interface CreateTextDocumentRequest {
 export interface CreateTextDocumentResponse {
   id: string;
   parse_status: ParseStatus;
+}
+
+export interface CreateLinkDocumentRequest {
+  title?: string;
+  source_url: string;
+  tags: string[];
+}
+
+export interface CreateLinkDocumentResponse {
+  id: string;
+  parse_status: ParseStatus;
+  diagnosis_code: DiagnosisCode | null;
 }
 
 export interface RetryDocumentResponse {
@@ -233,6 +274,20 @@ export interface JobStatusResponse {
   diagnosis_code: DiagnosisCode | null;
   incident_ref: string | null;
   runtime_ms: number | null;
+}
+
+export interface DocumentProcessingEventItem {
+  event_type: string;
+  stage: ProcessingEventStage;
+  status: ParseStatus;
+  diagnosis_code: DiagnosisCode | null;
+  summary: string;
+  created_at: string;
+}
+
+export interface DocumentTimelineResponse {
+  document_id: string;
+  items: DocumentProcessingEventItem[];
 }
 
 export interface OpsHealthService {

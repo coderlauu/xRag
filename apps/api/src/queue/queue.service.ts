@@ -89,6 +89,28 @@ export class QueueService implements OnApplicationShutdown {
     });
   }
 
+  async enqueueRunOcr(documentId: string, uploadId?: string): Promise<string> {
+    return this.enqueueDocumentJob({
+      name: DOCUMENT_PROCESSING_JOB_NAMES.runOcr,
+      documentId,
+      uploadId
+    });
+  }
+
+  async enqueueFetchLink(documentId: string): Promise<string> {
+    return this.enqueueDocumentJob({
+      name: DOCUMENT_PROCESSING_JOB_NAMES.fetchLink,
+      documentId
+    });
+  }
+
+  async enqueueRebuildSearchProjection(documentId: string): Promise<string> {
+    return this.enqueueDocumentJob({
+      name: DOCUMENT_PROCESSING_JOB_NAMES.rebuildSearchProjection,
+      documentId
+    });
+  }
+
   async checkConnection(): Promise<void> {
     const result = await this.connection.ping();
     if (result !== "PONG") {

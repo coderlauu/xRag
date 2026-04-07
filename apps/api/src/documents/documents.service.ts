@@ -1,14 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type {
+  CreateLinkDocumentResponse,
   CreateTextDocumentResponse,
   DiagnosisCode,
   DocumentDetail,
+  DocumentJobType,
   DocumentLatestJobInfo,
   DocumentListResponse,
   DocumentSummary,
+  DocumentTimelineResponse,
   DocumentUploadInfo,
   DocumentUploadStatus,
+  OcrStatus,
   UploadSessionStatus,
   ParseStatus,
   RetryDocumentResponse
@@ -26,7 +30,12 @@ import { JobsRepository } from "../jobs/jobs.repository";
 import { QueueService } from "../queue/queue.service";
 import { TagsRepository } from "../tags/tags.repository";
 import { UploadsRepository } from "../uploads/uploads.repository";
-import { CreateTextDocumentRequestDto, ListDocumentsQueryDto, UpdateDocumentTagsRequestDto } from "./documents.dto";
+import {
+  CreateLinkDocumentRequestDto,
+  CreateTextDocumentRequestDto,
+  ListDocumentsQueryDto,
+  UpdateDocumentTagsRequestDto
+} from "./documents.dto";
 import { DocumentsRepository } from "./documents.repository";
 
 type DocumentRow = typeof documents.$inferSelect;
@@ -75,6 +84,20 @@ export class DocumentsService {
         tx
       );
 
+      await this.documentsRepository.createProcessingEvent(
+        {
+          id: randomUUID(),
+          documentId: document.id,
+          eventType: "manual_text_created",
+          stage: "parse",
+          status: "success",
+          diagnosisCode: null,
+          summary: "手动文本已入库，无需额外解析。",
+          payload: null
+        },
+        tx
+      );
+
       return {
         id: document.id,
         parse_status: document.parseStatus
@@ -82,7 +105,124 @@ export class DocumentsService {
     });
   }
 
+  async createLinkDocument(body: CreateLinkDocumentRequestDto): Promise<CreateLinkDocumentResponse> {
+    const normalizedUrl = this.normalizeSourceUrl(body.source_url);
+
+    const createResult = await this.database.db.transaction(async (tx) => {
+      const tagRows = await this.tagsRepository.upsertTags(body.tags, tx);
+      const title = normalizeWhitespace(body.title || normalizedUrl);
+      const document = await this.documentsRepository.createDocument(
+        {
+          id: randomUUID(),
+          title,
+          contentRaw: null,
+          contentClean: null,
+          contentPreview: "链接正文待抓取",
+          searchText: buildSearchText({
+            title,
+            contentClean: null,
+            tags: tagRows.map((tag) => tag.name),
+            fileName: null,
+            sourceUrl: normalizedUrl
+          }),
+          sourceType: "link",
+          sourceOrigin: "link",
+          sourceUrl: normalizedUrl,
+          parseStatus: "pending",
+          ocrStatus: "not_required"
+        },
+        tx
+      );
+
+      await this.documentsRepository.replaceDocumentTags(
+        document.id,
+        tagRows.map((tag) => tag.id),
+        tx
+      );
+
+      const nextAttempt = await this.jobsRepository.getNextAttempt(document.id, tx);
+      const job = await this.jobsRepository.createJob(
+        {
+          id: randomUUID(),
+          documentId: document.id,
+          queueJobId: null,
+          jobType: "fetch_link",
+          status: "queued",
+          attempt: nextAttempt,
+          diagnosisCode: null,
+          incidentRef: null,
+          runtimeMs: null
+        },
+        tx
+      );
+
+      await this.documentsRepository.createProcessingEvent(
+        {
+          id: randomUUID(),
+          documentId: document.id,
+          eventType: "link_fetch_queued",
+          stage: "fetch",
+          status: "pending",
+          diagnosisCode: null,
+          summary: "链接文档已创建，等待抓取正文。",
+          payload: {
+            source_url: normalizedUrl,
+            job_id: job.id
+          }
+        },
+        tx
+      );
+
+      return {
+        id: document.id,
+        jobId: job.id
+      };
+    });
+
+    try {
+      const queueJobId = await this.queueService.enqueueFetchLink(createResult.id);
+      await this.jobsRepository.updateJob(createResult.jobId, {
+        queueJobId
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to enqueue link fetch job";
+      await this.jobsRepository.updateJob(createResult.jobId, {
+        status: "failed",
+        errorCode: "queue_backlog",
+        errorMessage: message,
+        diagnosisCode: "queue_backlog",
+        finishedAt: new Date()
+      });
+      await this.documentsRepository.updateDocumentProjection(createResult.id, {
+        parseStatus: "failed",
+        diagnosisCode: "queue_backlog",
+        diagnosisSummary: "链接抓取任务未能入队，请稍后重试。",
+        parseErrorMessage: message
+      });
+      await this.documentsRepository.createProcessingEvent({
+        id: randomUUID(),
+        documentId: createResult.id,
+        eventType: "link_fetch_enqueue_failed",
+        stage: "fetch",
+        status: "failed",
+        diagnosisCode: "queue_backlog",
+        summary: "链接抓取任务入队失败。",
+        payload: null
+      });
+      throw new BadRequestException("Failed to enqueue link fetch job");
+    }
+
+    return {
+      id: createResult.id,
+      parse_status: "pending",
+      diagnosis_code: null
+    };
+  }
+
   async listDocuments(query: ListDocumentsQueryDto): Promise<DocumentListResponse> {
+    const ocrStatuses = parseCommaSeparated(query.ocr_status).filter(
+      (value): value is OcrStatus => ["not_required", "queued", "processing", "success", "failed"].includes(value)
+    );
     const parseStatuses = parseCommaSeparated(query.parse_status).filter(
       (value): value is ParseStatus => ["pending", "processing", "success", "failed"].includes(value)
     );
@@ -94,6 +234,7 @@ export class DocumentsService {
     const result = await this.documentsRepository.listDocuments({
       q: query.q,
       sourceType: query.source_type,
+      ocrStatuses,
       parseStatuses,
       uploadStatuses,
       diagnosisCode: query.diagnosis_code,
@@ -127,6 +268,26 @@ export class DocumentsService {
     const latestJob = await this.jobsRepository.getLatestJobByDocumentId(document.id);
     const upload = document.uploadId ? await this.uploadsRepository.getUploadById(document.uploadId) : null;
     return this.toDocumentDetail(document, tagMap.get(document.id) || [], latestJob, upload);
+  }
+
+  async getDocumentTimeline(documentId: string): Promise<DocumentTimelineResponse> {
+    const document = await this.documentsRepository.getDocumentById(documentId);
+    if (!document) {
+      throw new NotFoundException("Document not found");
+    }
+
+    const items = await this.documentsRepository.listProcessingEventsByDocumentId(documentId);
+    return {
+      document_id: documentId,
+      items: items.map((item) => ({
+        event_type: item.eventType,
+        stage: item.stage,
+        status: item.status,
+        diagnosis_code: this.toDiagnosisCode(item.diagnosisCode),
+        summary: item.summary,
+        created_at: toIsoString(item.createdAt)
+      }))
+    };
   }
 
   async updateDocumentTags(documentId: string, body: UpdateDocumentTagsRequestDto): Promise<DocumentDetail> {
@@ -176,17 +337,34 @@ export class DocumentsService {
       }
 
       const nextAttempt = await this.jobsRepository.getNextAttempt(documentId, tx);
+      const retryJobType = this.resolveRetryJobType(document.sourceType);
       const job = await this.jobsRepository.createJob(
         {
           id: randomUUID(),
           documentId,
           queueJobId: null,
-          jobType: "reparse_document",
+          jobType: retryJobType,
           status: "queued",
           attempt: nextAttempt,
           diagnosisCode: null,
           incidentRef: null,
           runtimeMs: null
+        },
+        tx
+      );
+
+      await this.documentsRepository.createProcessingEvent(
+        {
+          id: randomUUID(),
+          documentId,
+          eventType: retryJobType === "fetch_link" ? "link_retry_queued" : "reparse_queued",
+          stage: retryJobType === "fetch_link" ? "fetch" : "parse",
+          status: "pending",
+          diagnosisCode: null,
+          summary: retryJobType === "fetch_link" ? "已创建链接抓取重试任务。" : "已创建解析重试任务。",
+          payload: {
+            job_id: job.id
+          }
         },
         tx
       );
@@ -206,12 +384,16 @@ export class DocumentsService {
         document_id: documentId,
         job_id: job.id,
         parse_status: "pending" as const,
-        diagnosis_code: null
+        diagnosis_code: null,
+        retry_job_type: retryJobType
       };
     });
 
     try {
-      const queueJobId = await this.queueService.enqueueReparseDocument(documentId);
+      const queueJobId =
+        retryResult.retry_job_type === "fetch_link"
+          ? await this.queueService.enqueueFetchLink(documentId)
+          : await this.queueService.enqueueReparseDocument(documentId);
       await this.jobsRepository.updateJob(retryResult.job_id, {
         queueJobId
       });
@@ -232,7 +414,12 @@ export class DocumentsService {
       throw new BadRequestException("Failed to enqueue reparse job");
     }
 
-    return retryResult;
+    return {
+      document_id: retryResult.document_id,
+      job_id: retryResult.job_id,
+      parse_status: retryResult.parse_status,
+      diagnosis_code: retryResult.diagnosis_code
+    };
   }
 
   private toDocumentSummary(
@@ -249,11 +436,16 @@ export class DocumentsService {
       tags: tagNames,
       source_type: document.sourceType,
       source_origin: document.sourceOrigin,
+      source_url: document.sourceUrl,
       file_name: document.fileName,
       parse_status: document.parseStatus,
+      ocr_status: document.ocrStatus,
       upload_status: this.toDocumentUploadStatus(document.uploadStatus),
       diagnosis_code: this.toDiagnosisCode(document.diagnosisCode),
       diagnosis_summary: document.diagnosisSummary,
+      match_explanation: document.matchExplanation,
+      ranking_hint: document.rankingHint,
+      matched_fields: document.matchedFields,
       latest_job_status: latestJob?.status ?? null,
       page_count: document.pageCount,
       parser_name: document.parserName,
@@ -308,6 +500,8 @@ export class DocumentsService {
       source_url: document.sourceUrl,
       mime_type: document.mimeType,
       parse_error_message: document.parseErrorMessage,
+      ocr_engine: document.ocrEngine,
+      ocr_language: document.ocrLanguage,
       upload,
       latest_job: latestJob,
       last_incident_ref: document.lastIncidentRef,
@@ -336,5 +530,21 @@ export class DocumentsService {
 
   private toUploadSessionStatus(value: string): UploadSessionStatus {
     return value === "draft" ? "initiated" : (value as UploadSessionStatus);
+  }
+
+  private normalizeSourceUrl(rawUrl: string): string {
+    try {
+      return new URL(rawUrl.trim()).toString();
+    } catch {
+      throw new BadRequestException("Invalid source url");
+    }
+  }
+
+  private resolveRetryJobType(sourceType: string | null): DocumentJobType {
+    if (sourceType === "link") {
+      return "fetch_link";
+    }
+
+    return "reparse_document";
   }
 }

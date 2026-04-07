@@ -13,7 +13,7 @@ import type {
 } from "@xrag/shared-types";
 
 const OPS_SERVICE_STATUS_VALUES: OpsServiceStatus[] = ["healthy", "warning", "critical"];
-const INCIDENT_SOURCE_VALUES: IncidentSource[] = ["upload", "parse", "deploy", "ci"];
+const INCIDENT_SOURCE_VALUES: IncidentSource[] = ["upload", "parse", "ocr", "fetch", "projection", "deploy", "ci"];
 const INCIDENT_SEVERITY_VALUES: IncidentSeverity[] = ["low", "medium", "high"];
 const INCIDENT_STATUS_VALUES: IncidentStatus[] = ["open", "tracked", "resolved"];
 const DEPLOYMENT_SMOKE_STATUS_VALUES: DeploymentSmokeStatus[] = ["passed", "failed", "unknown"];

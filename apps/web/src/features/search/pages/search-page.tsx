@@ -87,7 +87,20 @@ export function SearchPage() {
                 <option value="">全部来源</option>
                 <option value="text">文本</option>
                 <option value="file">文件</option>
+                <option value="pdf">PDF</option>
                 <option value="link">链接</option>
+              </Select>
+              <Select
+                aria-label="OCR 状态"
+                value={draftFilters.ocr_status}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, ocr_status: event.target.value }))}
+              >
+                <option value="">全部 OCR 状态</option>
+                <option value="not_required">无需 OCR</option>
+                <option value="queued">等待 OCR</option>
+                <option value="processing">OCR 中</option>
+                <option value="success">OCR 成功</option>
+                <option value="failed">OCR 失败</option>
               </Select>
               <Select
                 aria-label="解析状态"
@@ -127,6 +140,14 @@ export function SearchPage() {
                 <option value="pdf_parse_unsupported">PDF 暂不支持解析</option>
                 <option value="pdf_parse_timeout">PDF 解析超时</option>
                 <option value="pdf_parse_empty_text">PDF 未提取到文本</option>
+                <option value="ocr_runtime_error">OCR 运行时异常</option>
+                <option value="ocr_timeout">OCR 超时</option>
+                <option value="ocr_no_text_detected">OCR 未识别到有效文本</option>
+                <option value="link_fetch_timeout">链接抓取超时</option>
+                <option value="link_fetch_blocked">链接抓取被阻止</option>
+                <option value="link_extract_empty">链接正文提取为空</option>
+                <option value="link_invalid_url">链接地址无效</option>
+                <option value="search_projection_stale">搜索投影需要刷新</option>
                 <option value="queue_backlog">解析任务入队失败</option>
               </Select>
             </div>
@@ -194,6 +215,7 @@ export function SearchPage() {
                     search: serializeSearchFilters({
                       q: "",
                       source_type: "",
+                      ocr_status: "",
                       parse_status: "",
                       upload_status: "",
                       diagnosis_code: "",

@@ -6,8 +6,8 @@ cd "$repo_root"
 
 PATH="$repo_root/scripts/bin:$PATH" corepack pnpm --filter @xrag/api openapi:generate >/dev/null
 
-if ! git diff --exit-code -- docs/generated/openapi/phase-1b-api.json >/dev/null; then
+if ! git diff --exit-code -- docs/generated/openapi/phase-1c-api.json >/dev/null; then
   echo "Generated OpenAPI artifact is out of date. Run \`pnpm contract:generate\` and commit the updated file." >&2
-  git diff -- docs/generated/openapi/phase-1b-api.json >&2 || true
+  git diff -- docs/generated/openapi/phase-1c-api.json >&2 || true
   exit 1
 fi

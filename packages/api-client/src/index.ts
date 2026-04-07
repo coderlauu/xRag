@@ -1,9 +1,12 @@
 import type {
   CreateTagRequest,
+  CreateLinkDocumentRequest,
+  CreateLinkDocumentResponse,
   CreateTextDocumentRequest,
   CreateTextDocumentResponse,
   DocumentDetail,
   DocumentListResponse,
+  DocumentTimelineResponse,
   HealthResponse,
   JobStatusResponse,
   LatestDeploymentResponse,
@@ -71,8 +74,24 @@ export async function createTextDocument(
   );
 }
 
+export async function createLinkDocument(body: CreateLinkDocumentRequest, baseUrl = "http://localhost:3001") {
+  return requestJson<CreateLinkDocumentResponse>(
+    "/api/v1/documents/link",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    baseUrl
+  );
+}
+
 export async function getDocument(documentId: string, baseUrl = "http://localhost:3001") {
   return requestJson<DocumentDetail>(`/api/v1/documents/${documentId}`, undefined, baseUrl);
+}
+
+export async function getDocumentTimeline(documentId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<DocumentTimelineResponse>(`/api/v1/documents/${documentId}/timeline`, undefined, baseUrl);
 }
 
 export async function updateDocumentTags(

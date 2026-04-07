@@ -1,15 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import type {
+  CreateLinkDocumentRequest,
+  CreateLinkDocumentResponse,
   CreateTextDocumentRequest,
   CreateTextDocumentResponse,
   DiagnosisCode,
   DocumentDetail,
+  DocumentProcessingEventItem,
+  DocumentTimelineResponse,
   DocumentLatestJobInfo,
   DocumentListResponse,
   DocumentSummary,
   DocumentUploadInfo,
   DocumentUploadStatus,
   JobStatus,
+  OcrStatus,
   ParseStatus,
   RetryDocumentResponse,
   SourceOrigin,
@@ -35,7 +40,8 @@ import {
 } from "class-validator";
 
 const PARSE_STATUS_VALUES: ParseStatus[] = ["pending", "processing", "success", "failed"];
-const SOURCE_TYPE_VALUES: SourceType[] = ["text", "file", "link"];
+const OCR_STATUS_VALUES: OcrStatus[] = ["not_required", "queued", "processing", "success", "failed"];
+const SOURCE_TYPE_VALUES: SourceType[] = ["text", "file", "pdf", "link"];
 const SOURCE_ORIGIN_VALUES: SourceOrigin[] = ["manual_input", "upload", "link"];
 const DOCUMENT_UPLOAD_STATUS_VALUES: DocumentUploadStatus[] = [
   "draft",
@@ -64,7 +70,15 @@ const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
   "pdf_parse_unsupported",
   "pdf_parse_timeout",
   "pdf_parse_empty_text",
-  "queue_backlog"
+  "queue_backlog",
+  "ocr_runtime_error",
+  "ocr_timeout",
+  "ocr_no_text_detected",
+  "link_fetch_timeout",
+  "link_fetch_blocked",
+  "link_extract_empty",
+  "link_invalid_url",
+  "search_projection_stale"
 ];
 
 export class CreateTextDocumentRequestDto implements CreateTextDocumentRequest {
@@ -104,6 +118,38 @@ export class CreateTextDocumentResponseDto implements CreateTextDocumentResponse
   parse_status!: ParseStatus;
 }
 
+export class CreateLinkDocumentRequestDto implements CreateLinkDocumentRequest {
+  @ApiPropertyOptional({ type: String, example: "站点公告：春季产品路线图" })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  title?: string;
+
+  @ApiProperty({ type: String, example: "https://news.example.com/roadmap" })
+  @IsString()
+  @MinLength(1)
+  source_url!: string;
+
+  @ApiProperty({ type: () => String, isArray: true, example: ["链接", "路线图"] })
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  tags!: string[];
+}
+
+export class CreateLinkDocumentResponseDto implements CreateLinkDocumentResponse {
+  @ApiProperty({ type: String })
+  id!: string;
+
+  @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })
+  parse_status!: ParseStatus;
+
+  @ApiPropertyOptional({ type: String, enum: DIAGNOSIS_CODE_VALUES, nullable: true })
+  diagnosis_code!: DiagnosisCode | null;
+}
+
 export class RetryDocumentResponseDto implements RetryDocumentResponse {
   @ApiProperty({ type: String })
   document_id!: string;
@@ -128,6 +174,11 @@ export class ListDocumentsQueryDto {
   @IsOptional()
   @IsIn(SOURCE_TYPE_VALUES)
   source_type?: SourceType;
+
+  @ApiPropertyOptional({ type: String, enum: OCR_STATUS_VALUES })
+  @IsOptional()
+  @IsIn(OCR_STATUS_VALUES)
+  ocr_status?: OcrStatus;
 
   @ApiPropertyOptional({ type: String, example: "pending,failed" })
   @IsOptional()
@@ -229,10 +280,16 @@ export class DocumentSummaryDto implements DocumentSummary {
   source_origin!: SourceOrigin;
 
   @ApiPropertyOptional({ type: String, nullable: true })
+  source_url!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
   file_name!: string | null;
 
   @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })
   parse_status!: ParseStatus;
+
+  @ApiPropertyOptional({ type: String, enum: OCR_STATUS_VALUES, nullable: true })
+  ocr_status!: OcrStatus | null;
 
   @ApiPropertyOptional({ type: String, enum: DOCUMENT_UPLOAD_STATUS_VALUES, nullable: true })
   upload_status!: DocumentUploadStatus | null;
@@ -242,6 +299,15 @@ export class DocumentSummaryDto implements DocumentSummary {
 
   @ApiPropertyOptional({ type: String, nullable: true })
   diagnosis_summary!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  match_explanation!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  ranking_hint!: string | null;
+
+  @ApiPropertyOptional({ type: () => String, isArray: true, nullable: true })
+  matched_fields!: string[] | null;
 
   @ApiPropertyOptional({ type: String, enum: JOB_STATUS_VALUES, nullable: true })
   latest_job_status!: JobStatus | null;
@@ -264,13 +330,16 @@ export class DocumentDetailDto extends DocumentSummaryDto implements DocumentDet
   content_clean!: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true })
-  source_url!: string | null;
-
-  @ApiPropertyOptional({ type: String, nullable: true })
   mime_type!: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   parse_error_message!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  ocr_engine!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  ocr_language!: string | null;
 
   @ApiPropertyOptional({ type: () => DocumentUploadInfoDto, nullable: true })
   upload!: DocumentUploadInfo | null;
@@ -300,4 +369,32 @@ export class DocumentListResponseDto implements DocumentListResponse {
 
   @ApiProperty({ type: Number })
   total!: number;
+}
+
+export class DocumentProcessingEventItemDto implements DocumentProcessingEventItem {
+  @ApiProperty({ type: String })
+  event_type!: string;
+
+  @ApiProperty({ type: String, enum: ["upload", "parse", "ocr", "fetch", "projection", "ops"] })
+  stage!: DocumentProcessingEventItem["stage"];
+
+  @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })
+  status!: ParseStatus;
+
+  @ApiPropertyOptional({ type: String, enum: DIAGNOSIS_CODE_VALUES, nullable: true })
+  diagnosis_code!: DiagnosisCode | null;
+
+  @ApiProperty({ type: String })
+  summary!: string;
+
+  @ApiProperty({ type: String })
+  created_at!: string;
+}
+
+export class DocumentTimelineResponseDto implements DocumentTimelineResponse {
+  @ApiProperty({ type: String })
+  document_id!: string;
+
+  @ApiProperty({ type: () => DocumentProcessingEventItemDto, isArray: true })
+  items!: DocumentProcessingEventItemDto[];
 }
