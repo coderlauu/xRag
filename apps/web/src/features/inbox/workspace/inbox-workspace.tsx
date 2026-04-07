@@ -2,7 +2,15 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Button, Input, SectionCard, Textarea, Badge } from "@xrag/ui";
-import { completeUpload, completeUploadPart, createTextDocument, getUploadPartUrls, initiateUpload, listDocuments } from "../../../lib/api";
+import {
+  completeUpload,
+  completeUploadPart,
+  createLinkDocument,
+  createTextDocument,
+  getUploadPartUrls,
+  initiateUpload,
+  listDocuments
+} from "../../../lib/api";
 import {
   formatDateTime,
   formatRelativeTime,
@@ -32,6 +40,12 @@ interface UploadFormState {
   file: File | null;
 }
 
+interface LinkFormState {
+  title: string;
+  sourceUrl: string;
+  tags: string;
+}
+
 export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -46,9 +60,16 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
     tags: "",
     file: null
   });
+  const [linkForm, setLinkForm] = useState<LinkFormState>({
+    title: "",
+    sourceUrl: "",
+    tags: ""
+  });
   const [textError, setTextError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkMessage, setLinkMessage] = useState<string | null>(null);
 
   const overviewQuery = useQuery({
     queryKey: overviewQueryKey,
@@ -186,6 +207,24 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
     }
   });
 
+  const createLinkMutation = useMutation({
+    mutationFn: createLinkDocument,
+    onSuccess: async (result) => {
+      setLinkError(null);
+      setLinkMessage("链接已提交，正在抓取正文并写入检索投影。");
+      await queryClient.invalidateQueries({ queryKey: overviewQueryKey });
+      await navigate({
+        to: "/detail/$documentId",
+        params: {
+          documentId: result.id
+        }
+      });
+    },
+    onError: (error) => {
+      setLinkError(error instanceof Error ? error.message : "链接导入失败");
+    }
+  });
+
   const handleTextChange = (field: keyof TextFormState) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = event.target.value;
     setTextForm((current) => ({ ...current, [field]: value }));
@@ -194,6 +233,11 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
   const handleUploadChange = (field: keyof UploadFormState) => (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setUploadForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleLinkChange = (field: keyof LinkFormState) => (event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setLinkForm((current) => ({ ...current, [field]: value }));
   };
 
   return (
@@ -258,6 +302,70 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
       </SectionCard>
 
       <div className="grid gap-6">
+        <SectionCard
+          title="链接导入"
+          description="提交网页地址，后台会抓取 HTML、提取正文并写入搜索投影。"
+        >
+          <form
+            className="grid gap-4"
+            onSubmit={(event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault();
+              setLinkError(null);
+              setLinkMessage(null);
+              createLinkMutation.mutate({
+                title: linkForm.title.trim() || undefined,
+                source_url: linkForm.sourceUrl.trim(),
+                tags: splitTags(linkForm.tags)
+              });
+            }}
+          >
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-slate-800" htmlFor="link-title">
+                标题
+              </label>
+              <Input
+                id="link-title"
+                value={linkForm.title}
+                onChange={handleLinkChange("title")}
+                placeholder="例如：RAG 方案文章"
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-slate-800" htmlFor="link-source-url">
+                链接地址
+              </label>
+              <Input
+                id="link-source-url"
+                type="url"
+                value={linkForm.sourceUrl}
+                onChange={handleLinkChange("sourceUrl")}
+                placeholder="https://example.com/article"
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-slate-800" htmlFor="link-tags">
+                标签
+              </label>
+              <Input
+                id="link-tags"
+                value={linkForm.tags}
+                onChange={handleLinkChange("tags")}
+                placeholder="外部资料, 链接, 研读"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button id="link-submit" type="submit" disabled={createLinkMutation.isPending}>
+                {createLinkMutation.isPending ? "提交中..." : "导入链接"}
+              </Button>
+              {linkMessage ? <span className="text-sm text-emerald-700">{linkMessage}</span> : null}
+              {linkError ? <span className="text-sm text-rose-700">{linkError}</span> : null}
+            </div>
+            <p className="m-0 text-sm leading-6 text-slate-600">
+              建议先导入正文稳定、可公开访问的页面；如抓取失败，可在详情页查看诊断码和推荐动作。
+            </p>
+          </form>
+        </SectionCard>
+
         <SectionCard
           title="上传队列"
           description="直传对象存储，完成校验后进入解析队列。"

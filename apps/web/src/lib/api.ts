@@ -1,4 +1,5 @@
 import {
+  createLinkDocument as createLinkDocumentRequest,
   completeUpload as completeUploadRequest,
   completeUploadPart as completeUploadPartRequest,
   createTag as createTagRequest,
@@ -19,6 +20,8 @@ import {
 } from "@xrag/api-client";
 import type {
   CreateTagRequest,
+  CreateLinkDocumentRequest,
+  CreateLinkDocumentResponse,
   CreateTextDocumentRequest,
   CreateTextDocumentResponse,
   DocumentDetail,
@@ -58,6 +61,10 @@ export function listDocuments(query: ListDocumentsQuery = {}): Promise<DocumentL
 
 export function createTextDocument(body: CreateTextDocumentRequest): Promise<CreateTextDocumentResponse> {
   return createTextDocumentRequest(body, API_BASE_URL);
+}
+
+export function createLinkDocument(body: CreateLinkDocumentRequest): Promise<CreateLinkDocumentResponse> {
+  return createLinkDocumentRequest(body, API_BASE_URL);
 }
 
 export function getDocument(documentId: string): Promise<DocumentDetail> {

@@ -39,8 +39,8 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane D 运维可见性 / observability`，运维页可区分核心服务与运行时分层，并展示功能降级与回滚建议
-- `next`: 进入 `Phase 1C` 版本收口评估，确认 active exec plan 可归档并决定是否关闭当前版本
+- `now`: 已补齐首页缺失的“链接导入”入口，导入页现在具备文本、链接、文件三类入口，并新增 E2E 覆盖链接创建跳详情页
+- `next`: 重新进行 `Phase 1C` 版本收口评估，确认前端入口、状态文档和 active exec plan 一致后再判断是否关闭当前版本
 
 ## 5. Blockers
 
@@ -50,7 +50,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: 已通过 `@xrag/api typecheck`、`@xrag/web typecheck`、`@xrag/web build`、`./scripts/run-e2e-smoke.sh` 以及 `PATH="/Users/coderlauu/xRag/scripts/bin:$PATH" pnpm validate`；其中新增覆盖 `搜索解释展示 -> 详情时间线 -> 运维分层可见性`
+- `latest_validation`: 已通过 `@xrag/web typecheck`、`./scripts/run-e2e-smoke.sh` 以及 `PATH="/Users/coderlauu/xRag/scripts/bin:$PATH" pnpm validate`；其中新增覆盖 `首页链接导入入口 -> 创建链接文档 -> 详情页来源链接展示`
 - `result`: `passed`
 - `latest_failure`: 无
 

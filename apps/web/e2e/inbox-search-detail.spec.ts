@@ -23,3 +23,15 @@ test("inbox to search to detail flow works", async ({ page }) => {
   await expect(page.getByText(title)).toBeVisible();
   await expect(page.getByText("处理时间线")).toBeVisible();
 });
+
+test("inbox link import entry creates a link document and opens detail", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#link-title").fill("Playwright 链接导入");
+  await page.locator("#link-source-url").fill("https://example.com/");
+  await page.locator("#link-tags").fill("e2e, link");
+  await page.locator("#link-submit").click();
+
+  await expect(page).toHaveURL(/\/detail\//);
+  await expect(page.getByText("Playwright 链接导入")).toBeVisible();
+  await expect(page.getByText("来源链接：https://example.com/")).toBeVisible();
+});
