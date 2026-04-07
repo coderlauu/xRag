@@ -99,6 +99,27 @@ grep -E 'POSTGRES_|MINIO_|STORAGE_|APP_' /srv/xrag/shared/production.env
 
 ## 4. 观察数据库里存了什么
 
+### 4.1 推荐方式：数据库 Web 管理台
+
+如果你已经接通数据库管理台，可直接访问：
+
+```text
+https://db.xrag.coderlau.cn
+```
+
+访问流程：
+
+1. 先通过浏览器 `basic auth`
+2. 认证通过后直接进入数据库 Web 管理台
+
+这个入口适合：
+
+- 浏览表结构
+- 搜索最近文档、上传、任务、事件
+- 快速做只读排查
+
+如果你还没接通这个域名，或者需要执行更细的 SQL，再使用下面的 `psql` 方式。
+
 先载入环境变量，再进入 Postgres：
 
 ```bash

@@ -101,7 +101,10 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `REGISTRY_NAMESPACE` 例如 `coderlau`
 - `REGISTRY_USERNAME` 例如 `coderlau`
 - `REGISTRY_PASSWORD` 为镜像仓库登录密码或 token
-- `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST`、`STORAGE_PUBLIC_URL`、`CONSOLE_PUBLIC_HOST`、`CONSOLE_PUBLIC_URL`
+- `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST`、`STORAGE_PUBLIC_URL`、`CONSOLE_PUBLIC_HOST`、`CONSOLE_PUBLIC_URL`、`DB_CONSOLE_PUBLIC_HOST`
+- 如果你希望像 `console.xrag.coderlau.cn` 一样通过浏览器输入账号密码后直接进入数据库管理台，还应包含：
+  - `DB_CONSOLE_BASICAUTH_USERNAME`
+  - `DB_CONSOLE_BASICAUTH_PASSWORD_HASH`
 
 ## Suggested Values For Current Project
 
@@ -117,6 +120,9 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `STORAGE_PUBLIC_URL=https://storage.xrag.coderlau.cn`
 - `CONSOLE_PUBLIC_HOST=console.xrag.coderlau.cn`
 - `CONSOLE_PUBLIC_URL=https://console.xrag.coderlau.cn`
+- `DB_CONSOLE_PUBLIC_HOST=db.xrag.coderlau.cn`
+- `DB_CONSOLE_BASICAUTH_USERNAME=admin`
+- `DB_CONSOLE_BASICAUTH_PASSWORD_HASH=<bcrypt-hash>`
 
 `staging` 有两种做法：
 
@@ -131,6 +137,7 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `Caddy` 自动为 `APP_DOMAIN` 申请和续期证书
 - `Caddy` 同时为 `STORAGE_PUBLIC_HOST` 代理对象存储上传 API
 - `Caddy` 为 `CONSOLE_PUBLIC_HOST` 代理 MinIO Console
+- `Caddy` 为 `DB_CONSOLE_PUBLIC_HOST` 代理数据库 Web 管理台
 - `web` 仅在内网暴露 `8080`
 
 前提：
@@ -138,8 +145,39 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 - `APP_DOMAIN` 已解析到服务器公网 IP
 - `STORAGE_PUBLIC_HOST` 已解析到服务器公网 IP
 - `CONSOLE_PUBLIC_HOST` 已解析到服务器公网 IP
+- `DB_CONSOLE_PUBLIC_HOST` 已解析到服务器公网 IP
 - 服务器安全组和系统防火墙已放行 `80/443`
 - 80 端口未被其他 Web 服务占用
+
+## Database Web Console
+
+当前生产栈可选接入一个受控数据库 Web 管理台：
+
+- 入口建议使用：`https://db.xrag.coderlau.cn`
+- 通过 `Caddy basic auth` 进行第一层访问控制
+- 通过 `pgweb` 直接连接内部 `postgres`，打开页面后无需再次填写数据库连接串
+
+推荐在 `DEPLOY_ENV_FILE` 中加入：
+
+```env
+DB_CONSOLE_PUBLIC_HOST=db.xrag.coderlau.cn
+DB_CONSOLE_BASICAUTH_USERNAME=admin
+DB_CONSOLE_BASICAUTH_PASSWORD_HASH=$$2y$$10$$mQhXgmqA0c/66a0ixsA9iOL02USstip1ffXy./tzGDp7TJfknHnua
+```
+
+上面的默认哈希对应口令：
+
+```text
+change-me
+```
+
+更稳的做法是生成你自己的 bcrypt 哈希后再替换。
+
+数据库 Web 管理台启用后，访问方式是：
+
+1. 浏览器打开 `https://db.xrag.coderlau.cn`
+2. 先输入 `basic auth` 账号密码
+3. 认证通过后直接进入数据库管理台
 
 ## Local Validation
 

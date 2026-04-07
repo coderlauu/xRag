@@ -11,3 +11,11 @@
 {$CONSOLE_PUBLIC_HOST} {
   reverse_proxy minio:9001
 }
+
+{$DB_CONSOLE_PUBLIC_HOST} {
+  basic_auth {
+    {$DB_CONSOLE_BASICAUTH_USERNAME} {$DB_CONSOLE_BASICAUTH_PASSWORD_HASH}
+  }
+
+  reverse_proxy pgweb:8081
+}
