@@ -233,7 +233,7 @@ export function DetailPage() {
               </form>
               <div className="flex gap-3">
                 <Button asChild variant="outline">
-                  <Link to="/search">返回搜索页</Link>
+                  <Link id="detail-back-to-search" to="/search">返回搜索页</Link>
                 </Button>
                 <Button asChild variant="ghost">
                   <Link to="/">返回导入页</Link>

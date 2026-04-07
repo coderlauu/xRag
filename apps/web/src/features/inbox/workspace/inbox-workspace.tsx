@@ -199,8 +199,8 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
   return (
     <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
       <SectionCard
-        title="Text capture"
-        description="Save a note directly to the inbox and jump to the created detail view."
+        title="文本导入"
+        description="直接保存一条文本笔记，并跳转到新建完成的详情页。"
       >
         <form
           className="grid gap-4"
@@ -216,41 +216,41 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
         >
           <div className="grid gap-2">
             <label className="text-sm font-medium text-slate-800" htmlFor="inbox-title">
-              Title
+              标题
             </label>
             <Input
               id="inbox-title"
               value={textForm.title}
               onChange={handleTextChange("title")}
-              placeholder="e.g. RAG product MVP notes"
+              placeholder="例如：RAG 产品 MVP 会议纪要"
             />
           </div>
           <div className="grid gap-2">
             <label className="text-sm font-medium text-slate-800" htmlFor="inbox-content">
-              Content
+              内容
             </label>
             <Textarea
               id="inbox-content"
               rows={8}
               value={textForm.content}
               onChange={handleTextChange("content")}
-              placeholder="Paste or draft the raw content here."
+              placeholder="在这里粘贴或整理原始内容。"
             />
           </div>
           <div className="grid gap-2">
             <label className="text-sm font-medium text-slate-800" htmlFor="inbox-tags">
-              Tags
+              标签
             </label>
             <Input
               id="inbox-tags"
               value={textForm.tags}
               onChange={handleTextChange("tags")}
-              placeholder="RAG, MVP, retrieval"
+              placeholder="知识库, MVP, 检索"
             />
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={createTextMutation.isPending}>
-              {createTextMutation.isPending ? "Saving..." : "Save note"}
+            <Button id="inbox-save-note" type="submit" disabled={createTextMutation.isPending}>
+              {createTextMutation.isPending ? "保存中..." : "保存笔记"}
             </Button>
             {textError ? <span className="text-sm text-rose-700">{textError}</span> : null}
           </div>
@@ -259,8 +259,8 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
 
       <div className="grid gap-6">
         <SectionCard
-          title="Upload queue"
-          description="Direct-to-object-storage upload with checksum verification and parse enqueue."
+          title="上传队列"
+          description="直传对象存储，完成校验后进入解析队列。"
         >
           <form
             className="grid gap-4"
@@ -273,29 +273,29 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
           >
             <div className="grid gap-2">
               <label className="text-sm font-medium text-slate-800" htmlFor="upload-title">
-                Title
+                标题
               </label>
               <Input
                 id="upload-title"
                 value={uploadForm.title}
                 onChange={handleUploadChange("title")}
-                placeholder="e.g. Interview notes PDF"
+                placeholder="例如：访谈纪要 PDF"
               />
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium text-slate-800" htmlFor="upload-tags">
-                Tags
+                标签
               </label>
               <Input
                 id="upload-tags"
                 value={uploadForm.tags}
                 onChange={handleUploadChange("tags")}
-                placeholder="interview, notes, research"
+                placeholder="访谈, 笔记, 调研"
               />
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium text-slate-800" htmlFor="upload-file">
-                File
+                文件
               </label>
               <Input
                 id="upload-file"
@@ -308,30 +308,30 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
               />
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" disabled={uploadMutation.isPending}>
-                {uploadMutation.isPending ? "Uploading..." : "Upload file"}
+              <Button id="upload-submit" type="submit" disabled={uploadMutation.isPending}>
+                {uploadMutation.isPending ? "上传中..." : "上传文件"}
               </Button>
               {uploadMessage ? <span className="text-sm text-emerald-700">{uploadMessage}</span> : null}
               {uploadError ? <span className="text-sm text-rose-700">{uploadError}</span> : null}
             </div>
             <p className="m-0 text-sm leading-6 text-slate-600">
-              Supported: txt, md, text-based pdf. Uploads are signed, then completed into a queued parse job.
+              当前支持：txt、md、文本型 PDF。上传会先申请签名地址，再完成对象校验并进入解析队列。
             </p>
           </form>
         </SectionCard>
 
-        <SectionCard title="Inbox status" description="Live counts from the current document set.">
+        <SectionCard title="收件箱状态" description="基于当前文档集合实时汇总状态数量。">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Total documents" value={String(counts.total)} hint="Current inbox size" />
-            <MetricCard label="Pending" value={String(counts.pending)} hint="Awaiting parse" />
-            <MetricCard label="Processing" value={String(counts.processing)} hint="Queued or active" />
-            <MetricCard label="Failed" value={String(counts.failed)} hint="Needs review" tone="warning" />
+            <MetricCard label="文档总数" value={String(counts.total)} hint="当前收件箱规模" />
+            <MetricCard label="等待解析" value={String(counts.pending)} hint="尚未进入成功态" />
+            <MetricCard label="处理中" value={String(counts.processing)} hint="排队中或解析中" />
+            <MetricCard label="失败" value={String(counts.failed)} hint="需要人工查看" tone="warning" />
           </div>
         </SectionCard>
 
-        <SectionCard title="Recent imports" description="Newest documents in the inbox.">
+        <SectionCard title="最近导入" description="展示收件箱里最新进入的文档。">
           {recentDocuments.length === 0 ? (
-            <p className="m-0 text-sm leading-6 text-slate-600">No documents yet.</p>
+            <p className="m-0 text-sm leading-6 text-slate-600">当前还没有文档。</p>
           ) : (
             <div className="grid gap-3">
               {recentDocuments.map((document) => (
@@ -353,15 +353,15 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
                     <span>{sourceTypeLabel(document.source_type)}</span>
                     <span>{formatRelativeTime(document.imported_at)}</span>
                   </div>
-                  <p className="m-0 text-sm leading-6 text-slate-600">{document.content_preview || "No preview available."}</p>
-                  {document.tags.length > 0 ? <p className="m-0 text-xs text-slate-500">Tags: {joinTags(document.tags)}</p> : null}
+                  <p className="m-0 text-sm leading-6 text-slate-600">{document.content_preview || "暂无预览内容。"}</p>
+                  {document.tags.length > 0 ? <p className="m-0 text-xs text-slate-500">标签：{joinTags(document.tags)}</p> : null}
                 </article>
               ))}
             </div>
           )}
         </SectionCard>
 
-        <SectionCard title="Processing jobs" description="Documents still moving through the parse lifecycle.">
+        <SectionCard title="处理中任务" description="仍处在解析生命周期中的文档会显示在这里。">
           {overviewQuery.data?.items.some((item) => isParseActive(item.parse_status)) ? (
             <div className="grid gap-3">
               {overviewQuery.data.items
@@ -378,13 +378,13 @@ export function InboxWorkspace({ overviewQueryKey }: InboxWorkspaceProps) {
                       <Badge variant={parseStatusTone(item.parse_status)}>{parseStatusLabel(item.parse_status)}</Badge>
                     </div>
                     <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      Imported {formatDateTime(item.imported_at)}
+                      导入时间 {formatDateTime(item.imported_at)}
                     </p>
                   </article>
                 ))}
             </div>
           ) : (
-            <p className="m-0 text-sm leading-6 text-slate-600">No documents are currently processing.</p>
+            <p className="m-0 text-sm leading-6 text-slate-600">当前没有正在处理的文档。</p>
           )}
         </SectionCard>
       </div>
