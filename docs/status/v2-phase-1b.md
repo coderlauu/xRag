@@ -4,7 +4,7 @@
 
 - `version`: `v2`
 - `phase`: `Phase 1B`
-- `status`: `in-progress`
+- `status`: `completed`
 - `owner`: `codex`
 - `updated_at`: `2026-04-07`
 
@@ -33,29 +33,29 @@
 - `upload-storage`: `completed`
 - `worker-pipeline`: `completed`
 - `web-integration`: `completed`
-- `testing`: `in-progress`
+- `testing`: `completed`
 - `ci-cd`: `completed`
 - `contract-freeze`: `completed`
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane A/B/C/D` 的核心闭环补强，落地 `CI Auto Repair` 第一版，补上“上传 PDF -> worker 处理 -> 搜索/详情投影”的回归证据，并将 `Ops Board` 收口到“服务健康 / 错误分布 / 推荐动作 / 回滚基线”的原型结构
-- `next`: 归档已完成的 active exec plan，并评估 `Phase 1B` 是否满足正式收口条件
+- `now`: `Phase 1B` 的产品目标、工程实现、测试验证和 production 发布已完成，`Ops Board` 已收口到原型要求，CI 与 production smoke 均已通过
+- `next`: 等待下一版本需求进入；在新版本启动前，`v2 / Phase 1B` 作为最近完成版本保留为默认恢复入口
 
 ## 5. Blockers
 
-- `blocker`: 当前主链路 blocker 已清空，剩余工作集中在版本收口、exec plan 归档和 `Phase 1B` 验收判断
-  - `impact`: 不阻塞主链路可用性，但影响当前版本能否正式切换到 completed
+- `blocker`: 当前版本 blocker 已清空
+  - `impact`: 无
   - `owner`: `codex`
-- `secondary_blocker`: 当前 `CI Auto Repair` 只覆盖低风险规则型错误；deploy、smoke、外部环境类失败仍需人工处理
-  - `impact`: 当前只减少一部分重复修复劳动，不能替代生产发布判定
+- `secondary_blocker`: `CI Auto Repair` 仍只覆盖低风险规则型错误；deploy、smoke、外部环境类失败仍需人工处理
+  - `impact`: 不阻塞 `Phase 1B` 完成，但属于下一阶段可继续增强的流程能力
   - `owner`: `codex`
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-07` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`，并已覆盖“上传 PDF -> worker 处理 -> 搜索/详情投影”的 integration 回归样本；最近全绿 GitHub Actions 基线为 `24037720585`
+- `latest_validation`: `2026-04-07` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`、`./scripts/run-e2e-smoke.sh`，并已覆盖“上传 PDF -> worker 处理 -> 搜索/详情投影”的 integration 回归样本；最近全绿 GitHub Actions 基线为 `24060968289`
 - `result`: `passed`
-- `latest_failure`: 最近一次失败是 `run 24035771933` 的 `Playwright` selector 与中文文案漂移；当前已为此类错误加入自动修复规则
+- `latest_failure`: 最近一次失败是 `run 24060795722` 的 `Playwright` selector 与详情页中文文案漂移；当前已通过稳定 selector 和自动修复规则收口
 
 ## 7. Linked Artifacts
 
@@ -67,5 +67,5 @@
 - `generated_contract`: [Phase 1B OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1b-api.json)
 - `exec_plans`: [Phase 1B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-02-phase-1b-planning-and-design.md), [Phase 1B prototype and interaction](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-prototype-and-interaction.md), [CI failure loop](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-04-ci-failure-loop.md), [CI auto repair loop](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-ci-auto-repair-loop.md), [Phase 1B harness hardening](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-harness-hardening.md), [Phase 1B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-06-phase-1b-implementation-lanes.md)
 - `ops_runbook`: [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
-- `key_commits`: `62401b9`, `b997aea`, `c20835e`, `e3832ef`, `cff142e`
-- `latest_ci_run`: `24037720585`
+- `key_commits`: `62401b9`, `b997aea`, `c20835e`, `e3832ef`, `cff142e`, `15a7ab2`, `85cf00a`
+- `latest_ci_run`: `24060968289`
