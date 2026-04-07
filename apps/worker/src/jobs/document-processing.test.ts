@@ -11,6 +11,13 @@ test("mapDiagnosisCode returns timeout code for PDF timeout failures", () => {
   assert.equal(mapDiagnosisCode("PDF parser timeout exceeded", "application/pdf"), "pdf_parse_timeout");
 });
 
+test("mapDiagnosisCode returns runtime-error code for PDF clone/runtime failures", () => {
+  assert.equal(
+    mapDiagnosisCode("Cannot transfer object of unsupported type.", "application/pdf"),
+    "pdf_parse_runtime_error"
+  );
+});
+
 test("mapDiagnosisCode returns empty-text code for PDF empty text failures", () => {
   assert.equal(mapDiagnosisCode("pdf extraction returned empty text", "application/pdf"), "pdf_parse_empty_text");
 });

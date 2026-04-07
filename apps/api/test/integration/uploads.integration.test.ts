@@ -74,13 +74,7 @@ async function runLatestParseJob(documentId: string) {
       info: () => {},
       warn: () => {},
       error: () => {}
-    },
-    parsePdf: async () => ({
-      text: "Hello PDF\n\n-- 1 of 1 --\n\n",
-      pageCount: 1,
-      parserName: "pdf-parse",
-      parserVersion: "2.4.5"
-    })
+    }
   });
 
   try {

@@ -112,7 +112,12 @@ export class OpsService {
       return "medium";
     }
 
-    if (code === "queue_backlog" || code === "object_missing_on_complete" || code === "pdf_parse_timeout") {
+    if (
+      code === "queue_backlog" ||
+      code === "object_missing_on_complete" ||
+      code === "pdf_parse_timeout" ||
+      code === "pdf_parse_runtime_error"
+    ) {
       return "high";
     }
 
@@ -125,6 +130,8 @@ export class OpsService {
 
   private getJobIncidentTitle(code: string | null, jobType: string): string {
     switch (code) {
+      case "pdf_parse_runtime_error":
+        return "PDF 解析器运行时异常";
       case "pdf_parse_timeout":
         return "PDF 解析超时";
       case "pdf_parse_unsupported":

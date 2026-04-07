@@ -26,10 +26,15 @@ export async function parsePdfDocument(bytes: Uint8Array): Promise<ParsedPdfDocu
   });
 
   try {
-    const [textResult, infoResult] = await Promise.all([
-      withTimeout(parser.getText(), PDF_PARSE_TIMEOUT_MS, "pdf parser timeout exceeded"),
-      withTimeout(parser.getInfo({ parsePageInfo: true }), PDF_PARSE_TIMEOUT_MS, "pdf parser timeout exceeded")
-    ]);
+    // pdf-parse v2.4.x can throw DataCloneError in Node when document reads are
+    // dispatched concurrently on the same parser instance. Keep access
+    // sequential to match the production worker runtime.
+    const textResult = await withTimeout(parser.getText(), PDF_PARSE_TIMEOUT_MS, "pdf parser timeout exceeded");
+    const infoResult = await withTimeout(
+      parser.getInfo({ parsePageInfo: true }),
+      PDF_PARSE_TIMEOUT_MS,
+      "pdf parser timeout exceeded"
+    );
 
     const text = textResult.text?.trim() || "";
     if (!text) {

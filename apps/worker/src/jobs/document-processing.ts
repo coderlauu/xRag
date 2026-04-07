@@ -164,6 +164,14 @@ export function mapDiagnosisCode(message: string, mimeType: string | null): stri
   const normalized = message.toLowerCase();
 
   if (mimeType === "application/pdf" || normalized.includes("pdf")) {
+    if (
+      normalized.includes("cannot transfer object of unsupported type") ||
+      normalized.includes("datacloneerror") ||
+      normalized.includes("structuredclone")
+    ) {
+      return "pdf_parse_runtime_error";
+    }
+
     if (normalized.includes("timeout")) {
       return "pdf_parse_timeout";
     }

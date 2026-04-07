@@ -8,6 +8,7 @@ const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
   "multipart_part_failed",
   "upload_complete_invalid_parts",
   "object_missing_on_complete",
+  "pdf_parse_runtime_error",
   "pdf_parse_unsupported",
   "pdf_parse_timeout",
   "pdf_parse_empty_text",

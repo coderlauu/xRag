@@ -62,3 +62,4 @@
 ## 9. Decision Log
 
 - `2026-04-07`: 将生产 PDF 解析 bug 归类为 `medium-feature` 级热修，不新开版本，继续挂在 `v2 / Phase 1B` 下处理
+- `2026-04-07`: 已确认根因是同一 `PDFParse` 实例并发调用 `getText()` 和 `getInfo()` 触发 `DataCloneError`；热修改为顺序读取，并新增 `pdf_parse_runtime_error` 诊断码与真实解析回归测试

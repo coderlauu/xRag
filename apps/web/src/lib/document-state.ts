@@ -93,10 +93,10 @@ export function joinTags(value: string[]): string {
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) {
-    return "Unknown";
+    return "未知";
   }
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("zh-CN", {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
@@ -104,22 +104,22 @@ export function formatDateTime(value: string | null | undefined): string {
 
 export function formatRelativeTime(value: string | null | undefined): string {
   if (!value) {
-    return "Unknown";
+    return "未知";
   }
 
   const diffMs = Date.now() - new Date(value).getTime();
   const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
   if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
+    return `${diffMinutes} 分钟前`;
   }
 
   const diffHours = Math.round(diffMinutes / 60);
   if (diffHours < 24) {
-    return `${diffHours}h ago`;
+    return `${diffHours} 小时前`;
   }
 
   const diffDays = Math.round(diffHours / 24);
-  return `${diffDays}d ago`;
+  return `${diffDays} 天前`;
 }
 
 export function isParseActive(status: ParseStatus | string | undefined): boolean {
@@ -133,45 +133,45 @@ export function isJobActive(status: JobStatusResponse["status"] | string | undef
 export function parseStatusLabel(status: ParseStatus | string | undefined): string {
   switch (status) {
     case "pending":
-      return "Pending";
+      return "待处理";
     case "processing":
-      return "Processing";
+      return "处理中";
     case "success":
-      return "Success";
+      return "成功";
     case "failed":
-      return "Failed";
+      return "失败";
     default:
-      return "Unknown";
+      return "未知";
   }
 }
 
 export function jobStatusLabel(status: JobStatusResponse["status"] | string | undefined): string {
   switch (status) {
     case "queued":
-      return "Queued";
+      return "排队中";
     case "running":
-      return "Running";
+      return "执行中";
     case "succeeded":
-      return "Succeeded";
+      return "成功";
     case "failed":
-      return "Failed";
+      return "失败";
     case "dead":
-      return "Dead";
+      return "已终止";
     default:
-      return "Unknown";
+      return "未知";
   }
 }
 
 export function sourceTypeLabel(value: string | undefined): string {
   switch (value) {
     case "text":
-      return "Text";
+      return "文本";
     case "file":
-      return "File";
+      return "文件";
     case "link":
-      return "Link";
+      return "链接";
     default:
-      return "All source types";
+      return "全部来源";
   }
 }
 
@@ -216,6 +216,8 @@ export function diagnosisLabel(code: string | null | undefined): string {
       return "上传完成校验失败";
     case "object_missing_on_complete":
       return "对象校验失败";
+    case "pdf_parse_runtime_error":
+      return "PDF 解析器运行时异常";
     case "pdf_parse_unsupported":
       return "PDF 暂不支持解析";
     case "pdf_parse_timeout":
@@ -244,11 +246,11 @@ export function jobStatusTone(status: JobStatusResponse["status"] | string | und
 export function tagStatusLabel(status: TagStatus | string | undefined): string {
   switch (status) {
     case "active":
-      return "Active";
+      return "启用";
     case "archived":
-      return "Archived";
+      return "归档";
     default:
-      return "Unknown";
+      return "未知";
   }
 }
 

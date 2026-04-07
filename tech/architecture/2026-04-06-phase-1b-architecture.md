@@ -197,6 +197,7 @@ GitHub Actions CI
 `Phase 1B` 只做文本型 PDF：
 
 - 优先选择稳定、纯 Node 或可控原生依赖的提取库
+- 同一解析器实例禁止并发读取文本与元信息；按顺序调用，避免 `DataCloneError`
 - 若检测为扫描版或无文本层：
   - 不进入 OCR
   - 明确返回 `pdf_parse_unsupported`
@@ -209,6 +210,7 @@ GitHub Actions CI
 - `multipart_part_failed`
 - `upload_complete_invalid_parts`
 - `object_missing_on_complete`
+- `pdf_parse_runtime_error`
 - `pdf_parse_unsupported`
 - `pdf_parse_timeout`
 - `queue_backlog`

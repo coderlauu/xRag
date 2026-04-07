@@ -39,23 +39,23 @@
 
 ## 4. Current Node
 
-- `now`: 线上发现上传 PDF 后出现 `Cannot transfer object of unsupported type.`，说明真实解析器 runtime 仍有生产缺陷；当前已重新打开 `Phase 1B`，以热修方式处理
-- `next`: 修复真实 PDF parser runtime 错误、补齐生产同构回归证据，再重新评估 `Phase 1B` 是否可关闭
+- `now`: 已在本地稳定复现并修复 `PDFParse` 同实例并发读取导致的 `DataCloneError`；当前代码、OpenAPI 和回归测试都已更新，待提交并发布后做生产验证
+- `next`: 提交热修代码、触发 CI/CD，并用真实线上 PDF 重新验证上传与解析结果；通过后再重新关闭 `Phase 1B`
 
 ## 5. Blockers
 
 - `blocker`: 生产环境上传 PDF 后解析失败，报错 `Cannot transfer object of unsupported type.`
   - `impact`: `Phase 1B` 的“PDF 真实解析闭环”在生产事实层面未完全成立，版本不能视为最终完成
   - `owner`: `codex`
-- `secondary_blocker`: 当前 PDF integration 证据通过解析结果注入完成，未覆盖真实 `pdf-parse` runtime 行为
-  - `impact`: 测试证据与生产运行环境存在缝隙，导致这次缺陷未在版本关闭前暴露
+- `secondary_blocker`: 热修代码尚未部署到生产，线上事实仍待重新验证
+  - `impact`: 在真实线上 PDF 再次验证前，`Phase 1B` 仍不能重新标记为完成
   - `owner`: `codex`
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-07` 已通过 `pnpm validate`、`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api openapi:generate`、`./scripts/run-api-integration.sh`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/worker build`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`、`./scripts/run-e2e-smoke.sh`；最近全绿 GitHub Actions 基线为 `24061270458`
+- `latest_validation`: `2026-04-07` 已通过 `pnpm --filter @xrag/worker test:unit`、`./scripts/run-api-integration.sh`、`pnpm contract:generate`；另外，热修相关仓库级 `validate` 目前只因生成后的 OpenAPI 文件尚未提交而被 `contract:check` 拦住，不是逻辑失败
 - `result`: `passed`
-- `latest_failure`: 最新生产缺陷是上传 PDF 后出现 `Cannot transfer object of unsupported type.`；另一个最近已收口的 CI 失败为 `run 24060795722` 的 `Playwright` selector 与详情页中文文案漂移
+- `latest_failure`: 最新生产缺陷是上传 PDF 后出现 `Cannot transfer object of unsupported type.`；当前已确认根因是同一 `PDFParse` 实例并发调用 `getText()` 和 `getInfo()` 触发 `DataCloneError`
 
 ## 7. Linked Artifacts
 

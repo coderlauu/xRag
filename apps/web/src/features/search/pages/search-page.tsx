@@ -123,6 +123,7 @@ export function SearchPage() {
                 <option value="multipart_part_failed">分片上传失败</option>
                 <option value="upload_complete_invalid_parts">上传完成校验失败</option>
                 <option value="object_missing_on_complete">对象校验失败</option>
+                <option value="pdf_parse_runtime_error">PDF 解析器运行时异常</option>
                 <option value="pdf_parse_unsupported">PDF 暂不支持解析</option>
                 <option value="pdf_parse_timeout">PDF 解析超时</option>
                 <option value="pdf_parse_empty_text">PDF 未提取到文本</option>
