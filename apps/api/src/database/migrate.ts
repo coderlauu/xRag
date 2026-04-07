@@ -22,12 +22,12 @@ async function ensureDatabaseExists(connectionString: string) {
   const targetUrl = new URL(connectionString);
   const databaseName = targetUrl.pathname.replace(/^\//, "");
 
-  if (!databaseName || databaseName === "postgres") {
+  if (!databaseName || databaseName === "template1") {
     return;
   }
 
   const adminUrl = new URL(connectionString);
-  adminUrl.pathname = "/postgres";
+  adminUrl.pathname = "/template1";
 
   const adminClient = new Client({
     connectionString: adminUrl.toString()
