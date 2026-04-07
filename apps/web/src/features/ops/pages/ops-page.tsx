@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Badge, PageShell, SectionCard, StatCard } from "@xrag/ui";
 import { fetchOpsHealthSummary, getLatestDeployment, listOpsIncidents } from "../../../lib/api";
+import type { IncidentSeverity, IncidentSource } from "@xrag/shared-types";
 
 function serviceStatusLabel(status: "healthy" | "warning" | "critical") {
   switch (status) {
@@ -46,6 +47,30 @@ function deploymentSmokeLabel(status: "passed" | "failed" | "unknown") {
   }
 }
 
+function sourceLabel(source: IncidentSource) {
+  switch (source) {
+    case "upload":
+      return "上传";
+    case "parse":
+      return "解析";
+    case "deploy":
+      return "部署";
+    case "ci":
+      return "CI";
+  }
+}
+
+function severityLabel(severity: IncidentSeverity) {
+  switch (severity) {
+    case "low":
+      return "低风险";
+    case "medium":
+      return "中风险";
+    case "high":
+      return "高风险";
+  }
+}
+
 export function OpsPage() {
   const healthQuery = useQuery({
     queryKey: ["ops", "health-summary"],
@@ -70,10 +95,39 @@ export function OpsPage() {
   const deployment = deploymentQuery.data;
   const openIncidents = incidents.filter((incident) => incident.status !== "resolved").length;
   const warningServices = health?.services.filter((service) => service.status !== "healthy").length || 0;
+  const highRiskIncidents = incidents.filter((incident) => incident.severity === "high").length;
+  const groupedBySource = incidents.reduce<Record<IncidentSource, number>>(
+    (groups, incident) => ({
+      ...groups,
+      [incident.source]: groups[incident.source] + 1
+    }),
+    { upload: 0, parse: 0, deploy: 0, ci: 0 }
+  );
+  const groupedBySeverity = incidents.reduce<Record<IncidentSeverity, number>>(
+    (groups, incident) => ({
+      ...groups,
+      [incident.severity]: groups[incident.severity] + 1
+    }),
+    { low: 0, medium: 0, high: 0 }
+  );
+  const recommendedActions = [
+    warningServices > 0
+      ? `先检查 ${warningServices} 个非健康服务的依赖连通性，再继续查看导入失败事件。`
+      : "核心服务当前均返回健康，可优先从失败事件和最近部署入手排查。",
+    highRiskIncidents > 0
+      ? `当前有 ${highRiskIncidents} 条高风险事件，建议优先处理对象缺失、队列积压或 PDF 解析超时。`
+      : "当前没有高风险事件，可按影响面从中风险事件开始处理。",
+    deployment?.last_smoke_status === "failed"
+      ? "最近一次 smoke 失败，回滚前先核对当前镜像与上一稳定版本差异。"
+      : "最近一次 smoke 未报错，如出现新问题，优先比对最近镜像和 incident 产生时间。",
+    incidents.length > 0
+      ? "处理单条失败时，优先从详情页查看诊断码，再回到运维页核对是否存在同源批量问题。"
+      : "当前没有 incident，可把这里作为部署完成后的日常巡检入口。"
+  ];
 
   return (
-    <PageShell eyebrow="运维" title="运维总览" description="服务健康、近期事件和最新部署状态的一体化只读视图。">
-      <section className="grid gap-4 md:grid-cols-3">
+    <PageShell eyebrow="运维" title="运维看板" description="把健康检查、事件分布、推荐动作和回滚基线放到同一块板上。">
+      <section className="grid gap-4 md:grid-cols-4">
         <StatCard
           label="健康服务数"
           value={String(health?.services.length || 0)}
@@ -90,6 +144,12 @@ export function OpsPage() {
           label="最近部署"
           value={deployment?.current_image_tag || "未知"}
           hint={deployment ? `Smoke ${deploymentSmokeLabel(deployment.last_smoke_status)}` : "等待部署摘要"}
+        />
+        <StatCard
+          label="高风险事件"
+          value={String(highRiskIncidents)}
+          hint="优先处理对象缺失、PDF 超时和队列积压"
+          tone={highRiskIncidents > 0 ? "warning" : "default"}
         />
       </section>
 
@@ -126,6 +186,67 @@ export function OpsPage() {
         </SectionCard>
 
         <div className="grid gap-6">
+          <SectionCard title="回滚基线" description="部署失败或 smoke 异常时，先看当前镜像、上一稳定版本和 smoke 结果。">
+            {deploymentQuery.isError ? (
+              <p className="m-0 text-sm leading-6 text-rose-700">回滚基线读取失败，请检查最近一次 deploy workflow。</p>
+            ) : deployment ? (
+              <div className="grid gap-3 text-sm leading-6 text-slate-700">
+                <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+                  <strong className="block text-slate-950">当前镜像</strong>
+                  <span>{deployment.current_image_tag || "未知"}</span>
+                </article>
+                <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+                  <strong className="block text-slate-950">上一稳定版本</strong>
+                  <span>{deployment.previous_stable_image_tag || "未知"}</span>
+                </article>
+                <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+                  <strong className="block text-slate-950">最近 smoke</strong>
+                  <span>{deploymentSmokeLabel(deployment.last_smoke_status)}</span>
+                  <span className="block text-xs text-slate-500">{deployment.last_smoke_at || "暂无时间戳"}</span>
+                </article>
+              </div>
+            ) : (
+              <p className="m-0 text-sm leading-6 text-slate-600">正在加载回滚基线。</p>
+            )}
+          </SectionCard>
+
+          <SectionCard title="错误分布" description="按来源和风险快速判断问题集中在哪一层。">
+            {incidents.length > 0 ? (
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">按来源</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {Object.entries(groupedBySource).map(([source, count]) => (
+                      <article
+                        className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700"
+                        key={source}
+                      >
+                        <strong className="block text-slate-950">{sourceLabel(source as IncidentSource)}</strong>
+                        <span>{count} 条</span>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">按风险</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {Object.entries(groupedBySeverity).map(([severity, count]) => (
+                      <article
+                        className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700"
+                        key={severity}
+                      >
+                        <strong className="block text-slate-950">{severityLabel(severity as IncidentSeverity)}</strong>
+                        <span>{count} 条</span>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="m-0 text-sm leading-6 text-slate-600">当前没有可统计的 incident，错误分布会在出现链路问题后自动更新。</p>
+            )}
+          </SectionCard>
+
           <SectionCard title="近期事件" description="如果链路失败，这里会优先展示 incident 摘要。">
             {incidentsQuery.isError ? (
               <p className="m-0 text-sm leading-6 text-rose-700">事件摘要加载失败，请稍后重试。</p>
@@ -153,20 +274,12 @@ export function OpsPage() {
               <p className="m-0 text-sm leading-6 text-slate-600">当前没有 incident 数据。</p>
             )}
           </SectionCard>
-
-          <SectionCard title="部署摘要" description="读取最新镜像 tag 和 smoke 状态。">
-            {deploymentQuery.isError ? (
-              <p className="m-0 text-sm leading-6 text-rose-700">部署摘要读取失败，请检查最近一次 deploy workflow。</p>
-            ) : deployment ? (
-              <div className="grid gap-2 text-sm leading-6 text-slate-700">
-                <article>当前镜像：{deployment.current_image_tag || "未知"}</article>
-                <article>上一稳定版本：{deployment.previous_stable_image_tag || "未知"}</article>
-                <article>最近 smoke：{deploymentSmokeLabel(deployment.last_smoke_status)}</article>
-                <article>最近 smoke 时间：{deployment.last_smoke_at || "未知"}</article>
-              </div>
-            ) : (
-              <p className="m-0 text-sm leading-6 text-slate-600">正在加载部署摘要。</p>
-            )}
+          <SectionCard title="推荐动作" description="这里给出的动作是排查起点，不替代具体 incident 分析。">
+            <ul className="grid gap-3 pl-5 text-sm leading-6 text-slate-700">
+              {recommendedActions.map((action) => (
+                <li key={action}>{action}</li>
+              ))}
+            </ul>
           </SectionCard>
         </div>
       </section>

@@ -62,13 +62,13 @@ export function DetailPage() {
     mutationFn: (tags: string[]) => updateDocumentTags(documentId, { tags }),
     onSuccess: async (updatedDocument) => {
       setTagError(null);
-      setTagMessage("Tags updated.");
+      setTagMessage("标签已更新。");
       setTagInput(joinTags(updatedDocument.tags));
       await queryClient.invalidateQueries({ queryKey: ["document", documentId] });
       await queryClient.invalidateQueries({ queryKey: ["documents"] });
     },
     onError: (error) => {
-      setTagError(error instanceof Error ? error.message : "Failed to update tags");
+      setTagError(error instanceof Error ? error.message : "更新标签失败");
     }
   });
 
@@ -81,20 +81,20 @@ export function DetailPage() {
       await queryClient.invalidateQueries({ queryKey: ["job"] });
     },
     onError: async (error) => {
-      setTagError(error instanceof Error ? error.message : "Failed to retry document");
+      setTagError(error instanceof Error ? error.message : "重试解析失败");
     }
   });
 
   if (!hasValidDocumentId) {
     return (
-      <PageShell eyebrow="Detail" title="Document detail" description="No document id was found in the route.">
-        <SectionCard title="Navigation error" description="Go back to the inbox or search view.">
+      <PageShell eyebrow="详情" title="文档详情" description="当前路由里没有有效的文档 ID。">
+        <SectionCard title="导航错误" description="请返回导入页或搜索页重新选择文档。">
           <div className="flex gap-3">
             <Button asChild variant="outline">
-              <Link to="/">Back to inbox</Link>
+              <Link to="/">返回导入页</Link>
             </Button>
             <Button asChild>
-              <Link to="/search">Back to search</Link>
+              <Link to="/search">返回搜索页</Link>
             </Button>
           </div>
         </SectionCard>
@@ -104,9 +104,9 @@ export function DetailPage() {
 
   if (documentQuery.isLoading) {
     return (
-      <PageShell eyebrow="Detail" title="Document detail" description="Loading document...">
-        <SectionCard title="Loading" description="Fetching the document from the API.">
-          <p className="m-0 text-sm leading-6 text-slate-600">Loading detail view.</p>
+      <PageShell eyebrow="详情" title="文档详情" description="正在加载文档详情。">
+        <SectionCard title="加载中" description="正在从 API 拉取文档详情。">
+          <p className="m-0 text-sm leading-6 text-slate-600">请稍候，详情页正在准备数据。</p>
         </SectionCard>
       </PageShell>
     );
@@ -114,18 +114,18 @@ export function DetailPage() {
 
   if (documentQuery.isError || !documentQuery.data) {
     return (
-      <PageShell eyebrow="Detail" title="Document detail" description="The requested document could not be loaded.">
-        <SectionCard title="Unable to load" description="The document may not exist or the API may be unavailable.">
+      <PageShell eyebrow="详情" title="文档详情" description="请求的文档无法加载。">
+        <SectionCard title="加载失败" description="文档可能不存在，或者 API 当前不可用。">
           <div className="grid gap-3">
             <p className="m-0 text-sm leading-6 text-slate-600">
-              {documentQuery.error instanceof Error ? documentQuery.error.message : "Unknown error"}
+              {documentQuery.error instanceof Error ? documentQuery.error.message : "未知错误"}
             </p>
             <div className="flex gap-3">
               <Button asChild variant="outline">
-                <Link to="/">Back to inbox</Link>
+                <Link to="/">返回导入页</Link>
               </Button>
               <Button asChild>
-                <Link to="/search">Back to search</Link>
+                <Link to="/search">返回搜索页</Link>
               </Button>
             </div>
           </div>
@@ -139,28 +139,28 @@ export function DetailPage() {
 
   return (
     <PageShell
-      eyebrow="Detail"
+      eyebrow="详情"
       title={document.title}
-      description="Live document detail with tag editing, retry, and status polling."
+      description="查看正文、上传会话、诊断结果和重试状态。"
     >
       <section className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Parse status" value={parseStatusLabel(document.parse_status)} hint="Polled from the API" />
-        <StatCard label="Source" value={sourceTypeLabel(document.source_type)} hint={document.file_name || "Manual input"} />
-        <StatCard label="Imported" value={formatRelativeTime(document.imported_at)} hint={formatDateTime(document.imported_at)} />
+        <StatCard label="解析状态" value={parseStatusLabel(document.parse_status)} hint="自动轮询接口状态" />
+        <StatCard label="来源" value={sourceTypeLabel(document.source_type)} hint={document.file_name || "手动输入"} />
+        <StatCard label="导入时间" value={formatRelativeTime(document.imported_at)} hint={formatDateTime(document.imported_at)} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <SectionCard title="Content" description="Raw and cleaned content from the document record.">
+        <SectionCard title="正文内容" description="展示提取后的正文，以及必要时的原始内容。">
           <div className="grid gap-5">
             <div className="grid gap-2">
-              <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">Clean content</p>
+              <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">清洗后正文</p>
               <pre className="m-0 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-slate-950 px-4 py-4 text-sm leading-7 text-slate-50">
-                {document.content_clean || document.content_raw || "No content available."}
+                {document.content_clean || document.content_raw || "暂无可用正文。"}
               </pre>
             </div>
             {document.content_raw && document.content_raw !== document.content_clean ? (
               <div className="grid gap-2">
-                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">Raw content</p>
+                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">原始提取结果</p>
                 <pre className="m-0 overflow-x-auto whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
                   {document.content_raw}
                 </pre>
@@ -170,7 +170,7 @@ export function DetailPage() {
         </SectionCard>
 
         <div className="grid gap-6">
-          <SectionCard title="Metadata" description="Update tags and inspect the source metadata.">
+          <SectionCard title="文档信息" description="查看来源元数据、诊断摘要和关联事件。">
             <div className="grid gap-3 text-sm leading-6 text-slate-700">
               {document.parse_error_message ? (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
@@ -184,21 +184,21 @@ export function DetailPage() {
                   <span>{document.diagnosis_summary}</span>
                 </div>
               ) : null}
-              <article>Tags: {document.tags.length > 0 ? joinTags(document.tags) : "None"}</article>
-              <article>File name: {document.file_name || "Manual input"}</article>
-              <article>Source URL: {document.source_url || "N/A"}</article>
-              <article>Mime type: {document.mime_type || "N/A"}</article>
-              <article>Imported: {formatDateTime(document.imported_at)}</article>
-              <article>Upload status: {uploadStatusLabel(document.upload_status)}</article>
-              <article>Diagnosis: {diagnosisLabel(document.diagnosis_code)}</article>
-              <article>Diagnosis summary: {document.diagnosis_summary || "None"}</article>
-              <article>Parser: {document.parser_name || "N/A"}</article>
-              <article>Pages: {document.page_count ?? "N/A"}</article>
-              <article>Incident ref: {document.last_incident_ref || "N/A"}</article>
+              <article>标签：{document.tags.length > 0 ? joinTags(document.tags) : "暂无"}</article>
+              <article>文件名：{document.file_name || "手动输入"}</article>
+              <article>来源链接：{document.source_url || "无"}</article>
+              <article>MIME 类型：{document.mime_type || "无"}</article>
+              <article>导入时间：{formatDateTime(document.imported_at)}</article>
+              <article>上传状态：{uploadStatusLabel(document.upload_status)}</article>
+              <article>诊断结果：{diagnosisLabel(document.diagnosis_code)}</article>
+              <article>诊断摘要：{document.diagnosis_summary || "无"}</article>
+              <article>解析器：{document.parser_name || "无"}</article>
+              <article>页数：{document.page_count ?? "无"}</article>
+              <article>事件引用：{document.last_incident_ref || "无"}</article>
             </div>
           </SectionCard>
 
-          <SectionCard title="Actions" description="Edit tags, retry parse, or go back to search.">
+          <SectionCard title="操作区" description="更新标签、重试解析，或返回其他页面继续排查。">
             <div className="grid gap-3">
               <form
                 className="grid gap-3"
@@ -210,14 +210,14 @@ export function DetailPage() {
                 }}
               >
                 <Input
-                  aria-label="Tags"
+                  aria-label="标签"
                   value={tagInput}
                   onChange={(event) => setTagInput(event.target.value)}
-                  placeholder="RAG, MVP, retrieval"
+                  placeholder="知识库, 检索, 诊断"
                 />
                 <div className="flex flex-wrap gap-3">
                   <Button type="submit" disabled={updateTagsMutation.isPending}>
-                    {updateTagsMutation.isPending ? "Saving..." : "Save tags"}
+                    {updateTagsMutation.isPending ? "保存中..." : "保存标签"}
                   </Button>
                   <Button
                     type="button"
@@ -225,7 +225,7 @@ export function DetailPage() {
                     disabled={retryMutation.isPending}
                     onClick={() => retryMutation.mutate()}
                   >
-                    {retryMutation.isPending ? "Retrying..." : "Retry parse"}
+                    {retryMutation.isPending ? "重试中..." : "重试解析"}
                   </Button>
                 </div>
                 {tagMessage ? <p className="m-0 text-sm text-emerald-700">{tagMessage}</p> : null}
@@ -233,39 +233,39 @@ export function DetailPage() {
               </form>
               <div className="flex gap-3">
                 <Button asChild variant="outline">
-                  <Link to="/search">Back to search</Link>
+                  <Link to="/search">返回搜索页</Link>
                 </Button>
                 <Button asChild variant="ghost">
-                  <Link to="/">Back to inbox</Link>
+                  <Link to="/">返回导入页</Link>
                 </Button>
               </div>
             </div>
           </SectionCard>
 
-          <SectionCard title="Live status" description="The current document and tracked job state are polled automatically.">
+          <SectionCard title="实时状态" description="当前文档和关联任务状态会自动轮询更新。">
             <div className="grid gap-3 text-sm leading-6 text-slate-700">
               <article className="flex items-center justify-between gap-3">
-                <span>Document parse status</span>
+                <span>文档解析状态</span>
                 <Badge variant={parseStatusTone(document.parse_status)}>{parseStatusLabel(document.parse_status)}</Badge>
               </article>
               <article className="flex items-center justify-between gap-3">
-                <span>Tracked job</span>
-                {job ? <Badge variant={jobStatusTone(job.status)}>{jobStatusLabel(job.status)}</Badge> : <span className="text-slate-500">No job tracked yet</span>}
+                <span>跟踪任务</span>
+                {job ? <Badge variant={jobStatusTone(job.status)}>{jobStatusLabel(job.status)}</Badge> : <span className="text-slate-500">当前没有跟踪中的任务</span>}
               </article>
               {job ? (
                 <>
-                  <article>Job id: {job.id}</article>
-                  <article>Attempts: {job.attempt}</article>
-                  <article>Job diagnosis: {diagnosisLabel(job.diagnosis_code)}</article>
-                  <article>Incident ref: {job.incident_ref || "None"}</article>
-                  <article>Error: {job.error_message || "None"}</article>
+                  <article>任务 ID：{job.id}</article>
+                  <article>尝试次数：{job.attempt}</article>
+                  <article>任务诊断：{diagnosisLabel(job.diagnosis_code)}</article>
+                  <article>事件引用：{job.incident_ref || "无"}</article>
+                  <article>错误信息：{job.error_message || "无"}</article>
                 </>
               ) : null}
               {document.upload ? (
                 <>
-                  <article>Upload mode: {document.upload.upload_mode}</article>
-                  <article>Uploaded parts: {document.upload.uploaded_part_count} / {document.upload.part_count ?? 1}</article>
-                  <article>Verified at: {formatDateTime(document.upload.verified_at)}</article>
+                  <article>上传模式：{document.upload.upload_mode === "multipart" ? "分片上传" : "单对象上传"}</article>
+                  <article>已上传分片：{document.upload.uploaded_part_count} / {document.upload.part_count ?? 1}</article>
+                  <article>校验时间：{formatDateTime(document.upload.verified_at)}</article>
                 </>
               ) : null}
             </div>
