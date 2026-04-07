@@ -88,6 +88,10 @@ docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f 
 export XRAG_CADDYFILE_PATH="${caddyfile_path}"
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" pull
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d postgres redis minio
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" exec -T postgres sh -lc '
+  psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -tAc "select 1 from pg_database where datname='\''$POSTGRES_DB'\''" | grep -q 1 \
+    || psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres -c "create database \"$POSTGRES_DB\" owner \"$POSTGRES_USER\""
+'
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm -T api-migrate </dev/null
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d api worker web caddy
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps
