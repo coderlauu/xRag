@@ -179,6 +179,48 @@ change-me
 2. 先输入 `basic auth` 账号密码
 3. 认证通过后直接进入数据库管理台
 
+## Navicat / 桌面客户端访问
+
+如果你希望继续使用 `Navicat`、`TablePlus`、`DBeaver` 这类桌面客户端，推荐走 `SSH` 隧道，而不是直接暴露数据库公网端口。
+
+当前部署会把 PostgreSQL 只绑定到服务器本机回环地址：
+
+```text
+127.0.0.1:5432
+```
+
+所以访问方式应为：
+
+1. 在客户端启用 `SSH Tunnel`
+2. `SSH Host` 指向你的服务器
+3. PostgreSQL 常规连接指向服务器本机回环地址
+
+推荐参数：
+
+- 常规
+  - `Host`: `127.0.0.1`
+  - `Port`: `5432`
+  - `Database`: `xrag`
+  - `Username`: `xrag`
+  - `Password`: 生产环境中的 `POSTGRES_PASSWORD`
+- SSH
+  - `SSH Host`: `8.134.122.242`
+  - `SSH Port`: `22`
+  - `SSH User`: 你的实际 SSH 登录用户
+  - 认证方式：私钥优先
+
+如果你想先在终端里自测，也可以在本机执行：
+
+```bash
+ssh -N -L 5432:127.0.0.1:5432 root@8.134.122.242
+```
+
+然后再让客户端连接：
+
+- `Host=127.0.0.1`
+- `Port=5432`
+- `Database=xrag`
+
 ## Local Validation
 
 本仓库已经通过本地容器化验证：
