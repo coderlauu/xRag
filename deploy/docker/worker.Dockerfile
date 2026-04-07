@@ -16,6 +16,12 @@ FROM node:22-alpine AS runner
 
 ENV NODE_ENV=production
 
+RUN apk add --no-cache \
+  poppler-utils \
+  tesseract-ocr \
+  tesseract-ocr-data-eng \
+  tesseract-ocr-data-chi_sim
+
 WORKDIR /app
 
 COPY --from=builder /app /app

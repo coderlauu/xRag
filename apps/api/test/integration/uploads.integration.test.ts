@@ -92,6 +92,76 @@ async function runLatestParseJob(documentId: string) {
   }
 }
 
+async function runLatestParseJobWithOverrides(
+  documentId: string,
+  overrides: Partial<Parameters<typeof createDocumentProcessingHandlers>[0]>
+) {
+  const pool = new Pool({
+    connectionString: databaseUrl
+  });
+  const storage = new WorkerStorageService();
+  const handlers = createDocumentProcessingHandlers({
+    repository: new WorkerRepository(pool),
+    storage,
+    logger: {
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    },
+    ...overrides
+  });
+
+  try {
+    return await handlers[DOCUMENT_PROCESSING_JOB_NAMES.parseDocument]({
+      name: DOCUMENT_PROCESSING_JOB_NAMES.parseDocument,
+      id: "integration-worker-job",
+      data: {
+        documentId
+      },
+      attemptsMade: 0
+    });
+  } finally {
+    storage.destroy();
+    await pool.end();
+  }
+}
+
+async function runLatestOcrJob(
+  documentId: string,
+  overrides: Partial<Parameters<typeof createDocumentProcessingHandlers>[0]> = {}
+) {
+  const pool = new Pool({
+    connectionString: databaseUrl
+  });
+  const storage = new WorkerStorageService();
+  const handlers = createDocumentProcessingHandlers({
+    repository: new WorkerRepository(pool),
+    storage,
+    logger: {
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {}
+    },
+    ...overrides
+  });
+
+  try {
+    return await handlers[DOCUMENT_PROCESSING_JOB_NAMES.runOcr]({
+      name: DOCUMENT_PROCESSING_JOB_NAMES.runOcr,
+      id: "integration-ocr-job",
+      data: {
+        documentId
+      },
+      attemptsMade: 0
+    });
+  } finally {
+    storage.destroy();
+    await pool.end();
+  }
+}
+
 test("uploads API exposes the Phase 1B single-upload contract and document projection", async () => {
   await resetDatabase();
   const app = await createApp();
@@ -388,6 +458,91 @@ test("uploads API plus worker parses PDF and exposes search/detail diagnostics",
     assert.equal(list.items[0].latest_job_status, "succeeded");
     assert.equal(list.items[0].page_count, 1);
     assert.equal(list.items[0].parser_name, "pdf-parse");
+  } finally {
+    await app.close();
+  }
+});
+
+test("uploads API routes scanned PDFs into OCR and projects OCR text", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const initiateResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/uploads/initiate",
+      payload: {
+        file_name: "phase-1c-scanned.pdf",
+        mime_type: "application/pdf",
+        file_size: SAMPLE_PDF_BYTES.byteLength
+      }
+    });
+
+    assert.equal(initiateResponse.statusCode, 201);
+    const initiated = initiateResponse.json();
+
+    const putResponse = await fetch(initiated.upload_url, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/pdf"
+      },
+      body: SAMPLE_PDF_BYTES
+    });
+    assert.equal(putResponse.ok, true);
+
+    const completeResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/uploads/${initiated.upload_id}/complete`,
+      payload: {
+        title: "Phase 1C OCR 回归样本",
+        tags: ["ocr", "integration"],
+        checksum_sha256: "d".repeat(64)
+      }
+    });
+
+    assert.equal(completeResponse.statusCode, 201);
+    const completed = completeResponse.json();
+
+    const parseResult = await runLatestParseJobWithOverrides(completed.document_id, {
+      parsePdf: async () => {
+        throw new Error("pdf extraction returned empty text");
+      },
+      enqueueOcr: async () => "integration-ocr-job"
+    });
+    assert.equal(parseResult.status, "success");
+
+    const ocrResult = await runLatestOcrJob(completed.document_id, {
+      runOcr: async () => ({
+        text: "这是扫描件通过 OCR 识别出的正文。",
+        pageCount: 1,
+        ocrEngine: "tesseract-ocr",
+        ocrLanguage: "chi_sim+eng"
+      })
+    });
+    assert.equal(ocrResult.status, "success");
+
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/documents/${completed.document_id}`
+    });
+    assert.equal(detailResponse.statusCode, 200);
+    const detail = detailResponse.json();
+    assert.equal(detail.parse_status, "success");
+    assert.equal(detail.ocr_status, "success");
+    assert.equal(detail.ocr_engine, "tesseract-ocr");
+    assert.equal(detail.ocr_language, "chi_sim+eng");
+    assert.match(detail.content_preview, /OCR 识别出的正文/);
+
+    const timelineResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/documents/${completed.document_id}/timeline`
+    });
+    assert.equal(timelineResponse.statusCode, 200);
+    const timeline = timelineResponse.json();
+    assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "ocr_queued"), true);
+    assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "ocr_started"), true);
+    assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "ocr_succeeded"), true);
   } finally {
     await app.close();
   }

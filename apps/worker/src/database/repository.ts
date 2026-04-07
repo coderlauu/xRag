@@ -29,6 +29,15 @@ export interface WorkerJobRecord {
   started_at?: Date | null;
 }
 
+export interface WorkerProcessingJobInsert {
+  id: string;
+  documentId: string;
+  jobType: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "dead";
+  attempt: number;
+  queueJobId?: string | null;
+}
+
 export class WorkerRepository {
   constructor(private readonly pool: Pool) {}
 
@@ -203,6 +212,79 @@ export class WorkerRepository {
     );
   }
 
+  async markDocumentOcrQueued(documentId: string) {
+    await this.pool.query(
+      `
+        update documents
+        set parse_status = 'pending',
+            ocr_status = 'queued',
+            parse_error_message = null,
+            diagnosis_code = null,
+            diagnosis_summary = null,
+            updated_at = now()
+        where id = $1
+      `,
+      [documentId]
+    );
+  }
+
+  async markDocumentOcrProcessing(documentId: string) {
+    await this.pool.query(
+      `
+        update documents
+        set parse_status = 'processing',
+            ocr_status = 'processing',
+            parse_error_message = null,
+            diagnosis_code = null,
+            diagnosis_summary = null,
+            updated_at = now()
+        where id = $1
+      `,
+      [documentId]
+    );
+  }
+
+  async markDocumentOcrSuccess(documentId: string, values: {
+    contentRaw: string | null;
+    contentClean: string;
+    contentPreview: string;
+    searchText: string;
+    pageCount?: number | null;
+    ocrEngine: string;
+    ocrLanguage: string;
+  }) {
+    await this.pool.query(
+      `
+        update documents
+        set content_raw = coalesce($2, content_raw),
+            content_clean = $3,
+            content_preview = $4,
+            search_text = $5,
+            search_vector = to_tsvector('simple', $5),
+            page_count = coalesce($6, page_count),
+            ocr_status = 'success',
+            ocr_engine = $7,
+            ocr_language = $8,
+            parse_status = 'success',
+            parse_error_message = null,
+            diagnosis_code = null,
+            diagnosis_summary = null,
+            updated_at = now()
+        where id = $1
+      `,
+      [
+        documentId,
+        values.contentRaw,
+        values.contentClean,
+        values.contentPreview,
+        values.searchText,
+        values.pageCount ?? null,
+        values.ocrEngine,
+        values.ocrLanguage
+      ]
+    );
+  }
+
   async markDocumentFailed(documentId: string, message: string, diagnosisCode: string | null) {
     await this.pool.query(
       `
@@ -215,6 +297,78 @@ export class WorkerRepository {
         where id = $1
       `,
       [documentId, message, diagnosisCode]
+    );
+  }
+
+  async markDocumentOcrFailed(
+    documentId: string,
+    message: string,
+    diagnosisCode: string | null,
+    values?: {
+      ocrEngine?: string | null;
+      ocrLanguage?: string | null;
+    }
+  ) {
+    await this.pool.query(
+      `
+        update documents
+        set parse_status = 'failed',
+            ocr_status = 'failed',
+            ocr_engine = coalesce($4, ocr_engine),
+            ocr_language = coalesce($5, ocr_language),
+            parse_error_message = $2,
+            diagnosis_code = $3,
+            diagnosis_summary = $2,
+            updated_at = now()
+        where id = $1
+      `,
+      [documentId, message, diagnosisCode, values?.ocrEngine ?? null, values?.ocrLanguage ?? null]
+    );
+  }
+
+  async getNextAttempt(documentId: string): Promise<number> {
+    const result = await this.pool.query<{ attempt: number }>(
+      `
+        select attempt
+        from document_parse_jobs
+        where document_id = $1
+        order by attempt desc
+        limit 1
+      `,
+      [documentId]
+    );
+
+    return (result.rows[0]?.attempt ?? 0) + 1;
+  }
+
+  async createJob(values: WorkerProcessingJobInsert): Promise<WorkerJobRecord> {
+    const result = await this.pool.query<WorkerJobRecord>(
+      `
+        insert into document_parse_jobs (
+          id,
+          document_id,
+          job_type,
+          status,
+          queue_job_id,
+          attempt
+        )
+        values ($1, $2, $3, $4, $5, $6)
+        returning id, document_id, job_type, status, queue_job_id, attempt, started_at
+      `,
+      [values.id, values.documentId, values.jobType, values.status, values.queueJobId ?? null, values.attempt]
+    );
+
+    return result.rows[0];
+  }
+
+  async updateJobQueueId(jobId: string, queueJobId: string) {
+    await this.pool.query(
+      `
+        update document_parse_jobs
+        set queue_job_id = $2
+        where id = $1
+      `,
+      [jobId, queueJobId]
     );
   }
 

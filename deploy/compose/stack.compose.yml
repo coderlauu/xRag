@@ -122,6 +122,8 @@ services:
       WORKER_QUEUE_NAME: ${WORKER_QUEUE_NAME:-document-processing}
       WORKER_NAME: ${WORKER_NAME:-xrag-document-worker}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      OCR_LANGUAGE: ${OCR_LANGUAGE:-chi_sim+eng}
+      OCR_TIMEOUT_MS: ${OCR_TIMEOUT_MS:-30000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STORAGE_ENDPOINT: http://minio:9000
       STORAGE_REGION: ${STORAGE_REGION:-us-east-1}

@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { normalizeWhitespace, createContentPreview, buildSearchText, inferTextSupport } from "../common/document-utils";
 import type { WorkerRepository } from "../database/repository";
 import type { Logger } from "../logging/logger";
 import { fetchAndExtractLinkDocument, LinkFetchError, type ParsedLinkDocument } from "./link-parser";
+import { runPdfOcr, type ParsedOcrDocument } from "./ocr-parser";
 import { parsePdfDocument, type ParsedPdfDocument } from "./pdf-parser";
 import { DOCUMENT_PROCESSING_JOB_NAMES, type DocumentProcessingJobName } from "../queue/constants";
 import type { WorkerStorageService } from "../storage/storage";
@@ -30,12 +32,15 @@ export interface DocumentProcessingDependencies {
   storage: WorkerStorageService;
   logger: Logger;
   parsePdf?: (bytes: Uint8Array) => Promise<ParsedPdfDocument>;
+  runOcr?: (bytes: Uint8Array) => Promise<ParsedOcrDocument>;
   fetchLink?: (url: string) => Promise<ParsedLinkDocument>;
+  enqueueOcr?: (documentId: string, uploadId?: string) => Promise<string>;
 }
 
 async function processDocument(context: JobContext, deps: DocumentProcessingDependencies): Promise<DocumentProcessingJobResult> {
   const { repository, storage, logger } = deps;
   const parsePdf = deps.parsePdf ?? parsePdfDocument;
+  const enqueueOcr = deps.enqueueOcr;
   const jobType =
     context.name === DOCUMENT_PROCESSING_JOB_NAMES.reparseDocument ? "reparse_document" : "parse_document";
   const job = await repository.findJob(context.id, context.data.documentId, jobType);
@@ -97,7 +102,23 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
 
     if (document.mime_type === "application/pdf") {
       const pdfBytes = await storage.getObjectBytes(source.objectKey);
-      const parsedPdf = await parsePdf(pdfBytes);
+      let parsedPdf: ParsedPdfDocument;
+
+      try {
+        parsedPdf = await parsePdf(pdfBytes);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "document processing failed";
+        if (shouldQueueOcr(reason)) {
+          return queueOcrForDocument(context, deps, {
+            document,
+            jobId: job.id,
+            uploadId: context.data.uploadId
+          });
+        }
+
+        throw error;
+      }
+
       const tagNames = await repository.listDocumentTags(document.id);
       const contentRaw = parsedPdf.text;
       const contentClean = normalizeWhitespace(parsedPdf.text);
@@ -187,6 +208,103 @@ export function mapDiagnosisCode(message: string, mimeType: string | null): stri
 
   return null;
 }
+
+export function mapOcrDiagnosisCode(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("timeout")) {
+    return "ocr_timeout";
+  }
+
+  if (normalized.includes("empty")) {
+    return "ocr_no_text_detected";
+  }
+
+  return "ocr_runtime_error";
+}
+
+function shouldQueueOcr(message: string): boolean {
+  return message.toLowerCase().includes("empty text");
+}
+
+async function queueOcrForDocument(
+  context: JobContext,
+  deps: DocumentProcessingDependencies,
+  values: {
+    document: WorkerDocumentRecordLike;
+    jobId: string;
+    uploadId?: string;
+  }
+): Promise<DocumentProcessingJobResult> {
+  const { repository, enqueueOcr } = deps;
+  if (!enqueueOcr) {
+    throw new Error("ocr queue producer is not configured");
+  }
+
+  const nextAttempt = await repository.getNextAttempt(values.document.id);
+  const ocrJob = await repository.createJob({
+    id: randomUUID(),
+    documentId: values.document.id,
+    jobType: "run_ocr",
+    status: "queued",
+    attempt: nextAttempt
+  });
+
+  await repository.markDocumentOcrQueued(values.document.id);
+  await repository.createProcessingEvent({
+    documentId: values.document.id,
+    eventType: "ocr_queued",
+    stage: "ocr",
+    status: "pending",
+    summary: "检测到扫描件正文为空，已转入 OCR 队列。",
+    payload: {
+      parse_job_id: values.jobId,
+      ocr_job_id: ocrJob.id
+    }
+  });
+
+  try {
+    const queueJobId = await enqueueOcr(values.document.id, values.uploadId);
+    await repository.updateJobQueueId(ocrJob.id, queueJobId);
+    await repository.markJobCompleted(values.jobId);
+
+    return {
+      documentId: values.document.id,
+      status: "success"
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "failed to enqueue ocr job";
+    await repository.markDocumentOcrFailed(values.document.id, message, "queue_backlog");
+    await repository.markJobFailed(ocrJob.id, message, "queue_backlog", context.attemptsMade >= 2);
+    await repository.markJobFailed(values.jobId, message, "queue_backlog", context.attemptsMade >= 2);
+    await repository.createProcessingEvent({
+      documentId: values.document.id,
+      eventType: "ocr_enqueue_failed",
+      stage: "ocr",
+      status: "failed",
+      diagnosisCode: "queue_backlog",
+      summary: "OCR 任务入队失败。",
+      payload: {
+        ocr_job_id: ocrJob.id
+      }
+    });
+
+    return {
+      documentId: values.document.id,
+      status: "failed",
+      reason: message
+    };
+  }
+}
+
+type WorkerDocumentRecordLike = {
+  id: string;
+  title: string;
+  source_url: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  object_key: string | null;
+};
 
 async function processLinkFetch(context: JobContext, deps: DocumentProcessingDependencies): Promise<DocumentProcessingJobResult> {
   const { repository, logger } = deps;
@@ -320,6 +438,121 @@ async function processLinkFetch(context: JobContext, deps: DocumentProcessingDep
   }
 }
 
+async function processOcr(context: JobContext, deps: DocumentProcessingDependencies): Promise<DocumentProcessingJobResult> {
+  const { repository, storage, logger } = deps;
+  const runOcr = deps.runOcr ?? runPdfOcr;
+  const job = await repository.findJob(context.id, context.data.documentId, "run_ocr");
+
+  if (!job) {
+    logger.warn("ocr job record not found", {
+      queueJobId: context.id,
+      documentId: context.data.documentId,
+      jobType: "run_ocr"
+    });
+    return {
+      documentId: context.data.documentId,
+      status: "skipped",
+      reason: "job record not found"
+    };
+  }
+
+  const document = await repository.findDocument(context.data.documentId);
+  if (!document) {
+    await repository.markJobFailed(job.id, "document not found", null, context.attemptsMade >= 2);
+    return {
+      documentId: context.data.documentId,
+      status: "failed",
+      reason: "document not found"
+    };
+  }
+
+  if (!document.object_key) {
+    await repository.markDocumentOcrFailed(document.id, "OCR 缺少源文件对象。", "ocr_runtime_error");
+    await repository.markJobFailed(job.id, "document object key is empty", "ocr_runtime_error", context.attemptsMade >= 2);
+    return {
+      documentId: document.id,
+      status: "failed",
+      reason: "document object key is empty"
+    };
+  }
+
+  await repository.markJobRunning(job.id, context.id);
+  await repository.markDocumentOcrProcessing(document.id);
+  await repository.createProcessingEvent({
+    documentId: document.id,
+    eventType: "ocr_started",
+    stage: "ocr",
+    status: "processing",
+    summary: "OCR worker 开始处理扫描件 PDF。",
+    payload: {
+      job_id: job.id
+    }
+  });
+
+  try {
+    const bytes = await storage.getObjectBytes(document.object_key);
+    const parsed = await runOcr(bytes);
+    const tagNames = await repository.listDocumentTags(document.id);
+    const contentClean = normalizeWhitespace(parsed.text);
+
+    await repository.markDocumentOcrSuccess(document.id, {
+      contentRaw: parsed.text,
+      contentClean,
+      contentPreview: createContentPreview(contentClean),
+      searchText: buildSearchText({
+        title: document.title,
+        contentClean,
+        tags: tagNames,
+        fileName: document.file_name,
+        sourceUrl: document.source_url
+      }),
+      pageCount: parsed.pageCount,
+      ocrEngine: parsed.ocrEngine,
+      ocrLanguage: parsed.ocrLanguage
+    });
+    await repository.createProcessingEvent({
+      documentId: document.id,
+      eventType: "ocr_succeeded",
+      stage: "ocr",
+      status: "success",
+      summary: "OCR 成功，已写入搜索投影。",
+      payload: {
+        ocr_engine: parsed.ocrEngine,
+        ocr_language: parsed.ocrLanguage,
+        page_count: parsed.pageCount
+      }
+    });
+    await repository.markJobCompleted(job.id);
+
+    return {
+      documentId: document.id,
+      status: "success"
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "ocr processing failed";
+    const diagnosisCode = mapOcrDiagnosisCode(message);
+    await repository.markDocumentOcrFailed(document.id, message, diagnosisCode, {
+      ocrEngine: "tesseract-ocr"
+    });
+    await repository.markJobFailed(job.id, message, diagnosisCode, context.attemptsMade >= 2);
+    await repository.createProcessingEvent({
+      documentId: document.id,
+      eventType: "ocr_failed",
+      stage: "ocr",
+      status: "failed",
+      diagnosisCode,
+      summary: "OCR 处理失败。",
+      payload: null
+    });
+
+    return {
+      documentId: document.id,
+      status: "failed",
+      reason: message
+    };
+  }
+}
+
 function resolveDocumentSource(
   document: {
     content_raw: string | null;
@@ -357,11 +590,7 @@ export function createDocumentProcessingHandlers(deps: DocumentProcessingDepende
   return {
     [DOCUMENT_PROCESSING_JOB_NAMES.parseDocument]: (context: JobContext) => processDocument(context, deps),
     [DOCUMENT_PROCESSING_JOB_NAMES.reparseDocument]: (context: JobContext) => processDocument(context, deps),
-    [DOCUMENT_PROCESSING_JOB_NAMES.runOcr]: async (context: JobContext) => ({
-      documentId: context.data.documentId,
-      status: "skipped" as const,
-      reason: "ocr pipeline not wired yet"
-    }),
+    [DOCUMENT_PROCESSING_JOB_NAMES.runOcr]: (context: JobContext) => processOcr(context, deps),
     [DOCUMENT_PROCESSING_JOB_NAMES.fetchLink]: (context: JobContext) => processLinkFetch(context, deps),
     [DOCUMENT_PROCESSING_JOB_NAMES.refreshSearchProjection]: async (context: JobContext) => ({
       documentId: context.data.documentId,

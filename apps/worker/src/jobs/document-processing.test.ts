@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createDocumentProcessingHandlers,
   mapDiagnosisCode,
+  mapOcrDiagnosisCode,
   type DocumentProcessingDependencies
 } from "./document-processing";
 import { DOCUMENT_PROCESSING_JOB_NAMES } from "../queue/constants";
@@ -29,6 +30,18 @@ test("mapDiagnosisCode returns unsupported code for non-timeout PDF failures", (
 
 test("mapDiagnosisCode returns null for non-PDF failures", () => {
   assert.equal(mapDiagnosisCode("network reset by peer", "text/plain"), null);
+});
+
+test("mapOcrDiagnosisCode returns timeout code for OCR timeout failures", () => {
+  assert.equal(mapOcrDiagnosisCode("ocr pipeline timeout exceeded"), "ocr_timeout");
+});
+
+test("mapOcrDiagnosisCode returns no-text code for OCR empty results", () => {
+  assert.equal(mapOcrDiagnosisCode("ocr pipeline returned empty text"), "ocr_no_text_detected");
+});
+
+test("mapOcrDiagnosisCode returns runtime code for other OCR failures", () => {
+  assert.equal(mapOcrDiagnosisCode("tesseract exited with status 1"), "ocr_runtime_error");
 });
 
 function createDeps(overrides: Partial<DocumentProcessingDependencies> = {}): DocumentProcessingDependencies {
@@ -199,6 +212,127 @@ test("parse-document maps PDF timeout failures into diagnosis codes", async () =
   assert.equal(failedDocument?.diagnosisCode, "pdf_parse_timeout");
   assert.equal(failedJob?.diagnosisCode, "pdf_parse_timeout");
   assert.equal(failedJob?.dead, true);
+});
+
+test("parse-document queues OCR when PDF text extraction is empty", async () => {
+  let ocrQueued = false;
+  let parseCompleted = false;
+  let ocrQueuedState = false;
+
+  const deps = createDeps({
+    repository: {
+      ...(createDeps().repository as object),
+      getNextAttempt: async () => 2,
+      createJob: async () => ({
+        id: "job-ocr-1",
+        document_id: "doc-1",
+        job_type: "run_ocr",
+        status: "queued",
+        queue_job_id: null,
+        attempt: 2,
+        started_at: null
+      }),
+      updateJobQueueId: async () => {},
+      markDocumentOcrQueued: async () => {
+        ocrQueuedState = true;
+      },
+      createProcessingEvent: async () => {},
+      markJobCompleted: async () => {
+        parseCompleted = true;
+      }
+    } as unknown as DocumentProcessingDependencies["repository"],
+    parsePdf: async () => {
+      throw new Error("pdf extraction returned empty text");
+    },
+    enqueueOcr: async () => {
+      ocrQueued = true;
+      return "queue-ocr-1";
+    }
+  });
+
+  const handlers = createDocumentProcessingHandlers(deps);
+  const result = await handlers[DOCUMENT_PROCESSING_JOB_NAMES.parseDocument]({
+    name: DOCUMENT_PROCESSING_JOB_NAMES.parseDocument,
+    id: "queue-job-parse-1",
+    data: {
+      documentId: "doc-1",
+      uploadId: "upload-1"
+    },
+    attemptsMade: 0
+  });
+
+  assert.equal(result.status, "success");
+  assert.equal(ocrQueued, true);
+  assert.equal(ocrQueuedState, true);
+  assert.equal(parseCompleted, true);
+});
+
+test("run-ocr stores OCR text and completes the job", async () => {
+  let ocrSuccessPayload:
+    | {
+        contentRaw: string | null;
+        contentClean: string;
+        contentPreview: string;
+        searchText: string;
+        pageCount?: number | null;
+        ocrEngine: string;
+        ocrLanguage: string;
+      }
+    | undefined;
+  let completedJobId: string | undefined;
+
+  const deps = createDeps({
+    repository: {
+      ...(createDeps().repository as object),
+      findJob: async () => ({
+        id: "job-ocr-1",
+        document_id: "doc-1",
+        job_type: "run_ocr",
+        status: "queued",
+        queue_job_id: null,
+        attempt: 1,
+        started_at: null
+      }),
+      markDocumentOcrProcessing: async () => {},
+      markDocumentOcrSuccess: async (_documentId: string, values: typeof ocrSuccessPayload extends infer _T ? {
+        contentRaw: string | null;
+        contentClean: string;
+        contentPreview: string;
+        searchText: string;
+        pageCount?: number | null;
+        ocrEngine: string;
+        ocrLanguage: string;
+      } : never) => {
+        ocrSuccessPayload = values;
+      },
+      createProcessingEvent: async () => {},
+      markJobCompleted: async (jobId: string) => {
+        completedJobId = jobId;
+      }
+    } as unknown as DocumentProcessingDependencies["repository"],
+    runOcr: async () => ({
+      text: "这是 OCR 识别后的正文。",
+      pageCount: 2,
+      ocrEngine: "tesseract-ocr",
+      ocrLanguage: "chi_sim+eng"
+    })
+  });
+
+  const handlers = createDocumentProcessingHandlers(deps);
+  const result = await handlers[DOCUMENT_PROCESSING_JOB_NAMES.runOcr]({
+    name: DOCUMENT_PROCESSING_JOB_NAMES.runOcr,
+    id: "queue-job-ocr-1",
+    data: {
+      documentId: "doc-1"
+    },
+    attemptsMade: 0
+  });
+
+  assert.equal(result.status, "success");
+  assert.equal(completedJobId, "job-ocr-1");
+  assert.equal(ocrSuccessPayload?.ocrEngine, "tesseract-ocr");
+  assert.equal(ocrSuccessPayload?.ocrLanguage, "chi_sim+eng");
+  assert.match(ocrSuccessPayload?.contentPreview || "", /OCR 识别后的正文/);
 });
 
 test("fetch-link stores extracted text and completes the job", async () => {

@@ -337,7 +337,7 @@ export class DocumentsService {
       }
 
       const nextAttempt = await this.jobsRepository.getNextAttempt(documentId, tx);
-      const retryJobType = this.resolveRetryJobType(document.sourceType);
+      const retryJobType = this.resolveRetryJobType(document);
       const job = await this.jobsRepository.createJob(
         {
           id: randomUUID(),
@@ -357,11 +357,21 @@ export class DocumentsService {
         {
           id: randomUUID(),
           documentId,
-          eventType: retryJobType === "fetch_link" ? "link_retry_queued" : "reparse_queued",
-          stage: retryJobType === "fetch_link" ? "fetch" : "parse",
+          eventType:
+            retryJobType === "fetch_link"
+              ? "link_retry_queued"
+              : retryJobType === "run_ocr"
+                ? "ocr_retry_queued"
+                : "reparse_queued",
+          stage: retryJobType === "fetch_link" ? "fetch" : retryJobType === "run_ocr" ? "ocr" : "parse",
           status: "pending",
           diagnosisCode: null,
-          summary: retryJobType === "fetch_link" ? "已创建链接抓取重试任务。" : "已创建解析重试任务。",
+          summary:
+            retryJobType === "fetch_link"
+              ? "已创建链接抓取重试任务。"
+              : retryJobType === "run_ocr"
+                ? "已创建 OCR 重试任务。"
+                : "已创建解析重试任务。",
           payload: {
             job_id: job.id
           }
@@ -393,6 +403,8 @@ export class DocumentsService {
       const queueJobId =
         retryResult.retry_job_type === "fetch_link"
           ? await this.queueService.enqueueFetchLink(documentId)
+          : retryResult.retry_job_type === "run_ocr"
+            ? await this.queueService.enqueueRunOcr(documentId)
           : await this.queueService.enqueueReparseDocument(documentId);
       await this.jobsRepository.updateJob(retryResult.job_id, {
         queueJobId
@@ -540,9 +552,13 @@ export class DocumentsService {
     }
   }
 
-  private resolveRetryJobType(sourceType: string | null): DocumentJobType {
-    if (sourceType === "link") {
+  private resolveRetryJobType(document: Pick<DocumentRow, "sourceType" | "ocrStatus">): DocumentJobType {
+    if (document.sourceType === "link") {
       return "fetch_link";
+    }
+
+    if (document.ocrStatus === "failed") {
+      return "run_ocr";
     }
 
     return "reparse_document";

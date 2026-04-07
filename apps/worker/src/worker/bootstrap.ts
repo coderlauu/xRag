@@ -8,6 +8,7 @@ import {
   DOCUMENT_PROCESSING_QUEUE_NAME,
   type DocumentProcessingJobName
 } from "../queue/constants";
+import { WorkerQueueProducer } from "../queue/producer";
 import { createDocumentProcessingHandlers, type DocumentProcessingJobData } from "../jobs/document-processing";
 import { WorkerStorageService } from "../storage/storage";
 
@@ -40,10 +41,12 @@ export async function bootstrapWorker() {
   const databasePool = createDatabasePool();
   const repository = new WorkerRepository(databasePool);
   const storage = new WorkerStorageService();
+  const queueProducer = new WorkerQueueProducer();
   const documentProcessingHandlers = createDocumentProcessingHandlers({
     repository,
     storage,
-    logger
+    logger,
+    enqueueOcr: (documentId, uploadId) => queueProducer.enqueueRunOcr(documentId, uploadId)
   });
 
   const worker = new Worker<DocumentProcessingJobData>(
@@ -129,6 +132,7 @@ export async function bootstrapWorker() {
     await queueEvents.close();
     await worker.close();
     await databasePool.end();
+    await queueProducer.close();
     storage.destroy();
   };
 

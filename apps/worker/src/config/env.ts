@@ -15,6 +15,8 @@ export interface WorkerEnv {
   storageAccessKeyId: string;
   storageSecretAccessKey: string;
   storageForcePathStyle: boolean;
+  ocrLanguage: string;
+  ocrTimeoutMs: number;
 }
 
 function parseInteger(value: string | undefined, fallback: number): number {
@@ -57,6 +59,8 @@ export function loadWorkerEnv(env: NodeJS.ProcessEnv = process.env): WorkerEnv {
     storageBucket: env.STORAGE_BUCKET || "xrag",
     storageAccessKeyId: env.STORAGE_ACCESS_KEY_ID || "xrag",
     storageSecretAccessKey: env.STORAGE_SECRET_ACCESS_KEY || "xragminio",
-    storageForcePathStyle: parseBoolean(env.STORAGE_FORCE_PATH_STYLE, true)
+    storageForcePathStyle: parseBoolean(env.STORAGE_FORCE_PATH_STYLE, true),
+    ocrLanguage: env.OCR_LANGUAGE || "chi_sim+eng",
+    ocrTimeoutMs: parseInteger(env.OCR_TIMEOUT_MS, 30000)
   };
 }
