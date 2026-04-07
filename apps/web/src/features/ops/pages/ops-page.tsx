@@ -116,6 +116,12 @@ export function OpsPage() {
     }),
     { low: 0, medium: 0, high: 0 }
   );
+  const coreServices = health?.services.filter((service) =>
+    ["api", "worker", "storage", "database"].includes(service.name)
+  ) || [];
+  const runtimeServices = health?.services.filter((service) =>
+    ["ocr-runtime", "link-fetcher", "search-projection", "upload-chain"].includes(service.name)
+  ) || [];
   const recommendedActions = [
     warningServices > 0
       ? `先检查 ${warningServices} 个非健康服务的依赖连通性，再继续查看导入失败事件。`
@@ -129,6 +135,14 @@ export function OpsPage() {
     incidents.length > 0
       ? "处理单条失败时，优先从详情页查看诊断码，再回到运维页核对是否存在同源批量问题。"
       : "当前没有 incident，可把这里作为部署完成后的日常巡检入口。"
+  ];
+  const degradationActions = [
+    "如 OCR runtime 持续告警，先关闭 OCR feature flag，再继续保留 PDF 基础导入能力。",
+    "如链接抓取器连续失败，先暂停链接抓取入口，必要时引导用户改为复制正文导入。",
+    "如搜索投影连续过期，先暂停批量重建，优先保障新导入文档链路。",
+    deployment?.previous_stable_image_tag
+      ? `如 smoke 失败或 incident 持续扩散，可回退到上一稳定镜像 ${deployment.previous_stable_image_tag}。`
+      : "如 smoke 失败或 incident 持续扩散，请先确认上一稳定镜像标签，再执行回滚。"
   ];
 
   return (
@@ -164,21 +178,45 @@ export function OpsPage() {
           {healthQuery.isError ? (
             <p className="m-0 text-sm leading-6 text-rose-700">健康摘要加载失败，请检查 API 与依赖服务。</p>
           ) : health ? (
-            <div className="grid gap-3">
-              {health.services.map((service) => (
-                <article
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700"
-                  key={service.name}
-                >
-                  <div className="grid gap-1">
-                    <strong className="text-slate-950">{service.name}</strong>
-                    <span>{service.detail}</span>
-                  </div>
-                  <Badge variant={service.status === "healthy" ? "success" : service.status === "warning" ? "warning" : "info"}>
-                    {serviceStatusLabel(service.status)}
-                  </Badge>
-                </article>
-              ))}
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">核心服务</p>
+                <div className="grid gap-3">
+                  {coreServices.map((service) => (
+                    <article
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700"
+                      key={service.name}
+                    >
+                      <div className="grid gap-1">
+                        <strong className="text-slate-950">{serviceLabel(service.name)}</strong>
+                        <span>{service.detail}</span>
+                      </div>
+                      <Badge variant={service.status === "healthy" ? "success" : "warning"}>
+                        {serviceStatusLabel(service.status)}
+                      </Badge>
+                    </article>
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">运行时分层</p>
+                <div className="grid gap-3">
+                  {runtimeServices.map((service) => (
+                    <article
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700"
+                      key={service.name}
+                    >
+                      <div className="grid gap-1">
+                        <strong className="text-slate-950">{serviceLabel(service.name)}</strong>
+                        <span>{service.detail}</span>
+                      </div>
+                      <Badge variant={service.status === "healthy" ? "success" : "warning"}>
+                        {serviceStatusLabel(service.status)}
+                      </Badge>
+                    </article>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <p className="m-0 text-sm leading-6 text-slate-600">正在加载健康摘要。</p>
@@ -270,7 +308,7 @@ export function OpsPage() {
                       </Badge>
                     </div>
                     <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                      {incident.source} · 风险 {incidentSeverityLabel(incident.severity)} · {incident.incident_ref}
+                      {sourceLabel(incident.source)} · 风险 {incidentSeverityLabel(incident.severity)} · {incident.incident_ref}
                     </div>
                     <p className="m-0">{incident.summary}</p>
                   </article>
@@ -287,8 +325,38 @@ export function OpsPage() {
               ))}
             </ul>
           </SectionCard>
+          <SectionCard title="降级与回滚建议" description="优先功能降级，其次再回退整套版本。">
+            <ul className="grid gap-3 pl-5 text-sm leading-6 text-slate-700">
+              {degradationActions.map((action) => (
+                <li key={action}>{action}</li>
+              ))}
+            </ul>
+          </SectionCard>
         </div>
       </section>
     </PageShell>
   );
+}
+
+function serviceLabel(name: string) {
+  switch (name) {
+    case "api":
+      return "API";
+    case "worker":
+      return "Worker";
+    case "storage":
+      return "对象存储";
+    case "database":
+      return "数据库";
+    case "ocr-runtime":
+      return "OCR Runtime";
+    case "link-fetcher":
+      return "链接抓取器";
+    case "search-projection":
+      return "搜索投影";
+    case "upload-chain":
+      return "上传链路";
+    default:
+      return name;
+  }
 }

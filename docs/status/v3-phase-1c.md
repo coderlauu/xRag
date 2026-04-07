@@ -35,12 +35,12 @@
 - `worker-pipeline`: `completed`
 - `web-integration`: `completed`
 - `testing`: `completed`
-- `ci-cd`: `not-started`
+- `ci-cd`: `completed`
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane C 检索解释 / 时间线展示`，搜索页会展示命中说明、排序提示和命中字段，详情页接入真实处理时间线并完成 E2E 回归
-- `next`: 进入 `Lane D 运维可见性 / observability`，把 OCR、抓取、投影和回滚基线进一步收口到运维看板
+- `now`: 已完成 `Lane D 运维可见性 / observability`，运维页可区分核心服务与运行时分层，并展示功能降级与回滚建议
+- `next`: 进入 `Phase 1C` 版本收口评估，确认 active exec plan 可归档并决定是否关闭当前版本
 
 ## 5. Blockers
 
@@ -50,7 +50,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: 已通过 `@xrag/api typecheck`、`@xrag/web typecheck`、`@xrag/web build`、`./scripts/run-e2e-smoke.sh` 以及 `PATH="/Users/coderlauu/xRag/scripts/bin:$PATH" pnpm validate`；其中新增覆盖 `搜索解释展示 -> 详情时间线 -> E2E 路径回归`
+- `latest_validation`: 已通过 `@xrag/api typecheck`、`@xrag/web typecheck`、`@xrag/web build`、`./scripts/run-e2e-smoke.sh` 以及 `PATH="/Users/coderlauu/xRag/scripts/bin:$PATH" pnpm validate`；其中新增覆盖 `搜索解释展示 -> 详情时间线 -> 运维分层可见性`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -63,5 +63,5 @@
 - `tech_docs`: [Phase 1C architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md), [Phase 1C data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md), [Phase 1C api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md), [Phase 1B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-06-phase-1b-architecture.md), [Phase 1B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-06-phase-1b-data-model.md), [Phase 1B api design](/Users/coderlauu/xRag/tech/api/2026-04-06-phase-1b-api.md)
 - `exec_plans`: [Phase 1C Planning and Design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md), [Phase 1C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-1c-implementation-lanes.md)
 - `generated_contract`: [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)
-- `key_commits`: `2e14f94`, `2df032a`, `479a152`, `ba10dd5`
-- `latest_ci_run`: `待下一个 Lane C 提交触发`
+- `key_commits`: `2e14f94`, `2df032a`, `479a152`, `ba10dd5`, `0f30748`
+- `latest_ci_run`: `待本次 Lane D 提交触发`

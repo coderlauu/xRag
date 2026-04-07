@@ -28,6 +28,10 @@ export class OpsService {
   ) {}
 
   async getHealthSummary(): Promise<OpsHealthSummaryResponse> {
+    const recentJobIncidents = await this.jobsRepository.listRecentIncidentCandidates(24);
+    const recentUploadIncidents = await this.uploadsRepository.listRecentFailedUploads(12);
+    const runtimeSummary = this.summarizeRuntimeHealth(recentJobIncidents, recentUploadIncidents);
+
     const serviceChecks = await Promise.all([
       this.toHealthItem("api", Promise.resolve("ready")),
       this.toHealthItem("worker", this.queueService.checkConnection().then(() => "queue reachable")),
@@ -36,7 +40,7 @@ export class OpsService {
     ]);
 
     return {
-      services: serviceChecks,
+      services: [...serviceChecks, ...runtimeSummary],
       generated_at: new Date().toISOString()
     };
   }
@@ -221,5 +225,59 @@ export class OpsService {
       default:
         return "解析任务失败，请查看任务错误与文档详情。";
     }
+  }
+
+  private summarizeRuntimeHealth(
+    jobIncidents: Awaited<ReturnType<JobsRepository["listRecentIncidentCandidates"]>>,
+    uploadIncidents: Awaited<ReturnType<UploadsRepository["listRecentFailedUploads"]>>
+  ) {
+    const ocrFailures = jobIncidents.filter((job) => this.resolveIncidentSource(job.jobType) === "ocr");
+    const fetchFailures = jobIncidents.filter((job) => this.resolveIncidentSource(job.jobType) === "fetch");
+    const projectionFailures = jobIncidents.filter((job) => this.resolveIncidentSource(job.jobType) === "projection");
+    const uploadFailures = uploadIncidents.filter((upload) => upload.errorCode !== null);
+
+    return [
+      this.toRuntimeHealthItem("ocr-runtime", ocrFailures, "最近未检测到 OCR 异常。", "最近 OCR 任务失败"),
+      this.toRuntimeHealthItem("link-fetcher", fetchFailures, "最近未检测到链接抓取异常。", "最近链接抓取失败"),
+      this.toRuntimeHealthItem("search-projection", projectionFailures, "最近未检测到搜索投影异常。", "最近搜索投影失败"),
+      this.toRuntimeHealthItem("upload-chain", uploadFailures, "最近未检测到上传链路异常。", "最近上传链路失败")
+    ];
+  }
+
+  private toRuntimeHealthItem(
+    name: string,
+    failures: Array<{ diagnosisCode?: string | null; errorCode?: string | null }>,
+    healthyDetail: string,
+    failedPrefix: string
+  ) {
+    if (failures.length === 0) {
+      return {
+        name,
+        status: "healthy" as OpsServiceStatus,
+        detail: healthyDetail
+      };
+    }
+
+    const criticalCodes = new Set([
+      "queue_backlog",
+      "pdf_parse_timeout",
+      "pdf_parse_runtime_error",
+      "ocr_timeout",
+      "ocr_runtime_error",
+      "link_fetch_timeout",
+      "link_fetch_blocked",
+      "search_projection_stale",
+      "object_missing_on_complete"
+    ]);
+    const hasCritical = failures.some((failure) => {
+      const code = failure.diagnosisCode ?? failure.errorCode;
+      return Boolean(code && criticalCodes.has(code));
+    });
+
+    return {
+      name,
+      status: (hasCritical ? "critical" : "warning") as OpsServiceStatus,
+      detail: `${failedPrefix} ${failures.length} 条，请优先检查最近 incident。`
+    };
   }
 }
