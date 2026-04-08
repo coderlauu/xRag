@@ -221,6 +221,75 @@ ssh -N -L 5432:127.0.0.1:5432 root@8.134.122.242
 - `Port=5432`
 - `Database=xrag`
 
+## Disk Guard
+
+为了避免 deploy 因磁盘打满而写入失败，production 现在补了两层守卫：
+
+1. `deploy-production` 上传 bundle 前，GitHub Actions 会先通过 SSH 执行一次远端磁盘守护脚本
+2. 远端真正 rollout 前，`remote-deploy.sh` 会再执行一次磁盘守护脚本
+
+守护脚本位置：
+
+- `deploy/scripts/disk-guard.sh`
+
+它只会清理可再生资产：
+
+- `${DEPLOY_PATH}/shared/tmp`
+- 旧 `release` 目录，仅保留最近 `XRAG_KEEP_RELEASES` 个
+- stopped containers
+- 无用镜像
+- build cache
+- 过大的 Docker JSON 日志
+
+它不会触碰：
+
+- PostgreSQL 数据卷
+- MinIO 数据卷
+- 任何 `docker volume prune`
+
+默认阈值可写入 `DEPLOY_ENV_FILE`：
+
+```env
+XRAG_DISK_WARN_PERCENT=70
+XRAG_DISK_PRUNE_PERCENT=80
+XRAG_DISK_FAIL_PERCENT=95
+XRAG_KEEP_RELEASES=5
+XRAG_DOCKER_LOG_TRUNCATE_MB=200
+```
+
+手工执行：
+
+```bash
+/srv/xrag/shared/bin/xrag-disk-guard.sh /srv/xrag
+```
+
+### 定时执行
+
+仓库已提供 `systemd` 资产：
+
+- `deploy/systemd/xrag-disk-guard.service`
+- `deploy/systemd/xrag-disk-guard.timer`
+
+每次 deploy 会把它们同步到：
+
+- `/srv/xrag/shared/systemd`
+
+在服务器上启用：
+
+```bash
+sudo cp /srv/xrag/shared/systemd/xrag-disk-guard.service /etc/systemd/system/
+sudo cp /srv/xrag/shared/systemd/xrag-disk-guard.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now xrag-disk-guard.timer
+sudo systemctl status xrag-disk-guard.timer
+```
+
+查看最近执行记录：
+
+```bash
+journalctl -u xrag-disk-guard.service -n 100 --no-pager
+```
+
 ## Local Validation
 
 本仓库已经通过本地容器化验证：
@@ -243,3 +312,5 @@ ssh -N -L 5432:127.0.0.1:5432 root@8.134.122.242
 4. 对 `staging` 执行 smoke
 5. `staging` 通过后自动部署 `production`
 6. 对 `production` 执行 smoke
+
+如果 `deploy-production` 前磁盘使用率经过清理后仍高于 `XRAG_DISK_FAIL_PERCENT`，workflow 会直接失败并要求先人工处理主机空间，而不会继续假成功。

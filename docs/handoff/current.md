@@ -23,6 +23,7 @@
 - [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)
 - [Deploy README](/Users/coderlauu/xRag/deploy/README.md)
 - [Production Inspection Guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
+- [Production Data Loss And Deploy Incident Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-09-production-data-loss-and-deploy-incident-retrospective.md)
 - [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
 
 当前活跃版本资产：
@@ -42,6 +43,7 @@
 - [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
 - [Phase 2A Prototype](/Users/coderlauu/xRag/prototype/v4/index.html)
 - [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
+- [Production Disk Guard Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-09-production-disk-guard-and-incident-retro.md)
 - [v3 / Phase 1C Status](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
 - [v3 Handoff](/Users/coderlauu/xRag/docs/handoff/v3.md)
 - [CI 自动修复闭环方案](/Users/coderlauu/xRag/docs/process/2026-04-06-ci-auto-repair-loop.md)
@@ -110,10 +112,10 @@
 
 ## 4. 执行规则
 
-1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D` 与 `Lane E`；代码开发已进入 `search/detail + ops` 集成阶段
+1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E` 与 `Lane G`；代码开发已进入 `search/detail` 集成阶段
 2. `v4` 的技术评估仍严格限制在 `P0`，不允许让 `P1` 或 `deferred` 能力提前挤占主线
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前版本真实进度统一写入 `docs/status/v4-phase-2a.md`
-4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `worker-runtime / indexing / provider / answer / ask` 主链；下一步按既定顺序进入 `search-detail / ops`，随后再进入 `tests` lane；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
+4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `worker-runtime / indexing / provider / answer / ask / ops` 主链；下一步按既定顺序进入 `search-detail`，随后再进入 `tests` lane；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
 
 ---
 

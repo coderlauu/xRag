@@ -5,6 +5,10 @@
 1. 当前 production 到底跑了哪些服务
 2. 数据库和对象存储里到底存了哪些数据与文件
 
+如果你正在处理 `2026-04-09` 这次数据库空库与 deploy 失败事故，可同时阅读：
+
+- [Production Data Loss And Deploy Incident Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-09-production-data-loss-and-deploy-incident-retrospective.md)
+
 如果仓库已经在目标机上，可优先用 repo 内脚本而不是临时拼命令：
 
 - `./scripts/ops-inspect-upload.sh <upload-id-or-file-name-fragment>`
@@ -48,6 +52,38 @@ docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep xrag-produ
 
 ```bash
 ss -lntp | grep -E ':80|:443'
+```
+
+---
+
+## 1.1 先看磁盘是否接近打满
+
+deploy 失败且日志出现 `No space left on device` 时，先看根分区：
+
+```bash
+df -h
+```
+
+生产现在提供了安全清理脚本：
+
+```bash
+/srv/xrag/shared/bin/xrag-disk-guard.sh /srv/xrag
+```
+
+它只会清理：
+
+- `/srv/xrag/shared/tmp`
+- 旧 release
+- Docker stopped container / image / builder cache
+- 过大的 Docker JSON 日志
+
+它不会触碰 PostgreSQL / MinIO 数据卷。
+
+如果需要确认定时器是否已启用：
+
+```bash
+systemctl status xrag-disk-guard.timer
+journalctl -u xrag-disk-guard.service -n 100 --no-pager
 ```
 
 ---

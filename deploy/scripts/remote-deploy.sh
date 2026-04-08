@@ -8,10 +8,13 @@ bundle_path="${4:?bundle path is required}"
 
 release_dir="${deploy_root}/releases/${image_tag}"
 shared_dir="${deploy_root}/shared"
+shared_bin_dir="${shared_dir}/bin"
+shared_systemd_dir="${shared_dir}/systemd"
 env_file="${shared_dir}/${environment}.env"
 caddyfile_path="${shared_dir}/Caddyfile"
 compose_file="${release_dir}/deploy/compose/stack.compose.yml"
 project_name="xrag-${environment}"
+disk_guard_path="${shared_bin_dir}/xrag-disk-guard.sh"
 
 docker_cmd=(docker)
 
@@ -37,6 +40,11 @@ EOF
 
 docker_run() {
   "${docker_cmd[@]}" "$@"
+}
+
+read_env_file_key() {
+  local key="${1:?env key is required}"
+  grep -E "^${key}=" "${env_file}" | tail -n 1 | cut -d= -f2-
 }
 
 verify_service_image() {
@@ -85,11 +93,15 @@ docker_login_with_retry() {
   done
 }
 
-mkdir -p "${release_dir}" "${shared_dir}"
+mkdir -p "${release_dir}" "${shared_dir}" "${shared_bin_dir}" "${shared_systemd_dir}"
 rm -rf "${release_dir:?}"/*
 tar -xzf "${bundle_path}" -C "${release_dir}"
 
 cp "${release_dir}/deploy/caddy/Caddyfile" "${caddyfile_path}"
+cp "${release_dir}/deploy/scripts/disk-guard.sh" "${disk_guard_path}"
+chmod 755 "${disk_guard_path}"
+cp "${release_dir}/deploy/systemd/xrag-disk-guard.service" "${shared_systemd_dir}/xrag-disk-guard.service"
+cp "${release_dir}/deploy/systemd/xrag-disk-guard.timer" "${shared_systemd_dir}/xrag-disk-guard.timer"
 
 if [[ -n "${XRAG_ENV_FILE_B64:-}" ]]; then
   printf '%s' "${XRAG_ENV_FILE_B64}" | base64 --decode > "${env_file}"
@@ -107,6 +119,13 @@ if [[ -z "${REGISTRY_HOST:-}" || -z "${REGISTRY_USERNAME:-}" || -z "${REGISTRY_P
 fi
 
 resolve_docker_access
+
+XRAG_DISK_WARN_PERCENT="$(read_env_file_key XRAG_DISK_WARN_PERCENT || true)" \
+XRAG_DISK_PRUNE_PERCENT="$(read_env_file_key XRAG_DISK_PRUNE_PERCENT || true)" \
+XRAG_DISK_FAIL_PERCENT="$(read_env_file_key XRAG_DISK_FAIL_PERCENT || true)" \
+XRAG_KEEP_RELEASES="$(read_env_file_key XRAG_KEEP_RELEASES || true)" \
+XRAG_DOCKER_LOG_TRUNCATE_MB="$(read_env_file_key XRAG_DOCKER_LOG_TRUNCATE_MB || true)" \
+"${disk_guard_path}" "${deploy_root}"
 
 docker_login_with_retry
 

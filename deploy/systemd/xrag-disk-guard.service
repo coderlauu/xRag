@@ -1,0 +1,9 @@
+[Unit]
+Description=xRag Disk Guard
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/srv/xrag/shared/production.env
+ExecStart=/srv/xrag/shared/bin/xrag-disk-guard.sh /srv/xrag

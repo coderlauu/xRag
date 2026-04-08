@@ -75,6 +75,11 @@ EOF
   exit 1
 fi
 
+printf -v deploy_path_q '%q' "${DEPLOY_PATH}"
+ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" \
+  "XRAG_KEEP_RELEASES='${XRAG_KEEP_RELEASES:-5}' XRAG_DISK_WARN_PERCENT='${XRAG_DISK_WARN_PERCENT:-70}' XRAG_DISK_PRUNE_PERCENT='${XRAG_DISK_PRUNE_PERCENT:-80}' XRAG_DISK_FAIL_PERCENT='${XRAG_DISK_FAIL_PERCENT:-95}' XRAG_DOCKER_LOG_TRUNCATE_MB='${XRAG_DOCKER_LOG_TRUNCATE_MB:-200}' bash -s -- ${deploy_path_q}" \
+  < "${repo_root}/deploy/scripts/disk-guard.sh"
+
 ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "mkdir -p '${remote_tmp_dir}' && rm -f '${bundle_path}'"
 
 scp "${scp_base_args[@]}" "${bundle_file}" "${SSH_USER}@${SSH_HOST}:${bundle_path}"
@@ -88,7 +93,6 @@ printf -v registry_password_q '%q' "${REGISTRY_PASSWORD}"
 printf -v api_image_q '%q' "${XRAG_API_IMAGE}"
 printf -v worker_image_q '%q' "${XRAG_WORKER_IMAGE}"
 printf -v web_image_q '%q' "${XRAG_WEB_IMAGE}"
-printf -v deploy_path_q '%q' "${DEPLOY_PATH}"
 printf -v deploy_env_q '%q' "${DEPLOY_ENVIRONMENT}"
 printf -v image_tag_q '%q' "${XRAG_IMAGE_TAG}"
 printf -v bundle_path_q '%q' "${bundle_path}"

@@ -6,7 +6,7 @@
 - `phase`: `Phase 2A`
 - `status`: `in-progress`
 - `owner`: `codex`
-- `updated_at`: `2026-04-08`
+- `updated_at`: `2026-04-09`
 
 ## 2. Goal
 
@@ -41,8 +41,8 @@
 
 ## 4. Current Node
 
-- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D` 与 `Lane E`；`document indexing`、`hybrid retrieval`、`citation persistence` 与 `answer orchestration` 已接入 worker 主链
-- `next`: 按既定顺序并行启动 `Lane F`、`Lane G`，推进 `search/detail freshness` 与 `ops answer summary`；随后进入 `Lane H`、`Lane I`
+- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E` 与 `Lane G`；`document indexing`、`hybrid retrieval`、`citation persistence`、`answer orchestration` 与 `ops answer summary` 已接入主链。当前临时插入一条 production ops hardening 支线，补 deploy 磁盘守护、磁盘阈值 preflight 与事故复盘归档。
+- `next`: 先合并并验证磁盘守护与 deploy preflight，确保生产发布恢复可信；随后回到既定顺序，继续 `Lane F`、再进入 `Lane H` 与 `Lane I`
 
 ## 5. Blockers
 
@@ -52,9 +52,9 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-08` 已完成 `Lane 0` 的 API / API client / web typecheck、OpenAPI contract check、`apps/api` integration tests、文档链接与一致性检查；追加完成 `Lane A` 的 queue runtime glue 校验、`Lane C` 的 `apps/worker` typecheck 与 `openai-compatible.test.ts`、`Lane E` 的 `apps/web` typecheck，以及 `Lane B / D` 的 `apps/worker` typecheck 与 `document-indexing.test.ts + answer-orchestration.test.ts`；`git diff --check` 在各次合流前后均通过
-- `result`: `passed`
-- `latest_failure`: 无
+- `latest_validation`: `2026-04-09` `Lane G` 完成后已通过 `apps/api` typecheck 与 `git diff --check`；随后 production 事故已完成数据库现场核验、MinIO 对象确认与主机磁盘清理验证；本轮 ops hardening 将补充 shell 语法校验、`pnpm validate` 与文档一致性检查
+- `result`: `passed_with_existing_web_issue_and_ops_followup`
+- `latest_failure`: `apps/web/src/features/search/pages/search-page.tsx(215,52):` `SearchFilters` 缺少 `index_status`；另有 production deploy 曾因远端磁盘写满导致 `${DEPLOY_PATH}/shared/tmp` 无法创建，已作为 ops hardening 修复项收口
 
 ## 7. Linked Artifacts
 
@@ -73,5 +73,7 @@
 - `evaluation_plan`: [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `generated_contract`: [Phase 2A OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-2a-api.json)
 - `ops_runbook`: [deploy README](/Users/coderlauu/xRag/deploy/README.md), [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
+- `incident_retro`: [2026-04-09 production data loss and deploy incident retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-09-production-data-loss-and-deploy-incident-retrospective.md)
+- `active_ops_plan`: [Production Disk Guard And Incident Retro](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-09-production-disk-guard-and-incident-retro.md)
 - `key_commits`: `01591c0`, `12e26bf`, `ca995e6`, `dd22d54`, `452d68e`, `bdd2073`, `158c258`, `ca138aa`
-- `latest_ci_run`: `沿用 v3 基线 24081424992`
+- `latest_ci_run`: `24143542091`（失败根因已确认为远端磁盘写满；清理后待重跑最新 main）
