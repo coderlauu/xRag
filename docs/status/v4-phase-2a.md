@@ -35,14 +35,14 @@
 - `api-persistence`: `in-progress`
 - `upload-storage`: `not-started`
 - `worker-pipeline`: `not-started`
-- `web-integration`: `not-started`
+- `web-integration`: `in-progress`
 - `testing`: `not-started`
 - `ci-cd`: `not-started`
 
 ## 4. Current Node
 
-- `now`: `Phase 2A / P0` 已完成 `Lane 0` 的主线程代码冻结，`schema + migration + shared-types + documents / answers / ops contract skeleton + OpenAPI / SDK` 已成为代码事实源；当前可进入首批并行 lane
-- `next`: 按既定顺序并行启动 `Lane A`、`Lane C`、`Lane E`，分别推进 `worker runtime topology`、`AI provider adapters` 与 `ask workspace`
+- `now`: `Phase 2A / P0` 已完成 `Lane 0` 的主线程代码冻结，`schema + migration + shared-types + documents / answers / ops contract skeleton + OpenAPI / SDK` 已成为代码事实源；`Ask Workspace` 已开始落到 web 入口，当前并行 lane 继续推进
+- `next`: 继续推进 `Lane A`、`Lane C`、`Lane E` 的剩余实现，随后合流到 `Lane B`、`Lane D`、`Lane F`、`Lane G`、`Lane H`、`Lane I`
 
 ## 5. Blockers
 
@@ -52,7 +52,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-08` 已完成 `Lane 0` 代码冻结后的 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm contract:check`、`scripts/run-api-integration.sh`、`git diff --check` 与 `corepack pnpm docs:check`
+- `latest_validation`: `2026-04-08` 已完成 `Lane 0` 代码冻结后的 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm contract:check`、`scripts/run-api-integration.sh`、`git diff --check` 与 `corepack pnpm docs:check`；`2026-04-08` 追加完成 `apps/web` 问答入口代码的 `tsc --noEmit` 验证
 - `result`: `passed`
 - `latest_failure`: 无
 
