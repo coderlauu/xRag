@@ -34,15 +34,15 @@
 - `foundation`: `completed`
 - `api-persistence`: `in-progress`
 - `upload-storage`: `not-started`
-- `worker-pipeline`: `not-started`
+- `worker-pipeline`: `in-progress`
 - `web-integration`: `in-progress`
 - `testing`: `not-started`
 - `ci-cd`: `not-started`
 
 ## 4. Current Node
 
-- `now`: `Phase 2A / P0` 已完成 `Lane 0` 的主线程代码冻结，`schema + migration + shared-types + documents / answers / ops contract skeleton + OpenAPI / SDK` 已成为代码事实源；`Ask Workspace` 已开始落到 web 入口，当前并行 lane 继续推进
-- `next`: 继续推进 `Lane A`、`Lane C`、`Lane E` 的剩余实现，随后合流到 `Lane B`、`Lane D`、`Lane F`、`Lane G`、`Lane H`、`Lane I`
+- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane C` 与 `Lane E`；`schema + migration + shared-types + documents / answers / ops contract skeleton + OpenAPI / SDK`、`worker runtime topology`、`provider adapters` 与 `ask workspace` 都已进入主线
+- `next`: 按既定顺序并行启动 `Lane B`、`Lane D`，推进 `document indexing` 与 `answer orchestration`；待 worker 主链稳定后再进入 `Lane F`、`Lane G`、`Lane H`、`Lane I`
 
 ## 5. Blockers
 
@@ -52,7 +52,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-08` 已完成 `Lane 0` 代码冻结后的 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm contract:check`、`scripts/run-api-integration.sh`、`git diff --check` 与 `corepack pnpm docs:check`；`2026-04-08` 追加完成 `apps/web` 问答入口代码的 `tsc --noEmit` 验证
+- `latest_validation`: `2026-04-08` 已完成 `Lane 0` 的 API / API client / web typecheck、OpenAPI contract check、`apps/api` integration tests、文档链接与一致性检查；追加完成 `Lane A` 的 queue runtime glue 校验、`Lane C` 的 `apps/worker` typecheck 与 `openai-compatible.test.ts`、以及 `Lane E` 的 `apps/web` typecheck；`git diff --check` 在各次合流前后均通过
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -73,5 +73,5 @@
 - `evaluation_plan`: [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `generated_contract`: [Phase 2A OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-2a-api.json)
 - `ops_runbook`: [deploy README](/Users/coderlauu/xRag/deploy/README.md), [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
-- `key_commits`: `01591c0`, `12e26bf`
+- `key_commits`: `01591c0`, `12e26bf`, `ca995e6`, `dd22d54`, `452d68e`, `bdd2073`, `158c258`
 - `latest_ci_run`: `沿用 v3 基线 24081424992`

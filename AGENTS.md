@@ -26,7 +26,7 @@
 
 - 当前仓库已经完成正式工程 scaffold
 - `v1 / Phase 1A`、`v2 / Phase 1B` 与 `v3 / Phase 1C` 已完成并归档，当前活跃版本为 `v4 / Phase 2A`
-- `v4 / Phase 2A` 当前已完成 implementation freeze，并已落地 `Lane 0` 的主线程代码冻结；下一步按 exec plan 启动 `worker-runtime / provider / ask` 并行 lane
+- `v4 / Phase 2A` 当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane C` 与 `Lane E`；下一步按 exec plan 启动 `indexing / answer` 并行 lane
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -73,7 +73,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v4 / Phase 2A` 已完成 `P0` tradeoff 收敛、runtime freeze prep、implementation freeze 与 `Lane 0` 主线程代码冻结；下一步按 `Lane A / C / E` 并行推进
+   当前 `v4 / Phase 2A` 已完成 `P0` tradeoff 收敛、runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `Lane A / C / E` 首批并行 lane；下一步按 `Lane B / D` 并行推进
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口
