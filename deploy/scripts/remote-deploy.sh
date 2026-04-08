@@ -39,6 +39,33 @@ docker_run() {
   "${docker_cmd[@]}" "$@"
 }
 
+verify_service_image() {
+  local service_name="${1:?service name is required}"
+  local expected_image="${2:?expected image is required}"
+  local container_id
+  local actual_image
+
+  container_id="$(
+    docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps -q "${service_name}"
+  )"
+
+  if [[ -z "${container_id}" ]]; then
+    echo "Service ${service_name} is not running after deploy." >&2
+    return 1
+  fi
+
+  actual_image="$(docker_run inspect "${container_id}" --format '{{.Config.Image}}')"
+
+  if [[ "${actual_image}" != "${expected_image}" ]]; then
+    cat >&2 <<EOF
+Service ${service_name} is running an unexpected image.
+Expected: ${expected_image}
+Actual:   ${actual_image}
+EOF
+    return 1
+  fi
+}
+
 docker_login_with_retry() {
   local attempts=5
   local attempt
@@ -93,7 +120,10 @@ docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f 
     || psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d template1 -c "create database \"$POSTGRES_DB\" owner \"$POSTGRES_USER\""
 '
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm -T api-migrate </dev/null
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d api worker web caddy
+docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d --force-recreate api worker web caddy
+verify_service_image api "${XRAG_API_IMAGE}"
+verify_service_image worker "${XRAG_WORKER_IMAGE}"
+verify_service_image web "${XRAG_WEB_IMAGE}"
 docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps
 
 rm -f "${bundle_path}"
