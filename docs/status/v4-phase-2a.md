@@ -34,7 +34,7 @@
 - `foundation`: `completed`
 - `api-persistence`: `in-progress`
 - `upload-storage`: `not-started`
-- `worker-pipeline`: `in-progress`
+- `worker-pipeline`: `completed`
 - `web-integration`: `in-progress`
 - `testing`: `not-started`
 - `ci-cd`: `not-started`

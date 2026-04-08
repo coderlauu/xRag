@@ -216,7 +216,7 @@
 2. `Lane A`、`Lane C`、`Lane E` 已完成并合流
 3. 在 runtime glue 与 provider adapter 稳定后，`Lane B`、`Lane D` 已完成并合流
 4. 在 API client 与关键 handler 可用后，启动 `Lane F`、`Lane G`
-5. `Lane B / D / E / F / G` 合流后，再启动 `Lane H` 与 `Lane I`
+5. `Lane E / F / G` 合流后，再启动 `Lane H` 与 `Lane I`
 6. 主线程统一做 OpenAPI / SDK 再生成、集成验证、状态回写和文档收口
 
 ## 6. Ownership Rules
