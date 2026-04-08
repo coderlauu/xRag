@@ -57,11 +57,11 @@ export async function bootstrapWorker() {
   });
 
   const worker = new Worker<DocumentProcessingJobData>(
-    env.queueName,
+    env.documentProcessingQueueName,
     async (job) => {
       if (!isDocumentProcessingJobName(job.name)) {
         logger.warn("unknown job name received", {
-          queueName: env.queueName,
+          queueName: env.documentProcessingQueueName,
           jobId: job.id,
           jobName: job.name
         });
@@ -85,7 +85,7 @@ export async function bootstrapWorker() {
     },
     {
       ...redisConnection,
-      concurrency: env.concurrency,
+      concurrency: env.documentProcessingConcurrency,
       prefix: "xrag",
       removeOnComplete: {
         count: 1000
@@ -96,13 +96,13 @@ export async function bootstrapWorker() {
     }
   );
 
-  const queueEvents = new QueueEvents(env.queueName, {
+  const queueEvents = new QueueEvents(env.documentProcessingQueueName, {
     ...redisConnection
   });
 
   worker.on("completed", (job, result) => {
-    logger.info("job completed", {
-      queueName: env.queueName,
+      logger.info("job completed", {
+      queueName: env.documentProcessingQueueName,
       workerName: env.workerName,
       jobId: job.id,
       jobName: job.name,
@@ -111,8 +111,8 @@ export async function bootstrapWorker() {
   });
 
   worker.on("failed", (job, error) => {
-    logger.error("job failed", {
-      queueName: env.queueName,
+      logger.error("job failed", {
+      queueName: env.documentProcessingQueueName,
       workerName: env.workerName,
       jobId: job?.id,
       jobName: job?.name,
@@ -130,8 +130,8 @@ export async function bootstrapWorker() {
 
   logger.info("worker booted", {
     workerName: env.workerName,
-    queueName: env.queueName,
-    concurrency: env.concurrency,
+    queueName: env.documentProcessingQueueName,
+    concurrency: env.documentProcessingConcurrency,
     redis: env.redisUrl ? "url" : `${env.redisHost}:${env.redisPort}/${env.redisDb}`
   });
 

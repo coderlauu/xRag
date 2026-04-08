@@ -28,7 +28,15 @@
 当前活跃版本资产：
 
 - [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
-- [Phase 2A Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-2a-planning-and-design.md)
+- [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
+- [Phase 2A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-08-phase-2a-implementation-freeze.md)
+- [Phase 2A Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-p0-technical-tradeoffs.md)
+- [Phase 2A Implementation Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-implementation-freeze-prerequisites.md)
+- [Phase 2A Runtime Contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
+- [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
+- [Phase 2A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md)
+- [Phase 2A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md)
+- [Phase 2A API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
 - [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
 - [Phase 2A Prototype](/Users/coderlauu/xRag/prototype/v4/index.html)
 - [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
@@ -76,24 +84,32 @@
 1. [v4 Handoff](/Users/coderlauu/xRag/docs/handoff/v4.md)
 2. [v4 Status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
 3. [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
-4. [Phase 2A Planning Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-2a-planning-and-design.md)
-5. [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
-6. [Phase 2A Prototype](/Users/coderlauu/xRag/prototype/v4/index.html)
-7. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
-8. [v3 Status](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
-9. [Phase 1C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md)
-10. [Phase 1C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md)
-11. [Phase 1C API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md)
-12. [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)
+4. [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
+5. [Phase 2A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-08-phase-2a-implementation-freeze.md)
+6. [Phase 2A Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-p0-technical-tradeoffs.md)
+7. [Phase 2A Implementation Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-implementation-freeze-prerequisites.md)
+8. [Phase 2A Runtime Contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
+9. [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
+10. [Phase 2A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md)
+11. [Phase 2A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md)
+12. [Phase 2A API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
+13. [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
+14. [Phase 2A Prototype](/Users/coderlauu/xRag/prototype/v4/index.html)
+15. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
+16. [v3 Status](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
+17. [Phase 1C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md)
+18. [Phase 1C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md)
+19. [Phase 1C API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md)
+20. [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)
 
 ---
 
 ## 4. 执行规则
 
-1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 `PRD / interaction spec / prototype / evaluation plan` 的 planning 资产冻结与一致性校验，尚未进入正式技术方案设计与实现 fan-out
-2. `v4` 的第一优先级是定义可信问答层的产品边界、交互边界与信任边界，不是继续扩张输入渠道或提前冻结工程实现细节
+1. 当前活跃版本为 `v4 / Phase 2A`，当前已进入主线程 implementation freeze，`schema / shared-types / API contract / 状态机` 已补齐独立冻结基线
+2. `v4` 的技术评估仍严格限制在 `P0`，不允许让 `P1` 或 `deferred` 能力提前挤占主线
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前版本真实进度统一写入 `docs/status/v4-phase-2a.md`
-4. 当前 `Phase 2A` 尚未创建正式 `tech/*` 文档；`v3 / Phase 1C` 继续作为实现基线与技术参考
+4. 当前 `Phase 2A` 已完成 runtime freeze prep，并切换到独立 implementation freeze exec plan；下一步应在冻结基线上推进实现 lane；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
 
 ---
 

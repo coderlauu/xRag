@@ -26,7 +26,7 @@ export class QueueService implements OnApplicationShutdown {
         maxRetriesPerRequest: null
       });
 
-  private readonly queue = new Queue(this.env.queueName || DOCUMENT_PROCESSING_QUEUE_NAME, {
+  private readonly queue = new Queue(this.env.documentProcessingQueueName || DOCUMENT_PROCESSING_QUEUE_NAME, {
     connection: this.connection,
     prefix: "xrag"
   });

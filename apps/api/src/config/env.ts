@@ -7,7 +7,9 @@ export interface ApiEnv {
   redisHost: string;
   redisPort: number;
   redisDb: number;
-  queueName: string;
+  documentProcessingQueueName: string;
+  documentIndexingQueueName: string;
+  answerOrchestrationQueueName: string;
   storageEndpoint: string;
   storagePublicUrl: string;
   storageRegion: string;
@@ -44,7 +46,10 @@ export function loadApiEnv(env: NodeJS.ProcessEnv = process.env): ApiEnv {
     redisHost: env.REDIS_HOST || "127.0.0.1",
     redisPort: parseInteger(env.REDIS_PORT, 6379),
     redisDb: parseInteger(env.REDIS_DB, 0),
-    queueName: env.WORKER_QUEUE_NAME || "document-processing",
+    documentProcessingQueueName:
+      env.DOCUMENT_PROCESSING_QUEUE_NAME || env.WORKER_QUEUE_NAME || "document-processing",
+    documentIndexingQueueName: env.DOCUMENT_INDEXING_QUEUE_NAME || "document-indexing",
+    answerOrchestrationQueueName: env.ANSWER_ORCHESTRATION_QUEUE_NAME || "answer-orchestration",
     storageEndpoint: env.STORAGE_ENDPOINT || "http://127.0.0.1:9000",
     storagePublicUrl: env.STORAGE_PUBLIC_URL || env.STORAGE_ENDPOINT || "http://127.0.0.1:9000",
     storageRegion: env.STORAGE_REGION || "us-east-1",

@@ -6,7 +6,7 @@
 - `phase`: `Phase 2A`
 - `status`: `in-progress`
 - `owner`: `codex`
-- `updated_at`: `2026-04-07`
+- `updated_at`: `2026-04-08`
 
 ## 2. Goal
 
@@ -41,8 +41,8 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `PRD / handoff / status / planning exec plan / interaction spec / prototype / evaluation plan` 的 planning 资产冻结，`Grounded AI Retrieval & Answering` 的主线、scope、citation、freshness 与 eval 目标已形成统一产品基线
-- `next`: 若继续推进，下一步应先决定是否进入 `Phase 2A` 技术方案设计节点，再判断是否需要新建 `tech/*` 文档与实现拆 lane
+- `now`: 已正式进入 `Phase 2A / P0` 的 implementation freeze，主线程已补齐独立的 `contract freeze`、`runtime contracts` 与新的 active exec plan；当前阶段目标不再是继续评估，而是以冻结基线驱动后续实现 lane
+- `next`: 若继续推进，下一步应以 `contract freeze` 为基线，优先落 `schema / shared-types / API contract / 状态机` 到代码与 migration
 
 ## 5. Blockers
 
@@ -52,7 +52,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-07` 已完成 `PRD / handoff / status / exec plan / interaction spec / prototype / evaluation plan` 的交叉核对，并通过 `git diff --check`；当前仍未进入技术方案实现与 CI 验证，验证口径以文档一致性、原型可读性与版本治理完整性为准
+- `latest_validation`: `2026-04-08` 已完成 `PRD / backlog / handoff / status / implementation-freeze exec plan / interaction spec / prototype / evaluation plan / technical tradeoffs / runtime contracts / contract freeze / data model / api / implementation freeze prerequisites` 的交叉核对；完成 `@xrag/api` 与 `@xrag/worker` 的 `typecheck`；完成本地 compose 级 `CREATE EXTENSION vector` 验证，并通过 `docker compose config`、`deploy stack compose config`、`git diff --check` 与 `corepack pnpm docs:check`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -61,10 +61,15 @@
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v4.md](/Users/coderlauu/xRag/docs/handoff/v4.md)
 - `prd`: [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
+- `product_backlog`: [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
+- `technical_decisions`: [Phase 2A technical tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-p0-technical-tradeoffs.md)
+- `freeze_prerequisites`: [Phase 2A implementation freeze prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-implementation-freeze-prerequisites.md)
+- `runtime_contracts`: [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
+- `contract_freeze`: [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
+- `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md), [Phase 1C architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md), [Phase 1C data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md), [Phase 1C api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md)
 - `prototype`: [prototype/v4](/Users/coderlauu/xRag/prototype/v4/index.html)
 - `interaction_spec`: [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
-- `tech_docs`: 当前 `Phase 2A` 尚未创建正式 `tech/*` 文档；实现基线继续参考 [Phase 1C architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-1c-architecture.md), [Phase 1C data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-1c-data-model.md), [Phase 1C api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-1c-api.md)
-- `exec_plans`: [Phase 2A planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-07-phase-2a-planning-and-design.md), [Phase 1C planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md), [Phase 1C implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-implementation-lanes.md)
+- `exec_plans`: [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-08-phase-2a-implementation-freeze.md), [Phase 2A planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-2a-planning-and-design.md), [Phase 1C planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md), [Phase 1C implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-implementation-lanes.md)
 - `evaluation_plan`: [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `generated_contract`: [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)（`Phase 2A` 尚未进入 contract 生成节点）
 - `ops_runbook`: [deploy README](/Users/coderlauu/xRag/deploy/README.md), [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
