@@ -19,7 +19,8 @@ cd "${repo_root}"
 : "${XRAG_IMAGE_TAG:?XRAG_IMAGE_TAG is required}"
 
 ssh_port="${SSH_PORT:-22}"
-bundle_path="/tmp/xrag-${DEPLOY_ENVIRONMENT}-${XRAG_IMAGE_TAG}.tar.gz"
+remote_tmp_dir="${DEPLOY_PATH}/shared/tmp"
+bundle_path="${remote_tmp_dir}/xrag-${DEPLOY_ENVIRONMENT}-${XRAG_IMAGE_TAG}.tar.gz"
 bundle_file="$(mktemp /tmp/xrag-deploy-XXXXXX.tar.gz)"
 key_file="$(mktemp /tmp/xrag-ssh-key-XXXXXX)"
 
@@ -73,6 +74,8 @@ Check these values and server state:
 EOF
   exit 1
 fi
+
+ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "mkdir -p '${remote_tmp_dir}' && rm -f '${bundle_path}'"
 
 scp "${scp_base_args[@]}" "${bundle_file}" "${SSH_USER}@${SSH_HOST}:${bundle_path}"
 
