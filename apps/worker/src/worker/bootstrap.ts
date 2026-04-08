@@ -2,7 +2,9 @@ import { QueueEvents, type Job, Worker } from "bullmq";
 import { createLogger, type Logger } from "../logging/logger";
 import { loadWorkerEnv, type WorkerEnv } from "../config/env";
 import { createDatabasePool } from "../database/database";
+import { IndexingRepository } from "../database/indexing.repository";
 import { WorkerRepository } from "../database/repository";
+import { createAnswerOrchestrationRuntime } from "../answers/runtime";
 import {
   ANSWER_ORCHESTRATION_JOB_NAMES,
   ANSWER_ORCHESTRATION_QUEUE_NAME,
@@ -17,7 +19,13 @@ import {
   type DocumentProcessingJobName
 } from "../queue/constants";
 import { WorkerQueueProducer } from "../queue/producer";
+import {
+  createOpenAICompatibleAnswerProvider,
+  createOpenAICompatibleEmbeddingProvider,
+} from "../providers/openai-compatible";
+import type { AnswerProvider, EmbeddingProvider } from "../providers";
 import { createDocumentProcessingHandlers, type DocumentProcessingJobData } from "../jobs/document-processing";
+import { createDocumentIndexingHandlers } from "../jobs/document-indexing";
 import { WorkerStorageService } from "../storage/storage";
 import { fetchAndExtractLinkDocument } from "../jobs/link-parser";
 
@@ -121,8 +129,50 @@ export async function bootstrapWorker() {
   const logger = createLogger(env.logLevel);
   const databasePool = createDatabasePool();
   const repository = new WorkerRepository(databasePool);
+  const indexingRepository = new IndexingRepository(databasePool);
   const storage = new WorkerStorageService();
   const queueProducer = new WorkerQueueProducer();
+  let embeddingProvider: EmbeddingProvider | null = null;
+  let answerProvider: AnswerProvider | null = null;
+  const getEmbeddingProvider = () => {
+    if (embeddingProvider) {
+      return embeddingProvider;
+    }
+
+    if (!env.embeddingProviderBaseUrl || !env.embeddingModel) {
+      throw new Error("embedding provider is not configured");
+    }
+
+    embeddingProvider = createOpenAICompatibleEmbeddingProvider({
+      baseUrl: env.embeddingProviderBaseUrl,
+      apiKey: env.embeddingProviderApiKey,
+      model: env.embeddingModel,
+      timeoutMs: env.embeddingTimeoutMs,
+      maxRetries: env.aiProviderMaxRetries,
+      expectedDimensions: 1536
+    });
+
+    return embeddingProvider;
+  };
+  const getAnswerProvider = () => {
+    if (answerProvider) {
+      return answerProvider;
+    }
+
+    if (!env.answerProviderBaseUrl || !env.answerModel) {
+      throw new Error("answer provider is not configured");
+    }
+
+    answerProvider = createOpenAICompatibleAnswerProvider({
+      baseUrl: env.answerProviderBaseUrl,
+      apiKey: env.answerProviderApiKey,
+      model: env.answerModel,
+      timeoutMs: env.answerTimeoutMs,
+      maxRetries: env.aiProviderMaxRetries
+    });
+
+    return answerProvider;
+  };
   const documentProcessingHandlers = createDocumentProcessingHandlers({
     repository,
     storage,
@@ -134,6 +184,19 @@ export async function bootstrapWorker() {
         retryCount: env.linkFetchRetryCount,
         retryBackoffMs: env.linkFetchRetryBackoffMs
       })
+  });
+  const documentIndexingHandlers = createDocumentIndexingHandlers({
+    repository: indexingRepository,
+    logger,
+    embeddingModel: env.embeddingModel,
+      getEmbeddingProvider,
+      enqueueEmbedDocument: (documentId, jobId) => queueProducer.enqueueEmbedDocument(documentId, jobId)
+    });
+  const answerRuntime = createAnswerOrchestrationRuntime({
+    pool: databasePool,
+    logger,
+    getEmbeddingProvider,
+    getAnswerProvider
   });
 
   const runtimes: QueueRuntime[] = [
@@ -186,19 +249,13 @@ export async function bootstrapWorker() {
           };
         }
 
-        logger.warn("document indexing queue received job before lane implementation", {
-          queueName: env.documentIndexingQueueName,
-          jobId: job.id,
-          jobName: job.name,
-          documentId: job.data.documentId,
-          jobIdRef: job.data.jobId
+        const handler = documentIndexingHandlers[job.name];
+        return handler({
+          name: job.name,
+          id: job.id ?? "unknown",
+          data: job.data,
+          attemptsMade: job.attemptsMade
         });
-
-        return {
-          documentId: job.data.documentId,
-          status: "skipped" as const,
-          reason: "document indexing lane not implemented yet"
-        };
       }
     ),
     createQueueRuntime<AnswerOrchestrationJobData>(
@@ -221,18 +278,13 @@ export async function bootstrapWorker() {
           };
         }
 
-        logger.warn("answer orchestration queue received job before lane implementation", {
-          queueName: env.answerOrchestrationQueueName,
-          jobId: job.id,
-          jobName: job.name,
-          sessionId: job.data.sessionId
+        const handler = answerRuntime.handlers[job.name];
+        return handler({
+          name: job.name,
+          id: job.id ?? "unknown",
+          data: job.data,
+          attemptsMade: job.attemptsMade
         });
-
-        return {
-          sessionId: job.data.sessionId,
-          status: "skipped" as const,
-          reason: "answer orchestration lane not implemented yet"
-        };
       }
     )
   ];
