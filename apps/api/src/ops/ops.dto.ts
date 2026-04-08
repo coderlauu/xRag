@@ -5,6 +5,7 @@ import type {
   IncidentSource,
   IncidentStatus,
   LatestDeploymentResponse,
+  OpsAnswerSummaryResponse,
   OpsHealthService,
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
@@ -63,6 +64,29 @@ export class OpsIncidentSummaryDto implements OpsIncidentSummary {
 export class OpsIncidentListResponseDto implements OpsIncidentListResponse {
   @ApiProperty({ type: () => OpsIncidentSummaryDto, isArray: true })
   items!: OpsIncidentSummaryDto[];
+}
+
+export class OpsAnswerSummaryResponseDto implements OpsAnswerSummaryResponse {
+  @ApiProperty({ type: Number })
+  embedding_backlog!: number;
+
+  @ApiProperty({ type: Number })
+  ready_document_count!: number;
+
+  @ApiProperty({ type: Number })
+  stale_document_count!: number;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  answer_latency_p95!: number | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  citation_coverage!: number | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  refusal_rate!: number | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  avg_token_cost_usd!: string | null;
 }
 
 export class LatestDeploymentResponseDto implements LatestDeploymentResponse {

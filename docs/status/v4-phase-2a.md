@@ -32,7 +32,7 @@
 ## 3. Milestones
 
 - `foundation`: `completed`
-- `api-persistence`: `not-started`
+- `api-persistence`: `in-progress`
 - `upload-storage`: `not-started`
 - `worker-pipeline`: `not-started`
 - `web-integration`: `not-started`
@@ -41,8 +41,8 @@
 
 ## 4. Current Node
 
-- `now`: `Phase 2A / P0` 已完成 implementation freeze，并正式切换到 implementation lanes；当前阶段已允许进入代码开发，但仍遵守 `main thread first`，先由主线程把 `schema / shared-types / API contract / 状态机 / citation / scope` 落到代码事实源
-- `next`: 主线程先完成 `Lane 0` 的 `schema + migration + documents / answers / ops contract skeleton + shared-types + OpenAPI / SDK`，随后再并行启动 `worker-runtime / provider / ask workspace` 等子 lane
+- `now`: `Phase 2A / P0` 已完成 `Lane 0` 的主线程代码冻结，`schema + migration + shared-types + documents / answers / ops contract skeleton + OpenAPI / SDK` 已成为代码事实源；当前可进入首批并行 lane
+- `next`: 按既定顺序并行启动 `Lane A`、`Lane C`、`Lane E`，分别推进 `worker runtime topology`、`AI provider adapters` 与 `ask workspace`
 
 ## 5. Blockers
 
@@ -52,7 +52,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-08` 已完成 `PRD / backlog / handoff / status / implementation-freeze exec plan / implementation-lanes exec plan / interaction spec / prototype / evaluation plan / technical tradeoffs / runtime contracts / contract freeze / data model / api / implementation freeze prerequisites` 的交叉核对；完成 `@xrag/api` 与 `@xrag/worker` 的 `typecheck`；完成本地 compose 级 `CREATE EXTENSION vector` 验证，并通过 `docker compose config`、`deploy stack compose config`、`git diff --check` 与 `corepack pnpm docs:check`
+- `latest_validation`: `2026-04-08` 已完成 `Lane 0` 代码冻结后的 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm contract:check`、`scripts/run-api-integration.sh`、`git diff --check` 与 `corepack pnpm docs:check`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -71,7 +71,7 @@
 - `interaction_spec`: [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
 - `exec_plans`: [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md), [Phase 2A planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-2a-planning-and-design.md), [Phase 1C planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-planning-and-design.md), [Phase 1C implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-07-phase-1c-implementation-lanes.md)
 - `evaluation_plan`: [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
-- `generated_contract`: [Phase 1C OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-1c-api.json)（`Phase 2A` 尚未进入 contract 生成节点）
+- `generated_contract`: [Phase 2A OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-2a-api.json)
 - `ops_runbook`: [deploy README](/Users/coderlauu/xRag/deploy/README.md), [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
-- `key_commits`: `待补充`
+- `key_commits`: `01591c0`, `12e26bf`
 - `latest_ci_run`: `沿用 v3 基线 24081424992`

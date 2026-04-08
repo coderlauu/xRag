@@ -1,12 +1,17 @@
 import {
+  createAnswer as createAnswerRequest,
   createLinkDocument as createLinkDocumentRequest,
   completeUpload as completeUploadRequest,
   completeUploadPart as completeUploadPartRequest,
   createTag as createTagRequest,
   createTextDocument as createTextDocumentRequest,
   fetchHealth as fetchHealthRequest,
+  fetchOpsAnswerSummary as fetchOpsAnswerSummaryRequest,
   fetchOpsHealthSummary as fetchOpsHealthSummaryRequest,
+  getAnswer as getAnswerRequest,
+  getAnswerRetrieval as getAnswerRetrievalRequest,
   getDocument as getDocumentRequest,
+  getDocumentEvidence as getDocumentEvidenceRequest,
   getDocumentTimeline as getDocumentTimelineRequest,
   getUploadPartUrls as getUploadPartUrlsRequest,
   getJob as getJobRequest,
@@ -15,16 +20,22 @@ import {
   listDocuments as listDocumentsRequest,
   listTags as listTagsRequest,
   listOpsIncidents as listOpsIncidentsRequest,
+  reindexDocument as reindexDocumentRequest,
   retryDocument as retryDocumentRequest,
   updateDocumentTags as updateDocumentTagsRequest
 } from "@xrag/api-client";
 import type {
+  AnswerRetrievalTraceResponse,
+  AnswerSessionResponse,
+  CreateAnswerRequest,
+  CreateAnswerResponse,
   CreateTagRequest,
   CreateLinkDocumentRequest,
   CreateLinkDocumentResponse,
   CreateTextDocumentRequest,
   CreateTextDocumentResponse,
   DocumentDetail,
+  DocumentEvidenceResponse,
   DocumentListResponse,
   DocumentTimelineResponse,
   HealthResponse,
@@ -32,8 +43,10 @@ import type {
   LatestDeploymentResponse,
   ListDocumentsQuery,
   ListTagsQuery,
+  OpsAnswerSummaryResponse,
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
+  ReindexDocumentResponse,
   RetryDocumentResponse,
   TagItem,
   TagListResponse,
@@ -71,6 +84,10 @@ export function getDocument(documentId: string): Promise<DocumentDetail> {
   return getDocumentRequest(documentId, API_BASE_URL);
 }
 
+export function getDocumentEvidence(documentId: string): Promise<DocumentEvidenceResponse> {
+  return getDocumentEvidenceRequest(documentId, API_BASE_URL);
+}
+
 export function getDocumentTimeline(documentId: string): Promise<DocumentTimelineResponse> {
   return getDocumentTimelineRequest(documentId, API_BASE_URL);
 }
@@ -81,6 +98,10 @@ export function updateDocumentTags(documentId: string, body: UpdateDocumentTagsR
 
 export function retryDocument(documentId: string): Promise<RetryDocumentResponse> {
   return retryDocumentRequest(documentId, API_BASE_URL);
+}
+
+export function reindexDocument(documentId: string): Promise<ReindexDocumentResponse> {
+  return reindexDocumentRequest(documentId, API_BASE_URL);
 }
 
 export function listTags(query: ListTagsQuery = {}): Promise<TagListResponse> {
@@ -103,8 +124,24 @@ export function listOpsIncidents(): Promise<OpsIncidentListResponse> {
   return listOpsIncidentsRequest(API_BASE_URL);
 }
 
+export function fetchOpsAnswerSummary(): Promise<OpsAnswerSummaryResponse> {
+  return fetchOpsAnswerSummaryRequest(API_BASE_URL);
+}
+
 export function getLatestDeployment(): Promise<LatestDeploymentResponse> {
   return getLatestDeploymentRequest(API_BASE_URL);
+}
+
+export function createAnswer(body: CreateAnswerRequest): Promise<CreateAnswerResponse> {
+  return createAnswerRequest(body, API_BASE_URL);
+}
+
+export function getAnswer(sessionId: string): Promise<AnswerSessionResponse> {
+  return getAnswerRequest(sessionId, API_BASE_URL);
+}
+
+export function getAnswerRetrieval(sessionId: string): Promise<AnswerRetrievalTraceResponse> {
+  return getAnswerRetrievalRequest(sessionId, API_BASE_URL);
 }
 
 export function initiateUpload(body: UploadInitiateRequest): Promise<UploadInitiateResponse> {

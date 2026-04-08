@@ -157,6 +157,15 @@ if (currentVersionHandoff && currentStatus) {
       errors.push("docs consistency: missing docs/generated/openapi/phase-1c-api.json for active Phase 1C status");
     }
   }
+
+  if (statusPath.endsWith("v4-phase-2a.md")) {
+    const openApiArtifact = path.join(repoRoot, "docs/generated/openapi/phase-2a-api.json");
+    try {
+      await fs.access(openApiArtifact);
+    } catch {
+      errors.push("docs consistency: missing docs/generated/openapi/phase-2a-api.json for active Phase 2A status");
+    }
+  }
 }
 
 if (errors.length > 0) {

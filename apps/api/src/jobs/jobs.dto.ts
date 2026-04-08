@@ -7,7 +7,9 @@ const JOB_TYPE_VALUES: DocumentJobType[] = [
   "refresh_search_projection",
   "run_ocr",
   "fetch_link",
-  "rebuild_search_projection"
+  "rebuild_search_projection",
+  "chunk_document",
+  "embed_document"
 ];
 const JOB_STATUS_VALUES: JobStatus[] = ["queued", "running", "succeeded", "failed", "dead"];
 const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
@@ -27,7 +29,14 @@ const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
   "link_fetch_blocked",
   "link_extract_empty",
   "link_invalid_url",
-  "search_projection_stale"
+  "search_projection_stale",
+  "index_chunk_failed",
+  "index_embedding_failed",
+  "retrieval_no_hits",
+  "retrieval_scope_empty",
+  "answer_insufficient_evidence",
+  "citation_missing",
+  "provider_timeout"
 ];
 
 export class JobStatusResponseDto implements JobStatusResponse {

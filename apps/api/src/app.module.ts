@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AnswersModule } from "./answers/answers.module";
 import { DatabaseModule } from "./database/database.module";
 import { DocumentsModule } from "./documents/documents.module";
 import { HealthModule } from "./health/health.module";
@@ -15,6 +16,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     QueueModule,
     StorageModule,
     HealthModule,
+    AnswersModule,
     OpsModule,
     TagsModule,
     JobsModule,

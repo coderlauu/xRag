@@ -6,16 +6,21 @@ import type {
   CreateTextDocumentResponse,
   DiagnosisCode,
   DocumentDetail,
-  DocumentProcessingEventItem,
-  DocumentTimelineResponse,
+  DocumentEvidenceItem,
+  DocumentEvidenceResponse,
   DocumentLatestJobInfo,
   DocumentListResponse,
+  DocumentProcessingEventItem,
   DocumentSummary,
+  DocumentTimelineResponse,
   DocumentUploadInfo,
   DocumentUploadStatus,
+  IndexStatus,
   JobStatus,
   OcrStatus,
   ParseStatus,
+  ProcessingEventStage,
+  ReindexDocumentResponse,
   RetryDocumentResponse,
   SourceOrigin,
   SourceType,
@@ -41,6 +46,7 @@ import {
 
 const PARSE_STATUS_VALUES: ParseStatus[] = ["pending", "processing", "success", "failed"];
 const OCR_STATUS_VALUES: OcrStatus[] = ["not_required", "queued", "processing", "success", "failed"];
+const INDEX_STATUS_VALUES: IndexStatus[] = ["not_indexed", "queued", "chunking", "embedding", "ready", "failed", "stale"];
 const SOURCE_TYPE_VALUES: SourceType[] = ["text", "file", "pdf", "link"];
 const SOURCE_ORIGIN_VALUES: SourceOrigin[] = ["manual_input", "upload", "link"];
 const DOCUMENT_UPLOAD_STATUS_VALUES: DocumentUploadStatus[] = [
@@ -61,6 +67,15 @@ const UPLOAD_SESSION_STATUS_VALUES: UploadSessionStatus[] = [
   "failed",
   "expired"
 ];
+const PROCESSING_EVENT_STAGE_VALUES: ProcessingEventStage[] = [
+  "upload",
+  "parse",
+  "ocr",
+  "fetch",
+  "projection",
+  "ops",
+  "index"
+];
 const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
   "storage_presign_failed",
   "multipart_part_failed",
@@ -78,7 +93,14 @@ const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
   "link_fetch_blocked",
   "link_extract_empty",
   "link_invalid_url",
-  "search_projection_stale"
+  "search_projection_stale",
+  "index_chunk_failed",
+  "index_embedding_failed",
+  "retrieval_no_hits",
+  "retrieval_scope_empty",
+  "answer_insufficient_evidence",
+  "citation_missing",
+  "provider_timeout"
 ];
 
 export class CreateTextDocumentRequestDto implements CreateTextDocumentRequest {
@@ -164,6 +186,20 @@ export class RetryDocumentResponseDto implements RetryDocumentResponse {
   diagnosis_code!: DiagnosisCode | null;
 }
 
+export class ReindexDocumentResponseDto implements ReindexDocumentResponse {
+  @ApiProperty({ type: String })
+  document_id!: string;
+
+  @ApiProperty({ type: String })
+  job_id!: string;
+
+  @ApiProperty({ type: String, enum: INDEX_STATUS_VALUES })
+  index_status!: IndexStatus;
+
+  @ApiPropertyOptional({ type: String, enum: DIAGNOSIS_CODE_VALUES, nullable: true })
+  diagnosis_code!: DiagnosisCode | null;
+}
+
 export class ListDocumentsQueryDto {
   @ApiPropertyOptional({ type: String })
   @IsOptional()
@@ -184,6 +220,11 @@ export class ListDocumentsQueryDto {
   @IsOptional()
   @IsString()
   parse_status?: string;
+
+  @ApiPropertyOptional({ type: String, enum: INDEX_STATUS_VALUES })
+  @IsOptional()
+  @IsIn(INDEX_STATUS_VALUES)
+  index_status?: IndexStatus;
 
   @ApiPropertyOptional({ type: String, example: "uploaded,failed" })
   @IsOptional()
@@ -288,6 +329,15 @@ export class DocumentSummaryDto implements DocumentSummary {
   @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })
   parse_status!: ParseStatus;
 
+  @ApiProperty({ type: String, enum: INDEX_STATUS_VALUES })
+  index_status!: IndexStatus;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  indexed_at!: string | null;
+
+  @ApiProperty({ type: Boolean })
+  citation_ready!: boolean;
+
   @ApiPropertyOptional({ type: String, enum: OCR_STATUS_VALUES, nullable: true })
   ocr_status!: OcrStatus | null;
 
@@ -351,6 +401,9 @@ export class DocumentDetailDto extends DocumentSummaryDto implements DocumentDet
   last_incident_ref!: string | null;
 
   @ApiPropertyOptional({ type: String, nullable: true })
+  index_version!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
   parser_version!: string | null;
 
   @ApiProperty({ type: String })
@@ -371,11 +424,45 @@ export class DocumentListResponseDto implements DocumentListResponse {
   total!: number;
 }
 
+export class DocumentEvidenceItemDto implements DocumentEvidenceItem {
+  @ApiProperty({ type: String })
+  chunk_id!: string;
+
+  @ApiProperty({ type: Number })
+  chunk_index!: number;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  section_label!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  page_ref!: string | null;
+
+  @ApiProperty({ type: String })
+  quote_text!: string;
+
+  @ApiPropertyOptional({ type: Object, nullable: true, additionalProperties: true })
+  locator!: Record<string, unknown> | null;
+}
+
+export class DocumentEvidenceResponseDto implements DocumentEvidenceResponse {
+  @ApiProperty({ type: String })
+  document_id!: string;
+
+  @ApiProperty({ type: String, enum: INDEX_STATUS_VALUES })
+  index_status!: IndexStatus;
+
+  @ApiProperty({ type: Boolean })
+  citation_ready!: boolean;
+
+  @ApiProperty({ type: () => DocumentEvidenceItemDto, isArray: true })
+  items!: DocumentEvidenceItemDto[];
+}
+
 export class DocumentProcessingEventItemDto implements DocumentProcessingEventItem {
   @ApiProperty({ type: String })
   event_type!: string;
 
-  @ApiProperty({ type: String, enum: ["upload", "parse", "ocr", "fetch", "projection", "ops"] })
+  @ApiProperty({ type: String, enum: PROCESSING_EVENT_STAGE_VALUES })
   stage!: DocumentProcessingEventItem["stage"];
 
   @ApiProperty({ type: String, enum: PARSE_STATUS_VALUES })

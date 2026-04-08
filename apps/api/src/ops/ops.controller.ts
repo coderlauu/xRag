@@ -1,6 +1,11 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { LatestDeploymentResponseDto, OpsHealthSummaryResponseDto, OpsIncidentListResponseDto } from "./ops.dto";
+import {
+  LatestDeploymentResponseDto,
+  OpsAnswerSummaryResponseDto,
+  OpsHealthSummaryResponseDto,
+  OpsIncidentListResponseDto
+} from "./ops.dto";
 import { OpsService } from "./ops.service";
 
 @ApiTags("ops")
@@ -20,6 +25,13 @@ export class OpsController {
   @ApiOkResponse({ type: OpsIncidentListResponseDto })
   listIncidents() {
     return this.opsService.listIncidents();
+  }
+
+  @Get("answer-summary")
+  @ApiOperation({ summary: "Get answer and indexing summary metrics" })
+  @ApiOkResponse({ type: OpsAnswerSummaryResponseDto })
+  getAnswerSummary() {
+    return this.opsService.getAnswerSummary();
   }
 
   @Get("deployments/latest")

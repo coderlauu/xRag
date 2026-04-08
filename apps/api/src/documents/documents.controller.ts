@@ -1,14 +1,25 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  ApiAcceptedResponse,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags
+} from "@nestjs/swagger";
 import {
   CreateLinkDocumentRequestDto,
   CreateLinkDocumentResponseDto,
   CreateTextDocumentRequestDto,
   CreateTextDocumentResponseDto,
   DocumentDetailDto,
+  DocumentEvidenceResponseDto,
   DocumentListResponseDto,
   DocumentTimelineResponseDto,
   ListDocumentsQueryDto,
+  ReindexDocumentResponseDto,
   RetryDocumentResponseDto,
   UpdateDocumentTagsRequestDto
 } from "./documents.dto";
@@ -42,6 +53,7 @@ export class DocumentsController {
   @ApiQuery({ name: "source_type", required: false, enum: ["text", "file", "pdf", "link"] })
   @ApiQuery({ name: "ocr_status", required: false, type: String })
   @ApiQuery({ name: "parse_status", required: false, type: String })
+  @ApiQuery({ name: "index_status", required: false, enum: ["not_indexed", "queued", "chunking", "embedding", "ready", "failed", "stale"] })
   @ApiQuery({ name: "upload_status", required: false, type: String })
   @ApiQuery({ name: "diagnosis_code", required: false, type: String })
   @ApiQuery({ name: "tags", required: false, type: String })
@@ -59,6 +71,14 @@ export class DocumentsController {
   @ApiParam({ name: "documentId", type: String })
   getDocument(@Param("documentId") documentId: string) {
     return this.documentsService.getDocument(documentId);
+  }
+
+  @Get(":documentId/evidence")
+  @ApiOperation({ summary: "Get document evidence chunks and citation locators" })
+  @ApiOkResponse({ type: DocumentEvidenceResponseDto })
+  @ApiParam({ name: "documentId", type: String })
+  getDocumentEvidence(@Param("documentId") documentId: string) {
+    return this.documentsService.getDocumentEvidence(documentId);
   }
 
   @Get(":documentId/timeline")
@@ -84,5 +104,14 @@ export class DocumentsController {
   @ApiParam({ name: "documentId", type: String })
   retryDocument(@Param("documentId") documentId: string) {
     return this.documentsService.retryDocument(documentId);
+  }
+
+  @Post(":documentId/reindex")
+  @HttpCode(202)
+  @ApiOperation({ summary: "Reindex document chunks and embeddings" })
+  @ApiAcceptedResponse({ type: ReindexDocumentResponseDto })
+  @ApiParam({ name: "documentId", type: String })
+  reindexDocument(@Param("documentId") documentId: string) {
+    return this.documentsService.reindexDocument(documentId);
   }
 }

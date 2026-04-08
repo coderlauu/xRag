@@ -2,7 +2,11 @@
 Thumbs.db
 node_modules
 .turbo
+.codex/skills/*
+!.codex/skills/xrag-iteration-governor/
+!.codex/skills/xrag-iteration-governor/**
 dist
+dist-integration
 build
 coverage
 .pnpm-store

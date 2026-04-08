@@ -5,6 +5,7 @@ import type {
   CreateTextDocumentResponse,
   DiagnosisCode,
   DocumentDetail,
+  DocumentEvidenceResponse,
   DocumentJobType,
   DocumentLatestJobInfo,
   DocumentListResponse,
@@ -12,9 +13,11 @@ import type {
   DocumentTimelineResponse,
   DocumentUploadInfo,
   DocumentUploadStatus,
+  IndexStatus,
   OcrStatus,
   UploadSessionStatus,
   ParseStatus,
+  ReindexDocumentResponse,
   RetryDocumentResponse
 } from "@xrag/shared-types";
 import {
@@ -236,6 +239,7 @@ export class DocumentsService {
       sourceType: query.source_type,
       ocrStatuses,
       parseStatuses,
+      indexStatus: query.index_status,
       uploadStatuses,
       diagnosisCode: query.diagnosis_code,
       tags,
@@ -268,6 +272,28 @@ export class DocumentsService {
     const latestJob = await this.jobsRepository.getLatestJobByDocumentId(document.id);
     const upload = document.uploadId ? await this.uploadsRepository.getUploadById(document.uploadId) : null;
     return this.toDocumentDetail(document, tagMap.get(document.id) || [], latestJob, upload);
+  }
+
+  async getDocumentEvidence(documentId: string): Promise<DocumentEvidenceResponse> {
+    const document = await this.documentsRepository.getDocumentById(documentId);
+    if (!document) {
+      throw new NotFoundException("Document not found");
+    }
+
+    const items = await this.documentsRepository.listDocumentChunksByDocumentId(documentId);
+    return {
+      document_id: document.id,
+      index_status: document.indexStatus,
+      citation_ready: document.citationReady,
+      items: items.map((item) => ({
+        chunk_id: item.id,
+        chunk_index: item.chunkIndex,
+        section_label: item.sectionLabel,
+        page_ref: item.pageRef,
+        quote_text: item.contentText,
+        locator: item.citationLocator ?? null
+      }))
+    };
   }
 
   async getDocumentTimeline(documentId: string): Promise<DocumentTimelineResponse> {
@@ -434,6 +460,107 @@ export class DocumentsService {
     };
   }
 
+  async reindexDocument(documentId: string): Promise<ReindexDocumentResponse> {
+    const reindexResult = await this.database.db.transaction(async (tx) => {
+      const document = await this.documentsRepository.getDocumentById(documentId, tx);
+      if (!document) {
+        throw new NotFoundException("Document not found");
+      }
+
+      if (document.parseStatus !== "success") {
+        throw new BadRequestException("Only successfully parsed documents can be reindexed");
+      }
+
+      if (this.isIndexActive(document.indexStatus)) {
+        throw new BadRequestException("Document indexing is already in progress");
+      }
+
+      const nextAttempt = await this.jobsRepository.getNextAttempt(documentId, tx);
+      const job = await this.jobsRepository.createJob(
+        {
+          id: randomUUID(),
+          documentId,
+          queueJobId: null,
+          jobType: "chunk_document",
+          status: "queued",
+          attempt: nextAttempt,
+          diagnosisCode: null,
+          incidentRef: null,
+          runtimeMs: null
+        },
+        tx
+      );
+
+      await this.documentsRepository.updateDocumentProjection(
+        documentId,
+        {
+          indexStatus: "queued",
+          citationReady: false,
+          diagnosisCode: null,
+          diagnosisSummary: null
+        },
+        tx
+      );
+
+      await this.documentsRepository.createProcessingEvent(
+        {
+          id: randomUUID(),
+          documentId,
+          eventType: "index_queued",
+          stage: "index",
+          status: "pending",
+          diagnosisCode: null,
+          summary: "已创建问答索引重建任务。",
+          payload: {
+            job_id: job.id
+          }
+        },
+        tx
+      );
+
+      return {
+        document_id: documentId,
+        job_id: job.id,
+        index_status: "queued" as const,
+        diagnosis_code: null
+      };
+    });
+
+    try {
+      const queueJobId = await this.queueService.enqueueChunkDocument(documentId, reindexResult.job_id);
+      await this.jobsRepository.updateJob(reindexResult.job_id, {
+        queueJobId
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to enqueue reindex job";
+      await this.jobsRepository.updateJob(reindexResult.job_id, {
+        status: "failed",
+        errorCode: "queue_backlog",
+        errorMessage: message,
+        diagnosisCode: "queue_backlog",
+        finishedAt: new Date()
+      });
+      await this.documentsRepository.updateDocumentProjection(documentId, {
+        indexStatus: "failed",
+        diagnosisCode: "queue_backlog",
+        diagnosisSummary: "索引任务未能入队，请稍后重试。"
+      });
+      await this.documentsRepository.createProcessingEvent({
+        id: randomUUID(),
+        documentId,
+        eventType: "index_enqueue_failed",
+        stage: "index",
+        status: "failed",
+        diagnosisCode: "queue_backlog",
+        summary: "问答索引任务入队失败。",
+        payload: null
+      });
+      throw new BadRequestException("Failed to enqueue reindex job");
+    }
+
+    return reindexResult;
+  }
+
   private toDocumentSummary(
     document: DocumentRow,
     tagNames: string[],
@@ -454,6 +581,9 @@ export class DocumentsService {
       source_url: document.sourceUrl,
       file_name: document.fileName,
       parse_status: document.parseStatus,
+      index_status: document.indexStatus,
+      indexed_at: document.indexedAt ? toIsoString(document.indexedAt) : null,
+      citation_ready: document.citationReady,
       ocr_status: document.ocrStatus,
       upload_status: this.toDocumentUploadStatus(document.uploadStatus),
       diagnosis_code: this.toDiagnosisCode(document.diagnosisCode),
@@ -524,11 +654,16 @@ export class DocumentsService {
       upload,
       latest_job: latestJob,
       last_incident_ref: document.lastIncidentRef,
+      index_version: document.indexVersion,
       page_count: document.pageCount,
       parser_name: document.parserName,
       parser_version: document.parserVersion,
       created_at: toIsoString(document.createdAt)
     };
+  }
+
+  private isIndexActive(status: IndexStatus): boolean {
+    return status === "queued" || status === "chunking" || status === "embedding";
   }
 
   private toDiagnosisCode(value: string | null): DiagnosisCode | null {

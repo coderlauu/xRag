@@ -12,10 +12,17 @@ import {
   sql,
   type SQL
 } from "drizzle-orm";
-import type { DiagnosisCode, DocumentUploadStatus, OcrStatus, ParseStatus, SourceType } from "@xrag/shared-types";
+import type {
+  DiagnosisCode,
+  DocumentUploadStatus,
+  IndexStatus,
+  OcrStatus,
+  ParseStatus,
+  SourceType
+} from "@xrag/shared-types";
 import { normalizeTagName } from "../common/document-utils";
 import { DatabaseService, type DatabaseClient } from "../database/database.service";
-import { documentProcessingEvents, documentTags, documents, tags } from "../database/schema";
+import { documentChunks, documentProcessingEvents, documentTags, documents, tags } from "../database/schema";
 
 type DatabaseExecutor = Pick<DatabaseClient, "select" | "insert" | "update" | "delete">;
 
@@ -24,6 +31,7 @@ export interface ListDocumentsFilters {
   sourceType?: SourceType;
   ocrStatuses: OcrStatus[];
   parseStatuses: ParseStatus[];
+  indexStatus?: IndexStatus;
   uploadStatuses: DocumentUploadStatus[];
   diagnosisCode?: DiagnosisCode;
   tags: string[];
@@ -147,6 +155,14 @@ export class DocumentsRepository {
       .orderBy(asc(documentProcessingEvents.createdAt));
   }
 
+  async listDocumentChunksByDocumentId(documentId: string, db: DatabaseExecutor = this.database.db) {
+    return db
+      .select()
+      .from(documentChunks)
+      .where(eq(documentChunks.documentId, documentId))
+      .orderBy(asc(documentChunks.chunkIndex), asc(documentChunks.createdAt));
+  }
+
   private buildWhere(filters: ListDocumentsFilters, db: DatabaseExecutor): SQL<unknown> | undefined {
     const conditions: SQL<unknown>[] = [];
 
@@ -165,6 +181,10 @@ export class DocumentsRepository {
 
     if (filters.parseStatuses.length > 0) {
       conditions.push(inArray(documents.parseStatus, filters.parseStatuses));
+    }
+
+    if (filters.indexStatus) {
+      conditions.push(eq(documents.indexStatus, filters.indexStatus));
     }
 
     if (filters.uploadStatuses.length > 0) {

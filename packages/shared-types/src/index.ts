@@ -8,20 +8,35 @@ export type DocumentUploadStatus = "draft" | "initiated" | "uploading" | "verify
 export type UploadSessionStatus = "initiated" | "uploading" | "verifying" | "uploaded" | "failed" | "expired";
 export type UploadPartStatus = "initiated" | "uploaded" | "failed";
 export type OcrStatus = "not_required" | "queued" | "processing" | "success" | "failed";
+export type IndexStatus = "not_indexed" | "queued" | "chunking" | "embedding" | "ready" | "failed" | "stale";
+export type AnswerScopeMode = "global" | "search_result" | "document";
+export type RetrievalMode = "hybrid";
+export type AnswerSessionStatus =
+  | "idle"
+  | "retrieving"
+  | "synthesizing"
+  | "answered"
+  | "needs_scope"
+  | "refused"
+  | "failed";
 export type DocumentJobType =
   | "parse_document"
   | "reparse_document"
   | "refresh_search_projection"
   | "run_ocr"
   | "fetch_link"
-  | "rebuild_search_projection";
+  | "rebuild_search_projection"
+  | "chunk_document"
+  | "embed_document";
 export type DocumentProcessingJobName =
-  | "parse-document"
-  | "reparse-document"
-  | "refresh-search-projection"
-  | "run-ocr"
-  | "fetch-link"
-  | "rebuild-search-projection";
+  | "parse_document"
+  | "reparse_document"
+  | "refresh_search_projection"
+  | "run_ocr"
+  | "fetch_link"
+  | "rebuild_search_projection";
+export type DocumentIndexingJobName = "chunk_document" | "embed_document";
+export type AnswerOrchestrationJobName = "answer_session";
 export type DiagnosisCode =
   | "storage_presign_failed"
   | "multipart_part_failed"
@@ -39,24 +54,51 @@ export type DiagnosisCode =
   | "link_fetch_blocked"
   | "link_extract_empty"
   | "link_invalid_url"
-  | "search_projection_stale";
+  | "search_projection_stale"
+  | "index_chunk_failed"
+  | "index_embedding_failed"
+  | "retrieval_no_hits"
+  | "retrieval_scope_empty"
+  | "answer_insufficient_evidence"
+  | "citation_missing"
+  | "provider_timeout";
 export type OpsServiceStatus = "healthy" | "warning" | "critical";
 export type IncidentSource = "upload" | "parse" | "ocr" | "fetch" | "projection" | "deploy" | "ci";
 export type IncidentSeverity = "low" | "medium" | "high";
 export type IncidentStatus = "open" | "tracked" | "resolved";
 export type DeploymentSmokeStatus = "passed" | "failed" | "unknown";
-export type ProcessingEventStage = "upload" | "parse" | "ocr" | "fetch" | "projection" | "ops";
+export type ProcessingEventStage = "upload" | "parse" | "ocr" | "fetch" | "projection" | "ops" | "index";
 
 export const DOCUMENT_PROCESSING_QUEUE_NAME = "document-processing" as const;
+export const DOCUMENT_INDEXING_QUEUE_NAME = "document-indexing" as const;
+export const ANSWER_ORCHESTRATION_QUEUE_NAME = "answer-orchestration" as const;
 
 export const DOCUMENT_PROCESSING_JOB_NAMES = {
-  parseDocument: "parse-document",
-  reparseDocument: "reparse-document",
-  refreshSearchProjection: "refresh-search-projection",
-  runOcr: "run-ocr",
-  fetchLink: "fetch-link",
-  rebuildSearchProjection: "rebuild-search-projection"
+  parseDocument: "parse_document",
+  reparseDocument: "reparse_document",
+  refreshSearchProjection: "refresh_search_projection",
+  runOcr: "run_ocr",
+  fetchLink: "fetch_link",
+  rebuildSearchProjection: "rebuild_search_projection"
 } as const;
+
+export const DOCUMENT_INDEXING_JOB_NAMES = {
+  chunkDocument: "chunk_document",
+  embedDocument: "embed_document"
+} as const;
+
+export const ANSWER_ORCHESTRATION_JOB_NAMES = {
+  answerSession: "answer_session"
+} as const;
+
+export interface DocumentIndexingJobData {
+  documentId: string;
+  jobId: string;
+}
+
+export interface AnswerOrchestrationJobData {
+  sessionId: string;
+}
 
 export interface HealthResponse {
   status: string;
@@ -76,6 +118,9 @@ export interface DocumentSummary {
   source_url: string | null;
   file_name: string | null;
   parse_status: ParseStatus;
+  index_status: IndexStatus;
+  indexed_at: string | null;
+  citation_ready: boolean;
   ocr_status: OcrStatus | null;
   upload_status: DocumentUploadStatus | null;
   diagnosis_code: DiagnosisCode | null;
@@ -115,6 +160,7 @@ export interface DocumentDetail extends DocumentSummary {
   upload: DocumentUploadInfo | null;
   latest_job: DocumentLatestJobInfo | null;
   last_incident_ref: string | null;
+  index_version: string | null;
   page_count: number | null;
   parser_name: string | null;
   parser_version: string | null;
@@ -133,6 +179,7 @@ export interface ListDocumentsQuery {
   source_type?: SourceType;
   ocr_status?: OcrStatus;
   parse_status?: string;
+  index_status?: IndexStatus;
   upload_status?: string;
   diagnosis_code?: string;
   tags?: string;
@@ -173,6 +220,29 @@ export interface RetryDocumentResponse {
   document_id: string;
   job_id: string;
   parse_status: ParseStatus;
+  diagnosis_code: DiagnosisCode | null;
+}
+
+export interface DocumentEvidenceItem {
+  chunk_id: string;
+  chunk_index: number;
+  section_label: string | null;
+  page_ref: string | null;
+  quote_text: string;
+  locator: Record<string, unknown> | null;
+}
+
+export interface DocumentEvidenceResponse {
+  document_id: string;
+  index_status: IndexStatus;
+  citation_ready: boolean;
+  items: DocumentEvidenceItem[];
+}
+
+export interface ReindexDocumentResponse {
+  document_id: string;
+  job_id: string;
+  index_status: IndexStatus;
   diagnosis_code: DiagnosisCode | null;
 }
 
@@ -290,6 +360,58 @@ export interface DocumentTimelineResponse {
   items: DocumentProcessingEventItem[];
 }
 
+export interface AnswerScope {
+  mode: AnswerScopeMode;
+  payload: Record<string, unknown> | null;
+}
+
+export interface CreateAnswerRequest {
+  question: string;
+  scope: AnswerScope;
+}
+
+export interface CreateAnswerResponse {
+  session_id: string;
+  status: AnswerSessionStatus;
+}
+
+export interface AnswerCitation {
+  document_id: string;
+  chunk_id: string;
+  quote_text: string;
+  locator: Record<string, unknown> | null;
+}
+
+export interface AnswerSessionResponse {
+  session_id: string;
+  question: string;
+  scope: AnswerScope;
+  status: AnswerSessionStatus;
+  answer_summary: string | null;
+  refusal_reason: string | null;
+  diagnosis_code: DiagnosisCode | null;
+  retrieval_mode: RetrievalMode;
+  citations: AnswerCitation[];
+  latency_ms: number | null;
+  total_cost_usd: string | null;
+}
+
+export interface AnswerRetrievalTraceItem {
+  document_id: string;
+  chunk_id: string | null;
+  rank: number;
+  lexical_score: number | null;
+  semantic_score: number | null;
+  final_score: number | null;
+  used_in_answer: boolean;
+  exclusion_reason: string | null;
+}
+
+export interface AnswerRetrievalTraceResponse {
+  session_id: string;
+  items: AnswerRetrievalTraceItem[];
+}
+
 export interface OpsHealthService {
   name: string;
   status: OpsServiceStatus;
@@ -313,6 +435,16 @@ export interface OpsIncidentSummary {
 
 export interface OpsIncidentListResponse {
   items: OpsIncidentSummary[];
+}
+
+export interface OpsAnswerSummaryResponse {
+  embedding_backlog: number;
+  ready_document_count: number;
+  stale_document_count: number;
+  answer_latency_p95: number | null;
+  citation_coverage: number | null;
+  refusal_rate: number | null;
+  avg_token_cost_usd: string | null;
 }
 
 export interface LatestDeploymentResponse {

@@ -14,12 +14,12 @@ async function main() {
   try {
     const config = new DocumentBuilder()
       .setTitle("xRag API")
-      .setVersion("0.4.0")
-      .setDescription("Phase 1C API contract")
+      .setVersion("0.5.0")
+      .setDescription("Phase 2A API contract")
       .addServer("http://localhost:3001")
       .build();
     const document = SwaggerModule.createDocument(app, config);
-    const outputPath = path.resolve(process.cwd(), "../../docs/generated/openapi/phase-1c-api.json");
+    const outputPath = path.resolve(process.cwd(), "../../docs/generated/openapi/phase-2a-api.json");
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, JSON.stringify(document, null, 2));
     process.stdout.write(`${outputPath}\n`);

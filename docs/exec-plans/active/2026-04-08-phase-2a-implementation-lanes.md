@@ -13,7 +13,11 @@
 
 ## 3. Main Thread First
 
-进入并行编码前，主线程必须先完成 `Lane 0`：
+进入并行编码前，主线程必须先完成 `Lane 0`。
+
+`2026-04-08` 更新：`Lane 0` 已落地并完成 `schema / migrations / shared-types / documents / answers / ops contract skeleton / OpenAPI / SDK` 的主线程冻结，当前已可按计划启动 `Lane A`、`Lane C`、`Lane E`。
+
+主线程完成项如下：
 
 1. `apps/api/src/database/schema.ts`
 2. `apps/api/src/database/migrations/*`
@@ -208,7 +212,7 @@
 
 推荐的实施顺序固定为：
 
-1. 主线程完成 `Lane 0`
+1. `Lane 0` 已完成
 2. 并行启动 `Lane A`、`Lane C`、`Lane E`
 3. 在 runtime glue 与 provider adapter 稳定后，并行启动 `Lane B`、`Lane D`
 4. 在 API client 与关键 handler 可用后，启动 `Lane F`、`Lane G`
@@ -255,3 +259,4 @@
 
 - `2026-04-08`: `Phase 2A` implementation freeze 退出条件已满足，正式切换到 implementation lanes
 - `2026-04-08`: explorer review 后，主线程 ownership 扩大到 `documents / answers / ops` 的 contract skeleton、`openapi / api-client / web api adapters`，并将下游实现拆为 `worker-runtime / indexing / provider / answer / ask / search-detail / ops / integration / e2e`
+- `2026-04-08`: `Lane 0` 已完成代码落地并通过 `@xrag/api`、`@xrag/api-client`、`@xrag/web` typecheck、`contract:check` 与 `apps/api` integration tests；下一批并行 lane 固定为 `Lane A`、`Lane C`、`Lane E`

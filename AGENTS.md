@@ -16,16 +16,17 @@
 10. [Phase 2A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md)
 11. [Phase 2A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md)
 12. [Phase 2A API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
-13. [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
-14. [Phase 2A Prototype](/Users/coderlauu/xRag/prototype/v4/index.html)
-15. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
-16. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
+13. [Phase 2A OpenAPI](/Users/coderlauu/xRag/docs/generated/openapi/phase-2a-api.json)
+14. [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
+15. [Phase 2A Prototype](/Users/coderlauu/xRag/prototype/v4/index.html)
+16. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
+17. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
 
 ## 2. 当前项目状态
 
 - 当前仓库已经完成正式工程 scaffold
 - `v1 / Phase 1A`、`v2 / Phase 1B` 与 `v3 / Phase 1C` 已完成并归档，当前活跃版本为 `v4 / Phase 2A`
-- `v4 / Phase 2A` 当前已完成 implementation freeze，并切到 implementation lanes；下一步由主线程先落 `schema / documents / answers / ops / shared-types / API contract / 状态机 / citation / scope` 的代码事实源，再启动并行 lane
+- `v4 / Phase 2A` 当前已完成 implementation freeze，并已落地 `Lane 0` 的主线程代码冻结；下一步按 exec plan 启动 `worker-runtime / provider / ask` 并行 lane
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -56,6 +57,9 @@
   - 判断是否需要新版本 handoff、status 或 exec plan
   - 脚手架生成版本文档
   - 收口版本归档流程
+- 建议使用边界：
+  - `xrag-iteration-governor`
+    - 版本分流、exec plan、status、handoff、归档
 - 如果当前 Codex 运行环境不自动发现项目内 skill，可执行：
   - `/Users/coderlauu/xRag/.codex/skills/xrag-iteration-governor/scripts/install_to_codex_home.sh`
 
@@ -69,7 +73,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v4 / Phase 2A` 已完成 `P0` tradeoff 收敛、runtime freeze prep 与 implementation freeze；可直接进入 `Lane 0` 的主线程代码冻结
+   当前 `v4 / Phase 2A` 已完成 `P0` tradeoff 收敛、runtime freeze prep、implementation freeze 与 `Lane 0` 主线程代码冻结；下一步按 `Lane A / C / E` 并行推进
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口

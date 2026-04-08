@@ -338,7 +338,8 @@ function timelineStageLabel(item: DocumentProcessingEventItem) {
     ocr: "OCR 阶段",
     fetch: "抓取阶段",
     projection: "搜索投影",
-    ops: "运维事件"
+    ops: "运维事件",
+    index: "索引阶段"
   }[item.stage];
 
   return `${stagePrefix} · ${item.summary}`;

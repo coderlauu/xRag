@@ -1,10 +1,15 @@
 import type {
+  AnswerRetrievalTraceResponse,
+  AnswerSessionResponse,
+  CreateAnswerRequest,
+  CreateAnswerResponse,
   CreateTagRequest,
   CreateLinkDocumentRequest,
   CreateLinkDocumentResponse,
   CreateTextDocumentRequest,
   CreateTextDocumentResponse,
   DocumentDetail,
+  DocumentEvidenceResponse,
   DocumentListResponse,
   DocumentTimelineResponse,
   HealthResponse,
@@ -12,8 +17,10 @@ import type {
   LatestDeploymentResponse,
   ListDocumentsQuery,
   ListTagsQuery,
+  OpsAnswerSummaryResponse,
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
+  ReindexDocumentResponse,
   RetryDocumentResponse,
   TagItem,
   TagListResponse,
@@ -90,6 +97,10 @@ export async function getDocument(documentId: string, baseUrl = "http://localhos
   return requestJson<DocumentDetail>(`/api/v1/documents/${documentId}`, undefined, baseUrl);
 }
 
+export async function getDocumentEvidence(documentId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<DocumentEvidenceResponse>(`/api/v1/documents/${documentId}/evidence`, undefined, baseUrl);
+}
+
 export async function getDocumentTimeline(documentId: string, baseUrl = "http://localhost:3001") {
   return requestJson<DocumentTimelineResponse>(`/api/v1/documents/${documentId}/timeline`, undefined, baseUrl);
 }
@@ -113,6 +124,16 @@ export async function updateDocumentTags(
 export async function retryDocument(documentId: string, baseUrl = "http://localhost:3001") {
   return requestJson<RetryDocumentResponse>(
     `/api/v1/documents/${documentId}/retry`,
+    {
+      method: "POST"
+    },
+    baseUrl
+  );
+}
+
+export async function reindexDocument(documentId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<ReindexDocumentResponse>(
+    `/api/v1/documents/${documentId}/reindex`,
     {
       method: "POST"
     },
@@ -212,4 +233,28 @@ export async function listOpsIncidents(baseUrl = "http://localhost:3001") {
 
 export async function getLatestDeployment(baseUrl = "http://localhost:3001") {
   return requestJson<LatestDeploymentResponse>("/api/v1/ops/deployments/latest", undefined, baseUrl);
+}
+
+export async function fetchOpsAnswerSummary(baseUrl = "http://localhost:3001") {
+  return requestJson<OpsAnswerSummaryResponse>("/api/v1/ops/answer-summary", undefined, baseUrl);
+}
+
+export async function createAnswer(body: CreateAnswerRequest, baseUrl = "http://localhost:3001") {
+  return requestJson<CreateAnswerResponse>(
+    "/api/v1/answers",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    baseUrl
+  );
+}
+
+export async function getAnswer(sessionId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<AnswerSessionResponse>(`/api/v1/answers/${sessionId}`, undefined, baseUrl);
+}
+
+export async function getAnswerRetrieval(sessionId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<AnswerRetrievalTraceResponse>(`/api/v1/answers/${sessionId}/retrieval`, undefined, baseUrl);
 }
