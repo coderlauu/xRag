@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical Writer"
+  short_description: "README, API docs, and technical guides"
+  default_prompt: "Use $technical-writer to write or update technical documentation accurately from code and repo sources."

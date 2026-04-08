@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implementation Lane"
+  short_description: "Scoped implementation on top of frozen plans"
+  default_prompt: "Use $implementation-lane to continue a scoped implementation task using the repo handoff, status, exec plan, and affected tech docs."

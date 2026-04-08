@@ -1,0 +1,4 @@
+interface:
+  display_name: "Answer Quality Gate"
+  short_description: "Protect citation, scope, and answer quality"
+  default_prompt: "Use $answer-quality-gate when changing retrieval, answer generation, citations, refusal behavior, or answer evaluation logic."

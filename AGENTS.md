@@ -52,14 +52,77 @@
 
 - 项目内 skill 路径：
   - [xrag-iteration-governor](/Users/coderlauu/xRag/.codex/skills/xrag-iteration-governor/SKILL.md)
+  - [implementation-lane](/Users/coderlauu/xRag/.codex/skills/implementation-lane/SKILL.md)
+  - [contract-guard](/Users/coderlauu/xRag/.codex/skills/contract-guard/SKILL.md)
+  - [answer-quality-gate](/Users/coderlauu/xRag/.codex/skills/answer-quality-gate/SKILL.md)
+  - [technical-writer](/Users/coderlauu/xRag/.codex/skills/technical-writer/SKILL.md)
+  - [doc-coauthoring](/Users/coderlauu/xRag/.codex/skills/doc-coauthoring/SKILL.md)
+  - [requesting-code-review](/Users/coderlauu/xRag/.codex/skills/requesting-code-review/SKILL.md)
+  - [systematic-debugging](/Users/coderlauu/xRag/.codex/skills/systematic-debugging/SKILL.md)
+  - [webapp-testing](/Users/coderlauu/xRag/.codex/skills/webapp-testing/SKILL.md)
+  - [frontend-design](/Users/coderlauu/xRag/.codex/skills/frontend-design/SKILL.md)
+  - [vercel-react-best-practices](/Users/coderlauu/xRag/.codex/skills/vercel-react-best-practices/SKILL.md)
+  - [web-design-guidelines](/Users/coderlauu/xRag/.codex/skills/web-design-guidelines/SKILL.md)
 - 用途：
   - 新需求分流
   - 判断是否需要新版本 handoff、status 或 exec plan
   - 脚手架生成版本文档
   - 收口版本归档流程
+  - 按冻结边界推进实现 lane
+  - 保护 API、schema、shared-types 与状态机 contract
+  - 保护 citation、scope、retrieval 与 answer 质量
+  - 技术文档、设计文档与实现文档协作
+  - 复杂 bug 排查、代码审查、Web 测试与前端实现
 - 建议使用边界：
   - `xrag-iteration-governor`
     - 版本分流、exec plan、status、handoff、归档
+  - `implementation-lane`
+    - 在现有 PRD、handoff、status、exec plan 与 `tech/*` 边界内推进实现
+  - `contract-guard`
+    - API、schema、shared-types、状态枚举、状态机、OpenAPI、SDK contract 变更与审查
+  - `answer-quality-gate`
+    - citation、scope、retrieval、freshness、refusal、answer eval 相关实现与审查
+  - `technical-writer`
+    - README、API 文档、操作说明、迁移说明、运行说明
+  - `doc-coauthoring`
+    - RFC、技术方案、设计文档、决策文档
+  - `requesting-code-review`
+    - 实现完成后或提交前做代码审查
+  - `systematic-debugging`
+    - bug、测试失败、异常行为、集成问题排查
+  - `webapp-testing`
+    - Web 流程验证、E2E 自动化与 UI 调试
+  - `frontend-design`
+    - 页面、组件、Dashboard、交互界面生成与美化
+  - `vercel-react-best-practices`
+    - React/Next.js 编写、重构、性能优化
+  - `web-design-guidelines`
+    - UI/UX、一致性、可访问性与设计规范审查
+- 任务路由建议：
+  - 需求分流、版本推进、handoff/status/exec plan
+    - 优先使用 `xrag-iteration-governor`
+  - 按现有冻结边界推进代码实现
+    - 优先使用 `implementation-lane`
+  - 任何 API、schema、shared-types、状态机、OpenAPI、SDK 变更
+    - 优先使用 `contract-guard`
+  - 任何 citation、scope、retrieval、answer、refusal、freshness、eval 变更
+    - 优先使用 `answer-quality-gate`
+  - README、API 文档、操作文档、迁移说明
+    - 优先使用 `technical-writer`
+  - 方案文档、RFC、设计文档、决策文档
+    - 优先使用 `doc-coauthoring`
+  - bug、测试失败、异常行为
+    - 优先使用 `systematic-debugging`
+  - 实现完成、提交前、重构后审查
+    - 优先使用 `requesting-code-review`
+  - 浏览器流程验证、E2E、页面行为调试
+    - 优先使用 `webapp-testing`
+  - Web 页面实现与视觉重构
+    - 优先使用 `frontend-design`
+  - React/Next.js 代码编写、重构、性能优化
+    - 优先使用 `vercel-react-best-practices`
+  - UI/UX 审查、可访问性、一致性检查
+    - 优先使用 `web-design-guidelines`
 - 如果当前 Codex 运行环境不自动发现项目内 skill，可执行：
   - `/Users/coderlauu/xRag/.codex/skills/xrag-iteration-governor/scripts/install_to_codex_home.sh`
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Contract Guard"
+  short_description: "Protect API, schema, and shared contracts"
+  default_prompt: "Use $contract-guard to review or implement changes that may affect APIs, schema, shared types, state machines, or generated contracts."
