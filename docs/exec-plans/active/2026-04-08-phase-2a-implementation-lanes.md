@@ -15,7 +15,7 @@
 
 进入并行编码前，主线程必须先完成 `Lane 0`。
 
-`2026-04-08` 更新：`Lane 0` 已落地并完成 `schema / migrations / shared-types / documents / answers / ops contract skeleton / OpenAPI / SDK` 的主线程冻结；首批 `Lane A`、`Lane C`、`Lane E` 也已完成并进入主线，当前已可按计划启动 `Lane B`、`Lane D`。
+`2026-04-08` 更新：`Lane 0` 已落地并完成 `schema / migrations / shared-types / documents / answers / ops contract skeleton / OpenAPI / SDK` 的主线程冻结；`Lane A / C / E` 与 `Lane B / D` 也已完成并进入主线，当前已可按计划启动 `Lane F`、`Lane G`。
 
 主线程完成项如下：
 
@@ -214,7 +214,7 @@
 
 1. `Lane 0` 已完成
 2. `Lane A`、`Lane C`、`Lane E` 已完成并合流
-3. 在 runtime glue 与 provider adapter 稳定后，并行启动 `Lane B`、`Lane D`
+3. 在 runtime glue 与 provider adapter 稳定后，`Lane B`、`Lane D` 已完成并合流
 4. 在 API client 与关键 handler 可用后，启动 `Lane F`、`Lane G`
 5. `Lane B / D / E / F / G` 合流后，再启动 `Lane H` 与 `Lane I`
 6. 主线程统一做 OpenAPI / SDK 再生成、集成验证、状态回写和文档收口
@@ -261,3 +261,4 @@
 - `2026-04-08`: explorer review 后，主线程 ownership 扩大到 `documents / answers / ops` 的 contract skeleton、`openapi / api-client / web api adapters`，并将下游实现拆为 `worker-runtime / indexing / provider / answer / ask / search-detail / ops / integration / e2e`
 - `2026-04-08`: `Lane 0` 已完成代码落地并通过 `@xrag/api`、`@xrag/api-client`、`@xrag/web` typecheck、`contract:check` 与 `apps/api` integration tests；下一批并行 lane 固定为 `Lane A`、`Lane C`、`Lane E`
 - `2026-04-08`: `Lane A` 已通过 `dd22d54`、`452d68e` 合流，`Lane C` 已通过 `158c258` 合流，`Lane E` 已通过 `bdd2073` 合流；下一批并行 lane 固定为 `Lane B`、`Lane D`
+- `2026-04-08`: `Lane B` 与 `Lane D` 已通过 `ca138aa` 合流，并补齐 `document-indexing`、`hybrid retrieval`、`citation persistence` 与 `answer-orchestration` 主链；下一批并行 lane 固定为 `Lane F`、`Lane G`

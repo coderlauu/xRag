@@ -110,10 +110,10 @@
 
 ## 4. 执行规则
 
-1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane C` 与 `Lane E`；代码开发已进入第二批 worker lane
+1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D` 与 `Lane E`；代码开发已进入 `search/detail + ops` 集成阶段
 2. `v4` 的技术评估仍严格限制在 `P0`，不允许让 `P1` 或 `deferred` 能力提前挤占主线
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前版本真实进度统一写入 `docs/status/v4-phase-2a.md`
-4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及首批 `worker-runtime / provider / ask` 并行 lane；下一步按既定顺序进入 `indexing / answer`，随后再进入 `search-detail / ops / tests` lane；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
+4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `worker-runtime / indexing / provider / answer / ask` 主链；下一步按既定顺序进入 `search-detail / ops`，随后再进入 `tests` lane；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
 
 ---
 
