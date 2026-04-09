@@ -36,13 +36,13 @@
 - `upload-storage`: `not-started`
 - `worker-pipeline`: `completed`
 - `web-integration`: `completed`
-- `testing`: `not-started`
+- `testing`: `in-progress`
 - `ci-cd`: `not-started`
 
 ## 4. Current Node
 
-- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F` 与 `Lane G`；`ask / search / detail / ops` 已全部接通 `scope snapshot`、`evidence / reindex / freshness` 与 `ops answer summary` 主链。production ops hardening 支线已通过 `4b0146e` 合流，不再阻塞 `Phase 2A` 主线推进。
-- `next`: 按既定顺序进入 `Lane H` 与 `Lane I`，补齐 `answers / evidence / reindex / ops/answer-summary` 的 integration 与 `ask / search / detail / ops` 的 e2e / smoke
+- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F` 与 `Lane G`，并已补上 `Lane H / I` 的 integration 与 e2e/smoke 资产；当前测试 lane 已进入“代码已落地、等待 Docker/DB 环境完成实跑验证”的收口节点。production ops hardening 支线已通过 `4b0146e` 合流，不再阻塞 `Phase 2A` 主线推进。
+- `next`: 在具备 Docker CLI、PostgreSQL 与 test env 的环境里完成 `test:integration`、`test:e2e` 与 smoke，随后进入 `ci-cd` / release-readiness 收口
 
 ## 5. Blockers
 
@@ -52,9 +52,9 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-09` `Lane F / G` 完成后已通过 `apps/api` typecheck、`apps/web` typecheck、`git diff --check`、文档链接检查与文档一致性检查；production ops hardening 已在主线通过 shell 语法校验、数据库现场核验、MinIO 对象确认与主机磁盘清理验证
-- `result`: `passed_with_testing_pending`
-- `latest_failure`: 无
+- `latest_validation`: `2026-04-09` `Lane H / I` 已通过 `apps/api` typecheck、`apps/web` Playwright suite discovery、`bash -n scripts/run-e2e-smoke.sh`、`git diff --check`、文档链接检查与文档一致性检查；`Lane F / G` 的 `apps/api` / `apps/web` typecheck 仍保持通过。当前唯一未完成项是缺少 Docker CLI / PostgreSQL runtime，无法在本机完成 integration 与 smoke 实跑
+- `result`: `passed_with_runtime_validation_pending`
+- `latest_failure`: `test:integration` 与 `test:e2e` 在当前会话环境下无法实跑，原因是缺少 Docker CLI / daemon，且本机无 `127.0.0.1:5432` PostgreSQL test runtime
 
 ## 7. Linked Artifacts
 

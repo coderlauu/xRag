@@ -17,6 +17,8 @@
 
 `2026-04-09` 更新：`Lane F` 与 `Lane G` 已完成并合流，`search/detail` 已接通 `scope snapshot / evidence / reindex / freshness`，`ops/answer-summary` 已接通后端聚合与前端 ops 页面；当前进入 `Lane H` 与 `Lane I`。
 
+`2026-04-09` 更新：`Lane H` 与 `Lane I` 的测试资产已完成并回到主线工作树；当前唯一 blocker 是本机会话缺少 Docker CLI / daemon 与本地 PostgreSQL test runtime，暂时只能完成静态校验，未能在本机实跑 `integration / e2e / smoke`。
+
 `2026-04-08` 更新：`Lane 0` 已落地并完成 `schema / migrations / shared-types / documents / answers / ops contract skeleton / OpenAPI / SDK` 的主线程冻结；`Lane A / C / E` 与 `Lane B / D` 也已完成并进入主线，当前已可按计划启动 `Lane F`、`Lane G`。
 
 主线程完成项如下：
@@ -218,8 +220,8 @@
 2. `Lane A`、`Lane C`、`Lane E` 已完成并合流
 3. 在 runtime glue 与 provider adapter 稳定后，`Lane B`、`Lane D` 已完成并合流
 4. 在 API client 与关键 handler 可用后，`Lane F`、`Lane G` 已完成并合流
-5. `Lane E / F / G` 合流后，当前启动 `Lane H` 与 `Lane I`
-6. 主线程统一做 OpenAPI / SDK 再生成、集成验证、状态回写和文档收口
+5. `Lane E / F / G` 合流后，`Lane H` 与 `Lane I` 的测试资产已完成
+6. 主线程当前做测试资产合流、状态回写和文档收口；待 Docker/DB 环境可用后补跑 integration / e2e / smoke
 
 ## 6. Ownership Rules
 
@@ -265,3 +267,4 @@
 - `2026-04-08`: `Lane A` 已通过 `dd22d54`、`452d68e` 合流，`Lane C` 已通过 `158c258` 合流，`Lane E` 已通过 `bdd2073` 合流；下一批并行 lane 固定为 `Lane B`、`Lane D`
 - `2026-04-08`: `Lane B` 与 `Lane D` 已通过 `ca138aa` 合流，并补齐 `document-indexing`、`hybrid retrieval`、`citation persistence` 与 `answer-orchestration` 主链；下一批并行 lane 固定为 `Lane F`、`Lane G`
 - `2026-04-09`: `Lane F` 与 `Lane G` 已通过本次实现合流，`search/detail` 已接通 `scope snapshot / evidence / reindex / freshness`，`ops/answer-summary` 已接通后端聚合与前端 ops 页面；下一批并行 lane 固定为 `Lane H`、`Lane I`
+- `2026-04-09`: `Lane H` 与 `Lane I` 已补齐 `answers / evidence / reindex / ops/answer-summary` integration tests 与 `ask / search / detail / ops` e2e/smoke 资产；当前待在 Docker/DB 环境中完成实跑验证，再关闭本计划
