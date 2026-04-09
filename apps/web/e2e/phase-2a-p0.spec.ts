@@ -19,7 +19,7 @@ test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, 
   });
 
   await reindexDocument(page);
-  const evidenceChunkId = await waitForEvidenceChunkId(page);
+  const initialEvidenceChunkId = await waitForEvidenceChunkId(page);
 
   await page.goto("/search");
   await page.getByLabel("搜索文档").fill(baseTitle);
@@ -27,27 +27,30 @@ test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, 
   await page.getByRole("button", { name: "开始检索" }).click();
 
   await expect(page).toHaveURL(/index_status=not_indexed/);
-  await expect(page.getByRole("link", { name: plainTitle })).toBeVisible();
-  await expect(page.getByText("待引用")).toBeVisible();
+  const plainResultCard = page.locator("article").filter({ has: page.getByRole("link", { name: plainTitle }) });
+  await expect(plainResultCard).toBeVisible();
+  await expect(plainResultCard.getByText(/^待引用$/)).toBeVisible();
 
   await page.getByLabel("索引状态").selectOption("ready");
   await page.getByRole("button", { name: "开始检索" }).click();
 
   await expect(page).toHaveURL(/index_status=ready/);
-  await expect(page.getByRole("link", { name: indexedTitle })).toBeVisible();
-  await expect(page.getByText("可引用")).toBeVisible();
+  const indexedResultCard = page.locator("article").filter({ has: page.getByRole("link", { name: indexedTitle }) });
+  await expect(indexedResultCard).toBeVisible();
+  await expect(indexedResultCard.getByText(/^可引用$/)).toBeVisible();
 
   await page.getByRole("link", { name: indexedTitle }).click();
   await expect(page).toHaveURL(new RegExp(`/detail/${indexedDocId}`));
-  await expect(page.getByText("引用证据")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "引用证据" })).toBeVisible();
 
-  const evidenceCard = page.locator(`[id="evidence-${evidenceChunkId}"]`);
+  const evidenceCard = page.locator(`[id="evidence-${initialEvidenceChunkId}"]`);
   await expect(evidenceCard).toBeVisible();
   await expect(page.getByRole("button", { name: "重建索引" })).toBeEnabled();
 
   await page.getByRole("button", { name: "重建索引" }).click();
   await expect(page.getByText("索引任务已提交")).toBeVisible();
   await expect(page.getByText("可跳回")).toBeVisible();
+  const reindexedEvidenceChunkId = await waitForEvidenceChunkId(page, initialEvidenceChunkId);
 
   await page.goto("/ask");
   await page.getByLabel("问题").fill("这份资料的核心内容是什么？");
@@ -55,21 +58,20 @@ test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, 
   await page.getByLabel("文档 ID").fill(indexedDocId);
   await page.getByRole("button", { name: "开始问答" }).click();
 
-  await expect(page.getByText("已回答")).toBeVisible({ timeout: 120_000 });
-  await expect(page.getByText("证据链")).toBeVisible();
-  await expect(page.getByText("检索 Trace")).toBeVisible();
+  const answerStatusCard = page.locator("article").filter({ hasText: "会话状态" }).first();
+  await expect(answerStatusCard.getByText(/^已回答$/)).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByRole("heading", { name: "证据链" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "检索 Trace" })).toBeVisible();
 
-  const citationLink = page.locator("section").filter({ hasText: "证据链" }).getByRole("link", {
-    name: indexedDocId
-  });
+  const citationLink = page.locator(`a[href^="/detail/${indexedDocId}#evidence-"]`).first();
   await expect(citationLink).toBeVisible();
   await citationLink.click();
 
-  await expect(page).toHaveURL(new RegExp(`#evidence-${evidenceChunkId}$`));
-  await expect(page.getByText("引用证据")).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`#evidence-${reindexedEvidenceChunkId}$`));
+  await expect(page.getByRole("heading", { name: "引用证据" })).toBeVisible();
 
   await page.goto("/ops");
-  await expect(page.getByText("答案摘要")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "答案摘要" })).toBeVisible();
   await expect(page.getByText("可回答文档")).toBeVisible();
   await expect(page.getByText("失败文档")).toBeVisible();
   await expect(page.getByText("引用覆盖率")).toBeVisible();
@@ -116,9 +118,15 @@ async function reindexDocument(page: Page) {
   await expect(page.getByText("索引任务已提交")).toBeVisible({ timeout: 60_000 });
 }
 
-async function waitForEvidenceChunkId(page: Page) {
+async function waitForEvidenceChunkId(page: Page, previousChunkId?: string) {
   const evidenceCard = page.locator('[id^="evidence-"]').first();
   await expect(evidenceCard).toBeVisible({ timeout: 120_000 });
+
+  if (previousChunkId) {
+    await expect
+      .poll(() => evidenceCard.getAttribute("id"), { timeout: 120_000 })
+      .not.toBe(`evidence-${previousChunkId}`);
+  }
 
   const evidenceId = await evidenceCard.getAttribute("id");
   if (!evidenceId) {

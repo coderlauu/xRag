@@ -84,8 +84,35 @@ export function DetailPage() {
     queryKey: ["document", documentId, "evidence"],
     queryFn: () => getDocumentEvidence(documentId),
     enabled: hasValidDocumentId,
-    refetchInterval: () => (documentQuery.data && isIndexActive(documentQuery.data.index_status) ? 3000 : false)
+    refetchInterval: (query) => {
+      if (!documentQuery.data) {
+        return false;
+      }
+
+      if (isIndexActive(documentQuery.data.index_status)) {
+        return 3000;
+      }
+
+      if (
+        isCitationReady(documentQuery.data.index_status, documentQuery.data.citation_ready) &&
+        (query.state.data?.items.length ?? 0) === 0
+      ) {
+        return 3000;
+      }
+
+      return false;
+    }
   });
+
+  useEffect(() => {
+    if (!hasValidDocumentId || !documentQuery.data) {
+      return;
+    }
+
+    if (documentQuery.data.index_status === "ready" && documentQuery.data.indexed_at) {
+      void queryClient.invalidateQueries({ queryKey: ["document", documentId, "evidence"] });
+    }
+  }, [documentId, documentQuery.data?.index_status, documentQuery.data?.indexed_at, hasValidDocumentId, queryClient]);
 
   const timelineQuery = useQuery({
     queryKey: ["document", documentId, "timeline"],

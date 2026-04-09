@@ -12,7 +12,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "../api/node_modules/.bin/tsx ../api/src/main.ts",
+      command: "../api/node_modules/.bin/tsc -p ../api/tsconfig.json && PORT=3001 node ../api/dist/apps/api/src/main.js",
       url: "http://127.0.0.1:3001/api/v1/health",
       reuseExistingServer: true,
       timeout: 60_000

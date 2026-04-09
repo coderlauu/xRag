@@ -210,8 +210,7 @@ test("answers API creates and exposes answer session, citations, and retrieval t
               prompt_tokens = 14,
               completion_tokens = 28,
               total_cost_usd = 1.2345,
-              finished_at = now(),
-              updated_at = now()
+              finished_at = now()
           where id = $1
         `,
         [sessionId]

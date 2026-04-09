@@ -19,6 +19,8 @@
 
 `2026-04-09` 更新：`Lane H` 与 `Lane I` 的测试资产已完成并回到主线工作树；当前唯一 blocker 是本机会话缺少 Docker CLI / daemon 与本地 PostgreSQL test runtime，暂时只能完成静态校验，未能在本机实跑 `integration / e2e / smoke`。
 
+`2026-04-09` 更新：当前会话已具备 Docker CLI 与本地 test runtime，`./scripts/run-api-integration.sh` 已通过 `12/12`，`./scripts/run-e2e-smoke.sh` 已通过 `4/4`；同时已修复 detail 页重复 `reindex` 后 evidence 可能停留旧 chunk 的刷新问题，并把 Phase 2A smoke spec 的 selector / jumpback 假设收敛到真实行为。implementation lanes 现已完成测试收口，可转入 `ci-cd / release-readiness`。
+
 `2026-04-08` 更新：`Lane 0` 已落地并完成 `schema / migrations / shared-types / documents / answers / ops contract skeleton / OpenAPI / SDK` 的主线程冻结；`Lane A / C / E` 与 `Lane B / D` 也已完成并进入主线，当前已可按计划启动 `Lane F`、`Lane G`。
 
 主线程完成项如下：
@@ -221,7 +223,7 @@
 3. 在 runtime glue 与 provider adapter 稳定后，`Lane B`、`Lane D` 已完成并合流
 4. 在 API client 与关键 handler 可用后，`Lane F`、`Lane G` 已完成并合流
 5. `Lane E / F / G` 合流后，`Lane H` 与 `Lane I` 的测试资产已完成
-6. 主线程当前做测试资产合流、状态回写和文档收口；待 Docker/DB 环境可用后补跑 integration / e2e / smoke
+6. 主线程已完成测试资产合流、状态回写和文档收口，并已在 Docker/DB 环境完成 integration / e2e / smoke 实跑；下一步转入 `ci-cd / release-readiness`
 
 ## 6. Ownership Rules
 

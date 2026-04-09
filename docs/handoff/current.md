@@ -112,10 +112,10 @@
 
 ## 4. 执行规则
 
-1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F`、`Lane G`，以及 `Lane H / I` 的测试资产；当前节点为 `tests validation`
+1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F`、`Lane G`、`Lane H` 与 `Lane I`；`integration / e2e / smoke` 已在本地 Docker 环境完成实跑验证，当前节点转入 `ci-cd / release-readiness`
 2. `v4` 的技术评估仍严格限制在 `P0`，不允许让 `P1` 或 `deferred` 能力提前挤占主线
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前版本真实进度统一写入 `docs/status/v4-phase-2a.md`
-4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `worker-runtime / indexing / provider / answer / ask / search / detail / ops` 主链和 `tests` 资产补齐；下一步是在 Docker/DB 可用环境里完成 integration / e2e / smoke 实跑，再进入 `ci-cd` 与 release-readiness 收口；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
+4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `worker-runtime / indexing / provider / answer / ask / search / detail / ops` 主链和 `tests` 资产补齐；`integration / e2e / smoke` 已在 Docker/DB 可用环境里完成实跑验证。下一步进入 `ci-cd` 与 release-readiness 收口；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
 
 ---
 
