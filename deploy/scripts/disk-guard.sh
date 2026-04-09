@@ -9,6 +9,7 @@ fail_percent="${XRAG_DISK_FAIL_PERCENT:-95}"
 keep_releases="${XRAG_KEEP_RELEASES:-5}"
 log_truncate_mb="${XRAG_DOCKER_LOG_TRUNCATE_MB:-200}"
 docker_prune_enabled="${XRAG_DOCKER_PRUNE_ENABLED:-1}"
+protected_releases_csv="${XRAG_PROTECTED_RELEASES:-}"
 shared_tmp_dir="${deploy_root}/shared/tmp"
 releases_dir="${deploy_root}/releases"
 
@@ -48,6 +49,23 @@ docker_run() {
   "${docker_cmd[@]}" "$@"
 }
 
+is_protected_release() {
+  local release_id="${1:?release id is required}"
+  local protected_release
+
+  IFS=',' read -r -a protected_releases <<< "${protected_releases_csv}"
+  for protected_release in "${protected_releases[@]}"; do
+    protected_release="${protected_release#"${protected_release%%[![:space:]]*}"}"
+    protected_release="${protected_release%"${protected_release##*[![:space:]]}"}"
+    [[ -z "${protected_release}" ]] && continue
+    if [[ "${protected_release}" == "${release_id}" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 cleanup_shared_tmp() {
   mkdir -p "${shared_tmp_dir}"
   find "${shared_tmp_dir}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
@@ -56,22 +74,48 @@ cleanup_shared_tmp() {
 
 trim_releases() {
   local release_count
+  local deleted_count=0
+  local release_id
+  local releases=()
   mkdir -p "${releases_dir}"
-  release_count="$(find "${releases_dir}" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+  while IFS= read -r release_id; do
+    [[ -z "${release_id}" ]] && continue
+    releases+=("${release_id}")
+  done < <(
+    find "${releases_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %f\n' \
+      | sort -n \
+      | awk '{ print $2 }'
+  )
+  release_count="${#releases[@]}"
 
   if [[ "${release_count}" -le "${keep_releases}" ]]; then
     log "release 数量 ${release_count}，无需裁剪。"
     return 0
   fi
 
-  find "${releases_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
-    | sort \
-    | head -n "-${keep_releases}" \
-    | while read -r release_id; do
-        [[ -z "${release_id}" ]] && continue
-        rm -rf "${releases_dir}/${release_id}"
-        log "已删除旧 release: ${release_id}"
-      done
+  for release_id in "${releases[@]}"; do
+    if [[ "${release_count}" -le "${keep_releases}" ]]; then
+      break
+    fi
+
+    if is_protected_release "${release_id}"; then
+      log "跳过受保护 release: ${release_id}"
+      continue
+    fi
+
+    rm -rf "${releases_dir:?}/${release_id}"
+    log "已删除旧 release: ${release_id}"
+    release_count=$((release_count - 1))
+    deleted_count=$((deleted_count + 1))
+  done
+
+  if [[ "${deleted_count}" -eq 0 ]]; then
+    log "未找到可删除的旧 release；当前数量 ${release_count}。"
+  elif [[ "${release_count}" -gt "${keep_releases}" ]]; then
+    log "存在受保护 release，裁剪后仍保留 ${release_count} 个 release。"
+  else
+    log "release 已裁剪到 ${release_count} 个。"
+  fi
 }
 
 truncate_large_container_logs() {

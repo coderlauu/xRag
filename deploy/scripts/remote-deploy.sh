@@ -125,6 +125,7 @@ XRAG_DISK_PRUNE_PERCENT="$(read_env_file_key XRAG_DISK_PRUNE_PERCENT || true)" \
 XRAG_DISK_FAIL_PERCENT="$(read_env_file_key XRAG_DISK_FAIL_PERCENT || true)" \
 XRAG_KEEP_RELEASES="$(read_env_file_key XRAG_KEEP_RELEASES || true)" \
 XRAG_DOCKER_LOG_TRUNCATE_MB="$(read_env_file_key XRAG_DOCKER_LOG_TRUNCATE_MB || true)" \
+XRAG_PROTECTED_RELEASES="${image_tag}" \
 "${disk_guard_path}" "${deploy_root}"
 
 docker_login_with_retry
