@@ -344,6 +344,7 @@ export function AskPage() {
                           className="font-semibold tracking-[-0.03em] text-slate-950 underline-offset-4 hover:underline"
                           to="/detail/$documentId"
                           params={{ documentId: citation.document_id }}
+                          hash={`evidence-${citation.chunk_id}`}
                         >
                           {citation.document_id}
                         </Link>
@@ -386,6 +387,7 @@ export function AskPage() {
                           className="font-semibold tracking-[-0.03em] text-slate-950 underline-offset-4 hover:underline"
                           to="/detail/$documentId"
                           params={{ documentId: item.document_id }}
+                          hash={item.chunk_id ? `evidence-${item.chunk_id}` : undefined}
                         >
                           {item.document_id}
                         </Link>

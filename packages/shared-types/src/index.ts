@@ -441,6 +441,7 @@ export interface OpsAnswerSummaryResponse {
   embedding_backlog: number;
   ready_document_count: number;
   stale_document_count: number;
+  failed_document_count: number;
   answer_latency_p95: number | null;
   citation_coverage: number | null;
   refusal_rate: number | null;

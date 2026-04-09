@@ -7,6 +7,11 @@ import {
   buildDocumentsQuery,
   diagnosisLabel,
   formatDateTime,
+  formatRelativeTime,
+  indexStatusLabel,
+  indexStatusTone,
+  isCitationReady,
+  isIndexActive,
   jobStatusLabel,
   joinTags,
   normalizeSearchFilters,
@@ -15,6 +20,8 @@ import {
   serializeSearchFilters,
   sourceTypeLabel,
   splitTags,
+  summarizeIndexReadiness,
+  summarizeSearchScopeSnapshot,
   uploadStatusLabel
 } from "../../../lib/document-state";
 
@@ -38,6 +45,15 @@ export function SearchPage() {
 
   const total = documentsQuery.data?.total || 0;
   const items = documentsQuery.data?.items || [];
+  const currentPageReadyCount = items.filter((item) => isCitationReady(item.index_status, item.citation_ready)).length;
+  const currentPageActiveCount = items.filter((item) => isIndexActive(item.index_status)).length;
+  const currentPageStaleCount = items.filter((item) => item.index_status === "stale" || item.index_status === "failed").length;
+  const searchScopeHint = summarizeSearchScopeSnapshot(
+    items.length,
+    currentPageReadyCount,
+    currentPageActiveCount,
+    currentPageStaleCount
+  );
 
   const submitFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,12 +74,43 @@ export function SearchPage() {
     <PageShell
       eyebrow="检索"
       title="快速重新找到文档"
-      description="按标题、正文、标签、文件名和来源元数据做关键词检索。"
+      description="按标题、正文、标签、文件名、来源元数据和索引状态做关键词检索。"
     >
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <StatCard label="匹配结果" value={String(total)} hint="基于当前筛选条件" />
-        <StatCard label="每页数量" value={String(activeFilters.page_size)} hint="分页状态写入 URL" />
-        <StatCard label="当前页" value={String(activeFilters.page)} hint="可直接翻页分享" />
+        <StatCard
+          label="可引用"
+          value={String(currentPageReadyCount)}
+          hint="当前页已满足 citation_ready"
+          tone={currentPageReadyCount === 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="索引中"
+          value={String(currentPageActiveCount)}
+          hint="当前页仍在 chunking / embedding"
+          tone={currentPageActiveCount > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="需重建"
+          value={String(currentPageStaleCount)}
+          hint="当前页索引失效或失败"
+          tone={currentPageStaleCount > 0 ? "warning" : "default"}
+        />
+      </section>
+
+      <section className="rounded-[28px] border border-slate-200 bg-white/90 px-5 py-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="grid gap-1">
+            <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">search_result 作用域快照（当前页）</p>
+            <p className="m-0 text-sm leading-6 text-slate-700">{searchScopeHint}</p>
+            <p className="m-0 text-xs leading-6 text-slate-500">
+              进入 Ask Workspace 后，请优先把已可引用的 document_id 作为手动范围输入；索引未就绪的条目不建议直接纳入证据追踪。
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link to="/ask">去 Ask Workspace</Link>
+          </Button>
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1.15fr)]">
@@ -78,7 +125,7 @@ export function SearchPage() {
                 onChange={(event) => setDraftFilters((current) => ({ ...current, q: event.target.value }))}
               />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <Select
                 aria-label="来源类型"
                 value={draftFilters.source_type}
@@ -89,6 +136,20 @@ export function SearchPage() {
                 <option value="file">文件</option>
                 <option value="pdf">PDF</option>
                 <option value="link">链接</option>
+              </Select>
+              <Select
+                aria-label="索引状态"
+                value={draftFilters.index_status}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, index_status: event.target.value }))}
+              >
+                <option value="">全部索引状态</option>
+                <option value="not_indexed">未索引</option>
+                <option value="queued">排队中</option>
+                <option value="chunking">切分中</option>
+                <option value="embedding">向量化中</option>
+                <option value="ready">已可引用</option>
+                <option value="failed">索引失败</option>
+                <option value="stale">已过期</option>
               </Select>
               <Select
                 aria-label="OCR 状态"
@@ -114,19 +175,6 @@ export function SearchPage() {
                 <option value="failed">解析失败</option>
               </Select>
               <Select
-                aria-label="上传状态"
-                value={draftFilters.upload_status}
-                onChange={(event) => setDraftFilters((current) => ({ ...current, upload_status: event.target.value }))}
-              >
-                <option value="">全部上传状态</option>
-                <option value="draft">草稿</option>
-                <option value="initiated">已初始化</option>
-                <option value="uploading">上传中</option>
-                <option value="verifying">校验中</option>
-                <option value="uploaded">已上传</option>
-                <option value="failed">上传失败</option>
-              </Select>
-              <Select
                 aria-label="诊断码"
                 value={draftFilters.diagnosis_code}
                 onChange={(event) => setDraftFilters((current) => ({ ...current, diagnosis_code: event.target.value }))}
@@ -149,6 +197,19 @@ export function SearchPage() {
                 <option value="link_invalid_url">链接地址无效</option>
                 <option value="search_projection_stale">搜索投影需要刷新</option>
                 <option value="queue_backlog">解析任务入队失败</option>
+              </Select>
+              <Select
+                aria-label="上传状态"
+                value={draftFilters.upload_status}
+                onChange={(event) => setDraftFilters((current) => ({ ...current, upload_status: event.target.value }))}
+              >
+                <option value="">全部上传状态</option>
+                <option value="draft">草稿</option>
+                <option value="initiated">已初始化</option>
+                <option value="uploading">上传中</option>
+                <option value="verifying">校验中</option>
+                <option value="uploaded">已上传</option>
+                <option value="failed">上传失败</option>
               </Select>
             </div>
             <div className="grid gap-3">
@@ -217,6 +278,7 @@ export function SearchPage() {
                       source_type: "",
                       ocr_status: "",
                       parse_status: "",
+                      index_status: "",
                       upload_status: "",
                       diagnosis_code: "",
                       tags: "",
@@ -233,11 +295,14 @@ export function SearchPage() {
             </div>
           ) : (
             <div className="grid gap-3">
-              {items.map((item) => (
-                <article
-                  className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm leading-6 text-slate-700"
-                  key={item.id}
-                >
+              {items.map((item) => {
+                const citationReady = isCitationReady(item.index_status, item.citation_ready);
+
+                return (
+                  <article
+                    className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm leading-6 text-slate-700"
+                    key={item.id}
+                  >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="grid gap-1">
                       <Link
@@ -251,14 +316,22 @@ export function SearchPage() {
                         <span>{sourceTypeLabel(item.source_type)}</span>
                         <span>{item.file_name || "手动输入"}</span>
                         <span>{formatDateTime(item.imported_at)}</span>
+                        {item.indexed_at ? <span>索引 {formatRelativeTime(item.indexed_at)}</span> : null}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant={parseStatusTone(item.parse_status)}>{parseStatusLabel(item.parse_status)}</Badge>
+                      <Badge variant={indexStatusTone(item.index_status)}>{indexStatusLabel(item.index_status)}</Badge>
+                      <Badge variant={citationReady ? "success" : "warning"}>
+                        {citationReady ? "可引用" : "待引用"}
+                      </Badge>
                       {item.upload_status ? <Badge variant="info">{uploadStatusLabel(item.upload_status)}</Badge> : null}
                     </div>
                   </div>
                   <p className="m-0 text-sm leading-6 text-slate-600">{item.content_preview || "暂无预览内容。"}</p>
+                  <p className="m-0 text-xs font-medium text-slate-600">
+                    {summarizeIndexReadiness(item.index_status, item.citation_ready, item.indexed_at)}
+                  </p>
                   {item.tags.length > 0 ? <p className="m-0 text-xs text-slate-500">标签：{joinTags(item.tags)}</p> : null}
                   {item.match_explanation ? (
                     <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
@@ -290,8 +363,9 @@ export function SearchPage() {
                       {item.parser_name ? <span>解析器：{item.parser_name}</span> : null}
                     </div>
                   ) : null}
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
 

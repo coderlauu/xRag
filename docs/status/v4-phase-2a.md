@@ -32,17 +32,17 @@
 ## 3. Milestones
 
 - `foundation`: `completed`
-- `api-persistence`: `in-progress`
+- `api-persistence`: `completed`
 - `upload-storage`: `not-started`
 - `worker-pipeline`: `completed`
-- `web-integration`: `in-progress`
+- `web-integration`: `completed`
 - `testing`: `not-started`
 - `ci-cd`: `not-started`
 
 ## 4. Current Node
 
-- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E` 与 `Lane G`；`document indexing`、`hybrid retrieval`、`citation persistence`、`answer orchestration` 与 `ops answer summary` 已接入主链。当前临时插入一条 production ops hardening 支线，补 deploy 磁盘守护、磁盘阈值 preflight 与事故复盘归档。
-- `next`: 先合并并验证磁盘守护与 deploy preflight，确保生产发布恢复可信；随后回到既定顺序，继续 `Lane F`、再进入 `Lane H` 与 `Lane I`
+- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F` 与 `Lane G`；`ask / search / detail / ops` 已全部接通 `scope snapshot`、`evidence / reindex / freshness` 与 `ops answer summary` 主链。production ops hardening 支线已通过 `4b0146e` 合流，不再阻塞 `Phase 2A` 主线推进。
+- `next`: 按既定顺序进入 `Lane H` 与 `Lane I`，补齐 `answers / evidence / reindex / ops/answer-summary` 的 integration 与 `ask / search / detail / ops` 的 e2e / smoke
 
 ## 5. Blockers
 
@@ -52,9 +52,9 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-09` `Lane G` 完成后已通过 `apps/api` typecheck 与 `git diff --check`；随后 production 事故已完成数据库现场核验、MinIO 对象确认与主机磁盘清理验证；本轮 ops hardening 将补充 shell 语法校验、`pnpm validate` 与文档一致性检查
-- `result`: `passed_with_existing_web_issue_and_ops_followup`
-- `latest_failure`: `apps/web/src/features/search/pages/search-page.tsx(215,52):` `SearchFilters` 缺少 `index_status`；另有 production deploy 曾因远端磁盘写满导致 `${DEPLOY_PATH}/shared/tmp` 无法创建，已作为 ops hardening 修复项收口
+- `latest_validation`: `2026-04-09` `Lane F / G` 完成后已通过 `apps/api` typecheck、`apps/web` typecheck、`git diff --check`、文档链接检查与文档一致性检查；production ops hardening 已在主线通过 shell 语法校验、数据库现场核验、MinIO 对象确认与主机磁盘清理验证
+- `result`: `passed_with_testing_pending`
+- `latest_failure`: 无
 
 ## 7. Linked Artifacts
 
@@ -75,5 +75,5 @@
 - `ops_runbook`: [deploy README](/Users/coderlauu/xRag/deploy/README.md), [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 - `incident_retro`: [2026-04-09 production data loss and deploy incident retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-09-production-data-loss-and-deploy-incident-retrospective.md)
 - `active_ops_plan`: [Production Disk Guard And Incident Retro](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-09-production-disk-guard-and-incident-retro.md)
-- `key_commits`: `01591c0`, `12e26bf`, `ca995e6`, `dd22d54`, `452d68e`, `bdd2073`, `158c258`, `ca138aa`
+- `key_commits`: `01591c0`, `12e26bf`, `ca995e6`, `dd22d54`, `452d68e`, `bdd2073`, `158c258`, `ca138aa`, `df3d9ed`, `4b0146e`
 - `latest_ci_run`: `24143542091`（失败根因已确认为远端磁盘写满；清理后待重跑最新 main）

@@ -93,17 +93,18 @@ export class OpsService {
       .select({
         embeddingBacklog: sql<number>`count(*) filter (where ${documents.indexStatus} in ('queued', 'chunking', 'embedding'))::int`,
         readyDocumentCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'ready')::int`,
-        staleDocumentCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'stale')::int`
+        staleDocumentCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'stale')::int`,
+        failedDocumentCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'failed')::int`
       })
       .from(documents);
 
     const [answerSummary] = await this.database.db
       .select({
-        finishedCount: sql<number>`count(*) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused', 'failed'))::int`,
+        terminalCount: sql<number>`count(*) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))::int`,
         answeredCount: sql<number>`count(*) filter (where ${answerSessions.status} = 'answered')::int`,
         refusedCount: sql<number>`count(*) filter (where ${answerSessions.status} = 'refused')::int`,
-        answerLatencyP95: sql<number | null>`percentile_cont(0.95) within group (order by ${answerSessions.latencyMs})`,
-        avgTokenCostUsd: sql<string | null>`to_char(avg(${answerSessions.totalCostUsd}), 'FM999999990.0000')`
+        answerLatencyP95: sql<number | null>`percentile_cont(0.95) within group (order by ${answerSessions.latencyMs}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))`,
+        avgTokenCostUsd: sql<string | null>`to_char(avg(${answerSessions.totalCostUsd}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused')), 'FM999999990.0000')`
       })
       .from(answerSessions);
 
@@ -115,7 +116,7 @@ export class OpsService {
       .innerJoin(answerSessions, eq(answerSessions.id, answerCitations.sessionId))
       .where(sql`${answerSessions.status} = 'answered'`);
 
-    const finishedCount = answerSummary?.finishedCount ?? 0;
+    const terminalCount = answerSummary?.terminalCount ?? 0;
     const answeredCount = answerSummary?.answeredCount ?? 0;
     const refusedCount = answerSummary?.refusedCount ?? 0;
     const citedAnsweredSessionCount = citationSummary?.citedAnsweredSessionCount ?? 0;
@@ -124,9 +125,10 @@ export class OpsService {
       embedding_backlog: documentSummary?.embeddingBacklog ?? 0,
       ready_document_count: documentSummary?.readyDocumentCount ?? 0,
       stale_document_count: documentSummary?.staleDocumentCount ?? 0,
+      failed_document_count: documentSummary?.failedDocumentCount ?? 0,
       answer_latency_p95: answerSummary?.answerLatencyP95 ?? null,
       citation_coverage: answeredCount > 0 ? Number((citedAnsweredSessionCount / answeredCount).toFixed(4)) : null,
-      refusal_rate: finishedCount > 0 ? Number((refusedCount / finishedCount).toFixed(4)) : null,
+      refusal_rate: terminalCount > 0 ? Number((refusedCount / terminalCount).toFixed(4)) : null,
       avg_token_cost_usd: answerSummary?.avgTokenCostUsd?.trim() ? answerSummary.avgTokenCostUsd.trim() : null
     };
   }

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Badge, PageShell, SectionCard, StatCard } from "@xrag/ui";
-import { fetchOpsHealthSummary, getLatestDeployment, listOpsIncidents } from "../../../lib/api";
+import { fetchOpsAnswerSummary, fetchOpsHealthSummary, getLatestDeployment, listOpsIncidents } from "../../../lib/api";
+import { formatLatencyMs, formatUsd } from "../../../lib/answer-state";
 import type { IncidentSeverity, IncidentSource } from "@xrag/shared-types";
 
 function serviceStatusLabel(status: "healthy" | "warning" | "critical") {
@@ -77,7 +78,25 @@ function severityLabel(severity: IncidentSeverity) {
   }
 }
 
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "未知";
+  }
+
+  return new Intl.NumberFormat("zh-CN", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1
+  }).format(value);
+}
+
 export function OpsPage() {
+  const answerSummaryQuery = useQuery({
+    queryKey: ["ops", "answer-summary"],
+    queryFn: () => fetchOpsAnswerSummary(),
+    refetchInterval: 15_000
+  });
+
   const healthQuery = useQuery({
     queryKey: ["ops", "health-summary"],
     queryFn: () => fetchOpsHealthSummary(),
@@ -97,8 +116,26 @@ export function OpsPage() {
   });
 
   const health = healthQuery.data;
+  const answerSummary = answerSummaryQuery.data;
   const incidents = incidentsQuery.data?.items || [];
   const deployment = deploymentQuery.data;
+  const answerSummaryTotalDocuments =
+    (answerSummary?.embedding_backlog || 0) +
+    (answerSummary?.ready_document_count || 0) +
+    (answerSummary?.stale_document_count || 0) +
+    (answerSummary?.failed_document_count || 0);
+  const readinessRate =
+    answerSummary && answerSummaryTotalDocuments > 0
+      ? answerSummary.ready_document_count / answerSummaryTotalDocuments
+      : null;
+  const answerSummaryStatus =
+    answerSummaryTotalDocuments === 0
+      ? "暂无索引数据"
+      : (answerSummary?.failed_document_count || 0) > 0
+        ? "存在失败索引"
+      : (answerSummary?.embedding_backlog || 0) > 0 || (answerSummary?.stale_document_count || 0) > 0
+        ? "需要处理"
+        : "可用于问答";
   const openIncidents = incidents.filter((incident) => incident.status !== "resolved").length;
   const warningServices = health?.services.filter((service) => service.status !== "healthy").length || 0;
   const highRiskIncidents = incidents.filter((incident) => incident.severity === "high").length;
@@ -172,6 +209,86 @@ export function OpsPage() {
           tone={highRiskIncidents > 0 ? "warning" : "default"}
         />
       </section>
+
+      <SectionCard
+        title="答案摘要"
+        description="把索引就绪、答案时延、引用覆盖、拒答率和成本放在一起看，先判断问答链路是否可用。"
+      >
+        {answerSummaryQuery.isError ? (
+          <p className="m-0 text-sm leading-6 text-rose-700">答案摘要加载失败，请检查 API、数据库和 answer_sessions 数据。</p>
+        ) : answerSummary ? (
+          <div className="grid gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+              <div className="grid gap-1">
+                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">当前状态</p>
+                <p className="m-0 text-sm leading-6 text-slate-700">
+                  {answerSummaryStatus}，共 {answerSummaryTotalDocuments} 个文档参与摘要计算。
+                </p>
+              </div>
+              <Badge variant={readinessRate && readinessRate >= 0.9 ? "success" : "warning"}>
+                {formatPercent(readinessRate)}
+              </Badge>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <StatCard
+                label="索引积压"
+                value={String(answerSummary.embedding_backlog)}
+                hint="queued / chunking / embedding 中的文档数"
+                tone={answerSummary.embedding_backlog > 0 ? "warning" : "default"}
+              />
+              <StatCard
+                label="可回答文档"
+                value={String(answerSummary.ready_document_count)}
+                hint="ready 状态文档数"
+              />
+              <StatCard
+                label="过期文档"
+                value={String(answerSummary.stale_document_count)}
+                hint="需要重新索引的文档数"
+                tone={answerSummary.stale_document_count > 0 ? "warning" : "default"}
+              />
+              <StatCard
+                label="失败文档"
+                value={String(answerSummary.failed_document_count)}
+                hint="索引失败、需要人工排查的文档数"
+                tone={answerSummary.failed_document_count > 0 ? "warning" : "default"}
+              />
+              <StatCard
+                label="就绪率"
+                value={formatPercent(readinessRate)}
+                hint="ready / (ready + backlog + stale + failed)"
+                tone={readinessRate !== null && readinessRate < 0.8 ? "warning" : "default"}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="回答延迟 P95"
+                value={formatLatencyMs(answerSummary.answer_latency_p95)}
+                hint="仅统计 answered / needs_scope / refused 的终态会话"
+              />
+              <StatCard
+                label="引用覆盖率"
+                value={formatPercent(answerSummary.citation_coverage)}
+                hint="answered 会话中至少包含一条 citation 的比例"
+              />
+              <StatCard
+                label="拒答率"
+                value={formatPercent(answerSummary.refusal_rate)}
+                hint="refused / (answered + needs_scope + refused)"
+              />
+              <StatCard
+                label="平均成本"
+                value={formatUsd(answerSummary.avg_token_cost_usd)}
+                hint="终态问答会话的平均 token 成本"
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="m-0 text-sm leading-6 text-slate-600">正在加载答案摘要。</p>
+        )}
+      </SectionCard>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <SectionCard title="服务健康" description="面向内部使用的服务连通性摘要。">

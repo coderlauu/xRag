@@ -3,12 +3,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { DocumentProcessingEventItem } from "@xrag/shared-types";
 import { Badge, Button, PageShell, SectionCard, StatCard, Textarea, Input } from "@xrag/ui";
-import { getDocument, getDocumentTimeline, getJob, retryDocument, updateDocumentTags } from "../../../lib/api";
 import {
+  getDocument,
+  getDocumentEvidence,
+  getDocumentTimeline,
+  getJob,
+  reindexDocument,
+  retryDocument,
+  updateDocumentTags
+} from "../../../lib/api";
+import {
+  describeEvidenceLocator,
   diagnosisLabel,
   formatDateTime,
   formatRelativeTime,
+  indexStatusLabel,
+  indexStatusTone,
+  isCitationReady,
   isJobActive,
+  isIndexActive,
   isParseActive,
   joinTags,
   jobStatusLabel,
@@ -17,6 +30,7 @@ import {
   parseStatusTone,
   splitTags,
   sourceTypeLabel,
+  summarizeIndexReadiness,
   uploadStatusLabel
 } from "../../../lib/document-state";
 import { loadJobId, rememberJobId } from "../../../lib/job-store";
@@ -31,19 +45,26 @@ export function DetailPage() {
   const [tagInput, setTagInput] = useState("");
   const [tagError, setTagError] = useState<string | null>(null);
   const [tagMessage, setTagMessage] = useState<string | null>(null);
+  const [indexActionError, setIndexActionError] = useState<string | null>(null);
+  const [indexActionMessage, setIndexActionMessage] = useState<string | null>(null);
   const [trackedJobId, setTrackedJobId] = useState<string | null>(loadJobId(documentId));
 
   useEffect(() => {
     setTrackedJobId(loadJobId(documentId));
     setTagError(null);
     setTagMessage(null);
+    setIndexActionError(null);
+    setIndexActionMessage(null);
   }, [documentId]);
 
   const documentQuery = useQuery({
     queryKey: ["document", documentId],
     queryFn: () => getDocument(documentId),
     enabled: hasValidDocumentId,
-    refetchInterval: (query) => (query.state.data && isParseActive(query.state.data.parse_status) ? 3000 : false)
+    refetchInterval: (query) =>
+      query.state.data && (isParseActive(query.state.data.parse_status) || isIndexActive(query.state.data.index_status))
+        ? 3000
+        : false
   });
 
   useEffect(() => {
@@ -59,12 +80,22 @@ export function DetailPage() {
     refetchInterval: (query) => (query.state.data && isJobActive(query.state.data.status) ? 3000 : false)
   });
 
+  const documentEvidenceQuery = useQuery({
+    queryKey: ["document", documentId, "evidence"],
+    queryFn: () => getDocumentEvidence(documentId),
+    enabled: hasValidDocumentId,
+    refetchInterval: () => (documentQuery.data && isIndexActive(documentQuery.data.index_status) ? 3000 : false)
+  });
+
   const timelineQuery = useQuery({
     queryKey: ["document", documentId, "timeline"],
     queryFn: () => getDocumentTimeline(documentId),
     enabled: hasValidDocumentId,
     refetchInterval: () =>
-      documentQuery.data && (isParseActive(documentQuery.data.parse_status) || trackedJobQuery.data && isJobActive(trackedJobQuery.data.status))
+      documentQuery.data &&
+      (isParseActive(documentQuery.data.parse_status) ||
+        isIndexActive(documentQuery.data.index_status) ||
+        (trackedJobQuery.data && isJobActive(trackedJobQuery.data.status)))
         ? 3000
         : false
   });
@@ -93,6 +124,25 @@ export function DetailPage() {
     },
     onError: async (error) => {
       setTagError(error instanceof Error ? error.message : "重试解析失败");
+    }
+  });
+
+  const reindexMutation = useMutation({
+    mutationFn: () => reindexDocument(documentId),
+    onSuccess: async (result) => {
+      rememberJobId(result.document_id, result.job_id);
+      setTrackedJobId(result.job_id);
+      setIndexActionError(null);
+      setIndexActionMessage(`索引任务已提交，当前状态：${indexStatusLabel(result.index_status)}。`);
+      await queryClient.invalidateQueries({ queryKey: ["document", documentId] });
+      await queryClient.invalidateQueries({ queryKey: ["document", documentId, "evidence"] });
+      await queryClient.invalidateQueries({ queryKey: ["document", documentId, "timeline"] });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
+      await queryClient.invalidateQueries({ queryKey: ["job"] });
+    },
+    onError: (error) => {
+      setIndexActionMessage(null);
+      setIndexActionError(error instanceof Error ? error.message : "重建索引失败");
     }
   });
 
@@ -148,17 +198,32 @@ export function DetailPage() {
   const document = documentQuery.data;
   const job = trackedJobQuery.data;
   const timelineItems = timelineQuery.data?.items || [];
+  const canReindex = document.parse_status === "success" && !isIndexActive(document.index_status);
 
   return (
     <PageShell
       eyebrow="详情"
       title={document.title}
-      description="查看正文、上传会话、诊断结果和重试状态。"
+      description="查看正文、上传会话、诊断结果、索引可用性和重建状态。"
     >
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <StatCard label="解析状态" value={parseStatusLabel(document.parse_status)} hint="自动轮询接口状态" />
-        <StatCard label="来源" value={sourceTypeLabel(document.source_type)} hint={document.file_name || "手动输入"} />
-        <StatCard label="导入时间" value={formatRelativeTime(document.imported_at)} hint={formatDateTime(document.imported_at)} />
+        <StatCard
+          label="索引状态"
+          value={indexStatusLabel(document.index_status)}
+          hint={summarizeIndexReadiness(document.index_status, document.citation_ready, document.indexed_at)}
+          tone={indexStatusTone(document.index_status) === "warning" ? "warning" : "default"}
+        />
+        <StatCard
+          label="引用可用"
+          value={isCitationReady(document.index_status, document.citation_ready) ? "是" : "否"}
+          hint={document.indexed_at ? `最近索引 ${formatRelativeTime(document.indexed_at)}` : "等待索引完成"}
+        />
+        <StatCard
+          label="索引版本"
+          value={document.index_version || "未记录"}
+          hint={document.indexed_at ? formatDateTime(document.indexed_at) : "尚未建立索引"}
+        />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
@@ -208,11 +273,16 @@ export function DetailPage() {
                   <span>{document.ranking_hint}</span>
                 </div>
               ) : null}
+              <article>来源：{sourceTypeLabel(document.source_type)}</article>
               <article>标签：{document.tags.length > 0 ? joinTags(document.tags) : "暂无"}</article>
               <article>文件名：{document.file_name || "手动输入"}</article>
               <article>来源链接：{document.source_url || "无"}</article>
               <article>MIME 类型：{document.mime_type || "无"}</article>
               <article>导入时间：{formatDateTime(document.imported_at)}</article>
+              <article>索引状态：{indexStatusLabel(document.index_status)}</article>
+              <article>引用可用：{isCitationReady(document.index_status, document.citation_ready) ? "是" : "否"}</article>
+              <article>索引时间：{document.indexed_at ? formatDateTime(document.indexed_at) : "无"}</article>
+              <article>索引版本：{document.index_version || "无"}</article>
               <article>上传状态：{uploadStatusLabel(document.upload_status)}</article>
               <article>诊断结果：{diagnosisLabel(document.diagnosis_code)}</article>
               <article>诊断摘要：{document.diagnosis_summary || "无"}</article>
@@ -222,7 +292,7 @@ export function DetailPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="操作区" description="更新标签、重试解析，或返回其他页面继续排查。">
+          <SectionCard title="操作区" description="更新标签、重试解析、重建索引，或返回其他页面继续排查。">
             <div className="grid gap-3">
               <form
                 className="grid gap-3"
@@ -251,9 +321,24 @@ export function DetailPage() {
                   >
                     {retryMutation.isPending ? "重试中..." : "重试解析"}
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={reindexMutation.isPending || !canReindex}
+                    onClick={() => reindexMutation.mutate()}
+                  >
+                    {reindexMutation.isPending ? "重建中..." : "重建索引"}
+                  </Button>
                 </div>
                 {tagMessage ? <p className="m-0 text-sm text-emerald-700">{tagMessage}</p> : null}
                 {tagError ? <p className="m-0 text-sm text-rose-700">{tagError}</p> : null}
+                {indexActionMessage ? <p className="m-0 text-sm text-emerald-700">{indexActionMessage}</p> : null}
+                {indexActionError ? <p className="m-0 text-sm text-rose-700">{indexActionError}</p> : null}
+                {!canReindex ? (
+                  <p className="m-0 text-xs text-slate-500">
+                    {document.parse_status !== "success" ? "仅解析成功的文档支持重建索引。" : "当前索引任务仍在处理中。"}
+                  </p>
+                ) : null}
               </form>
               <div className="flex gap-3">
                 <Button asChild variant="outline">
@@ -271,6 +356,16 @@ export function DetailPage() {
               <article className="flex items-center justify-between gap-3">
                 <span>文档解析状态</span>
                 <Badge variant={parseStatusTone(document.parse_status)}>{parseStatusLabel(document.parse_status)}</Badge>
+              </article>
+              <article className="flex items-center justify-between gap-3">
+                <span>索引状态</span>
+                <Badge variant={indexStatusTone(document.index_status)}>{indexStatusLabel(document.index_status)}</Badge>
+              </article>
+              <article className="flex items-center justify-between gap-3">
+                <span>引用可用</span>
+                <Badge variant={isCitationReady(document.index_status, document.citation_ready) ? "success" : "warning"}>
+                  {isCitationReady(document.index_status, document.citation_ready) ? "可跳回" : "待建立"}
+                </Badge>
               </article>
               <article className="flex items-center justify-between gap-3">
                 <span>跟踪任务</span>
@@ -293,6 +388,48 @@ export function DetailPage() {
                 </>
               ) : null}
             </div>
+          </SectionCard>
+
+          <SectionCard
+            title="引用证据"
+            description={
+              isCitationReady(document.index_status, document.citation_ready)
+                ? "每条证据都带有 chunk_id 和页面内锚点，可用于 citation jumpback。"
+                : "索引尚未就绪时，只能展示证据状态，不能把当前文档当成稳定引用源。"
+            }
+          >
+            {documentEvidenceQuery.isLoading ? (
+              <p className="m-0 text-sm leading-6 text-slate-600">正在加载引用证据。</p>
+            ) : documentEvidenceQuery.isError ? (
+              <p className="m-0 text-sm leading-6 text-rose-700">
+                {documentEvidenceQuery.error instanceof Error ? documentEvidenceQuery.error.message : "引用证据加载失败"}
+              </p>
+            ) : (documentEvidenceQuery.data?.items || []).length === 0 ? (
+              <p className="m-0 text-sm leading-6 text-slate-600">
+                当前没有可展示的引用证据，{indexStatusLabel(document.index_status)} 状态下建议先重建索引。
+              </p>
+            ) : (
+              <div className="grid gap-3">
+                {(documentEvidenceQuery.data?.items || []).map((item) => (
+                  <article
+                    className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm leading-6 text-slate-700"
+                    id={`evidence-${item.chunk_id}`}
+                    key={item.chunk_id}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="grid gap-1">
+                        <strong className="text-slate-950">Chunk {item.chunk_index + 1}</strong>
+                        <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.chunk_id}</span>
+                      </div>
+                      <Badge variant="info">{item.page_ref || item.section_label || "无页面定位"}</Badge>
+                    </div>
+                    <p className="m-0 text-sm leading-6 text-slate-700">{item.quote_text}</p>
+                    <p className="m-0 text-xs text-slate-500">定位：{describeEvidenceLocator(item)}</p>
+                    <p className="m-0 text-xs text-slate-500">锚点：#{`evidence-${item.chunk_id}`}</p>
+                  </article>
+                ))}
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard title="处理时间线" description="按阶段展示上传、解析、OCR、抓取和搜索投影的处理证据。">

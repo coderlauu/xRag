@@ -76,6 +76,9 @@ export class OpsAnswerSummaryResponseDto implements OpsAnswerSummaryResponse {
   @ApiProperty({ type: Number })
   stale_document_count!: number;
 
+  @ApiProperty({ type: Number })
+  failed_document_count!: number;
+
   @ApiPropertyOptional({ type: Number, nullable: true })
   answer_latency_p95!: number | null;
 

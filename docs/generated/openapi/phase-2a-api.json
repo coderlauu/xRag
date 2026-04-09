@@ -1288,6 +1288,9 @@
           "stale_document_count": {
             "type": "number"
           },
+          "failed_document_count": {
+            "type": "number"
+          },
           "answer_latency_p95": {
             "type": "number",
             "nullable": true
@@ -1308,7 +1311,8 @@
         "required": [
           "embedding_backlog",
           "ready_document_count",
-          "stale_document_count"
+          "stale_document_count",
+          "failed_document_count"
         ]
       },
       "LatestDeploymentResponseDto": {
