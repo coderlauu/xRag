@@ -42,6 +42,10 @@ docker_run() {
   "${docker_cmd[@]}" "$@"
 }
 
+compose_run() {
+  docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" "$@"
+}
+
 read_env_file_key() {
   local key="${1:?env key is required}"
   grep -E "^${key}=" "${env_file}" | tail -n 1 | cut -d= -f2-
@@ -54,7 +58,7 @@ verify_service_image() {
   local actual_image
 
   container_id="$(
-    docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps -q "${service_name}"
+    compose_run ps -q "${service_name}"
   )"
 
   if [[ -z "${container_id}" ]]; then
@@ -72,6 +76,31 @@ Actual:   ${actual_image}
 EOF
     return 1
   fi
+}
+
+wait_for_postgres() {
+  local attempts=30
+  local attempt
+  local container_id
+  local health_status
+
+  for attempt in $(seq 1 "${attempts}"); do
+    container_id="$(compose_run ps -q postgres)"
+    if [[ -n "${container_id}" ]]; then
+      health_status="$(
+        docker_run inspect "${container_id}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}'
+      )"
+      if [[ "${health_status}" == "healthy" ]]; then
+        return 0
+      fi
+    fi
+
+    sleep 2
+  done
+
+  echo "Postgres service did not become healthy in time." >&2
+  compose_run ps >&2 || true
+  return 1
 }
 
 docker_login_with_retry() {
@@ -130,21 +159,21 @@ XRAG_PROTECTED_RELEASES="${image_tag}" \
 
 docker_login_with_retry
 
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" down --remove-orphans || true
-
 export XRAG_CADDYFILE_PATH="${caddyfile_path}"
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" pull
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d postgres redis minio
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" exec -T postgres sh -lc '
+compose_run down --remove-orphans || true
+compose_run pull
+compose_run up -d postgres redis minio
+wait_for_postgres
+compose_run exec -T postgres sh -lc '
   psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d template1 -tAc "select 1 from pg_database where datname='\''$POSTGRES_DB'\''" | grep -q 1 \
     || psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d template1 -c "create database \"$POSTGRES_DB\" owner \"$POSTGRES_USER\""
 '
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" run --rm -T api-migrate </dev/null
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" up -d --force-recreate api worker web caddy
+compose_run run --rm -T api-migrate </dev/null
+compose_run up -d --force-recreate api worker web caddy
 verify_service_image api "${XRAG_API_IMAGE}"
 verify_service_image worker "${XRAG_WORKER_IMAGE}"
 verify_service_image web "${XRAG_WEB_IMAGE}"
-docker_run compose --project-name "${project_name}" --env-file "${env_file}" -f "${compose_file}" ps
+compose_run ps
 
 rm -f "${bundle_path}"
 docker_run image prune -f >/dev/null 2>&1 || true
