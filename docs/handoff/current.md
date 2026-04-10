@@ -30,7 +30,7 @@
 
 - [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
 - [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
-- [Phase 2A Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-08-phase-2a-implementation-lanes.md)
+- [Phase 2A Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md)
 - [Phase 2A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
 - [Phase 2A Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-p0-technical-tradeoffs.md)
 - [Phase 2A Implementation Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-implementation-freeze-prerequisites.md)
@@ -43,7 +43,7 @@
 - [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
 - [Phase 2A Prototype](/Users/coderlauu/xRag/prototype/v4/index.html)
 - [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
-- [Production Disk Guard Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-09-production-disk-guard-and-incident-retro.md)
+- [Production Disk Guard Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-09-production-disk-guard-and-incident-retro.md)
 - [v3 / Phase 1C Status](/Users/coderlauu/xRag/docs/status/v3-phase-1c.md)
 - [v3 Handoff](/Users/coderlauu/xRag/docs/handoff/v3.md)
 - [CI 自动修复闭环方案](/Users/coderlauu/xRag/docs/process/2026-04-06-ci-auto-repair-loop.md)
@@ -80,6 +80,7 @@
 - `search explain / timeline / ops` 诊断基线已存在
 - `web + api + worker + db + storage + queue` 工程基线已完成
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
+- latest main GitHub Actions run `24221150785` 已通过 production deploy 与 production smoke，`Phase 2A` 发布可信度门禁已完成
 
 ---
 
@@ -89,7 +90,7 @@
 2. [v4 Status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
 3. [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
 4. [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
-5. [Phase 2A Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-08-phase-2a-implementation-lanes.md)
+5. [Phase 2A Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md)
 6. [Phase 2A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
 7. [Phase 2A Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-p0-technical-tradeoffs.md)
 8. [Phase 2A Implementation Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-implementation-freeze-prerequisites.md)
@@ -112,10 +113,10 @@
 
 ## 4. 执行规则
 
-1. 当前活跃版本为 `v4 / Phase 2A`，当前已完成 implementation freeze，并已落地 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F`、`Lane G`、`Lane H` 与 `Lane I`；`integration / e2e / smoke` 已在本地 Docker 环境完成实跑验证，当前节点转入 `ci-cd / release-readiness`
+1. 当前有效版本为 `v4 / Phase 2A`，当前已完成 implementation freeze、所有 implementation lanes、本地 Docker/DB 验证与 main CI release-readiness；latest main run `24221150785` 已通过 production deploy 与 production smoke
 2. `v4` 的技术评估仍严格限制在 `P0`，不允许让 `P1` 或 `deferred` 能力提前挤占主线
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前版本真实进度统一写入 `docs/status/v4-phase-2a.md`
-4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `worker-runtime / indexing / provider / answer / ask / search / detail / ops` 主链和 `tests` 资产补齐；`integration / e2e / smoke` 已在 Docker/DB 可用环境里完成实跑验证。下一步进入 `ci-cd` 与 release-readiness 收口；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
+4. 当前 `Phase 2A` 已完成 runtime freeze prep、implementation freeze、`Lane 0` 主线程代码冻结，以及 `worker-runtime / indexing / provider / answer / ask / search / detail / ops` 主链和 `tests` 资产补齐；`integration / e2e / smoke` 已在 Docker/DB 可用环境里完成实跑验证，GitHub Actions run `24221150785` 已完成 production deploy / smoke 验证。下一步是正式关闭 `Phase 2A` 或进入后续版本规划；`v3 / Phase 1C` 继续作为工程现实基线与回退参考
 
 ---
 

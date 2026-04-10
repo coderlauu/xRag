@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-2a-implementation-lanes`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v4 handoff](/Users/coderlauu/xRag/docs/handoff/v4.md), [v4 status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md), [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md), [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md), [Phase 2A technical tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-08-phase-2a-p0-technical-tradeoffs.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
 
@@ -20,6 +20,8 @@
 `2026-04-09` 更新：`Lane H` 与 `Lane I` 的测试资产已完成并回到主线工作树；当前唯一 blocker 是本机会话缺少 Docker CLI / daemon 与本地 PostgreSQL test runtime，暂时只能完成静态校验，未能在本机实跑 `integration / e2e / smoke`。
 
 `2026-04-09` 更新：当前会话已具备 Docker CLI 与本地 test runtime，`./scripts/run-api-integration.sh` 已通过 `12/12`，`./scripts/run-e2e-smoke.sh` 已通过 `4/4`；同时已修复 detail 页重复 `reindex` 后 evidence 可能停留旧 chunk 的刷新问题，并把 Phase 2A smoke spec 的 selector / jumpback 假设收敛到真实行为。implementation lanes 现已完成测试收口，可转入 `ci-cd / release-readiness`。
+
+`2026-04-10` 更新：latest main GitHub Actions run `24221150785` 已通过 `validate / infra / integration / e2e / build-images / deploy-production / smoke-production`，本计划退出条件已满足，归档到 `completed`。
 
 `2026-04-08` 更新：`Lane 0` 已落地并完成 `schema / migrations / shared-types / documents / answers / ops contract skeleton / OpenAPI / SDK` 的主线程冻结；`Lane A / C / E` 与 `Lane B / D` 也已完成并进入主线，当前已可按计划启动 `Lane F`、`Lane G`。
 
@@ -223,7 +225,7 @@
 3. 在 runtime glue 与 provider adapter 稳定后，`Lane B`、`Lane D` 已完成并合流
 4. 在 API client 与关键 handler 可用后，`Lane F`、`Lane G` 已完成并合流
 5. `Lane E / F / G` 合流后，`Lane H` 与 `Lane I` 的测试资产已完成
-6. 主线程已完成测试资产合流、状态回写和文档收口，并已在 Docker/DB 环境完成 integration / e2e / smoke 实跑；下一步转入 `ci-cd / release-readiness`
+6. 主线程已完成测试资产合流、状态回写和文档收口，并已在 Docker/DB 环境完成 integration / e2e / smoke 实跑；latest main CI 已完成 release-readiness 验证
 
 ## 6. Ownership Rules
 
@@ -270,3 +272,4 @@
 - `2026-04-08`: `Lane B` 与 `Lane D` 已通过 `ca138aa` 合流，并补齐 `document-indexing`、`hybrid retrieval`、`citation persistence` 与 `answer-orchestration` 主链；下一批并行 lane 固定为 `Lane F`、`Lane G`
 - `2026-04-09`: `Lane F` 与 `Lane G` 已通过本次实现合流，`search/detail` 已接通 `scope snapshot / evidence / reindex / freshness`，`ops/answer-summary` 已接通后端聚合与前端 ops 页面；下一批并行 lane 固定为 `Lane H`、`Lane I`
 - `2026-04-09`: `Lane H` 与 `Lane I` 已补齐 `answers / evidence / reindex / ops/answer-summary` integration tests 与 `ask / search / detail / ops` e2e/smoke 资产；当前待在 Docker/DB 环境中完成实跑验证，再关闭本计划
+- `2026-04-10`: `db3b620` 修复 remote deploy 脚本被 `docker compose exec` 消耗 SSH stdin 的问题；GitHub Actions run `24221150785` 全绿，production deploy 与 smoke 均通过，本计划关闭归档

@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `production-disk-guard-and-incident-retro`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [current handoff](/Users/coderlauu/xRag/docs/handoff/current.md), [v4 status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md), [deploy README](/Users/coderlauu/xRag/deploy/README.md), [production inspection guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 
@@ -61,10 +61,10 @@
 
 ## 5. Validation
 
-- `bash -n` 校验所有新增/修改 shell 脚本
-- `pnpm validate`
-- 用本地临时目录运行一次磁盘守护脚本，验证不会触碰数据卷相关逻辑
-- 文档链接检查通过
+- `bash -n` 校验所有新增/修改 shell 脚本已通过
+- `pnpm validate` 已由 GitHub Actions run `24221150785` 的 `validate` job 覆盖
+- 磁盘守护脚本已接入 deploy 前预检与远端 deploy 前守卫，并通过 production deploy 验证
+- 文档链接检查由 `docs:check` 覆盖
 
 ## 6. Done Definition
 
@@ -72,3 +72,7 @@
 - 服务器侧有可重复执行的磁盘守护脚本和定时器资产
 - 运维文档可指导后续启用与手工排障
 - 本次事故已有正式 retrospective 可供后续版本复盘引用
+
+## 7. Closeout
+
+- `2026-04-10`: latest main GitHub Actions run `24221150785` 已通过 production deploy 与 production smoke，确认磁盘守卫、当前 release 保护、PostgreSQL readiness 等 deploy hardening 不再阻塞 `Phase 2A` release-readiness
