@@ -164,10 +164,11 @@ compose_run down --remove-orphans || true
 compose_run pull
 compose_run up -d postgres redis minio
 wait_for_postgres
+# remote-deploy.sh is streamed over SSH stdin; compose exec/run must not consume the rest of the script.
 compose_run exec -T postgres sh -lc '
   psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d template1 -tAc "select 1 from pg_database where datname='\''$POSTGRES_DB'\''" | grep -q 1 \
     || psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d template1 -c "create database \"$POSTGRES_DB\" owner \"$POSTGRES_USER\""
-'
+' </dev/null
 compose_run run --rm -T api-migrate </dev/null
 compose_run up -d --force-recreate api worker web caddy
 verify_service_image api "${XRAG_API_IMAGE}"
