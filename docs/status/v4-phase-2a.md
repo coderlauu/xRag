@@ -4,9 +4,9 @@
 
 - `version`: `v4`
 - `phase`: `Phase 2A`
-- `status`: `completed`
+- `status`: `archived`
 - `owner`: `codex`
-- `updated_at`: `2026-04-10`
+- `updated_at`: `2026-04-11`
 
 ## 2. Goal
 
@@ -41,8 +41,8 @@
 
 ## 4. Current Node
 
-- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F`、`Lane G`、`Lane H` 与 `Lane I`，且已在本地 Docker/DB 环境完成 `integration + e2e/smoke` 实跑验证。latest main GitHub Actions run `24221150785` 已全绿，覆盖 `validate / infra / integration / e2e / build-images / deploy-production / smoke-production`；production smoke 已通过。此前 production smoke 失败的根因是 `remote-deploy.sh` 通过 SSH stdin 执行时，`docker compose exec` 读取并消耗了脚本后续内容，导致 app/caddy 未真正启动；已由 `db3b620` 在 compose exec 处重定向 stdin 修复。
-- `next`: `Phase 2A` 可进入正式版本关闭 / 后续版本规划；若继续基于当前 main 推进，默认发布基线为 `db3b620` + GitHub Actions run `24221150785`
+- `now`: `Phase 2A / P0` 已完成 `Lane 0`、`Lane A`、`Lane B`、`Lane C`、`Lane D`、`Lane E`、`Lane F`、`Lane G`、`Lane H` 与 `Lane I`，且已在本地 Docker/DB 环境完成 `integration + e2e/smoke` 实跑验证。latest main GitHub Actions run `24221150785` 已全绿，覆盖 `validate / infra / integration / e2e / build-images / deploy-production / smoke-production`；production smoke 已通过。随后 closeout commit `66767af` 进一步收口 handoff/status/exec plan，并由 GitHub Actions run `24221462669` 验证通过。当前版本正式归档。
+- `next`: 当前推进目标已切换到 `v5 / Phase 2B` 的 planning-and-design 阶段；`Phase 2A` 保留为实现与回滚参考基线
 
 ## 5. Blockers
 
@@ -52,7 +52,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-10` GitHub Actions run `24221150785` 在 commit `db3b62086e592d8e4d60e8e35be1f89fed66adb2` 上通过，覆盖 `validate`、`infra`、`integration`、`e2e`、`build-images`、`deploy-production` 与 `smoke-production`；其中 production deploy 用时 `2m6s`，production smoke 用时 `10s`。此前 `2026-04-09` 已在本地 Docker 环境完成 `./scripts/run-api-integration.sh`（`12/12` 通过）与 `./scripts/run-e2e-smoke.sh`（`4/4` 通过）
+- `latest_validation`: `2026-04-10` closeout commit `66767af7b9652848440c16322b4d62003955568c` 对应的 GitHub Actions run `24221462669` 已通过，覆盖 `validate`、`infra`、`integration`、`e2e`、`build-images`、`deploy-production` 与 `smoke-production`；其上游 release-readiness fix run `24221150785` 已先行验证 deploy root cause 修复。此前 `2026-04-09` 已在本地 Docker 环境完成 `./scripts/run-api-integration.sh`（`12/12` 通过）与 `./scripts/run-e2e-smoke.sh`（`4/4` 通过）
 - `result`: `passed`
 - `latest_failure`: `24200503254` 曾因 production deploy 脚本被 `docker compose exec` 消耗 stdin，导致 production smoke 连接 `xrag.coderlau.cn:443` 超时；已由 `db3b620` 修复并由 run `24221150785` 验证通过
 
@@ -76,4 +76,4 @@
 - `incident_retro`: [2026-04-09 production data loss and deploy incident retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-09-production-data-loss-and-deploy-incident-retrospective.md)
 - `completed_ops_plan`: [Production Disk Guard And Incident Retro](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-09-production-disk-guard-and-incident-retro.md)
 - `key_commits`: `01591c0`, `12e26bf`, `ca995e6`, `dd22d54`, `452d68e`, `bdd2073`, `158c258`, `ca138aa`, `df3d9ed`, `4b0146e`, `f1a95c3`, `ecf2f60`, `db3b620`
-- `latest_ci_run`: `24221150785`（success，production deploy 与 production smoke 已通过）
+- `latest_ci_run`: `24221462669`（success，Phase 2A closeout docs 提交后的 main CI 仍保持 production deploy 与 production smoke 通过）

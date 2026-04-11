@@ -2,7 +2,7 @@
 
 **日期：** 2026-04-07  
 **版本：** `v4 / Phase 2A`  
-**状态：** active  
+**状态：** archived
 **对应 PRD：** [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)  
 **对应交互：** [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)  
 **对应评估：** [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
