@@ -35,6 +35,10 @@
 - [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
 - [Phase 2B Planning And Design Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-11-phase-2b-planning-and-design.md)
+- [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
+- [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
+- [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
+- [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
 - [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
 - [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
 - [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
@@ -48,7 +52,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，冻结下一轮版本的范围、验收与实施顺序，启动更完整的问答体验、范围控制与检索可观测性规划。
+在 `Phase 2A` 可信问答闭环完成后，已把 `Phase 2B` 的核心范围冻结为“范围控制增强、检索解释、证据包增强与历史工作流”，并保留 `ops` 面板为次级增强。
 
 ---
 
@@ -56,12 +60,15 @@
 
 ### 必须实现
 
-- 扩展范围控制：`标签 / 来源类型 / 时间范围`
-- 检索实验台增强：`lexical / semantic / rerank` 贡献、未入答原因、URL state
-- 评估与运维面板增强：`recall / groundedness / citation coverage / latency / cost / backlog`
-- 证据包增强：claim grouping、多引用组合、freshness 提示强化
-- 问题历史与继续提问入口
-- 对应的 `PRD / backlog / interaction / technical tradeoff` 规划产出
+- `P0-01` 扩展范围控制：`标签 / 来源类型 / 时间范围`
+- `P0-02` 检索实验台基线：`lexical / semantic / rerank` 贡献、未入答原因、URL state
+- `P0-03` 证据包增强：claim grouping、多引用组合、freshness 提示强化
+- `P0-04` 问题历史与继续提问：最近问题、旧 session 回看、显式继承 follow-up
+- `PRD / backlog / interaction delta / technical tradeoff` 已形成最小事实源
+
+### 本轮次级目标
+
+- `P1-01` 评估与运维面板增强：`recall / groundedness / citation coverage / latency / cost / backlog`
 
 ### 明确不做
 
@@ -76,9 +83,10 @@
 
 - `Phase 2A` 的可信问答、混合检索、证据链、拒答、freshness 与评估门槛已完成收口
 - `Phase 2A` 的 `P1` backlog 与 `Phase 2B+` 候选能力已形成上游产品输入
+- `Phase 2B` 的 `PRD / backlog / interaction delta / technical tradeoff` 已补齐第一版
 - `web + api + worker + db + storage + queue` 工程基线已完成
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
-- latest main GitHub Actions run `24221462669` 已通过，当前 main 维持 release-ready 状态
+- latest main GitHub Actions run `24272717403` 已通过，当前 main 维持 release-ready 状态
 
 ---
 
@@ -87,24 +95,24 @@
 1. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 2. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
 3. [Phase 2B Planning And Design Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-11-phase-2b-planning-and-design.md)
-4. [v4 Handoff](/Users/coderlauu/xRag/docs/handoff/v4.md)
-5. [v4 Status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
-6. [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
-7. [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
-8. [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
-9. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
-10. [Phase 2A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md)
-11. [Phase 2A Runtime Contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
-12. [Phase 2A API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
+4. [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
+5. [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
+6. [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
+7. [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
+8. [v4 Handoff](/Users/coderlauu/xRag/docs/handoff/v4.md)
+9. [v4 Status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
+10. [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
+11. [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
+12. [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
 
 ---
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v5 / Phase 2B`，当前节点是 `planning-and-design`，还没有进入实现 freeze 或 implementation lanes
+1. 当前有效版本为 `v5 / Phase 2B`，当前节点仍是 `planning-and-design`，但 `PRD / backlog / interaction delta / technical tradeoff` 第一版已完成
 2. 当前规划必须以 `Phase 2A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v5-phase-2b.md`
-4. 在 `v5` 的产品边界、优先级和 tradeoff 没冻结前，不启动新的 `schema / shared-types / API contract / 状态机` 改动，也不拆新的实现 lane
+4. 在 `v5` 的产品边界、优先级和 tradeoff 没冻结为 contract 之前，不启动新的 `schema / shared-types / API contract / 状态机` 改动，也不拆新的实现 lane
 5. `v4 / Phase 2A` 已归档，继续作为实现、回滚与生产排障的现实基线
 
 ---

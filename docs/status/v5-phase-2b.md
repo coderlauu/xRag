@@ -31,7 +31,7 @@
 
 ## 3. Milestones
 
-- `foundation`: `in-progress`
+- `foundation`: `completed`
 - `api-persistence`: `not-started`
 - `upload-storage`: `not-started`
 - `worker-pipeline`: `not-started`
@@ -41,8 +41,8 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `v5 / Phase 2B` 的 handoff、status 与 planning exec plan 脚手架，并将 `current.md` 从已完成的 `v4 / Phase 2A` 切换到新的 active version。当前范围来源仍以 `Phase 2A` 的 `P1` backlog 与 `Phase 2B+` 候选能力为主，尚未冻结新的 `PRD / backlog / interaction delta / technical tradeoff`。
-- `next`: 先完成 `Phase 2B` 的产品边界与优先级冻结，明确哪些能力进入本轮、哪些继续 deferred；随后再决定是否需要新的 `tech/*` 评估、交互稿和实现 freeze
+- `now`: 已完成 `v5 / Phase 2B` 的 handoff、status、planning exec plan，以及 `PRD / backlog / interaction delta / technical tradeoff` 第一版。当前已把版本边界冻结为：`P0-01` 扩展范围控制、`P0-02` 检索实验台基线、`P0-03` 证据包增强、`P0-04` 问题历史与继续提问；`P1-01` 评估与运维面板增强保留为次级目标。
+- `next`: 基于这批产品事实源进入更正式的技术方案评估，判断 `Phase 2B` 是否需要新的 `tech/*` 文档、contract freeze 和实现 freeze
 
 ## 5. Blockers
 
@@ -52,7 +52,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-11` 已完成 `v5 / Phase 2B` handoff/status/exec plan 脚手架初始化，并通过 `pnpm docs:check` 与 `git diff --check`；当前已知上一条稳定 main CI 为 `24221462669`
+- `latest_validation`: `2026-04-11` 已完成 `v5 / Phase 2B` 的 `handoff / status / exec plan / PRD / backlog / interaction delta / technical tradeoff` 第一版，并通过 `pnpm docs:check` 与 `git diff --check`；当前稳定 main CI 为 `24272717403`
 - `result`: `passed`
 - `latest_failure`: `none`
 
@@ -60,9 +60,13 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v5.md](/Users/coderlauu/xRag/docs/handoff/v5.md)
+- `prd`: [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
+- `product_backlog`: [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
+- `interaction_delta`: [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
+- `technical_tradeoffs`: [Phase 2B P0 technical tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
 - `upstream_version`: [v4.md](/Users/coderlauu/xRag/docs/handoff/v4.md), [v4-phase-2a.md](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
 - `upstream_product_docs`: [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md), [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md), [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md), [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
 - `exec_plans`: [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
-- `key_commits`: `66767af`
-- `latest_ci_run`: `24221462669`（success，docs closeout commit 已完成 validate / integration / e2e / deploy-production / smoke-production）
+- `key_commits`: `66767af`, `b0a2bb9`
+- `latest_ci_run`: `24272717403`（success，v5 scaffolding commit 已完成 validate / integration / e2e / deploy-production / smoke-production）
