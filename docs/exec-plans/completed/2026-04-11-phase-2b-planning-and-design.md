@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-2b-planning-and-design`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v5 handoff](/Users/coderlauu/xRag/docs/handoff/v5.md), [v5 status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md), [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md), [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md), [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md), [Phase 2B P0 technical tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md), [v4 handoff](/Users/coderlauu/xRag/docs/handoff/v4.md), [v4 status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md), [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md), [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md), [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md), [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md), [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
 
@@ -60,3 +60,4 @@
 
 - `2026-04-11`: 依据 `xrag-iteration-governor` 将本次需求分类为 `new-version`，因为当前推进目标已从完成的 `v4 / Phase 2A` 切换到下一轮产品范围规划
 - `2026-04-11`: 已补齐 `Phase 2B` 的 `PRD / backlog / interaction delta / technical tradeoff` 第一版，并冻结 `P0-01 ~ P0-04` 为本轮主链、`P1-01` 为次级增强
+- `2026-04-12`: 规划与设计阶段完成，活跃 exec plan 切换到 [Phase 2B Technical Evaluation And Contract Freeze](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
