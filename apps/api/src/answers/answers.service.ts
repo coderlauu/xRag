@@ -7,6 +7,7 @@ import type {
   AnswerSessionResponse,
   CreateAnswerResponse,
   DiagnosisCode,
+  RetrievalMode,
   ListAnswerSessionsResponse,
   RetrievalExclusionReason,
   ScopeFilterSet,
@@ -42,15 +43,18 @@ export class AnswersService {
     ]);
 
     return {
-      items: sessions.map((session) => ({
-        session_id: session.id,
-        question: session.question,
-        scope: toAnswerScope(session.scopeMode, session.scopePayload),
-        scope_summary: summarizeAnswerScope(toAnswerScope(session.scopeMode, session.scopePayload)),
-        continued_from_session_id: session.continuedFromSessionId,
-        status: session.status,
-        updated_at: session.updatedAt.toISOString()
-      })),
+      items: sessions.map((session) => {
+        const scope = toAnswerScope(session.scopeMode, session.scopePayload);
+        return {
+          session_id: session.id,
+          question: session.question,
+          scope,
+          scope_summary: summarizeAnswerScope(scope),
+          continued_from_session_id: session.continuedFromSessionId,
+          status: session.status,
+          updated_at: session.updatedAt.toISOString()
+        };
+      }),
       page,
       page_size: pageSize,
       total
@@ -61,6 +65,13 @@ export class AnswersService {
     const question = normalizeWhitespace(body.question);
     const scope = this.normalizeScope(body.scope);
     const continuedFromSessionId = normalizeOptionalUuid(body.continued_from_session_id);
+
+    if (continuedFromSessionId) {
+      const sourceSession = await this.answersRepository.getAnswerSessionById(continuedFromSessionId);
+      if (!sourceSession) {
+        throw new NotFoundException("Continued answer session not found");
+      }
+    }
 
     const session = await this.answersRepository.createAnswerSession({
       id: randomUUID(),
@@ -105,18 +116,20 @@ export class AnswersService {
       this.answersRepository.listClaimsBySessionId(sessionId)
     ]);
 
-    const mappedCitations = citations.map((citation) => ({
-      document_id: citation.documentId,
-      chunk_id: citation.chunkId,
-      quote_text: citation.quoteText,
-      locator: citation.locator ?? null
-    }));
+    const scope = toAnswerScope(session.scopeMode, session.scopePayload);
+    const mappedCitations = citations.map(toAnswerCitation);
+    const citationsByClaimSlot = new Map<string, typeof mappedCitations>();
+    for (const citation of citations) {
+      const items = citationsByClaimSlot.get(citation.claimSlot) ?? [];
+      items.push(toAnswerCitation(citation));
+      citationsByClaimSlot.set(citation.claimSlot, items);
+    }
 
     return {
       session_id: session.id,
       question: session.question,
-      scope: toAnswerScope(session.scopeMode, session.scopePayload),
-      scope_summary: summarizeAnswerScope(toAnswerScope(session.scopeMode, session.scopePayload)),
+      scope,
+      scope_summary: summarizeAnswerScope(scope),
       continued_from_session_id: session.continuedFromSessionId,
       status: session.status,
       answer_summary: session.answerSummary,
@@ -128,14 +141,7 @@ export class AnswersService {
         claim_slot: claim.claimSlot,
         claim_text: claim.claimText,
         freshness_badge: claim.freshnessBadge as AnswerClaimFreshnessBadge,
-        citations: mappedCitations.filter((citation) =>
-          citations.some(
-            (source) =>
-              source.claimSlot === claim.claimSlot &&
-              source.documentId === citation.document_id &&
-              source.chunkId === citation.chunk_id
-          )
-        )
+        citations: citationsByClaimSlot.get(claim.claimSlot) ?? []
       })),
       latency_ms: session.latencyMs,
       total_cost_usd: session.totalCostUsd ? String(session.totalCostUsd) : null,
@@ -167,7 +173,7 @@ export class AnswersService {
         lexical_hit_count: retrievalRun.lexicalHitCount,
         semantic_hit_count: retrievalRun.semanticHitCount,
         merged_hit_count: retrievalRun.mergedHitCount,
-        rerank_strategy: "hybrid",
+        rerank_strategy: retrievalRun.rerankStrategy as RetrievalMode,
         latency_ms: retrievalRun.latencyMs
       },
       items: items.map((item) => ({
@@ -330,6 +336,20 @@ function summarizeAnswerScope(scope: AnswerScope): string {
 
   const filters = summarizeScopeFilters(scope.payload?.filters);
   return filters ? `全库；${filters}` : "全库";
+}
+
+function toAnswerCitation(citation: {
+  documentId: string;
+  chunkId: string;
+  quoteText: string;
+  locator: Record<string, unknown> | null;
+}) {
+  return {
+    document_id: citation.documentId,
+    chunk_id: citation.chunkId,
+    quote_text: citation.quoteText,
+    locator: citation.locator ?? null
+  };
 }
 
 function toAnswerScope(mode: AnswerScope["mode"], payload: Record<string, unknown> | null): AnswerScope {

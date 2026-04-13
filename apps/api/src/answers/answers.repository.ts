@@ -23,7 +23,7 @@ export class AnswersRepository {
     return db
       .select()
       .from(answerSessions)
-      .orderBy(desc(answerSessions.updatedAt), desc(answerSessions.createdAt))
+      .orderBy(desc(answerSessions.createdAt), desc(answerSessions.updatedAt))
       .limit(pageSize)
       .offset((page - 1) * pageSize);
   }

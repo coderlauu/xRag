@@ -60,7 +60,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0` 与 `Lane B`；当前下一步是完成 `Lane A` 的 API read model，然后再启动 `Lane C / D`。
+在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B`；当前下一步是启动 `Lane C / D` 的 web 接线。
 
 ---
 
@@ -95,7 +95,7 @@
 - `web + api + worker + db + storage + queue` 工程基线已完成
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
 - latest main GitHub Actions run `24297811958` 已通过，当前 main 维持 release-ready 状态
-- `2026-04-13` 本地已完成 `Lane 0` 与 `Lane B` 相关验证：`git diff --check`、`@xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration`
+- `2026-04-13` 本地已完成 `Lane 0 / A / B` 相关验证：`git diff --check`、`@xrag/api typecheck`、`@xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration`
 
 ---
 
@@ -121,7 +121,7 @@
 1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v5-phase-2b.md`
-4. 当前已完成 `Lane 0` 与 `Lane B`；`worker` 已对齐 `typed scope filters / answer_claims / low_support exclusion / claim-level citations`，但 `schema / shared-types / API contract / 状态机` 仍继续由主线程持有，不下放给并行实现
+4. 当前已完成 `Lane 0 / A / B`；`api` 已对齐 `recent history / continue lineage / evidence group read model`，`worker` 已对齐 `typed scope filters / answer_claims / low_support exclusion / claim-level citations`，但 `schema / shared-types / API contract / 状态机` 仍继续由主线程持有，不下放给并行实现
 5. `v4 / Phase 2A` 已归档，继续作为实现、回滚与生产排障的现实基线
 
 ---

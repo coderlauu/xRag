@@ -79,6 +79,7 @@
   - DTO 字段命名
   - 状态枚举
   - OpenAPI
+- `2026-04-13` 更新：`Lane A` 已由主线程先行收口，`api` 已完成 `recent history created_at ordering / continue lineage validation / evidence_groups claim-slot mapping`，并通过 `@xrag/api typecheck + pnpm test:integration`
 
 ### Lane B: Worker Answer Orchestration
 
@@ -213,4 +214,5 @@
 - `2026-04-13`: 主线程 ownership 固定为 `schema / migrations / shared-types / DTO / OpenAPI / API client / web api adapter`
 - `2026-04-13`: 首批实现 lane 固定为 `Lane A / B / C / D`，测试 lane `Lane E / F` 仅在 feature lane 合流后启动
 - `2026-04-13`: `Lane 0` 已落地，新增 `continued_from_session_id / answer_claims / retrieval summary / evidence_groups / GET /api/v1/answers` 的代码 contract，并完成 typecheck + integration 验证
-- `2026-04-13`: `Lane B` 已落地，`worker` 已对齐 `typed scope filters / answer_claims / claim-level citations / low_support exclusion / retrieval exclusion normalization`，下一步集中推进 `Lane A`
+- `2026-04-13`: `Lane B` 已落地，`worker` 已对齐 `typed scope filters / answer_claims / claim-level citations / low_support exclusion / retrieval exclusion normalization`
+- `2026-04-13`: `Lane A` 已落地，`api` 已对齐 `recent history / continue lineage / evidence_groups` read model，下一步集中推进 `Lane C / D`

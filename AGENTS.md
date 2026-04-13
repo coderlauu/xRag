@@ -31,7 +31,7 @@
 - 当前仓库已经完成正式工程 scaffold
 - `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C` 与 `v4 / Phase 2A` 已完成，当前活跃版本为 `v5 / Phase 2B`
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
-- `v5 / Phase 2B` 当前已完成 `Lane 0` 与 `Lane B`；`schema / shared-types / OpenAPI / SDK / worker evidence path` 已落地，下一步继续推进 `Lane A`，随后进入 `Lane C / D`
+- `v5 / Phase 2B` 当前已完成 `Lane 0 / A / B`；`schema / shared-types / OpenAPI / SDK / answers API read model / worker evidence path` 已落地，下一步进入 `Lane C / D`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
