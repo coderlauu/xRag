@@ -15,6 +15,8 @@ import type {
   HealthResponse,
   JobStatusResponse,
   LatestDeploymentResponse,
+  ListAnswerSessionsQuery,
+  ListAnswerSessionsResponse,
   ListDocumentsQuery,
   ListTagsQuery,
   OpsAnswerSummaryResponse,
@@ -249,6 +251,11 @@ export async function createAnswer(body: CreateAnswerRequest, baseUrl = "http://
     },
     baseUrl
   );
+}
+
+export async function listAnswers(baseUrl = "http://localhost:3001", query: ListAnswerSessionsQuery = {}) {
+  const search = buildSearchParams(query);
+  return requestJson<ListAnswerSessionsResponse>(`/api/v1/answers${search}`, undefined, baseUrl);
 }
 
 export async function getAnswer(sessionId: string, baseUrl = "http://localhost:3001") {

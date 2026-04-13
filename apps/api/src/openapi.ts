@@ -14,8 +14,8 @@ async function main() {
   try {
     const config = new DocumentBuilder()
       .setTitle("xRag API")
-      .setVersion("0.5.0")
-      .setDescription("Phase 2A API contract")
+      .setVersion("0.6.0")
+      .setDescription("Phase 2B API contract")
       .addServer("http://localhost:3001")
       .build();
     const document = SwaggerModule.createDocument(app, config);

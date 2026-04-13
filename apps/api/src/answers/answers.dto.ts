@@ -1,19 +1,31 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import type {
-  AnswerCitation,
-  AnswerRetrievalTraceItem,
-  AnswerRetrievalTraceResponse,
-  AnswerScope,
+  AnswerClaimFreshnessBadge,
   AnswerScopeMode,
-  AnswerSessionResponse,
   AnswerSessionStatus,
-  CreateAnswerRequest,
-  CreateAnswerResponse,
   DiagnosisCode,
-  RetrievalMode
+  RetrievalExclusionReason,
+  RetrievalMode,
+  SourceType
 } from "@xrag/shared-types";
 import { Type } from "class-transformer";
-import { IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from "class-validator";
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested
+} from "class-validator";
 
 const ANSWER_SCOPE_MODE_VALUES: AnswerScopeMode[] = ["global", "search_result", "document"];
 const ANSWER_SESSION_STATUS_VALUES: AnswerSessionStatus[] = [
@@ -26,6 +38,7 @@ const ANSWER_SESSION_STATUS_VALUES: AnswerSessionStatus[] = [
   "failed"
 ];
 const RETRIEVAL_MODE_VALUES: RetrievalMode[] = ["hybrid"];
+const SOURCE_TYPE_VALUES: SourceType[] = ["text", "file", "pdf", "link"];
 const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
   "storage_presign_failed",
   "multipart_part_failed",
@@ -52,19 +65,84 @@ const DIAGNOSIS_CODE_VALUES: DiagnosisCode[] = [
   "citation_missing",
   "provider_timeout"
 ];
+const RETRIEVAL_EXCLUSION_REASON_VALUES: RetrievalExclusionReason[] = [
+  "deduplicated",
+  "rerank_cutoff",
+  "answer_budget",
+  "low_support",
+  "citation_unready"
+];
+const ANSWER_CLAIM_FRESHNESS_BADGE_VALUES: AnswerClaimFreshnessBadge[] = ["ready", "stale_risk", "unknown"];
 
-export class AnswerScopeDto implements AnswerScope {
+export class ScopeFilterSetDto {
+  @ApiPropertyOptional({ type: [String], maxItems: 20 })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiPropertyOptional({ type: [String], enum: SOURCE_TYPE_VALUES, maxItems: 4 })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(4)
+  @IsIn(SOURCE_TYPE_VALUES, { each: true })
+  source_types?: SourceType[];
+
+  @ApiPropertyOptional({ type: String, format: "date-time" })
+  @IsOptional()
+  @IsDateString()
+  date_from?: string;
+
+  @ApiPropertyOptional({ type: String, format: "date-time" })
+  @IsOptional()
+  @IsDateString()
+  date_to?: string;
+}
+
+export class AnswerScopePayloadDto {
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @IsOptional()
+  @IsString()
+  document_id?: string;
+
+  @ApiPropertyOptional({ type: [String], nullable: true, maxItems: 100 })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  document_ids?: string[];
+
+  @ApiPropertyOptional({ type: Boolean, nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  truncated?: boolean;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @IsOptional()
+  @IsString()
+  query?: string | null;
+
+  @ApiPropertyOptional({ type: () => ScopeFilterSetDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ScopeFilterSetDto)
+  filters?: ScopeFilterSetDto | null;
+}
+
+export class AnswerScopeDto {
   @ApiProperty({ type: String, enum: ANSWER_SCOPE_MODE_VALUES })
   @IsIn(ANSWER_SCOPE_MODE_VALUES)
   mode!: AnswerScopeMode;
 
-  @ApiPropertyOptional({ type: Object, nullable: true, additionalProperties: true })
+  @ApiPropertyOptional({ type: () => AnswerScopePayloadDto, nullable: true })
   @IsOptional()
-  @IsObject()
-  payload!: Record<string, unknown> | null;
+  @ValidateNested()
+  @Type(() => AnswerScopePayloadDto)
+  payload!: AnswerScopePayloadDto | null;
 }
 
-export class CreateAnswerRequestDto implements CreateAnswerRequest {
+export class CreateAnswerRequestDto {
   @ApiProperty({ type: String, example: "接下来两个月最值得投入的能力是什么？" })
   @IsString()
   @MinLength(1)
@@ -75,9 +153,31 @@ export class CreateAnswerRequestDto implements CreateAnswerRequest {
   @ValidateNested()
   @Type(() => AnswerScopeDto)
   scope!: AnswerScopeDto;
+
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  @IsOptional()
+  @IsUUID()
+  continued_from_session_id?: string;
 }
 
-export class CreateAnswerResponseDto implements CreateAnswerResponse {
+export class ListAnswerSessionsQueryDto {
+  @ApiPropertyOptional({ type: Number, minimum: 1, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 100, default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  page_size?: number;
+}
+
+export class CreateAnswerResponseDto {
   @ApiProperty({ type: String })
   session_id!: string;
 
@@ -85,7 +185,7 @@ export class CreateAnswerResponseDto implements CreateAnswerResponse {
   status!: AnswerSessionStatus;
 }
 
-export class AnswerCitationDto implements AnswerCitation {
+export class AnswerCitationDto {
   @ApiProperty({ type: String })
   document_id!: string;
 
@@ -99,7 +199,21 @@ export class AnswerCitationDto implements AnswerCitation {
   locator!: Record<string, unknown> | null;
 }
 
-export class AnswerSessionResponseDto implements AnswerSessionResponse {
+export class AnswerEvidenceGroupDto {
+  @ApiProperty({ type: String })
+  claim_slot!: string;
+
+  @ApiProperty({ type: String })
+  claim_text!: string;
+
+  @ApiProperty({ type: String, enum: ANSWER_CLAIM_FRESHNESS_BADGE_VALUES })
+  freshness_badge!: AnswerClaimFreshnessBadge;
+
+  @ApiProperty({ type: () => AnswerCitationDto, isArray: true })
+  citations!: AnswerCitationDto[];
+}
+
+export class AnswerHistoryListItemDto {
   @ApiProperty({ type: String })
   session_id!: string;
 
@@ -108,6 +222,49 @@ export class AnswerSessionResponseDto implements AnswerSessionResponse {
 
   @ApiProperty({ type: () => AnswerScopeDto })
   scope!: AnswerScopeDto;
+
+  @ApiProperty({ type: String })
+  scope_summary!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  continued_from_session_id!: string | null;
+
+  @ApiProperty({ type: String, enum: ANSWER_SESSION_STATUS_VALUES })
+  status!: AnswerSessionStatus;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  updated_at!: string;
+}
+
+export class ListAnswerSessionsResponseDto {
+  @ApiProperty({ type: () => AnswerHistoryListItemDto, isArray: true })
+  items!: AnswerHistoryListItemDto[];
+
+  @ApiProperty({ type: Number })
+  page!: number;
+
+  @ApiProperty({ type: Number })
+  page_size!: number;
+
+  @ApiProperty({ type: Number })
+  total!: number;
+}
+
+export class AnswerSessionResponseDto {
+  @ApiProperty({ type: String })
+  session_id!: string;
+
+  @ApiProperty({ type: String })
+  question!: string;
+
+  @ApiProperty({ type: () => AnswerScopeDto })
+  scope!: AnswerScopeDto;
+
+  @ApiProperty({ type: String })
+  scope_summary!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  continued_from_session_id!: string | null;
 
   @ApiProperty({ type: String, enum: ANSWER_SESSION_STATUS_VALUES })
   status!: AnswerSessionStatus;
@@ -127,14 +284,43 @@ export class AnswerSessionResponseDto implements AnswerSessionResponse {
   @ApiProperty({ type: () => AnswerCitationDto, isArray: true })
   citations!: AnswerCitationDto[];
 
+  @ApiProperty({ type: () => AnswerEvidenceGroupDto, isArray: true })
+  evidence_groups!: AnswerEvidenceGroupDto[];
+
   @ApiPropertyOptional({ type: Number, nullable: true })
   latency_ms!: number | null;
 
   @ApiPropertyOptional({ type: String, nullable: true })
   total_cost_usd!: string | null;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  updated_at!: string;
 }
 
-export class AnswerRetrievalTraceItemDto implements AnswerRetrievalTraceItem {
+export class AnswerRetrievalTraceSummaryDto {
+  @ApiProperty({ type: String })
+  query_normalized!: string;
+
+  @ApiProperty({ type: Number })
+  eligible_document_count!: number;
+
+  @ApiProperty({ type: Number })
+  lexical_hit_count!: number;
+
+  @ApiProperty({ type: Number })
+  semantic_hit_count!: number;
+
+  @ApiProperty({ type: Number })
+  merged_hit_count!: number;
+
+  @ApiProperty({ type: String, enum: RETRIEVAL_MODE_VALUES })
+  rerank_strategy!: RetrievalMode;
+
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  latency_ms!: number | null;
+}
+
+export class AnswerRetrievalTraceItemDto {
   @ApiProperty({ type: String })
   document_id!: string;
 
@@ -156,13 +342,16 @@ export class AnswerRetrievalTraceItemDto implements AnswerRetrievalTraceItem {
   @ApiProperty({ type: Boolean })
   used_in_answer!: boolean;
 
-  @ApiPropertyOptional({ type: String, nullable: true })
-  exclusion_reason!: string | null;
+  @ApiPropertyOptional({ type: String, enum: RETRIEVAL_EXCLUSION_REASON_VALUES, nullable: true })
+  exclusion_reason!: RetrievalExclusionReason | null;
 }
 
-export class AnswerRetrievalTraceResponseDto implements AnswerRetrievalTraceResponse {
+export class AnswerRetrievalTraceResponseDto {
   @ApiProperty({ type: String })
   session_id!: string;
+
+  @ApiPropertyOptional({ type: () => AnswerRetrievalTraceSummaryDto, nullable: true })
+  summary!: AnswerRetrievalTraceSummaryDto | null;
 
   @ApiProperty({ type: () => AnswerRetrievalTraceItemDto, isArray: true })
   items!: AnswerRetrievalTraceItemDto[];

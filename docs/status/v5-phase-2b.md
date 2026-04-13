@@ -40,8 +40,8 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `v5 / Phase 2B` 的 implementation lanes 切分。当前固定为：主线程先完成 `Lane 0` 的 `schema + migrations + shared-types + DTO/OpenAPI + API client`，之后再进入 `Lane A / B / C / D` 的 feature 开发，测试 lane `Lane E / F` 在 feature lane 合流后启动。
-- `next`: 先由主线程落地 `Lane 0`，把 contract freeze 映射到真实代码 source-of-truth；`Lane 0` 完成后，按计划启动 `Lane A / B / C / D`
+- `now`: 已完成 `Lane 0` 的 contract-to-code 落地：`schema + migrations + shared-types + answers DTO/controller/service/repository + OpenAPI + API client + web API adapter` 已与 `Phase 2B` freeze 对齐，并形成新的代码事实源。
+- `next`: 按 implementation lanes 计划启动 `Lane A / B`，优先补齐 API read model 与 worker answer orchestration；`Lane C / D` 在 `Lane A / B` 合流到稳定 shape 后启动。
 
 ## 5. Blockers
 
@@ -51,7 +51,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-13` 已完成 `implementation lanes` 入口切换与 lane ownership 冻结；`pnpm docs:check` 与 `git diff --check` 通过，当前稳定 main CI 仍以 `24297811958` 为最近已知成功基线
+- `latest_validation`: `2026-04-13` 已完成 `Lane 0` contract-to-code 落地；`git diff --check`、`@xrag/shared-types/@xrag/api/@xrag/worker/@xrag/web typecheck`、`pnpm test:integration` 通过，`docs/generated/openapi/phase-2a-api.json` 已按 `Phase 2B` contract 重新生成；当前稳定 main CI 仍以 `24297811958` 为最近已知成功基线
 - `result`: `passed`
 - `latest_failure`: `none`
 

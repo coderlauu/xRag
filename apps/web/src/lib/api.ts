@@ -1,6 +1,7 @@
 import {
   createAnswer as createAnswerRequest,
   createLinkDocument as createLinkDocumentRequest,
+  listAnswers as listAnswersRequest,
   completeUpload as completeUploadRequest,
   completeUploadPart as completeUploadPartRequest,
   createTag as createTagRequest,
@@ -41,6 +42,8 @@ import type {
   HealthResponse,
   JobStatusResponse,
   LatestDeploymentResponse,
+  ListAnswerSessionsQuery,
+  ListAnswerSessionsResponse,
   ListDocumentsQuery,
   ListTagsQuery,
   OpsAnswerSummaryResponse,
@@ -54,8 +57,7 @@ import type {
   UploadCompleteRequest,
   UploadCompleteResponse,
   UploadInitiateRequest,
-  UploadInitiateResponse
-  ,
+  UploadInitiateResponse,
   UploadPartCompleteRequest,
   UploadPartCompleteResponse,
   UploadPartUrlRequest,
@@ -134,6 +136,10 @@ export function getLatestDeployment(): Promise<LatestDeploymentResponse> {
 
 export function createAnswer(body: CreateAnswerRequest): Promise<CreateAnswerResponse> {
   return createAnswerRequest(body, API_BASE_URL);
+}
+
+export function listAnswers(query: ListAnswerSessionsQuery = {}): Promise<ListAnswerSessionsResponse> {
+  return listAnswersRequest(API_BASE_URL, query);
 }
 
 export function getAnswer(sessionId: string): Promise<AnswerSessionResponse> {

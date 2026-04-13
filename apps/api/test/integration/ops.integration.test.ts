@@ -13,7 +13,7 @@ async function resetDatabase() {
 
   try {
     await pool.query(
-      "truncate table answer_citations, retrieval_run_hits, retrieval_runs, answer_sessions, document_chunks, document_processing_events, upload_parts, document_parse_jobs, document_tags, uploads, tags, documents restart identity cascade"
+      "truncate table answer_claims, answer_citations, retrieval_run_hits, retrieval_runs, answer_sessions, document_chunks, document_processing_events, upload_parts, document_parse_jobs, document_tags, uploads, tags, documents restart identity cascade"
     );
   } finally {
     await pool.end();
@@ -174,13 +174,14 @@ async function seedOpsData() {
           completion_tokens,
           total_cost_usd,
           created_at,
+          updated_at,
           finished_at
         )
         values
-          ($1, 'What is ready?', 'search_result', $2, 'hybrid', 'answered', 'Ready answer', null, null, 'openai', 'gpt-test', 100, 10, 20, '1.0000', $3, $3),
-          ($4, 'What needs scope?', 'search_result', $2, 'hybrid', 'needs_scope', null, 'Need narrower scope', null, 'openai', 'gpt-test', 200, 11, 21, '2.0000', $3, $3),
-          ($5, 'Why refused?', 'search_result', $2, 'hybrid', 'refused', null, 'No evidence', null, 'openai', 'gpt-test', 300, 12, 22, '3.0000', $3, $3),
-          ($6, 'Why failed?', 'search_result', $2, 'hybrid', 'failed', null, null, 'provider_timeout', 'openai', 'gpt-test', 9999, 13, 23, '9999.0000', $3, $3)
+          ($1, 'What is ready?', 'search_result', $2, 'hybrid', 'answered', 'Ready answer', null, null, 'openai', 'gpt-test', 100, 10, 20, '1.0000', $3, $3, $3),
+          ($4, 'What needs scope?', 'search_result', $2, 'hybrid', 'needs_scope', null, 'Need narrower scope', null, 'openai', 'gpt-test', 200, 11, 21, '2.0000', $3, $3, $3),
+          ($5, 'Why refused?', 'search_result', $2, 'hybrid', 'refused', null, 'No evidence', null, 'openai', 'gpt-test', 300, 12, 22, '3.0000', $3, $3, $3),
+          ($6, 'Why failed?', 'search_result', $2, 'hybrid', 'failed', null, null, 'provider_timeout', 'openai', 'gpt-test', 9999, 13, 23, '9999.0000', $3, $3, $3)
       `,
       [
         answeredSessionId,

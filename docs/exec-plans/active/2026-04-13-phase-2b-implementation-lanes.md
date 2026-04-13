@@ -15,6 +15,8 @@
 
 进入并行编码前，主线程必须先完成 `Lane 0`。
 
+`2026-04-13` 更新：`Lane 0` 已完成，当前代码事实源已覆盖 `schema / migrations / shared-types / answers contract skeleton / OpenAPI / SDK / web api adapter`，并通过本地 typecheck 与 integration 验证。
+
 主线程完成项如下：
 
 1. `apps/api/src/database/schema.ts`
@@ -22,9 +24,11 @@
 3. `packages/shared-types/src/index.ts`
 4. `apps/api/src/answers/answers.dto.ts`
 5. `apps/api/src/answers/answers.controller.ts`
-6. `apps/api/src/openapi.ts`
-7. `packages/api-client/src/index.ts`
-8. `apps/web/src/lib/api.ts`
+6. `apps/api/src/answers/answers.service.ts`
+7. `apps/api/src/answers/answers.repository.ts`
+8. `apps/api/src/openapi.ts`
+9. `packages/api-client/src/index.ts`
+10. `apps/web/src/lib/api.ts`
 
 主线程还负责把以下语义落到代码事实源：
 
@@ -47,6 +51,8 @@
   - `packages/shared-types/src/index.ts`
   - `apps/api/src/answers/answers.dto.ts`
   - `apps/api/src/answers/answers.controller.ts`
+  - `apps/api/src/answers/answers.service.ts`
+  - `apps/api/src/answers/answers.repository.ts`
   - `apps/api/src/openapi.ts`
   - `packages/api-client/src/index.ts`
   - `apps/web/src/lib/api.ts`
@@ -58,7 +64,7 @@
 ### Lane A: API Read Model And History Surface
 
 - 类型：子 agent
-- 目标：实现 recent answers、session read model、scope summary 与 evidence group 的 API 读写逻辑
+- 目标：在 `Lane 0` 已补齐 contract skeleton 的前提下，继续完善 recent answers、session read model、scope summary 与 evidence group 的 API 读写逻辑
 - 写入范围：
   - `apps/api/src/answers/answers.service.ts`
   - `apps/api/src/answers/answers.repository.ts`
@@ -205,3 +211,4 @@
 - `2026-04-13`: `Phase 2B` implementation freeze 退出条件已满足，正式切换到 implementation lanes
 - `2026-04-13`: 主线程 ownership 固定为 `schema / migrations / shared-types / DTO / OpenAPI / API client / web api adapter`
 - `2026-04-13`: 首批实现 lane 固定为 `Lane A / B / C / D`，测试 lane `Lane E / F` 仅在 feature lane 合流后启动
+- `2026-04-13`: `Lane 0` 已落地，新增 `continued_from_session_id / answer_claims / retrieval summary / evidence_groups / GET /api/v1/answers` 的代码 contract，并完成 typecheck + integration 验证

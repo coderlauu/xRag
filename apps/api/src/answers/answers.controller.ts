@@ -1,7 +1,9 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
 import { ApiAcceptedResponse, ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import {
   AnswerRetrievalTraceResponseDto,
+  ListAnswerSessionsQueryDto,
+  ListAnswerSessionsResponseDto,
   AnswerSessionResponseDto,
   CreateAnswerRequestDto,
   CreateAnswerResponseDto
@@ -12,6 +14,13 @@ import { AnswersService } from "./answers.service";
 @Controller("api/v1/answers")
 export class AnswersController {
   constructor(private readonly answersService: AnswersService) {}
+
+  @Get()
+  @ApiOperation({ summary: "List recent answer sessions" })
+  @ApiOkResponse({ type: ListAnswerSessionsResponseDto })
+  listAnswers(@Query() query: ListAnswerSessionsQueryDto) {
+    return this.answersService.listAnswers(query);
+  }
 
   @Post()
   @HttpCode(202)

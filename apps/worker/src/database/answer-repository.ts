@@ -9,6 +9,7 @@ export interface AnswerSessionRecord {
   id: string;
   ownerId: string | null;
   queueJobId: string | null;
+  continuedFromSessionId: string | null;
   question: string;
   scopeMode: "global" | "search_result" | "document";
   scopePayload: Record<string, unknown> | null;
@@ -24,6 +25,7 @@ export interface AnswerSessionRecord {
   completionTokens: number | null;
   totalCostUsd: string | null;
   createdAt: Date;
+  updatedAt: Date;
   finishedAt: Date | null;
 }
 
@@ -119,6 +121,7 @@ export class AnswerRepository {
           id,
           owner_id as "ownerId",
           queue_job_id as "queueJobId",
+          continued_from_session_id as "continuedFromSessionId",
           question,
           scope_mode as "scopeMode",
           scope_payload as "scopePayload",
@@ -134,6 +137,7 @@ export class AnswerRepository {
           completion_tokens as "completionTokens",
           total_cost_usd as "totalCostUsd",
           created_at as "createdAt",
+          updated_at as "updatedAt",
           finished_at as "finishedAt"
         from answer_sessions
         where id = $1
@@ -198,7 +202,8 @@ export class AnswerRepository {
     await db.query(
       `
         update answer_sessions
-        set ${assignments.join(", ")}
+        set ${assignments.join(", ")},
+            updated_at = now()
         where id = $1
       `,
       params

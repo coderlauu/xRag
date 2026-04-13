@@ -99,6 +99,7 @@ function createSession(overrides: Partial<AnswerSessionRecord> = {}): AnswerSess
     id: "session-1",
     ownerId: null,
     queueJobId: null,
+    continuedFromSessionId: null,
     question: "未来两个月最值得投入什么？",
     scopeMode: "global",
     scopePayload: null,
@@ -114,6 +115,7 @@ function createSession(overrides: Partial<AnswerSessionRecord> = {}): AnswerSess
     completionTokens: null,
     totalCostUsd: null,
     createdAt: new Date("2026-04-08T00:00:00.000Z"),
+    updatedAt: new Date("2026-04-08T00:00:00.000Z"),
     finishedAt: null,
     ...overrides
   };

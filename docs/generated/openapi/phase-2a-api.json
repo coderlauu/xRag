@@ -46,6 +46,26 @@
       }
     },
     "/api/v1/answers": {
+      "get": {
+        "operationId": "AnswersController_listAnswers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAnswerSessionsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List recent answer sessions",
+        "tags": [
+          "answers"
+        ]
+      },
       "post": {
         "operationId": "AnswersController_createAnswer",
         "parameters": [],
@@ -891,8 +911,8 @@
   },
   "info": {
     "title": "xRag API",
-    "description": "Phase 2A API contract",
-    "version": "0.5.0",
+    "description": "Phase 2B API contract",
+    "version": "0.6.0",
     "contact": {}
   },
   "tags": [],
@@ -932,6 +952,72 @@
           "checks"
         ]
       },
+      "ScopeFilterSetDto": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_types": {
+            "type": "array",
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "enum": [
+                "text",
+                "file",
+                "pdf",
+                "link"
+              ]
+            }
+          },
+          "date_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "date_to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AnswerScopePayloadDto": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "document_ids": {
+            "nullable": true,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "query": {
+            "type": "string",
+            "nullable": true
+          },
+          "filters": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScopeFilterSetDto"
+              }
+            ]
+          }
+        }
+      },
       "AnswerScopeDto": {
         "type": "object",
         "properties": {
@@ -944,13 +1030,87 @@
             ]
           },
           "payload": {
-            "type": "object",
             "nullable": true,
-            "additionalProperties": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AnswerScopePayloadDto"
+              }
+            ]
           }
         },
         "required": [
           "mode"
+        ]
+      },
+      "AnswerHistoryListItemDto": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AnswerScopeDto"
+          },
+          "scope_summary": {
+            "type": "string"
+          },
+          "continued_from_session_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "retrieving",
+              "synthesizing",
+              "answered",
+              "needs_scope",
+              "refused",
+              "failed"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "session_id",
+          "question",
+          "scope",
+          "scope_summary",
+          "status",
+          "updated_at"
+        ]
+      },
+      "ListAnswerSessionsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerHistoryListItemDto"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "page_size": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
         ]
       },
       "CreateAnswerRequestDto": {
@@ -962,6 +1122,11 @@
           },
           "scope": {
             "$ref": "#/components/schemas/AnswerScopeDto"
+          },
+          "continued_from_session_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         },
         "required": [
@@ -1017,6 +1182,37 @@
           "quote_text"
         ]
       },
+      "AnswerEvidenceGroupDto": {
+        "type": "object",
+        "properties": {
+          "claim_slot": {
+            "type": "string"
+          },
+          "claim_text": {
+            "type": "string"
+          },
+          "freshness_badge": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "stale_risk",
+              "unknown"
+            ]
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerCitationDto"
+            }
+          }
+        },
+        "required": [
+          "claim_slot",
+          "claim_text",
+          "freshness_badge",
+          "citations"
+        ]
+      },
       "AnswerSessionResponseDto": {
         "type": "object",
         "properties": {
@@ -1028,6 +1224,13 @@
           },
           "scope": {
             "$ref": "#/components/schemas/AnswerScopeDto"
+          },
+          "scope_summary": {
+            "type": "string"
+          },
+          "continued_from_session_id": {
+            "type": "string",
+            "nullable": true
           },
           "status": {
             "type": "string",
@@ -1091,6 +1294,12 @@
               "$ref": "#/components/schemas/AnswerCitationDto"
             }
           },
+          "evidence_groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerEvidenceGroupDto"
+            }
+          },
           "latency_ms": {
             "type": "number",
             "nullable": true
@@ -1098,15 +1307,60 @@
           "total_cost_usd": {
             "type": "string",
             "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
           "session_id",
           "question",
           "scope",
+          "scope_summary",
           "status",
           "retrieval_mode",
-          "citations"
+          "citations",
+          "evidence_groups",
+          "updated_at"
+        ]
+      },
+      "AnswerRetrievalTraceSummaryDto": {
+        "type": "object",
+        "properties": {
+          "query_normalized": {
+            "type": "string"
+          },
+          "eligible_document_count": {
+            "type": "number"
+          },
+          "lexical_hit_count": {
+            "type": "number"
+          },
+          "semantic_hit_count": {
+            "type": "number"
+          },
+          "merged_hit_count": {
+            "type": "number"
+          },
+          "rerank_strategy": {
+            "type": "string",
+            "enum": [
+              "hybrid"
+            ]
+          },
+          "latency_ms": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "query_normalized",
+          "eligible_document_count",
+          "lexical_hit_count",
+          "semantic_hit_count",
+          "merged_hit_count",
+          "rerank_strategy"
         ]
       },
       "AnswerRetrievalTraceItemDto": {
@@ -1139,6 +1393,13 @@
           },
           "exclusion_reason": {
             "type": "string",
+            "enum": [
+              "deduplicated",
+              "rerank_cutoff",
+              "answer_budget",
+              "low_support",
+              "citation_unready"
+            ],
             "nullable": true
           }
         },
@@ -1153,6 +1414,14 @@
         "properties": {
           "session_id": {
             "type": "string"
+          },
+          "summary": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AnswerRetrievalTraceSummaryDto"
+              }
+            ]
           },
           "items": {
             "type": "array",

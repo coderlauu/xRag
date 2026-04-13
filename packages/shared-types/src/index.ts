@@ -19,6 +19,13 @@ export type AnswerSessionStatus =
   | "needs_scope"
   | "refused"
   | "failed";
+export type RetrievalExclusionReason =
+  | "deduplicated"
+  | "rerank_cutoff"
+  | "answer_budget"
+  | "low_support"
+  | "citation_unready";
+export type AnswerClaimFreshnessBadge = "ready" | "stale_risk" | "unknown";
 export type DocumentJobType =
   | "parse_document"
   | "reparse_document"
@@ -360,14 +367,43 @@ export interface DocumentTimelineResponse {
   items: DocumentProcessingEventItem[];
 }
 
-export interface AnswerScope {
-  mode: AnswerScopeMode;
-  payload: Record<string, unknown> | null;
+export interface ScopeFilterSet {
+  tags?: string[];
+  source_types?: SourceType[];
+  date_from?: string;
+  date_to?: string;
 }
+
+export interface GlobalAnswerScope {
+  mode: "global";
+  payload: {
+    filters?: ScopeFilterSet | null;
+  } | null;
+}
+
+export interface DocumentAnswerScope {
+  mode: "document";
+  payload: {
+    document_id: string;
+  };
+}
+
+export interface SearchResultAnswerScope {
+  mode: "search_result";
+  payload: {
+    document_ids: string[];
+    truncated: boolean;
+    query?: string | null;
+    filters?: ScopeFilterSet | null;
+  };
+}
+
+export type AnswerScope = GlobalAnswerScope | DocumentAnswerScope | SearchResultAnswerScope;
 
 export interface CreateAnswerRequest {
   question: string;
   scope: AnswerScope;
+  continued_from_session_id?: string;
 }
 
 export interface CreateAnswerResponse {
@@ -382,18 +418,39 @@ export interface AnswerCitation {
   locator: Record<string, unknown> | null;
 }
 
+export interface AnswerEvidenceGroup {
+  claim_slot: string;
+  claim_text: string;
+  freshness_badge: AnswerClaimFreshnessBadge;
+  citations: AnswerCitation[];
+}
+
 export interface AnswerSessionResponse {
   session_id: string;
   question: string;
   scope: AnswerScope;
+  scope_summary: string;
+  continued_from_session_id: string | null;
   status: AnswerSessionStatus;
   answer_summary: string | null;
   refusal_reason: string | null;
   diagnosis_code: DiagnosisCode | null;
   retrieval_mode: RetrievalMode;
   citations: AnswerCitation[];
+  evidence_groups: AnswerEvidenceGroup[];
   latency_ms: number | null;
   total_cost_usd: string | null;
+  updated_at: string;
+}
+
+export interface AnswerRetrievalTraceSummary {
+  query_normalized: string;
+  eligible_document_count: number;
+  lexical_hit_count: number;
+  semantic_hit_count: number;
+  merged_hit_count: number;
+  rerank_strategy: RetrievalMode;
+  latency_ms: number | null;
 }
 
 export interface AnswerRetrievalTraceItem {
@@ -404,12 +461,35 @@ export interface AnswerRetrievalTraceItem {
   semantic_score: number | null;
   final_score: number | null;
   used_in_answer: boolean;
-  exclusion_reason: string | null;
+  exclusion_reason: RetrievalExclusionReason | null;
 }
 
 export interface AnswerRetrievalTraceResponse {
   session_id: string;
+  summary: AnswerRetrievalTraceSummary | null;
   items: AnswerRetrievalTraceItem[];
+}
+
+export interface AnswerHistoryListItem {
+  session_id: string;
+  question: string;
+  status: AnswerSessionStatus;
+  scope: AnswerScope;
+  scope_summary: string;
+  continued_from_session_id: string | null;
+  updated_at: string;
+}
+
+export interface ListAnswerSessionsQuery {
+  page?: number;
+  page_size?: number;
+}
+
+export interface ListAnswerSessionsResponse {
+  items: AnswerHistoryListItem[];
+  page: number;
+  page_size: number;
+  total: number;
 }
 
 export interface OpsHealthService {

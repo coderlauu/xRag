@@ -4,6 +4,7 @@ import {
   boolean,
   char,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -347,6 +348,7 @@ export const answerSessions = pgTable(
     id: uuid("id").primaryKey(),
     ownerId: uuid("owner_id"),
     queueJobId: varchar("queue_job_id", { length: 128 }),
+    continuedFromSessionId: uuid("continued_from_session_id"),
     question: text("question").notNull(),
     scopeMode: answerScopeModeEnum("scope_mode").notNull(),
     scopePayload: jsonb("scope_payload").$type<Record<string, unknown> | null>(),
@@ -362,11 +364,45 @@ export const answerSessions = pgTable(
     completionTokens: integer("completion_tokens"),
     totalCostUsd: numeric("total_cost_usd", { precision: 10, scale: 4 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     finishedAt: timestamp("finished_at", { withTimezone: true })
   },
   (table) => ({
     statusIdx: index("idx_answer_sessions_status").on(table.status),
-    createdAtIdx: index("idx_answer_sessions_created_at").on(table.createdAt)
+    createdAtIdx: index("idx_answer_sessions_created_at").on(table.createdAt),
+    continuedFromSessionIdIdx: index("idx_answer_sessions_continued_from_session_id").on(
+      table.continuedFromSessionId
+    ),
+    continuedFromSessionFk: foreignKey({
+      columns: [table.continuedFromSessionId],
+      foreignColumns: [table.id],
+      name: "answer_sessions_continued_from_session_id_answer_sessions_id_fk"
+    }).onDelete("set null")
+  })
+);
+
+export const answerClaims = pgTable(
+  "answer_claims",
+  {
+    id: uuid("id").primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => answerSessions.id, { onDelete: "cascade" }),
+    claimSlot: varchar("claim_slot", { length: 64 }).notNull(),
+    displayOrder: integer("display_order").notNull(),
+    claimText: text("claim_text").notNull(),
+    freshnessBadge: varchar("freshness_badge", { length: 32 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    sessionDisplayOrderIdx: index("idx_answer_claims_session_display_order").on(
+      table.sessionId,
+      table.displayOrder
+    ),
+    sessionClaimSlotUniqueIdx: uniqueIndex("idx_answer_claims_session_claim_slot").on(
+      table.sessionId,
+      table.claimSlot
+    )
   })
 );
 
@@ -515,7 +551,15 @@ export const documentChunksRelations = relations(documentChunks, ({ many, one })
 
 export const answerSessionsRelations = relations(answerSessions, ({ many }) => ({
   retrievalRuns: many(retrievalRuns),
-  citations: many(answerCitations)
+  citations: many(answerCitations),
+  claims: many(answerClaims)
+}));
+
+export const answerClaimsRelations = relations(answerClaims, ({ one }) => ({
+  session: one(answerSessions, {
+    fields: [answerClaims.sessionId],
+    references: [answerSessions.id]
+  })
 }));
 
 export const retrievalRunsRelations = relations(retrievalRuns, ({ many, one }) => ({
@@ -567,6 +611,7 @@ export const schema = {
   documentProcessingEvents,
   documentChunks,
   answerSessions,
+  answerClaims,
   retrievalRuns,
   retrievalRunHits,
   answerCitations

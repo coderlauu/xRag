@@ -1,13 +1,32 @@
 import { Injectable } from "@nestjs/common";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { DatabaseService, type DatabaseClient } from "../database/database.service";
-import { answerCitations, answerSessions, retrievalRunHits, retrievalRuns } from "../database/schema";
+import { answerCitations, answerClaims, answerSessions, retrievalRunHits, retrievalRuns } from "../database/schema";
 
 type DatabaseExecutor = Pick<DatabaseClient, "select" | "insert" | "update">;
 
 @Injectable()
 export class AnswersRepository {
   constructor(private readonly database: DatabaseService) {}
+
+  async countAnswerSessions(db: DatabaseExecutor = this.database.db) {
+    const [result] = await db
+      .select({
+        total: sql<number>`count(*)::int`
+      })
+      .from(answerSessions);
+
+    return result?.total ?? 0;
+  }
+
+  async listAnswerSessions(page: number, pageSize: number, db: DatabaseExecutor = this.database.db) {
+    return db
+      .select()
+      .from(answerSessions)
+      .orderBy(desc(answerSessions.updatedAt), desc(answerSessions.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+  }
 
   async createAnswerSession(values: typeof answerSessions.$inferInsert, db: DatabaseExecutor = this.database.db) {
     const [session] = await db.insert(answerSessions).values(values).returning();
@@ -21,7 +40,10 @@ export class AnswersRepository {
   ) {
     const [session] = await db
       .update(answerSessions)
-      .set(values)
+      .set({
+        ...values,
+        updatedAt: new Date()
+      })
       .where(eq(answerSessions.id, sessionId))
       .returning();
 
@@ -33,12 +55,20 @@ export class AnswersRepository {
     return session ?? null;
   }
 
+  async listClaimsBySessionId(sessionId: string, db: DatabaseExecutor = this.database.db) {
+    return db
+      .select()
+      .from(answerClaims)
+      .where(eq(answerClaims.sessionId, sessionId))
+      .orderBy(answerClaims.displayOrder, answerClaims.createdAt);
+  }
+
   async listCitationsBySessionId(sessionId: string, db: DatabaseExecutor = this.database.db) {
     return db
       .select()
       .from(answerCitations)
       .where(eq(answerCitations.sessionId, sessionId))
-      .orderBy(desc(answerCitations.createdAt));
+      .orderBy(answerCitations.claimSlot, answerCitations.createdAt);
   }
 
   async getLatestRetrievalRunBySessionId(sessionId: string, db: DatabaseExecutor = this.database.db) {

@@ -29,6 +29,13 @@
       "when": 1775660466501,
       "tag": "0003_fluffy_pyro",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776090013791,
+      "tag": "0004_premium_forge",
+      "breakpoints": true
     }
   ]
 }

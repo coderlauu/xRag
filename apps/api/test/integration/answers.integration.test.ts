@@ -14,7 +14,7 @@ async function resetDatabase() {
 
   try {
     await pool.query(
-      "truncate table answer_citations, retrieval_run_hits, retrieval_runs, answer_sessions, document_chunks, document_processing_events, document_parse_jobs, document_tags, uploads, tags, documents restart identity cascade"
+      "truncate table answer_claims, answer_citations, retrieval_run_hits, retrieval_runs, answer_sessions, document_chunks, document_processing_events, document_parse_jobs, document_tags, uploads, tags, documents restart identity cascade"
     );
   } finally {
     await pool.end();
@@ -128,6 +128,22 @@ async function seedAnsweredSession(sessionId: string, documentId: string, chunkI
 
     await pool.query(
       `
+        insert into answer_claims (
+          id,
+          session_id,
+          claim_slot,
+          display_order,
+          claim_text,
+          freshness_badge,
+          created_at
+        )
+        values ($1, $2, 'claim-1', 1, 'The answer is grounded.', 'ready', $3)
+      `,
+      [randomUUID(), sessionId, now]
+    );
+
+    await pool.query(
+      `
         insert into answer_citations (
           id,
           session_id,
@@ -184,14 +200,28 @@ test("answers API creates and exposes answer session, citations, and retrieval t
 
     const sessionRowResponse = await app.inject({
       method: "GET",
-      url: `/api/v1/answers/${sessionId}`
+      url: "/api/v1/answers"
     });
     assert.equal(sessionRowResponse.statusCode, 200);
-    const initialSession = sessionRowResponse.json();
+    const sessionList = sessionRowResponse.json();
+    assert.equal(sessionList.items.length, 1);
+    assert.equal(sessionList.items[0].session_id, sessionId);
+    assert.equal(sessionList.items[0].continued_from_session_id, null);
+    assert.equal(sessionList.items[0].scope_summary, `搜索结果 · 1 个文档`);
+
+    const initialSessionResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/answers/${sessionId}`
+    });
+    assert.equal(initialSessionResponse.statusCode, 200);
+    const initialSession = initialSessionResponse.json();
     assert.equal(initialSession.question, "What evidence is available?");
     assert.equal(initialSession.status, "retrieving");
     assert.equal(initialSession.scope.mode, "search_result");
     assert.deepEqual(initialSession.scope.payload.document_ids, [documentId]);
+    assert.equal(initialSession.scope_summary, "搜索结果 · 1 个文档");
+    assert.equal(initialSession.continued_from_session_id, null);
+    assert.deepEqual(initialSession.evidence_groups, []);
 
     await seedAnsweredSession(sessionId, documentId, chunkId);
 
@@ -210,6 +240,7 @@ test("answers API creates and exposes answer session, citations, and retrieval t
               prompt_tokens = 14,
               completion_tokens = 28,
               total_cost_usd = 1.2345,
+              updated_at = now(),
               finished_at = now()
           where id = $1
         `,
@@ -231,6 +262,10 @@ test("answers API creates and exposes answer session, citations, and retrieval t
     assert.equal(answered.diagnosis_code, null);
     assert.equal(answered.retrieval_mode, "hybrid");
     assert.equal(answered.citations.length, 1);
+    assert.equal(answered.evidence_groups.length, 1);
+    assert.equal(answered.evidence_groups[0].claim_slot, "claim-1");
+    assert.equal(answered.evidence_groups[0].freshness_badge, "ready");
+    assert.equal(answered.evidence_groups[0].citations.length, 1);
     assert.equal(answered.citations[0].document_id, documentId);
     assert.equal(answered.citations[0].chunk_id, chunkId);
     assert.equal(answered.citations[0].quote_text, "Grounded evidence quote");
@@ -245,6 +280,8 @@ test("answers API creates and exposes answer session, citations, and retrieval t
     assert.equal(retrievalResponse.statusCode, 200);
     const retrieval = retrievalResponse.json();
     assert.equal(retrieval.session_id, sessionId);
+    assert.equal(retrieval.summary.query_normalized, "what evidence is available");
+    assert.equal(retrieval.summary.rerank_strategy, "hybrid");
     assert.equal(retrieval.items.length, 1);
     assert.equal(retrieval.items[0].document_id, documentId);
     assert.equal(retrieval.items[0].chunk_id, chunkId);
