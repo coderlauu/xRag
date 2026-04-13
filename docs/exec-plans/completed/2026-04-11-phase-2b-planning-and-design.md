@@ -60,4 +60,4 @@
 
 - `2026-04-11`: 依据 `xrag-iteration-governor` 将本次需求分类为 `new-version`，因为当前推进目标已从完成的 `v4 / Phase 2A` 切换到下一轮产品范围规划
 - `2026-04-11`: 已补齐 `Phase 2B` 的 `PRD / backlog / interaction delta / technical tradeoff` 第一版，并冻结 `P0-01 ~ P0-04` 为本轮主链、`P1-01` 为次级增强
-- `2026-04-12`: 规划与设计阶段完成，活跃 exec plan 切换到 [Phase 2B Technical Evaluation And Contract Freeze](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
+- `2026-04-12`: 规划与设计阶段完成，活跃 exec plan 切换到 [Phase 2B Technical Evaluation And Contract Freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)

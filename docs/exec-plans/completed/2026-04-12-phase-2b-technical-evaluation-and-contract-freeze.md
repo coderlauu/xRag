@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-2b-technical-evaluation-and-contract-freeze`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v5 handoff](/Users/coderlauu/xRag/docs/handoff/v5.md), [v5 status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md), [Phase 2B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md), [Phase 2B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md), [Phase 2B api design](/Users/coderlauu/xRag/tech/api/2026-04-12-phase-2b-api.md), [Phase 2B contract freeze prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-12-phase-2b-contract-freeze-prerequisites.md), [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md), [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md), [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md), [Phase 2B P0 technical tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
 
@@ -61,3 +61,4 @@
 
 - `2026-04-12`: 代码审计确认 `Phase 2A` 的 `answers / retrieval / evidence / ops` 主链已真实存在，`Phase 2B` 应采用增量增强路线
 - `2026-04-12`: 已完成 `Phase 2B` 第一轮 `architecture / data-model / api / prerequisites` 技术评估，当前无新的硬 blocker，可进入正式 contract freeze
+- `2026-04-13`: 已产出 [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)，active exec plan 切换到 [Phase 2B Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)

@@ -34,7 +34,8 @@
 
 - [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-- [Phase 2B Technical Evaluation And Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
+- [Phase 2B Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)
+- [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 - [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 - [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
 - [Phase 2B API Design](/Users/coderlauu/xRag/tech/api/2026-04-12-phase-2b-api.md)
@@ -44,6 +45,7 @@
 - [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
 - [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
 - [Phase 2B Planning And Design Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md)
+- [Phase 2B Technical Evaluation And Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
 - [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
 - [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
 - [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
@@ -57,7 +59,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成第一轮技术方案评估；当前下一步是把 `scope / history / retrieval explain / evidence grouping` 正式冻结到 contract，再决定实现 lane。
+在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成正式 contract freeze；当前下一步是进入 implementation freeze，先收口主线程编码入口，再拆实现 lane。
 
 ---
 
@@ -69,7 +71,7 @@
 - `P0-02` 检索实验台基线：`lexical / semantic / rerank` 贡献、未入答原因、URL state
 - `P0-03` 证据包增强：claim grouping、多引用组合、freshness 提示强化
 - `P0-04` 问题历史与继续提问：最近问题、旧 session 回看、显式继承 follow-up
-- `PRD / backlog / interaction delta / technical tradeoff / architecture / data-model / api / freeze-prerequisites` 已形成当前事实源
+- `PRD / backlog / interaction delta / technical tradeoff / architecture / data-model / api / contract-freeze` 已形成当前事实源
 
 ### 本轮次级目标
 
@@ -82,16 +84,16 @@
 - 团队协作
 - 移动端
 - 全自动 agent 工作流
-- 在 contract freeze 前直接进入新的实现 lane
+- 在 implementation freeze 前直接进入新的实现 lane
 
 ### 当前阶段依赖的既有基线
 
 - `Phase 2A` 的可信问答、混合检索、证据链、拒答、freshness 与评估门槛已完成收口
 - `Phase 2A` 的 `P1` backlog 与 `Phase 2B+` 候选能力已形成上游产品输入
-- `Phase 2B` 的 `PRD / backlog / interaction delta / technical tradeoff / architecture / data-model / api / freeze-prerequisites` 已补齐第一轮
+- `Phase 2B` 的 `PRD / backlog / interaction delta / technical tradeoff / architecture / data-model / api / contract-freeze` 已补齐并完成收口
 - `web + api + worker + db + storage + queue` 工程基线已完成
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
-- latest main GitHub Actions run `24272717403` 已通过，当前 main 维持 release-ready 状态
+- latest main GitHub Actions run `24297811958` 已通过，当前 main 维持 release-ready 状态
 
 ---
 
@@ -99,11 +101,11 @@
 
 1. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 2. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-3. [Phase 2B Technical Evaluation And Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
-4. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
-5. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
-6. [Phase 2B API Design](/Users/coderlauu/xRag/tech/api/2026-04-12-phase-2b-api.md)
-7. [Phase 2B Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-12-phase-2b-contract-freeze-prerequisites.md)
+3. [Phase 2B Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)
+4. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
+5. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
+6. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
+7. [Phase 2B API Design](/Users/coderlauu/xRag/tech/api/2026-04-12-phase-2b-api.md)
 8. [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
 9. [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
 10. [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
@@ -114,10 +116,10 @@
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `technical-evaluation-and-contract-freeze`
+1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `implementation-freeze`
 2. 当前规划必须以 `Phase 2A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v5-phase-2b.md`
-4. 当前已完成第一轮技术评估，但在正式 contract freeze 落地前，仍不启动新的实现 lane，也不把 `schema / shared-types / API contract / 状态机` 下放给并行实现
+4. 当前已完成正式 contract freeze，但在 implementation freeze 结束前，仍不启动新的实现 lane，也不把 `schema / shared-types / API contract / 状态机` 下放给并行实现
 5. `v4 / Phase 2A` 已归档，继续作为实现、回滚与生产排障的现实基线
 
 ---

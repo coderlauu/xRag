@@ -115,6 +115,7 @@
 | `claim_slot` | `varchar(64)` | 与 citation 共享的稳定 claim key |
 | `display_order` | `integer` | UI 展示顺序 |
 | `claim_text` | `text` | 用户可见 claim 文本 |
+| `freshness_badge` | `varchar(32)` | claim 级 freshness 风险提示 |
 | `created_at` | `timestamptz` | 创建时间 |
 
 说明：
@@ -125,6 +126,7 @@
   - `citations`
   - `evidence_groups`
 - 不需要依赖解析 `answer_summary` 文本来猜 claim 边界。
+- `freshness_badge` 作为 claim 级用户可见字段持久化，避免前端临时推断。
 
 推荐唯一约束：
 
