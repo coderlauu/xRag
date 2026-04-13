@@ -40,8 +40,8 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane 0` 的 contract-to-code 落地：`schema + migrations + shared-types + answers DTO/controller/service/repository + OpenAPI + API client + web API adapter` 已与 `Phase 2B` freeze 对齐，并形成新的代码事实源。
-- `next`: 按 implementation lanes 计划启动 `Lane A / B`，优先补齐 API read model 与 worker answer orchestration；`Lane C / D` 在 `Lane A / B` 合流到稳定 shape 后启动。
+- `now`: 已完成 `Lane 0` 与 `Lane B`。当前代码事实源已覆盖 `schema + migrations + shared-types + answers DTO/controller/service/repository + OpenAPI + API client + web API adapter`，并且 `worker` 已对齐 `typed scope filters / answer_claims / claim-level citations / low_support exclusion / retrieval exclusion normalization`。
+- `next`: 继续完成 `Lane A` 的 API read model 与 history surface；`Lane C / D` 在 `Lane A` 合流到稳定 shape 后启动。
 
 ## 5. Blockers
 
@@ -51,7 +51,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-13` 已完成 `Lane 0` contract-to-code 落地；`git diff --check`、`@xrag/shared-types/@xrag/api/@xrag/worker/@xrag/web typecheck`、`pnpm test:integration` 通过，`docs/generated/openapi/phase-2a-api.json` 已按 `Phase 2B` contract 重新生成；当前稳定 main CI 仍以 `24297811958` 为最近已知成功基线
+- `latest_validation`: `2026-04-13` 已完成 `Lane 0` 与 `Lane B` 本地验证；`git diff --check`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration` 通过；当前稳定 main CI 仍以 `24297811958` 为最近已知成功基线
 - `result`: `passed`
 - `latest_failure`: `none`
 
@@ -69,5 +69,5 @@
 - `upstream_product_docs`: [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md), [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md), [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md), [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
 - `exec_plans`: [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
-- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`
+- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`, `2949dd0`
 - `latest_ci_run`: `24297811958`（success，docs(phase-2b): add technical evaluation baseline）

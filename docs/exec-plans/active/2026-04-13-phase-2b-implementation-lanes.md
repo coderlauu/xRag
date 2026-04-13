@@ -96,6 +96,7 @@
   - `apps/worker/src/providers/**`
   - `apps/worker/src/jobs/document-processing.ts`
   - API 路径、schema enum 值、job payload 字段命名
+- `2026-04-13` 更新：`Lane B` 已由主线程先行收口，`worker` 已完成 `typed scope filters / answer_claims / claim-level citations / low_support exclusion`，并通过 `@xrag/worker typecheck + test:unit + pnpm test:integration`
 
 ### Lane C: Ask Workspace And Recent History
 
@@ -212,3 +213,4 @@
 - `2026-04-13`: 主线程 ownership 固定为 `schema / migrations / shared-types / DTO / OpenAPI / API client / web api adapter`
 - `2026-04-13`: 首批实现 lane 固定为 `Lane A / B / C / D`，测试 lane `Lane E / F` 仅在 feature lane 合流后启动
 - `2026-04-13`: `Lane 0` 已落地，新增 `continued_from_session_id / answer_claims / retrieval summary / evidence_groups / GET /api/v1/answers` 的代码 contract，并完成 typecheck + integration 验证
+- `2026-04-13`: `Lane B` 已落地，`worker` 已对齐 `typed scope filters / answer_claims / claim-level citations / low_support exclusion / retrieval exclusion normalization`，下一步集中推进 `Lane A`

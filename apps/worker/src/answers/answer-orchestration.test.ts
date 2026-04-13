@@ -3,33 +3,31 @@ import test from "node:test";
 import type { AnswerProvider, EmbeddingProvider } from "../providers";
 import type { AnswerRepository, AnswerSessionRecord, AnswerChunkRecord, RetrievalChunkCandidateRecord, RetrievalRunRecord } from "../database/answer-repository";
 import { createAnswerOrchestrationHandlers } from "./answer-orchestration";
+import type { ScopeFilterSet } from "@xrag/shared-types";
 
-test("answer orchestration persists grounded answer citations", async () => {
+test("answer orchestration persists answer claims, citations, and low-support exclusions", async () => {
   const session = createSession();
   const repository = createRepository({
     session,
     eligibleDocumentCount: 1,
-    lexicalCandidates: [createCandidate("chunk-1", 0.8, null)],
-    semanticCandidates: [createCandidate("chunk-1", null, 0.9)],
+    lexicalCandidates: [createCandidate("chunk-1", 0.8, null), createCandidate("chunk-2", 0.6, null)],
+    semanticCandidates: [createCandidate("chunk-1", null, 0.9), createCandidate("chunk-2", null, 0.7)],
     chunkRecords: [
-      {
-        id: "chunk-1",
-        documentId: "doc-1",
-        documentTitle: "路线图",
-        chunkIndex: 0,
-        sectionLabel: "summary",
-        pageRef: "p1",
-        contentText: "建议优先投入混合检索、引用链路与 freshness。",
-        contentSha256: "sha",
-        citationLocator: { page: 1 }
-      }
+      createChunkRecord("chunk-1", "建议优先投入混合检索、引用链路与 freshness。"),
+      createChunkRecord("chunk-2", "这个方向重要，但当前证据支持度不足。")
     ]
   });
   const embeddingProvider = createEmbeddingProvider();
   const answerProvider = createAnswerProvider({
     decision: "answered",
     answer_summary: "应优先投入混合检索、引用链路与 freshness。",
-    supporting_chunk_ids: ["chunk-1"]
+    supporting_chunk_ids: ["chunk-1"],
+    claims: [
+      {
+        claim_text: "应优先投入混合检索、引用链路与 freshness。",
+        supporting_chunk_ids: ["chunk-1"]
+      }
+    ]
   });
 
   const handlers = createAnswerOrchestrationHandlers({
@@ -54,9 +52,81 @@ test("answer orchestration persists grounded answer citations", async () => {
   assert.equal(session.refusalReason, null);
   assert.equal(session.providerName, "mock-answer");
   assert.equal(session.providerModel, "mock-model");
+  assert.equal(repository.answerClaims.length, 1);
+  assert.equal(repository.answerClaims[0]?.claimSlot, "claim_1");
+  assert.equal(repository.answerClaims[0]?.claimText, "应优先投入混合检索、引用链路与 freshness。");
+  assert.equal(repository.answerClaims[0]?.freshnessBadge, "ready");
   assert.equal(repository.answerCitations.length, 1);
   assert.equal(repository.answerCitations[0]?.chunkId, "chunk-1");
+  assert.equal(repository.answerCitations[0]?.claimSlot, "claim_1");
   assert.equal(repository.retrievalRunHits[0]?.usedInAnswer, true);
+  assert.equal(repository.retrievalRunHits[1]?.usedInAnswer, false);
+  assert.equal(repository.retrievalRunHits[1]?.exclusionReason, "low_support");
+});
+
+test("answer orchestration propagates typed scope filters into retrieval", async () => {
+  const session = createSession({
+    scopeMode: "global",
+    scopePayload: {
+      filters: {
+        tags: ["strategy", " strategy ", "", "roadmap"],
+        source_types: ["pdf", "invalid", "link", "pdf"],
+        date_from: "2026-01-01T00:00:00.000Z",
+        date_to: "2026-02-01T00:00:00.000Z"
+      }
+    }
+  });
+  const repository = createRepository({
+    session,
+    eligibleDocumentCount: 1,
+    lexicalCandidates: [createCandidate("chunk-1", 0.8, null)],
+    semanticCandidates: [createCandidate("chunk-1", null, 0.9)],
+    chunkRecords: [createChunkRecord("chunk-1", "这里有足够的引用证据。")]
+  });
+
+  const handlers = createAnswerOrchestrationHandlers({
+    repository,
+    getEmbeddingProvider: () => createEmbeddingProvider(),
+    getAnswerProvider: () =>
+      createAnswerProvider({
+        decision: "answered",
+        answer_summary: "这里有足够的引用证据。",
+        supporting_chunk_ids: ["chunk-1"]
+      }),
+    logger: createLogger()
+  });
+
+  await handlers.answer_session({
+    name: "answer_session",
+    id: "queue-job-filters",
+    data: {
+      sessionId: session.id
+    },
+    attemptsMade: 0
+  });
+
+  const expectedFilters: ScopeFilterSet = {
+    tags: ["strategy", "roadmap"],
+    source_types: ["pdf", "link"],
+    date_from: "2026-01-01T00:00:00.000Z",
+    date_to: "2026-02-01T00:00:00.000Z"
+  };
+
+  assert.deepEqual(repository.lastCountEligibleCall, {
+    documentIds: null,
+    filters: expectedFilters
+  });
+  assert.deepEqual(repository.lastLexicalCall, {
+    question: session.question,
+    documentIds: null,
+    filters: expectedFilters,
+    limit: 12
+  });
+  assert.deepEqual(repository.lastSemanticCall, {
+    documentIds: null,
+    filters: expectedFilters,
+    limit: 12
+  });
 });
 
 test("answer orchestration refuses immediately when no eligible evidence exists", async () => {
@@ -142,6 +212,20 @@ function createCandidate(
   };
 }
 
+function createChunkRecord(chunkId: string, contentText: string): AnswerChunkRecord {
+  return {
+    id: chunkId,
+    documentId: "doc-1",
+    documentTitle: "路线图",
+    chunkIndex: Number(chunkId.split("-").at(-1) ?? 0) - 1,
+    sectionLabel: "summary",
+    pageRef: "p1",
+    contentText,
+    contentSha256: "sha",
+    citationLocator: { page: 1 }
+  };
+}
+
 function createEmbeddingProvider(): EmbeddingProvider {
   return {
     async embed() {
@@ -166,6 +250,10 @@ function createAnswerProvider(response: {
   refusal_reason?: string | null;
   scope_suggestions?: string[] | null;
   supporting_chunk_ids?: string[] | null;
+  claims?: Array<{
+    claim_text?: string | null;
+    supporting_chunk_ids?: string[] | null;
+  }> | null;
 }): AnswerProvider {
   return {
     async generate() {
@@ -206,6 +294,21 @@ function createRepository(config: {
   const state = {
     session: config.session,
     retrievalRuns: [] as RetrievalRunRecord[],
+    lastCountEligibleCall: null as {
+      documentIds: string[] | null;
+      filters: ScopeFilterSet | null;
+    } | null,
+    lastLexicalCall: null as {
+      question: string;
+      documentIds: string[] | null;
+      filters: ScopeFilterSet | null;
+      limit: number;
+    } | null,
+    lastSemanticCall: null as {
+      documentIds: string[] | null;
+      filters: ScopeFilterSet | null;
+      limit: number;
+    } | null,
     retrievalRunHits: [] as Array<{
       retrievalRunId: string;
       documentId: string;
@@ -225,11 +328,17 @@ function createRepository(config: {
       quoteText: string;
       locator: Record<string, unknown> | null;
     }>,
+    answerClaims: [] as Array<{
+      sessionId: string;
+      claimSlot: string;
+      displayOrder: number;
+      claimText: string;
+      freshnessBadge: string;
+    }>,
     chunkRecords: config.chunkRecords ?? []
   };
 
-  return Object.assign(
-    {
+  const repository = {
     async getAnswerSessionById() {
       return state.session;
     },
@@ -334,13 +443,38 @@ function createRepository(config: {
       state.session.totalCostUsd = values.totalCostUsd === null ? null : String(values.totalCostUsd);
       state.session.finishedAt = new Date();
     },
-    async countEligibleDocuments() {
+    async countEligibleDocuments(documentIds: string[] | null, filters: ScopeFilterSet | null) {
+      state.lastCountEligibleCall = {
+        documentIds,
+        filters
+      };
       return config.eligibleDocumentCount;
     },
-    async listLexicalChunkCandidates() {
+    async listLexicalChunkCandidates(
+      question: string,
+      documentIds: string[] | null,
+      filters: ScopeFilterSet | null,
+      limit: number
+    ) {
+      state.lastLexicalCall = {
+        question,
+        documentIds,
+        filters,
+        limit
+      };
       return config.lexicalCandidates ?? [];
     },
-    async listSemanticChunkCandidates() {
+    async listSemanticChunkCandidates(
+      _queryVector: readonly number[],
+      documentIds: string[] | null,
+      filters: ScopeFilterSet | null,
+      limit: number
+    ) {
+      state.lastSemanticCall = {
+        documentIds,
+        filters,
+        limit
+      };
       return config.semanticCandidates ?? [];
     },
     async createRetrievalRun(values: {
@@ -389,6 +523,28 @@ function createRepository(config: {
         }
       }
     },
+    async markRetrievalHitsExcludedFromAnswer(retrievalRunId: string, chunkIds: string[], exclusionReason: string) {
+      for (const hit of state.retrievalRunHits) {
+        if (
+          hit.retrievalRunId === retrievalRunId &&
+          hit.chunkId &&
+          chunkIds.includes(hit.chunkId) &&
+          !hit.usedInAnswer &&
+          hit.exclusionReason === null
+        ) {
+          hit.exclusionReason = exclusionReason;
+        }
+      }
+    },
+    async insertAnswerClaims(values: Array<{
+      sessionId: string;
+      claimSlot: string;
+      displayOrder: number;
+      claimText: string;
+      freshnessBadge: string;
+    }>) {
+      state.answerClaims.push(...values);
+    },
     async insertAnswerCitations(values: Array<{
       sessionId: string;
       documentId: string;
@@ -405,13 +561,33 @@ function createRepository(config: {
     async withTransaction<T>(callback: (db: unknown) => Promise<T>) {
       return callback({});
     }
-    },
-    {
-      retrievalRunHits: state.retrievalRunHits,
-      answerCitations: state.answerCitations
-    }
-  ) as unknown as AnswerRepository & {
+  } as unknown as AnswerRepository & {
+    lastCountEligibleCall: typeof state.lastCountEligibleCall;
+    lastLexicalCall: typeof state.lastLexicalCall;
+    lastSemanticCall: typeof state.lastSemanticCall;
     retrievalRunHits: typeof state.retrievalRunHits;
+    answerClaims: typeof state.answerClaims;
     answerCitations: typeof state.answerCitations;
   };
+
+  return Object.defineProperties(repository, {
+    lastCountEligibleCall: {
+      get: () => state.lastCountEligibleCall
+    },
+    lastLexicalCall: {
+      get: () => state.lastLexicalCall
+    },
+    lastSemanticCall: {
+      get: () => state.lastSemanticCall
+    },
+    retrievalRunHits: {
+      get: () => state.retrievalRunHits
+    },
+    answerClaims: {
+      get: () => state.answerClaims
+    },
+    answerCitations: {
+      get: () => state.answerCitations
+    }
+  });
 }

@@ -1,6 +1,7 @@
 import { normalizeWhitespace } from "../common/document-utils";
 import type { AnswerRepository, RetrievalChunkCandidateRecord, RetrievalRunRecord, RetrievalTraceHitRecord } from "../database/answer-repository";
 import type { EmbeddingProvider } from "../providers";
+import type { ScopeFilterSet } from "@xrag/shared-types";
 
 export interface HybridRetrieverDependencies {
   repository: AnswerRepository;
@@ -11,6 +12,7 @@ export interface HybridRetrievalInput {
   sessionId: string;
   question: string;
   scopeDocumentIds: string[] | null;
+  scopeFilters: ScopeFilterSet | null;
 }
 
 export interface HybridRetrievalOutcome {
@@ -36,12 +38,16 @@ export class HybridRetriever {
 
   async retrieve(input: HybridRetrievalInput): Promise<HybridRetrievalOutcome> {
     const queryNormalized = normalizeWhitespace(input.question);
-    const eligibleDocumentCount = await this.deps.repository.countEligibleDocuments(input.scopeDocumentIds);
+    const eligibleDocumentCount = await this.deps.repository.countEligibleDocuments(
+      input.scopeDocumentIds,
+      input.scopeFilters
+    );
 
     if (eligibleDocumentCount === 0) {
-      const diagnosisCode = input.scopeDocumentIds && input.scopeDocumentIds.length > 0
-        ? "retrieval_scope_empty"
-        : "retrieval_no_hits";
+      const diagnosisCode =
+        (input.scopeDocumentIds && input.scopeDocumentIds.length > 0) || hasScopeFilters(input.scopeFilters)
+          ? "retrieval_scope_empty"
+          : "retrieval_no_hits";
       const refusalReason =
         diagnosisCode === "retrieval_scope_empty"
           ? "当前范围内没有可引用的已索引文档，请先完成索引或扩大问答范围。"
@@ -75,6 +81,7 @@ export class HybridRetriever {
     const lexicalPromise = this.deps.repository.listLexicalChunkCandidates(
       queryNormalized,
       input.scopeDocumentIds,
+      input.scopeFilters,
       LEXICAL_LIMIT
     );
     const embeddingPromise = this.deps.embeddingProvider.embed(queryNormalized);
@@ -89,12 +96,13 @@ export class HybridRetriever {
     const semanticCandidates = await this.deps.repository.listSemanticChunkCandidates(
       queryVector,
       input.scopeDocumentIds,
+      input.scopeFilters,
       SEMANTIC_LIMIT
     );
 
     const mergedCandidates = mergeCandidates(lexicalCandidates, semanticCandidates).slice(0, TRACE_LIMIT);
     const candidatePack = mergedCandidates.slice(0, PACK_LIMIT);
-    const traceHits = mergedCandidates.map((candidate, index) => ({
+    const traceHits: RetrievalTraceHitRecord[] = mergedCandidates.map((candidate, index) => ({
       retrievalRunId: "",
       documentId: candidate.documentId,
       chunkId: candidate.id,
@@ -103,7 +111,7 @@ export class HybridRetriever {
       semanticScore: candidate.semanticScore,
       finalScore: candidate.finalScore,
       usedInAnswer: false,
-      exclusionReason: index < PACK_LIMIT ? null : "pack_limit"
+      exclusionReason: index < PACK_LIMIT ? null : "answer_budget"
     }));
 
     const retrievalRun = await this.deps.repository.createRetrievalRun({
@@ -140,6 +148,16 @@ export class HybridRetriever {
           : null
     };
   }
+}
+
+function hasScopeFilters(filters: ScopeFilterSet | null): boolean {
+  return Boolean(
+    filters &&
+      ((filters.tags && filters.tags.length > 0) ||
+        (filters.source_types && filters.source_types.length > 0) ||
+        filters.date_from ||
+        filters.date_to)
+  );
 }
 
 function mergeCandidates(

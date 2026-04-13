@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { normalizeWhitespace } from "../common/document-utils";
-import type { AnswerSessionStatus } from "@xrag/shared-types";
+import type {
+  AnswerClaimFreshnessBadge,
+  AnswerSessionStatus,
+  RetrievalExclusionReason,
+  ScopeFilterSet,
+  SourceType
+} from "@xrag/shared-types";
 
 type DatabaseExecutor = Pick<Pool | PoolClient, "query">;
 
@@ -69,7 +75,7 @@ export interface RetrievalTraceHitRecord {
   semanticScore: number | null;
   finalScore: number | null;
   usedInAnswer: boolean;
-  exclusionReason: string | null;
+  exclusionReason: RetrievalExclusionReason | null;
 }
 
 export interface AnswerCitationInsertRecord {
@@ -79,6 +85,14 @@ export interface AnswerCitationInsertRecord {
   claimSlot: string;
   quoteText: string;
   locator: Record<string, unknown> | null;
+}
+
+export interface AnswerClaimInsertRecord {
+  sessionId: string;
+  claimSlot: string;
+  displayOrder: number;
+  claimText: string;
+  freshnessBadge: AnswerClaimFreshnessBadge;
 }
 
 export interface AnswerSessionUpdate {
@@ -358,22 +372,18 @@ export class AnswerRepository {
     );
   }
 
-  async countEligibleDocuments(documentIds: string[] | null, db: DatabaseExecutor = this.pool): Promise<number> {
+  async countEligibleDocuments(
+    documentIds: string[] | null,
+    filters: ScopeFilterSet | null,
+    db: DatabaseExecutor = this.pool
+  ): Promise<number> {
     if (documentIds && documentIds.length === 0) {
       return 0;
     }
 
     const params: unknown[] = [];
-    const where: string[] = [
-      "d.index_status = 'ready'",
-      "d.citation_ready = true",
-      "c.embedding is not null"
-    ];
-
-    if (documentIds && documentIds.length > 0) {
-      params.push(documentIds);
-      where.push(`d.id = any($${params.length}::uuid[])`);
-    }
+    const where = buildChunkWhereClause(documentIds, filters, params);
+    where.push("c.embedding is not null");
 
     const result = await db.query<{ count: string }>(
       `
@@ -391,6 +401,7 @@ export class AnswerRepository {
   async listLexicalChunkCandidates(
     question: string,
     documentIds: string[] | null,
+    filters: ScopeFilterSet | null,
     limit: number,
     db: DatabaseExecutor = this.pool
   ): Promise<RetrievalChunkCandidateRecord[]> {
@@ -399,7 +410,7 @@ export class AnswerRepository {
     }
 
     const params: unknown[] = [question, limit];
-    const where = buildChunkWhereClause(documentIds, params);
+    const where = buildChunkWhereClause(documentIds, filters, params);
     const result = await db.query<RetrievalChunkCandidateRow>(
       `
         select
@@ -415,7 +426,7 @@ export class AnswerRepository {
           ts_rank_cd(to_tsvector('simple', c.content_text), plainto_tsquery('simple', $1)) as score
         from document_chunks c
         inner join documents d on d.id = c.document_id
-        where ${where}
+        where ${where.join(" and ")}
           and to_tsvector('simple', c.content_text) @@ plainto_tsquery('simple', $1)
         order by score desc, c.chunk_index asc
         limit $2
@@ -442,6 +453,7 @@ export class AnswerRepository {
   async listSemanticChunkCandidates(
     queryVector: readonly number[],
     documentIds: string[] | null,
+    filters: ScopeFilterSet | null,
     limit: number,
     db: DatabaseExecutor = this.pool
   ): Promise<RetrievalChunkCandidateRecord[]> {
@@ -451,7 +463,7 @@ export class AnswerRepository {
 
     const vectorLiteral = serializeVector(queryVector);
     const params: unknown[] = [vectorLiteral, limit];
-    const where = buildChunkWhereClause(documentIds, params);
+    const where = buildChunkWhereClause(documentIds, filters, params);
     const result = await db.query<RetrievalChunkCandidateRow>(
       `
         select
@@ -467,7 +479,7 @@ export class AnswerRepository {
           greatest(0, least(1, 1 - (c.embedding <=> $1::vector))) as score
         from document_chunks c
         inner join documents d on d.id = c.document_id
-        where ${where}
+        where ${where.join(" and ")}
           and c.embedding is not null
         order by c.embedding <=> $1::vector asc, c.chunk_index asc
         limit $2
@@ -614,6 +626,65 @@ export class AnswerRepository {
     );
   }
 
+  async markRetrievalHitsExcludedFromAnswer(
+    retrievalRunId: string,
+    chunkIds: string[],
+    exclusionReason: RetrievalExclusionReason,
+    db: DatabaseExecutor = this.pool
+  ): Promise<void> {
+    if (chunkIds.length === 0) {
+      return;
+    }
+
+    await db.query(
+      `
+        update retrieval_run_hits
+        set exclusion_reason = $3
+        where retrieval_run_id = $1
+          and chunk_id = any($2::uuid[])
+          and used_in_answer = false
+          and exclusion_reason is null
+      `,
+      [retrievalRunId, chunkIds, exclusionReason]
+    );
+  }
+
+  async insertAnswerClaims(values: AnswerClaimInsertRecord[], db: DatabaseExecutor = this.pool): Promise<void> {
+    if (values.length === 0) {
+      return;
+    }
+
+    const params: unknown[] = [];
+    const rows = values
+      .map((value) => {
+        const base = params.length;
+        params.push(
+          randomUUID(),
+          value.sessionId,
+          value.claimSlot,
+          value.displayOrder,
+          value.claimText,
+          value.freshnessBadge
+        );
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
+      })
+      .join(", ");
+
+    await db.query(
+      `
+        insert into answer_claims (
+          id,
+          session_id,
+          claim_slot,
+          display_order,
+          claim_text,
+          freshness_badge
+        ) values ${rows}
+      `,
+      params
+    );
+  }
+
   async insertAnswerCitations(values: AnswerCitationInsertRecord[], db: DatabaseExecutor = this.pool): Promise<void> {
     if (values.length === 0) {
       return;
@@ -729,7 +800,7 @@ interface AnswerChunkRow {
   citationLocator: Record<string, unknown> | null;
 }
 
-function buildChunkWhereClause(documentIds: string[] | null, params: unknown[]): string {
+function buildChunkWhereClause(documentIds: string[] | null, filters: ScopeFilterSet | null, params: unknown[]): string[] {
   const where = [
     "d.index_status = 'ready'",
     "d.citation_ready = true"
@@ -740,7 +811,35 @@ function buildChunkWhereClause(documentIds: string[] | null, params: unknown[]):
     where.push(`c.document_id = any($${params.length}::uuid[])`);
   }
 
-  return where.join(" and ");
+  if (filters?.source_types && filters.source_types.length > 0) {
+    params.push(dedupeSourceTypes(filters.source_types));
+    where.push(`d.source_type::text = any($${params.length}::text[])`);
+  }
+
+  if (filters?.date_from) {
+    params.push(filters.date_from);
+    where.push(`d.imported_at >= $${params.length}::timestamptz`);
+  }
+
+  if (filters?.date_to) {
+    params.push(filters.date_to);
+    where.push(`d.imported_at <= $${params.length}::timestamptz`);
+  }
+
+  if (filters?.tags && filters.tags.length > 0) {
+    params.push(dedupeTagNames(filters.tags));
+    where.push(
+      `exists (
+        select 1
+        from document_tags dt
+        inner join tags t on t.id = dt.tag_id
+        where dt.document_id = d.id
+          and t.normalized_name = any($${params.length}::text[])
+      )`
+    );
+  }
+
+  return where;
 }
 
 function normalizeNumericText(value: string | number | null): string | number | null {
@@ -767,4 +866,18 @@ function toNumber(value: string | number | null): number | null {
 
   const numeric = typeof value === "number" ? value : Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function dedupeSourceTypes(values: SourceType[]): SourceType[] {
+  return Array.from(new Set(values));
+}
+
+function dedupeTagNames(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => normalizeWhitespace(value).toLowerCase())
+        .filter((value) => value.length > 0)
+    )
+  );
 }

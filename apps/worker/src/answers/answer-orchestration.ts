@@ -4,12 +4,15 @@ import type { AnswerProvider, AnswerProviderResult, EmbeddingProvider } from "..
 import { ProviderRequestError } from "../providers";
 import type {
   AnswerChunkRecord,
+  AnswerCitationInsertRecord,
+  AnswerClaimInsertRecord,
   AnswerRepository,
   AnswerSessionRecord,
   RetrievalChunkCandidateRecord
 } from "../database/answer-repository";
 import { HybridRetriever, type HybridRetrievalOutcome } from "../retrieval/hybrid-retriever";
 import { normalizeWhitespace } from "../common/document-utils";
+import type { AnswerClaimFreshnessBadge, ScopeFilterSet, SourceType } from "@xrag/shared-types";
 
 export interface AnswerOrchestrationJobResult {
   sessionId: string;
@@ -30,6 +33,15 @@ interface AnswerOrchestrationModelResponse {
   refusal_reason?: string | null;
   scope_suggestions?: string[] | null;
   supporting_chunk_ids?: string[] | null;
+  claims?: Array<{
+    claim_text?: string | null;
+    supporting_chunk_ids?: string[] | null;
+  }> | null;
+}
+
+interface ValidatedAnswerClaim {
+  claimText: string;
+  supportingChunkIds: string[];
 }
 
 export function createAnswerOrchestrationHandlers(deps: AnswerOrchestrationDependencies) {
@@ -83,6 +95,7 @@ async function processAnswerSession(
 
   try {
     const scopeDocumentIds = resolveScopeDocumentIds(session);
+    const scopeFilters = resolveScopeFilters(session);
     const retriever = new HybridRetriever({
       repository,
       embeddingProvider: getEmbeddingProvider()
@@ -90,7 +103,8 @@ async function processAnswerSession(
     const retrieval = await retriever.retrieve({
       sessionId: session.id,
       question: session.question,
-      scopeDocumentIds
+      scopeDocumentIds,
+      scopeFilters
     });
 
     if (retrieval.diagnosisCode || retrieval.candidatePack.length === 0) {
@@ -119,7 +133,7 @@ async function processAnswerSession(
     if (validated.decision === "answered") {
       await persistAnsweredSession(repository, session, retrieval, answerResult, {
         answerSummary: validated.answerSummary ?? "",
-        supportingChunkIds: validated.supportingChunkIds
+        claims: validated.claims
       });
       return {
         sessionId: session.id,
@@ -210,7 +224,9 @@ async function generateGroundedAnswer(
         "Use only the evidence pack below.",
         "Return JSON only.",
         "decision must be one of: answered, needs_scope, refused.",
-        "When decision is answered, include a concise answer_summary and supporting_chunk_ids.",
+        "When decision is answered, include a concise answer_summary.",
+        "When decision is answered, supporting_chunk_ids remains required for backward compatibility.",
+        "When decision is answered, you may also include claims as an array of { claim_text, supporting_chunk_ids }.",
         "When decision is needs_scope, include actionable scope_suggestions.",
         "When decision is refused, include a clear refusal_reason.",
         "Do not invent chunk ids or cite evidence that is not in the pack."
@@ -267,7 +283,7 @@ function validateAnswerResponse(
   answerSummary: string | null;
   refusalReason: string | null;
   scopeSuggestions: string[];
-  supportingChunkIds: string[];
+  claims: ValidatedAnswerClaim[];
   diagnosisCode: "answer_insufficient_evidence" | "citation_missing" | null;
 } {
   const parsed = parseStructuredAnswer(result.text);
@@ -280,7 +296,8 @@ function validateAnswerResponse(
   }
 
   const candidateIds = new Set(candidatePack.map((candidate) => candidate.id));
-  const supportingChunkIds = normalizeStringArray(parsed.supporting_chunk_ids);
+  const supportingChunkIds = dedupeStrings(normalizeStringArray(parsed.supporting_chunk_ids));
+  const structuredClaims = normalizeStructuredClaims(parsed.claims);
 
   if (parsed.decision === "answered") {
     const answerSummary = normalizeTextField(parsed.answer_summary);
@@ -290,32 +307,57 @@ function validateAnswerResponse(
         answerSummary: null,
         refusalReason: "答案摘要为空，无法通过 citation validator。",
         scopeSuggestions: [],
-        supportingChunkIds: [],
+        claims: [],
         diagnosisCode: "answer_insufficient_evidence"
       };
     }
 
-    if (supportingChunkIds.length === 0) {
+    const claims =
+      structuredClaims.length > 0
+        ? structuredClaims
+        : answerSummary && supportingChunkIds.length > 0
+          ? [
+              {
+                claimText: answerSummary,
+                supportingChunkIds
+              }
+            ]
+          : [];
+
+    if (claims.length === 0) {
       return {
         decision: "refused",
         answerSummary: null,
         refusalReason: "缺少支撑该答案的 citation。",
         scopeSuggestions: [],
-        supportingChunkIds: [],
+        claims: [],
         diagnosisCode: "citation_missing"
       };
     }
 
-    const unsupportedChunkId = supportingChunkIds.find((chunkId) => !candidateIds.has(chunkId));
-    if (unsupportedChunkId) {
-      return {
-        decision: "refused",
-        answerSummary: null,
-        refusalReason: `citation 引用了不在 candidate pack 中的 chunk: ${unsupportedChunkId}`,
-        scopeSuggestions: [],
-        supportingChunkIds: [],
-        diagnosisCode: "citation_missing"
-      };
+    for (const claim of claims) {
+      if (claim.supportingChunkIds.length === 0) {
+        return {
+          decision: "refused",
+          answerSummary: null,
+          refusalReason: "至少有一个 claim 缺少支撑它的 citation。",
+          scopeSuggestions: [],
+          claims: [],
+          diagnosisCode: "citation_missing"
+        };
+      }
+
+      const unsupportedChunkId = claim.supportingChunkIds.find((chunkId) => !candidateIds.has(chunkId));
+      if (unsupportedChunkId) {
+        return {
+          decision: "refused",
+          answerSummary: null,
+          refusalReason: `citation 引用了不在 candidate pack 中的 chunk: ${unsupportedChunkId}`,
+          scopeSuggestions: [],
+          claims: [],
+          diagnosisCode: "citation_missing"
+        };
+      }
     }
 
     return {
@@ -323,7 +365,7 @@ function validateAnswerResponse(
       answerSummary,
       refusalReason: null,
       scopeSuggestions: [],
-      supportingChunkIds,
+      claims,
       diagnosisCode: null
     };
   }
@@ -335,7 +377,7 @@ function validateAnswerResponse(
       answerSummary: null,
       refusalReason: normalizeTextField(parsed.refusal_reason) || null,
       scopeSuggestions,
-      supportingChunkIds: [],
+      claims: [],
       diagnosisCode: null
     };
   }
@@ -345,7 +387,7 @@ function validateAnswerResponse(
     answerSummary: null,
     refusalReason: normalizeTextField(parsed.refusal_reason) || "当前范围内证据不足，无法安全回答。",
     scopeSuggestions: [],
-    supportingChunkIds: [],
+    claims: [],
     diagnosisCode: "answer_insufficient_evidence"
   };
 }
@@ -357,15 +399,27 @@ async function persistAnsweredSession(
   answerResult: AnswerProviderResult,
   validated: {
     answerSummary: string;
-    supportingChunkIds: string[];
+    claims: ValidatedAnswerClaim[];
   }
 ): Promise<void> {
-  const chunkRecords = await repository.listChunksByIds(validated.supportingChunkIds);
-  const citations = buildAnswerCitations(session.id, chunkRecords, validated.supportingChunkIds);
+  const supportingChunkIds = dedupeStrings(validated.claims.flatMap((claim) => claim.supportingChunkIds));
+  const chunkRecords = await repository.listChunksByIds(supportingChunkIds);
+  const claimRecords = buildAnswerClaims(session.id, chunkRecords, validated.claims);
+  const citations = buildAnswerCitations(session.id, chunkRecords, validated.claims);
+  const unusedCandidateChunkIds = retrieval.candidatePack
+    .map((candidate) => candidate.id)
+    .filter((chunkId) => !supportingChunkIds.includes(chunkId));
 
   await repository.withTransaction(async (db) => {
+    await repository.insertAnswerClaims(claimRecords, db);
     await repository.insertAnswerCitations(citations, db);
-    await repository.markRetrievalHitsUsedInAnswer(retrieval.retrievalRun.id, validated.supportingChunkIds, db);
+    await repository.markRetrievalHitsUsedInAnswer(retrieval.retrievalRun.id, supportingChunkIds, db);
+    await repository.markRetrievalHitsExcludedFromAnswer(
+      retrieval.retrievalRun.id,
+      unusedCandidateChunkIds,
+      "low_support",
+      db
+    );
     await repository.markAnswerSessionAnswered(session.id, {
       answerSummary: validated.answerSummary,
       providerName: answerResult.providerName,
@@ -378,28 +432,60 @@ async function persistAnsweredSession(
   });
 }
 
+function buildAnswerClaims(
+  sessionId: string,
+  chunkRecords: AnswerChunkRecord[],
+  claims: ValidatedAnswerClaim[]
+): AnswerClaimInsertRecord[] {
+  const byChunkId = new Map(chunkRecords.map((record) => [record.id, record]));
+
+  return claims.map((claim, index) => {
+    const claimChunkRecords = claim.supportingChunkIds.map((chunkId) => {
+      const record = byChunkId.get(chunkId);
+      if (!record) {
+        throw new Error(`missing chunk record for claim: ${chunkId}`);
+      }
+      return record;
+    });
+    return {
+      sessionId,
+      claimSlot: `claim_${index + 1}`,
+      displayOrder: index + 1,
+      claimText: claim.claimText,
+      freshnessBadge: deriveClaimFreshnessBadge(claimChunkRecords)
+    };
+  });
+}
+
 function buildAnswerCitations(
   sessionId: string,
   chunkRecords: AnswerChunkRecord[],
-  supportingChunkIds: string[]
-) {
+  claims: ValidatedAnswerClaim[]
+): AnswerCitationInsertRecord[] {
   const byChunkId = new Map(chunkRecords.map((record) => [record.id, record]));
 
-  return supportingChunkIds.map((chunkId, index) => {
-    const record = byChunkId.get(chunkId);
-    if (!record) {
-      throw new Error(`missing chunk record for citation: ${chunkId}`);
-    }
+  return claims.flatMap((claim, index) => {
+    const claimSlot = `claim_${index + 1}`;
+    return claim.supportingChunkIds.map((chunkId) => {
+      const record = byChunkId.get(chunkId);
+      if (!record) {
+        throw new Error(`missing chunk record for citation: ${chunkId}`);
+      }
 
-    return {
-      sessionId,
-      documentId: record.documentId,
-      chunkId: record.id,
-      claimSlot: `claim_${index + 1}`,
-      quoteText: extractQuoteText(record.contentText),
-      locator: record.citationLocator
-    };
+      return {
+        sessionId,
+        documentId: record.documentId,
+        chunkId: record.id,
+        claimSlot,
+        quoteText: extractQuoteText(record.contentText),
+        locator: record.citationLocator
+      };
+    });
   });
+}
+
+function deriveClaimFreshnessBadge(chunkRecords: AnswerChunkRecord[]): AnswerClaimFreshnessBadge {
+  return chunkRecords.length > 0 ? "ready" : "unknown";
 }
 
 function extractQuoteText(contentText: string): string {
@@ -451,7 +537,8 @@ function parseStructuredAnswer(text: string): AnswerOrchestrationModelResponse |
       answer_summary: parsed.answer_summary ?? null,
       refusal_reason: parsed.refusal_reason ?? null,
       scope_suggestions: Array.isArray(parsed.scope_suggestions) ? parsed.scope_suggestions : null,
-      supporting_chunk_ids: Array.isArray(parsed.supporting_chunk_ids) ? parsed.supporting_chunk_ids : null
+      supporting_chunk_ids: Array.isArray(parsed.supporting_chunk_ids) ? parsed.supporting_chunk_ids : null,
+      claims: Array.isArray(parsed.claims) ? parsed.claims : null
     };
   } catch {
     return null;
@@ -476,6 +563,31 @@ function normalizeStringArray(values: string[] | null | undefined): string[] {
   return values
     .map((value) => normalizeTextField(value))
     .filter((value): value is string => Boolean(value));
+}
+
+function normalizeStructuredClaims(values: AnswerOrchestrationModelResponse["claims"]): ValidatedAnswerClaim[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalized: ValidatedAnswerClaim[] = [];
+  for (const value of values) {
+    const claimText = normalizeTextField(value?.claim_text);
+    if (!claimText) {
+      continue;
+    }
+
+    normalized.push({
+      claimText,
+      supportingChunkIds: dedupeStrings(normalizeStringArray(value?.supporting_chunk_ids))
+    });
+  }
+
+  return normalized;
+}
+
+function dedupeStrings(values: string[]): string[] {
+  return Array.from(new Set(values));
 }
 
 function normalizeTextField(value: string | null | undefined): string | null {
@@ -511,6 +623,91 @@ function resolveScopeDocumentIds(session: AnswerSessionRecord): string[] | null 
   }
 
   return Array.from(new Set(documentIds.map((value) => value.trim()).filter(Boolean))).slice(0, 100);
+}
+
+function resolveScopeFilters(session: AnswerSessionRecord): ScopeFilterSet | null {
+  if (session.scopeMode === "document" || !session.scopePayload) {
+    return null;
+  }
+
+  return normalizeScopeFilters(session.scopePayload.filters);
+}
+
+function normalizeScopeFilters(input: unknown): ScopeFilterSet | null {
+  if (!isRecord(input)) {
+    return null;
+  }
+
+  const normalized: ScopeFilterSet = {};
+  const tags = normalizeScopeTags(input.tags);
+  const sourceTypes = normalizeScopeSourceTypes(input.source_types);
+  const dateFrom = normalizeIso8601String(input.date_from);
+  const dateTo = normalizeIso8601String(input.date_to);
+
+  if (tags.length > 0) {
+    normalized.tags = tags;
+  }
+  if (sourceTypes.length > 0) {
+    normalized.source_types = sourceTypes;
+  }
+  if (dateFrom && dateTo) {
+    if (new Date(dateFrom).getTime() <= new Date(dateTo).getTime()) {
+      normalized.date_from = dateFrom;
+      normalized.date_to = dateTo;
+    }
+  } else {
+    if (dateFrom) {
+      normalized.date_from = dateFrom;
+    }
+    if (dateTo) {
+      normalized.date_to = dateTo;
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
+function normalizeScopeTags(input: unknown): string[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return dedupeStrings(
+    input
+      .filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim())
+      .filter(Boolean)
+  ).slice(0, 20);
+}
+
+function normalizeScopeSourceTypes(input: unknown): SourceType[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  const normalized = input.filter((value): value is SourceType => typeof value === "string" && isSourceType(value));
+  return dedupeStrings(normalized).slice(0, 4) as SourceType[];
+}
+
+function normalizeIso8601String(input: unknown): string | null {
+  if (typeof input !== "string") {
+    return null;
+  }
+
+  const normalized = input.trim();
+  if (normalized.length === 0 || Number.isNaN(Date.parse(normalized))) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function isSourceType(value: string): value is SourceType {
+  return value === "text" || value === "file" || value === "pdf" || value === "link";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function getStringValue(payload: Record<string, unknown> | null, key: string): string | null {
