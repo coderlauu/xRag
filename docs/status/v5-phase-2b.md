@@ -12,7 +12,7 @@
 
 ### In Scope
 
-- 在 `Phase 2A` 可信问答闭环完成后，完成 `Phase 2B` 正式 contract freeze，并进入 implementation freeze。
+- 在 `Phase 2A` 可信问答闭环完成后，完成 `Phase 2B` 正式 contract freeze、implementation freeze，并进入 implementation lanes。
 - 扩展范围控制：`标签 / 来源类型 / 时间范围`
 - 检索实验台增强：`lexical / semantic / rerank` 贡献、未入答原因、URL state
 - 评估与运维面板增强：`recall / groundedness / citation coverage / latency / cost / backlog`
@@ -34,14 +34,14 @@
 - `product-freeze`: `completed`
 - `technical-evaluation`: `completed`
 - `contract-freeze`: `completed`
-- `implementation-freeze`: `in-progress`
-- `implementation-lanes`: `not-started`
+- `implementation-freeze`: `completed`
+- `implementation-lanes`: `in-progress`
 - `testing-and-release-readiness`: `not-started`
 
 ## 4. Current Node
 
-- `now`: 已完成 `v5 / Phase 2B` 的正式 [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)，当前冻结结论是：`scope.mode` 保持稳定、`scope` 继续显式传入、`continued_from_session_id` 只记录 lineage、`answer_claims + answer_citations.claim_slot` 构成 evidence group 事实链、retrieval explain 继续复用现有资源、`ops` 维持 freeze-late。
-- `next`: 进入 implementation freeze，先把 `schema + shared-types + DTO/OpenAPI + answer-quality invariants` 的主线程编码入口固定，再决定 implementation lanes 的 ownership 和切分顺序
+- `now`: 已完成 `v5 / Phase 2B` 的 implementation lanes 切分。当前固定为：主线程先完成 `Lane 0` 的 `schema + migrations + shared-types + DTO/OpenAPI + API client`，之后再进入 `Lane A / B / C / D` 的 feature 开发，测试 lane `Lane E / F` 在 feature lane 合流后启动。
+- `next`: 先由主线程落地 `Lane 0`，把 contract freeze 映射到真实代码 source-of-truth；`Lane 0` 完成后，按计划启动 `Lane A / B / C / D`
 
 ## 5. Blockers
 
@@ -51,7 +51,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-13` 已完成 `Phase 2B Contract Freeze` 与 `implementation freeze` 入口切换；`pnpm docs:check` 与 `git diff --check` 通过，上一轮 docs closeout CI `24297811958` 已成功
+- `latest_validation`: `2026-04-13` 已完成 `implementation lanes` 入口切换与 lane ownership 冻结；`pnpm docs:check` 与 `git diff --check` 通过，当前稳定 main CI 仍以 `24297811958` 为最近已知成功基线
 - `result`: `passed`
 - `latest_failure`: `none`
 
@@ -59,7 +59,7 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v5.md](/Users/coderlauu/xRag/docs/handoff/v5.md)
-- `active_exec_plan`: [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)
+- `active_exec_plan`: [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
 - `prd`: [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
 - `product_backlog`: [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
 - `interaction_delta`: [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
@@ -68,6 +68,6 @@
 - `upstream_version`: [v4.md](/Users/coderlauu/xRag/docs/handoff/v4.md), [v4-phase-2a.md](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
 - `upstream_product_docs`: [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md), [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md), [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md), [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
-- `exec_plans`: [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
-- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`
+- `exec_plans`: [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
+- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`
 - `latest_ci_run`: `24297811958`（success，docs(phase-2b): add technical evaluation baseline）

@@ -61,4 +61,4 @@
 
 - `2026-04-12`: 代码审计确认 `Phase 2A` 的 `answers / retrieval / evidence / ops` 主链已真实存在，`Phase 2B` 应采用增量增强路线
 - `2026-04-12`: 已完成 `Phase 2B` 第一轮 `architecture / data-model / api / prerequisites` 技术评估，当前无新的硬 blocker，可进入正式 contract freeze
-- `2026-04-13`: 已产出 [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)，active exec plan 切换到 [Phase 2B Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)
+- `2026-04-13`: 已产出 [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)，active exec plan 先切换到 [Phase 2B Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md)，随后继续进入 implementation lanes

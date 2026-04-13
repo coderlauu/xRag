@@ -34,7 +34,7 @@
 
 - [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-- [Phase 2B Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)
+- [Phase 2B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
 - [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 - [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 - [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
@@ -46,6 +46,7 @@
 - [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
 - [Phase 2B Planning And Design Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md)
 - [Phase 2B Technical Evaluation And Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
+- [Phase 2B Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md)
 - [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md)
 - [Phase 2A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md)
 - [v4 Interaction Spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md)
@@ -59,7 +60,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成正式 contract freeze；当前下一步是进入 implementation freeze，先收口主线程编码入口，再拆实现 lane。
+在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 implementation freeze；当前下一步是按固定 ownership 进入 implementation lanes。
 
 ---
 
@@ -84,7 +85,7 @@
 - 团队协作
 - 移动端
 - 全自动 agent 工作流
-- 在 implementation freeze 前直接进入新的实现 lane
+- 在 `Lane 0` 合并前直接进入新的并行实现 lane
 
 ### 当前阶段依赖的既有基线
 
@@ -101,7 +102,7 @@
 
 1. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 2. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-3. [Phase 2B Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)
+3. [Phase 2B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
 4. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 5. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 6. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
@@ -116,10 +117,10 @@
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `implementation-freeze`
+1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v5-phase-2b.md`
-4. 当前已完成正式 contract freeze，但在 implementation freeze 结束前，仍不启动新的实现 lane，也不把 `schema / shared-types / API contract / 状态机` 下放给并行实现
+4. 当前已完成 implementation freeze，但在 `Lane 0` 落地前，仍不启动新的并行实现 lane，也不把 `schema / shared-types / API contract / 状态机` 下放给并行实现
 5. `v4 / Phase 2A` 已归档，继续作为实现、回滚与生产排障的现实基线
 
 ---

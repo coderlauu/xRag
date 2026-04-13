@@ -6,7 +6,7 @@
 
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-3. [当前 Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-freeze.md)
+3. [当前 Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
 4. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 5. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 6. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
@@ -31,7 +31,7 @@
 - 当前仓库已经完成正式工程 scaffold
 - `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C` 与 `v4 / Phase 2A` 已完成，当前活跃版本为 `v5 / Phase 2B`
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
-- `v5 / Phase 2B` 当前已完成 `PRD / backlog / interaction delta / technical tradeoff / architecture / data-model / api / contract-freeze`，并进入 `implementation-freeze`；下一步是先固定主线程编码入口，再判断 implementation lanes 的 ownership 和切分
+- `v5 / Phase 2B` 当前已完成 `PRD / backlog / interaction delta / technical tradeoff / architecture / data-model / api / contract-freeze`，并进入 `implementation-lanes`；下一步是先由主线程落地 `Lane 0`，再按 ownership 启动 feature lanes
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -141,7 +141,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v5 / Phase 2B` 已完成正式 contract freeze，但还没有完成 implementation freeze；必须先把 `schema / shared-types / API / answer-quality` 的主线程编码入口固定，再进入新的 implementation lanes；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
+   当前 `v5 / Phase 2B` 已完成 implementation freeze，并已切到 implementation lanes；但 `Lane 0` 仍必须先把 `schema / shared-types / API / answer-quality` 落到代码，再进入新的并行 lanes；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口
