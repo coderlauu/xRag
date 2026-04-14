@@ -36,6 +36,7 @@
   - `GET /api/v1/answers/{id}`
   - `GET /api/v1/answers/{id}/retrieval`
   - `continued_from_session_id` 与 `evidence_groups` 的关键断言
+- `2026-04-14` 更新：已补 `search_result snapshot query + filters round-trip` integration 断言，并通过本地 `api integration`
 
 ### Lane F: Web E2E And Smoke
 
@@ -51,6 +52,7 @@
   - 从 `/detail` 带 `document` scope 进入 `/ask`
   - `/ask` recent history 恢复会话并继续提问
   - claim evidence / retrieval item 跳回 `/detail` 锚点
+- `2026-04-14` 更新：已补 `phase-2b-lane-f.spec.ts`，并完成本地 smoke；为适配并行环境，continue-asking 用例已收敛到 restored active session，而不是依赖全局 recent history 排名
 
 ### Release Readiness
 
@@ -78,6 +80,15 @@
 
 如遇环境或 fixture 不足，可先以最小修复路径收口，并在 `status` 中明确缺失证据。
 
+当前本地已确认：
+
+- `corepack pnpm --filter @xrag/api build:test`
+- `node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/*.test.js`
+- `corepack pnpm --filter @xrag/api typecheck`
+- `corepack pnpm --filter @xrag/web typecheck`
+- `./scripts/run-e2e-smoke.sh`
+- `corepack pnpm docs:check`
+
 ## 6. Risks
 
 - 若 integration 只覆盖 happy path，`continued_from_session_id / retrieval summary / evidence_groups` 很容易在后续重构时退化
@@ -97,3 +108,4 @@
 
 - `2026-04-14`: `Lane C / D` 已完成，`Phase 2B` feature lanes 退出条件满足
 - `2026-04-14`: 原 `implementation-lanes` 计划归档，测试与发布准备切到独立 active exec plan
+- `2026-04-14`: `Lane E / F` 已在本地完成，当前仅剩 current HEAD 的 latest GitHub Actions run 最终结论；在 CI 成功前，本计划保持 active

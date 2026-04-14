@@ -62,7 +62,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B / C / D`；当前下一步是进入 `Lane E / F` 的测试与发布准备。
+在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证；当前下一步是等待 current HEAD 的 latest GitHub Actions run 最终结论，并据此关闭 `Phase 2B`。
 
 ---
 
@@ -99,6 +99,8 @@
 - latest main GitHub Actions run `24297811958` 已通过，当前 main 维持 release-ready 状态
 - `2026-04-13` 本地已完成 `Lane 0 / A / B` 相关验证：`git diff --check`、`@xrag/api typecheck`、`@xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration`
 - `2026-04-14` 本地已完成 `Lane C / D` 相关验证：`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`
+- `2026-04-14` 本地已完成 `Lane E / F` 相关验证：`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/*.test.js`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`./scripts/run-e2e-smoke.sh`、`pnpm docs:check`
+- current HEAD 的 latest GitHub Actions run 在文档更新时仍未给出最终结论
 
 ---
 
@@ -124,7 +126,7 @@
 1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v5-phase-2b.md`
-4. 当前已完成 `Lane 0 / A / B / C / D`；`web` 已对齐 `typed scope / recent history / continue asking / retrieval summary / search/detail jumpback`，当前下一步进入 `Lane E / F`，补 integration、e2e 与 smoke 基线
+4. 当前已完成 `Lane 0 / A / B / C / D / E / F` 本地收口；当前 active exec plan 仍保持 `active`，只因为 current HEAD 的 latest CI run 尚未出最终结论
 5. `v4 / Phase 2A` 已归档，继续作为实现、回滚与生产排障的现实基线
 
 ---
