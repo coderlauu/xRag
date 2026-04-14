@@ -472,6 +472,99 @@ test("answers API rejects unknown continued_from_session_id", async () => {
   }
 });
 
+test("answers API preserves search_result snapshot query and filters for recent history rehydration", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const queueService = app.get(QueueService) as { enqueueAnswerSession: (sessionId: string) => Promise<string> };
+    queueService.enqueueAnswerSession = async () => "queue-job-answer-snapshot";
+
+    const { documentId } = await insertReadyDocumentWithChunk();
+
+    const initialCreate = await app.inject({
+      method: "POST",
+      url: "/api/v1/answers",
+      payload: {
+        question: "Initial snapshot question",
+        scope: {
+          mode: "global",
+          payload: null
+        }
+      }
+    });
+    assert.equal(initialCreate.statusCode, 202);
+    const initialSessionId = initialCreate.json().session_id as string;
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/answers",
+      payload: {
+        question: "Scoped snapshot question",
+        continued_from_session_id: initialSessionId,
+        scope: {
+          mode: "search_result",
+          payload: {
+            document_ids: [documentId],
+            truncated: false,
+            query: "phase 2b query snapshot",
+            filters: {
+              tags: ["phase-2b", "history"],
+              source_types: ["text"],
+              date_from: "2026-04-01T00:00:00.000Z",
+              date_to: "2026-04-14T00:00:00.000Z"
+            }
+          }
+        }
+      }
+    });
+    assert.equal(createResponse.statusCode, 202);
+    const sessionId = createResponse.json().session_id as string;
+
+    const detailResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/answers/${sessionId}`
+    });
+    assert.equal(detailResponse.statusCode, 200);
+    const detail = detailResponse.json();
+    assert.equal(detail.continued_from_session_id, initialSessionId);
+    assert.equal(detail.scope.mode, "search_result");
+    assert.deepEqual(detail.scope.payload.document_ids, [documentId]);
+    assert.equal(detail.scope.payload.query, "phase 2b query snapshot");
+    assert.deepEqual(detail.scope.payload.filters, {
+      tags: ["phase-2b", "history"],
+      source_types: ["text"],
+      date_from: "2026-04-01T00:00:00.000Z",
+      date_to: "2026-04-14T00:00:00.000Z"
+    });
+
+    const listResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/answers?page=1&page_size=1"
+    });
+    assert.equal(listResponse.statusCode, 200);
+    const list = listResponse.json();
+    assert.equal(list.page, 1);
+    assert.equal(list.page_size, 1);
+    assert.equal(list.total, 2);
+    assert.equal(list.items.length, 1);
+    assert.equal(list.items[0].session_id, sessionId);
+    assert.equal(list.items[0].continued_from_session_id, initialSessionId);
+    assert.equal(list.items[0].scope.mode, "search_result");
+    assert.deepEqual(list.items[0].scope.payload.document_ids, [documentId]);
+    assert.equal(list.items[0].scope.payload.query, "phase 2b query snapshot");
+    assert.deepEqual(list.items[0].scope.payload.filters, {
+      tags: ["phase-2b", "history"],
+      source_types: ["text"],
+      date_from: "2026-04-01T00:00:00.000Z",
+      date_to: "2026-04-14T00:00:00.000Z"
+    });
+  } finally {
+    await app.close();
+  }
+});
+
 test("answers API keeps evidence groups scoped when multiple claims cite the same chunk", async () => {
   await resetDatabase();
   const app = await createApp();

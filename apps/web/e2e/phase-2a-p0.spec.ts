@@ -60,10 +60,10 @@ test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, 
 
   const answerStatusCard = page.locator("article").filter({ hasText: "会话状态" }).first();
   await expect(answerStatusCard.getByText(/^已回答$/)).toBeVisible({ timeout: 120_000 });
-  await expect(page.getByRole("heading", { name: "证据链" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evidence Groups" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "检索 Trace" })).toBeVisible();
 
-  const citationLink = page.locator(`a[href^="/detail/${indexedDocId}#evidence-"]`).first();
+  const citationLink = page.locator(`a[href*="/detail/${indexedDocId}"][href*="#evidence-"]`).first();
   await expect(citationLink).toBeVisible();
   await citationLink.click();
 
