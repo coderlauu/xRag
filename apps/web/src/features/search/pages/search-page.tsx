@@ -4,6 +4,8 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Badge, Button, Input, PageShell, SectionCard, Select, StatCard } from "@xrag/ui";
 import { listDocuments } from "../../../lib/api";
 import {
+  buildDocumentAskSearch,
+  buildSearchResultAskSearch,
   buildDocumentsQuery,
   diagnosisLabel,
   formatDateTime,
@@ -48,6 +50,11 @@ export function SearchPage() {
   const currentPageReadyCount = items.filter((item) => isCitationReady(item.index_status, item.citation_ready)).length;
   const currentPageActiveCount = items.filter((item) => isIndexActive(item.index_status)).length;
   const currentPageStaleCount = items.filter((item) => item.index_status === "stale" || item.index_status === "failed").length;
+  const currentPageReadyDocumentIds = items
+    .filter((item) => isCitationReady(item.index_status, item.citation_ready))
+    .map((item) => item.id);
+  const currentPageAskDocumentIds = currentPageReadyDocumentIds.length > 0 ? currentPageReadyDocumentIds : items.map((item) => item.id);
+  const currentPageAskSearch = buildSearchResultAskSearch(activeFilters, currentPageAskDocumentIds);
   const searchScopeHint = summarizeSearchScopeSnapshot(
     items.length,
     currentPageReadyCount,
@@ -107,9 +114,17 @@ export function SearchPage() {
               进入 Ask Workspace 后，请优先把已可引用的 document_id 作为手动范围输入；索引未就绪的条目不建议直接纳入证据追踪。
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link to="/ask">去 Ask Workspace</Link>
-          </Button>
+          {currentPageAskDocumentIds.length > 0 ? (
+            <Button asChild variant="outline">
+              <Link to="/ask" search={currentPageAskSearch as never}>
+                带当前页范围去 Ask
+              </Link>
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" disabled>
+              当前页无可交接结果
+            </Button>
+          )}
         </div>
       </section>
 
@@ -363,6 +378,18 @@ export function SearchPage() {
                       {item.parser_name ? <span>解析器：{item.parser_name}</span> : null}
                     </div>
                   ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline">
+                      <Link to="/ask" search={buildDocumentAskSearch(item.id) as never}>
+                        在 Ask 中限定到此文档
+                      </Link>
+                    </Button>
+                    <Button asChild variant="ghost">
+                      <Link to="/detail/$documentId" params={{ documentId: item.id }}>
+                        查看详情
+                      </Link>
+                    </Button>
+                  </div>
                   </article>
                 );
               })}

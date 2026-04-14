@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-2b-implementation-lanes`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v5 handoff](/Users/coderlauu/xRag/docs/handoff/v5.md), [v5 status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md), [Phase 2B contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md), [Phase 2B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md), [Phase 2B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md), [Phase 2B api design](/Users/coderlauu/xRag/tech/api/2026-04-12-phase-2b-api.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md)
 
@@ -114,6 +114,7 @@
   - `apps/web/src/features/search/**`
   - `apps/web/src/features/detail/**`
   - `apps/web/src/features/ops/**`
+- `2026-04-14` 更新：`Lane C` 已由主线程先行收口，`ask workspace` 已完成 `typed scope filters / recent answers / continue asking / evidence groups / retrieval summary / workspace persistence`，并通过 `@xrag/web typecheck + build`
 
 ### Lane D: Retrieval Workbench And Detail Evidence
 
@@ -129,6 +130,7 @@
 - 不得修改：
   - `apps/web/src/features/answers/**`
   - `apps/web/src/features/ops/**`
+- `2026-04-14` 更新：`Lane D` 已由主线程先行收口，`search/detail` 已完成 `search_result prefill / document ask handoff / citation jumpback context`，并通过 `@xrag/web typecheck + build`
 
 ### Lane E: API Integration
 
@@ -168,9 +170,8 @@
 1. `Lane 0`
 2. `Lane A`、`Lane B`
 3. `Lane C`、`Lane D`
-4. `Lane E`
-5. `Lane F`
-6. 视容量决定是否开启 `Lane G`
+4. 将 `Lane E / F` 切到独立的 `testing-and-release-readiness` 计划
+5. 视容量决定是否开启 `Lane G`
 
 ## 6. Ownership Rules
 
@@ -204,9 +205,9 @@
 当以下条件满足时，本计划可视为完成：
 
 1. `Lane 0` 已落地并成为实际代码事实源
-2. `Lane A / B / C / D / E / F` 已按边界完成并合流
-3. `Phase 2B / P0` 的 OpenAPI、SDK、integration、e2e 与 smoke 基线可统一验证
-4. status / handoff / exec plan 已切到下一实现节点或收口节点
+2. `Lane A / B / C / D` 已按边界完成并合流
+3. 当前活跃 exec plan 已切换到 `testing-and-release-readiness`
+4. status / handoff 已更新到新的 resume 节点
 
 ## 10. Decision Log
 
@@ -216,3 +217,6 @@
 - `2026-04-13`: `Lane 0` 已落地，新增 `continued_from_session_id / answer_claims / retrieval summary / evidence_groups / GET /api/v1/answers` 的代码 contract，并完成 typecheck + integration 验证
 - `2026-04-13`: `Lane B` 已落地，`worker` 已对齐 `typed scope filters / answer_claims / claim-level citations / low_support exclusion / retrieval exclusion normalization`
 - `2026-04-13`: `Lane A` 已落地，`api` 已对齐 `recent history / continue lineage / evidence_groups` read model，下一步集中推进 `Lane C / D`
+- `2026-04-14`: `Lane C` 已落地，`ask workspace` 已对齐 `typed scope / recent history / continue asking / evidence groups / retrieval summary / persisted draft`
+- `2026-04-14`: `Lane D` 已落地，`search/detail` 已对齐 `search_result handoff / document ask handoff / citation jumpback context`
+- `2026-04-14`: `Lane E / F` 从本计划切换到新的 `Phase 2B testing and release readiness` exec plan，本计划正式完成

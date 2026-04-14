@@ -13,6 +13,7 @@ import {
   updateDocumentTags
 } from "../../../lib/api";
 import {
+  buildDocumentAskSearch,
   describeEvidenceLocator,
   diagnosisLabel,
   formatDateTime,
@@ -28,6 +29,7 @@ import {
   jobStatusTone,
   parseStatusLabel,
   parseStatusTone,
+  parseDetailJumpbackSearch,
   splitTags,
   sourceTypeLabel,
   summarizeIndexReadiness,
@@ -40,6 +42,10 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 export function DetailPage() {
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchJson = useRouterState({
+    select: (state) => JSON.stringify(state.location.search ?? {})
+  });
+  const jumpbackState = parseDetailJumpbackSearch(JSON.parse(searchJson) as Record<string, unknown>);
   const documentId = decodeURIComponent(pathname.split("/").filter(Boolean).pop() || "");
   const hasValidDocumentId = UUID_PATTERN.test(documentId);
   const [tagInput, setTagInput] = useState("");
@@ -276,6 +282,15 @@ export function DetailPage() {
         <div className="grid gap-6">
           <SectionCard title="文档信息" description="查看来源元数据、诊断摘要和关联事件。">
             <div className="grid gap-3 text-sm leading-6 text-slate-700">
+              {jumpbackState.answerSessionId ? (
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-900">
+                  <strong className="block text-sm">Citation Jumpback</strong>
+                  <span>
+                    当前详情页由 answer session {jumpbackState.answerSessionId} 跳回；
+                    {jumpbackState.claimSlot ? ` claim slot 为 ${jumpbackState.claimSlot}。` : " 当前未携带 claim slot。"}
+                  </span>
+                </div>
+              ) : null}
               {document.parse_error_message ? (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
                   <strong className="block text-sm">解析错误</strong>
@@ -370,6 +385,11 @@ export function DetailPage() {
               <div className="flex gap-3">
                 <Button asChild variant="outline">
                   <Link id="detail-back-to-search" to="/search">返回搜索页</Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/ask" search={buildDocumentAskSearch(document.id, jumpbackState.answerSessionId) as never}>
+                    在 Ask 中围绕此文档提问
+                  </Link>
                 </Button>
                 <Button asChild variant="ghost">
                   <Link to="/">返回导入页</Link>

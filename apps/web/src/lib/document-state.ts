@@ -10,6 +10,7 @@ import type {
   SourceType,
   TagStatus
 } from "@xrag/shared-types";
+import { createDefaultAnswerScopeDraft, serializeAskWorkspaceSearch } from "./answer-state";
 
 export interface SearchFilters {
   q: string;
@@ -24,6 +25,12 @@ export interface SearchFilters {
   date_to: string;
   page: number;
   page_size: number;
+}
+
+export interface DetailJumpbackState {
+  answerSessionId: string | null;
+  claimSlot: string | null;
+  source: string | null;
 }
 
 export const defaultSearchFilters: SearchFilters = {
@@ -90,6 +97,38 @@ export function buildDocumentsQuery(filters: SearchFilters) {
     page: filters.page,
     page_size: filters.page_size
   } satisfies ListDocumentsQuery;
+}
+
+export function buildSearchResultAskSearch(filters: SearchFilters, documentIds: string[]) {
+  const draft = createDefaultAnswerScopeDraft();
+  draft.mode = "search_result";
+  draft.documentIdsText = documentIds.join(", ");
+  draft.searchQuery = filters.q.trim();
+  draft.filterTagsText = filters.tags.trim();
+  draft.filterSourceTypesText = filters.source_type.trim();
+  draft.filterDateFrom = filters.date_from;
+  draft.filterDateTo = filters.date_to;
+
+  return serializeAskWorkspaceSearch({ scopeDraft: draft });
+}
+
+export function buildDocumentAskSearch(documentId: string, continuedFromSessionId?: string | null) {
+  const draft = createDefaultAnswerScopeDraft();
+  draft.mode = "document";
+  draft.documentId = documentId;
+
+  return serializeAskWorkspaceSearch({
+    scopeDraft: draft,
+    continuedFromSessionId
+  });
+}
+
+export function parseDetailJumpbackSearch(input: Record<string, unknown>): DetailJumpbackState {
+  return {
+    answerSessionId: typeof input.answer_session_id === "string" && input.answer_session_id.trim() ? input.answer_session_id : null,
+    claimSlot: typeof input.claim_slot === "string" && input.claim_slot.trim() ? input.claim_slot : null,
+    source: typeof input.jumpback_source === "string" && input.jumpback_source.trim() ? input.jumpback_source : null
+  };
 }
 
 export function splitTags(value: string): string[] {

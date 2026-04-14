@@ -6,16 +6,17 @@
 
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-3. [当前 Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
-4. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
-5. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
-6. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
-7. [Phase 2B API Design](/Users/coderlauu/xRag/tech/api/2026-04-12-phase-2b-api.md)
-8. [Phase 2B Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-12-phase-2b-contract-freeze-prerequisites.md)
-9. [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
-10. [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
-11. [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
-12. [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
+3. [当前 Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
+4. [Phase 2B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md)
+5. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
+6. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
+7. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
+8. [Phase 2B API Design](/Users/coderlauu/xRag/tech/api/2026-04-12-phase-2b-api.md)
+9. [Phase 2B Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-12-phase-2b-contract-freeze-prerequisites.md)
+10. [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
+11. [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
+12. [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
+13. [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
 13. [v4 Handoff](/Users/coderlauu/xRag/docs/handoff/v4.md)
 14. [v4 Status](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
 15. [Phase 2A Runtime Contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
@@ -31,7 +32,7 @@
 - 当前仓库已经完成正式工程 scaffold
 - `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C` 与 `v4 / Phase 2A` 已完成，当前活跃版本为 `v5 / Phase 2B`
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
-- `v5 / Phase 2B` 当前已完成 `Lane 0 / A / B`；`schema / shared-types / OpenAPI / SDK / answers API read model / worker evidence path` 已落地，下一步进入 `Lane C / D`
+- `v5 / Phase 2B` 当前已完成 `Lane 0 / A / B / C / D`；`ask workspace / recent history / continue asking / retrieval summary / search/detail handoff` 已落地，下一步进入 `Lane E / F`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -141,7 +142,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v5 / Phase 2B` 已完成 `Lane 0`；后续并行 lanes 只能在既有 `schema / shared-types / API / answer-quality` contract 上继续实现，不得重开 source-of-truth；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
+   当前 `v5 / Phase 2B` 已完成 `Lane 0 / A / B / C / D`；当前活跃任务已切到 `testing-and-release-readiness`，后续只补 integration、e2e、smoke 与 release-readiness，不得重开 source-of-truth；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口

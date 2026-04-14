@@ -6,7 +6,7 @@
 - `phase`: `Phase 2B`
 - `status`: `in-progress`
 - `owner`: `codex`
-- `updated_at`: `2026-04-13`
+- `updated_at`: `2026-04-14`
 
 ## 2. Goal
 
@@ -35,13 +35,13 @@
 - `technical-evaluation`: `completed`
 - `contract-freeze`: `completed`
 - `implementation-freeze`: `completed`
-- `implementation-lanes`: `in-progress`
-- `testing-and-release-readiness`: `not-started`
+- `implementation-lanes`: `completed`
+- `testing-and-release-readiness`: `in-progress`
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane 0 / A / B`。当前代码事实源已覆盖 `schema + migrations + shared-types + answers DTO/controller/service/repository + OpenAPI + API client + web API adapter`；其中 `api` 已对齐 `recent history / continue lineage / evidence_groups` 的 read model，`worker` 已对齐 `typed scope filters / answer_claims / claim-level citations / low_support exclusion / retrieval exclusion normalization`。
-- `next`: 启动 `Lane C / D`，把 ask workspace、recent history、retrieval workbench 与 detail evidence 接到已稳定的 API shape。
+- `now`: 已完成 `Lane 0 / A / B / C / D`。当前代码事实源已覆盖 `schema + migrations + shared-types + answers DTO/controller/service/repository + OpenAPI + API client + web api adapter + ask workspace + search/detail handoff`；其中 `web` 已对齐 `typed scope filters / recent answers / continue asking / evidence groups / retrieval summary / citation jumpback context`。
+- `next`: 启动新的 `testing-and-release-readiness` exec plan，推进 `Lane E / F`，补 answers integration、web e2e / smoke，并在验证通过后做 `Phase 2B` 的状态收口。
 
 ## 5. Blockers
 
@@ -51,7 +51,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-13` 已完成 `Lane 0 / A / B` 本地验证；`git diff --check`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration` 通过；answers integration 已新增 `recent history / continue lineage / evidence_groups` 覆盖；当前稳定 main CI 仍以 `24297811958` 为最近已知成功基线
+- `latest_validation`: `2026-04-14` 已完成 `Lane C / D` 本地验证；`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build` 通过。此前 `2026-04-13` 的 `Lane 0 / A / B` 验证仍有效：`git diff --check`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration` 通过；当前稳定 main CI 仍以 `24297811958` 为最近已知成功基线
 - `result`: `passed`
 - `latest_failure`: `none`
 
@@ -59,7 +59,7 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v5.md](/Users/coderlauu/xRag/docs/handoff/v5.md)
-- `active_exec_plan`: [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
+- `active_exec_plan`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
 - `prd`: [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
 - `product_backlog`: [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
 - `interaction_delta`: [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
@@ -68,6 +68,6 @@
 - `upstream_version`: [v4.md](/Users/coderlauu/xRag/docs/handoff/v4.md), [v4-phase-2a.md](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
 - `upstream_product_docs`: [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md), [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md), [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md), [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
-- `exec_plans`: [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
-- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`, `2949dd0`, `12b22fb`
+- `exec_plans`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md), [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
+- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`, `2949dd0`, `12b22fb`, `1bf8d27`
 - `latest_ci_run`: `24297811958`（success，docs(phase-2b): add technical evaluation baseline）

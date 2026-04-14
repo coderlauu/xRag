@@ -75,4 +75,4 @@
 
 - `2026-04-13`: `Phase 2B Contract Freeze` 已建立为主线程冻结事实源
 - `2026-04-13`: active exec plan 从 `technical-evaluation-and-contract-freeze` 切换到 `implementation-freeze`
-- `2026-04-13`: implementation freeze 退出条件已满足，active exec plan 切换到 [Phase 2B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
+- `2026-04-13`: implementation freeze 退出条件已满足，exec plan 切换到 [Phase 2B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md)

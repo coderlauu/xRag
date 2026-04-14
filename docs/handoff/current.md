@@ -34,7 +34,7 @@
 
 - [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-- [Phase 2B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
+- [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
 - [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 - [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 - [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
@@ -44,6 +44,8 @@
 - [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
 - [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
 - [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
+- [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
+- [Phase 2B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md)
 - [Phase 2B Planning And Design Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md)
 - [Phase 2B Technical Evaluation And Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
 - [Phase 2B Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md)
@@ -60,7 +62,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B`；当前下一步是启动 `Lane C / D` 的 web 接线。
+在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B / C / D`；当前下一步是进入 `Lane E / F` 的测试与发布准备。
 
 ---
 
@@ -96,6 +98,7 @@
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
 - latest main GitHub Actions run `24297811958` 已通过，当前 main 维持 release-ready 状态
 - `2026-04-13` 本地已完成 `Lane 0 / A / B` 相关验证：`git diff --check`、`@xrag/api typecheck`、`@xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration`
+- `2026-04-14` 本地已完成 `Lane C / D` 相关验证：`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`
 
 ---
 
@@ -103,7 +106,7 @@
 
 1. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 2. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-3. [Phase 2B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-13-phase-2b-implementation-lanes.md)
+3. [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
 4. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 5. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 6. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
@@ -121,7 +124,7 @@
 1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v5-phase-2b.md`
-4. 当前已完成 `Lane 0 / A / B`；`api` 已对齐 `recent history / continue lineage / evidence group read model`，`worker` 已对齐 `typed scope filters / answer_claims / low_support exclusion / claim-level citations`，但 `schema / shared-types / API contract / 状态机` 仍继续由主线程持有，不下放给并行实现
+4. 当前已完成 `Lane 0 / A / B / C / D`；`web` 已对齐 `typed scope / recent history / continue asking / retrieval summary / search/detail jumpback`，当前下一步进入 `Lane E / F`，补 integration、e2e 与 smoke 基线
 5. `v4 / Phase 2A` 已归档，继续作为实现、回滚与生产排障的现实基线
 
 ---
