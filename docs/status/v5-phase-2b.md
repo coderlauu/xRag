@@ -4,7 +4,7 @@
 
 - `version`: `v5`
 - `phase`: `Phase 2B`
-- `status`: `in-progress`
+- `status`: `completed`
 - `owner`: `codex`
 - `updated_at`: `2026-04-15`
 
@@ -36,12 +36,12 @@
 - `contract-freeze`: `completed`
 - `implementation-freeze`: `completed`
 - `implementation-lanes`: `completed`
-- `testing-and-release-readiness`: `in-progress`
+- `testing-and-release-readiness`: `completed`
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证。`2026-04-15` 已修复文档长期停留 `not_indexed` 导致 Ask retrieval 为空的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`，并新增 `pnpm recovery:backfill-indexing` 作为既有旧文档的一次性回补入口。同日 GitHub Actions run `24460473108` 在 `e2e` 因 detail 页 locator 文本新增导致 Playwright strict-mode 选择器漂移失败；本地已修复 e2e 断言并重新跑通 smoke。
-- `next`: 推送当前 e2e 修复后，等待 latest GitHub Actions run 给出最终结论；若 success，直接把 `testing-and-release-readiness` 标记为 completed 并收口 `Phase 2B`。
+- `now`: `Phase 2B` 已完成正式收口。`2026-04-15` 已修复文档长期停留 `not_indexed` 导致 Ask retrieval 为空的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`，并新增 `pnpm recovery:backfill-indexing` 作为既有旧文档的一次性回补入口；同日也已修复 GitHub Actions run `24460473108` 暴露的 web e2e 选择器漂移。
+- `next`: 当前无 active exec plan。若继续推进，先在目标环境确认是否需要执行 `recovery:backfill-indexing`，或直接启动下一版本的 `handoff / status / exec plan` 脚手架。
 
 ## 5. Blockers
 
@@ -51,7 +51,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-15` 已完成本地定向修复验证：`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js`、`./scripts/run-e2e-smoke.sh`、`pnpm --filter @xrag/web typecheck` 通过；此前 `2026-04-14` 的 release-readiness 验证仍保持有效。当前等待 e2e 修复 commit 的 latest CI run
+- `latest_validation`: `2026-04-15` 已完成本地定向修复验证：`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js`、`./scripts/run-e2e-smoke.sh`、`pnpm --filter @xrag/web typecheck` 通过；GitHub Actions run `24461689868` 已成功，`Phase 2B` 发布基线成立
 - `result`: `passed`
 - `latest_failure`: `GitHub Actions run 24460473108 failed in e2e because detail-page locator text made several getByText(title) assertions ambiguous under Playwright strict mode; fixed locally on 2026-04-15`
 
@@ -59,7 +59,8 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v5.md](/Users/coderlauu/xRag/docs/handoff/v5.md)
-- `active_exec_plan`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
+- `active_exec_plan`: `none (Phase 2B completed)`
+- `latest_completed_exec_plan`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-14-phase-2b-testing-and-release-readiness.md)
 - `prd`: [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
 - `product_backlog`: [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
 - `interaction_delta`: [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
@@ -68,6 +69,6 @@
 - `upstream_version`: [v4.md](/Users/coderlauu/xRag/docs/handoff/v4.md), [v4-phase-2a.md](/Users/coderlauu/xRag/docs/status/v4-phase-2a.md)
 - `upstream_product_docs`: [Phase 2A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-prd.md), [Phase 2A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-07-xrag-phase-2a-backlog.md), [v4 interaction spec](/Users/coderlauu/xRag/design/spec/2026-04-07-v4-interaction-spec.md), [Phase 2A evaluation plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 - `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
-- `exec_plans`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md), [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
-- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`, `2949dd0`, `12b22fb`, `1bf8d27`, `e470270`, `c2df206`
-- `latest_ci_run`: `24460473108 failed in e2e; rerun pending after local selector-fix commit`
+- `exec_plans`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-14-phase-2b-testing-and-release-readiness.md), [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
+- `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`, `2949dd0`, `12b22fb`, `1bf8d27`, `e470270`, `c2df206`, `3ed3672`, `bb14372`
+- `latest_ci_run`: `24461689868 success`

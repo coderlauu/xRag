@@ -1,6 +1,6 @@
 # Current Handoff
 
-当前默认入口始终指向“当前正在推进的版本”。
+当前默认入口始终指向“当前正在推进的版本”；若下一版本尚未启动，则指向最新完成版本。
 
 - 当前有效版本：[v5 / Phase 2B](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - 当前版本状态：[v5 / Phase 2B Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
@@ -30,11 +30,11 @@
 - [Production Data Loss And Deploy Incident Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-09-production-data-loss-and-deploy-incident-retrospective.md)
 - [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
 
-当前活跃版本资产：
+当前版本收口资产：
 
 - [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-- [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
+- [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-14-phase-2b-testing-and-release-readiness.md)
 - [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 - [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 - [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
@@ -44,7 +44,6 @@
 - [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
 - [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
 - [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
-- [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
 - [Phase 2B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md)
 - [Phase 2B Planning And Design Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md)
 - [Phase 2B Technical Evaluation And Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md)
@@ -62,7 +61,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证；`2026-04-15` 已补上 `document-processing -> document-indexing` 自动排索引链路与 `not_indexed` recovery backfill 脚本。随后 GitHub Actions run `24460473108` 在 `e2e` 因 detail 页新增 locator 文本导致 Playwright strict-mode 选择器漂移失败；同日已在本地修复 e2e 断言并重新跑通 smoke，当前下一步是等待修复 commit 对应的新 CI run 最终结论，并据此关闭 `Phase 2B`。
+在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B / C / D / E / F` 的实现、测试和发布收口；`2026-04-15` 已补上 `document-processing -> document-indexing` 自动排索引链路与 `not_indexed` recovery backfill 脚本，并修复 web e2e 选择器漂移。GitHub Actions run `24461689868` 已成功，`Phase 2B` 现已正式关闭；当前下一步是按需做目标环境 `not_indexed` backfill 检查，或启动下一版本脚手架。
 
 ---
 
@@ -102,7 +101,7 @@
 - `2026-04-14` 本地已完成 `Lane E / F` 相关验证：`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/*.test.js`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`./scripts/run-e2e-smoke.sh`、`pnpm docs:check`
 - `2026-04-15` 已修复 Ask 被 `not_indexed` 文档整体阻断的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`；新增 `pnpm recovery:backfill-indexing -- --dry-run` 与正式 backfill 入口，用于把既有 `parse_status=success` 且 `index_status=not_indexed` 的文档补入索引队列
 - `2026-04-15` 已完成本地定向验证：`@xrag/worker test:unit`、`@xrag/api build:test`、`documents / uploads / link-documents` integration、`./scripts/run-e2e-smoke.sh`、`@xrag/web typecheck`
-- latest failed GitHub Actions run `24460473108` 已确认是 web e2e 选择器漂移，不是后端或索引链路回归；当前等待修复 commit 对应的新 CI run 最终结论
+- GitHub Actions run `24460473108` 失败已确认是 web e2e 选择器漂移，不是后端或索引链路回归；修复后 latest CI run `24461689868` 已成功
 
 ---
 
@@ -110,7 +109,7 @@
 
 1. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 2. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-3. [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md)
+3. [Phase 2B Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-14-phase-2b-testing-and-release-readiness.md)
 4. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 5. [Phase 2B Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-12-phase-2b-architecture.md)
 6. [Phase 2B Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-12-phase-2b-data-model.md)
@@ -125,10 +124,10 @@
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v5 / Phase 2B`，当前节点已进入 `implementation-lanes`
+1. 当前有效版本为 `v5 / Phase 2B`，当前节点已完成 `testing-and-release-readiness`
 2. 当前规划必须以 `Phase 2A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v5-phase-2b.md`
-4. 当前已完成 `Lane 0 / A / B / C / D / E / F` 本地收口；当前 active exec plan 仍保持 `active`，只因为修复 web e2e 选择器漂移后的 latest CI run 尚未出最终结论
+4. 当前已完成 `Lane 0 / A / B / C / D / E / F` 本地收口；`testing-and-release-readiness` exec plan 已归档，当前没有 active exec plan
 5. `v4 / Phase 2A` 已归档，继续作为实现、回滚与生产排障的现实基线
 
 ---
