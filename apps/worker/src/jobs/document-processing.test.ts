@@ -69,9 +69,23 @@ function createDeps(overrides: Partial<DocumentProcessingDependencies> = {}): Do
     markJobRunning: async () => {},
     markDocumentProcessing: async () => {},
     markDocumentSuccess: async () => {},
+    markDocumentIndexQueued: async () => {},
+    markDocumentIndexFailed: async () => {},
     markJobCompleted: async () => {},
     markDocumentFailed: async () => {},
-    markJobFailed: async () => {}
+    markJobFailed: async () => {},
+    getNextAttempt: async () => 2,
+    createJob: async () => ({
+      id: "job-index-1",
+      document_id: "doc-1",
+      job_type: "chunk_document",
+      status: "queued",
+      queue_job_id: null,
+      attempt: 2,
+      started_at: null
+    }),
+    updateJobQueueId: async () => {},
+    createProcessingEvent: async () => {}
   } as unknown as DocumentProcessingDependencies["repository"];
 
   const storage = {
@@ -89,11 +103,12 @@ function createDeps(overrides: Partial<DocumentProcessingDependencies> = {}): Do
     repository,
     storage,
     logger,
+    enqueueChunkDocument: async () => "queue-index-1",
     ...overrides
   };
 }
 
-test("parse-document marks PDF document success and records parser metadata", async () => {
+test("parse-document marks PDF document success, queues indexing and records parser metadata", async () => {
   let successPayload:
     | {
         contentRaw: string | null;
@@ -106,6 +121,8 @@ test("parse-document marks PDF document success and records parser metadata", as
       }
     | undefined;
   let completedJobId: string | undefined;
+  let indexingQueued = false;
+  let indexQueueJobId: string | undefined;
 
   const deps = createDeps({
     repository: {
@@ -128,6 +145,12 @@ test("parse-document marks PDF document success and records parser metadata", as
       },
       markJobCompleted: async (jobId: string) => {
         completedJobId = jobId;
+      },
+      markDocumentIndexQueued: async () => {
+        indexingQueued = true;
+      },
+      updateJobQueueId: async (_jobId: string, queueJobId: string) => {
+        indexQueueJobId = queueJobId;
       }
     } as unknown as DocumentProcessingDependencies["repository"],
     parsePdf: async () => ({
@@ -150,6 +173,8 @@ test("parse-document marks PDF document success and records parser metadata", as
 
   assert.equal(result.status, "success");
   assert.equal(completedJobId, "job-1");
+  assert.equal(indexingQueued, true);
+  assert.equal(indexQueueJobId, "queue-index-1");
   assert.equal(successPayload?.pageCount, 2);
   assert.equal(successPayload?.parserName, "pdf-parse");
   assert.equal(successPayload?.parserVersion, "2.4.5");
@@ -280,6 +305,7 @@ test("run-ocr stores OCR text and completes the job", async () => {
       }
     | undefined;
   let completedJobId: string | undefined;
+  let indexingQueued = false;
 
   const deps = createDeps({
     repository: {
@@ -306,6 +332,9 @@ test("run-ocr stores OCR text and completes the job", async () => {
         ocrSuccessPayload = values;
       },
       createProcessingEvent: async () => {},
+      markDocumentIndexQueued: async () => {
+        indexingQueued = true;
+      },
       markJobCompleted: async (jobId: string) => {
         completedJobId = jobId;
       }
@@ -330,6 +359,7 @@ test("run-ocr stores OCR text and completes the job", async () => {
 
   assert.equal(result.status, "success");
   assert.equal(completedJobId, "job-ocr-1");
+  assert.equal(indexingQueued, true);
   assert.equal(ocrSuccessPayload?.ocrEngine, "tesseract-ocr");
   assert.equal(ocrSuccessPayload?.ocrLanguage, "chi_sim+eng");
   assert.match(ocrSuccessPayload?.contentPreview || "", /OCR 识别后的正文/);
@@ -350,6 +380,7 @@ test("fetch-link stores extracted text and completes the job", async () => {
     | undefined;
   let sourceFetchSucceeded = false;
   let completedJobId: string | undefined;
+  let indexingQueued = false;
 
   const deps = createDeps({
     repository: {
@@ -384,6 +415,9 @@ test("fetch-link stores extracted text and completes the job", async () => {
         sourceFetchSucceeded = true;
       },
       createProcessingEvent: async () => {},
+      markDocumentIndexQueued: async () => {
+        indexingQueued = true;
+      },
       markDocumentSuccess: async (
         _documentId: string,
         values: {
@@ -428,9 +462,68 @@ test("fetch-link stores extracted text and completes the job", async () => {
   assert.equal(result.status, "success");
   assert.equal(completedJobId, "job-link-1");
   assert.equal(sourceFetchSucceeded, true);
+  assert.equal(indexingQueued, true);
   assert.equal(successPayload?.title, "路线图更新");
   assert.equal(successPayload?.parserName, "link-fetcher");
   assert.match(successPayload?.contentPreview || "", /抓取到的正文/);
+});
+
+test("parse-document marks indexing failed when chunk job enqueue fails", async () => {
+  let indexFailure:
+    | {
+        message: string;
+        diagnosisCode: string | null;
+      }
+    | undefined;
+  let failedJob:
+    | {
+        message: string;
+        diagnosisCode: string | null;
+      }
+    | undefined;
+
+  const deps = createDeps({
+    repository: {
+      ...(createDeps().repository as object),
+      markDocumentIndexFailed: async (_documentId: string, message: string, diagnosisCode: string | null) => {
+        indexFailure = {
+          message,
+          diagnosisCode
+        };
+      },
+      markJobFailed: async (_jobId: string, message: string, diagnosisCode: string | null) => {
+        failedJob = {
+          message,
+          diagnosisCode
+        };
+      }
+    } as unknown as DocumentProcessingDependencies["repository"],
+    parsePdf: async () => ({
+      text: "第一页\n第二页",
+      pageCount: 2,
+      parserName: "pdf-parse",
+      parserVersion: "2.4.5"
+    }),
+    enqueueChunkDocument: async () => {
+      throw new Error("redis unavailable");
+    }
+  });
+
+  const handlers = createDocumentProcessingHandlers(deps);
+  const result = await handlers[DOCUMENT_PROCESSING_JOB_NAMES.parseDocument]({
+    name: DOCUMENT_PROCESSING_JOB_NAMES.parseDocument,
+    id: "queue-job-1",
+    data: {
+      documentId: "doc-1"
+    },
+    attemptsMade: 0
+  });
+
+  assert.equal(result.status, "success");
+  assert.equal(indexFailure?.diagnosisCode, "queue_backlog");
+  assert.match(indexFailure?.message || "", /索引任务未能入队/);
+  assert.equal(failedJob?.diagnosisCode, "queue_backlog");
+  assert.equal(failedJob?.message, "redis unavailable");
 });
 
 test("fetch-link maps blocked errors into diagnosis codes", async () => {

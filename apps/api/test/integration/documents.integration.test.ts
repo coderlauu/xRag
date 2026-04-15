@@ -136,6 +136,9 @@ test("documents API persists a created text document and returns it from list/de
   await app.init();
 
   try {
+    const queueService = app.get(QueueService) as { enqueueChunkDocument: (documentId: string, jobId: string) => Promise<string> };
+    queueService.enqueueChunkDocument = async () => "queue-job-create-text-1";
+
     const createResponse = await app.inject({
       method: "POST",
       url: "/api/v1/documents/text",
@@ -169,9 +172,11 @@ test("documents API persists a created text document and returns it from list/de
     assert.equal(detail.id, created.id);
     assert.deepEqual(detail.tags, ["integration", "phase-1a"]);
     assert.equal(detail.parse_status, "success");
+    assert.equal(detail.index_status, "queued");
     assert.equal(detail.upload_status, null);
     assert.equal(detail.diagnosis_code, null);
-    assert.equal(detail.latest_job_status, null);
+    assert.equal(detail.latest_job_status, "queued");
+    assert.equal(detail.latest_job.status, "queued");
   } finally {
     await app.close();
   }

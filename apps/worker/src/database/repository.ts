@@ -212,6 +212,36 @@ export class WorkerRepository {
     );
   }
 
+  async markDocumentIndexQueued(documentId: string) {
+    await this.pool.query(
+      `
+        update documents
+        set index_status = 'queued',
+            citation_ready = false,
+            diagnosis_code = null,
+            diagnosis_summary = null,
+            updated_at = now()
+        where id = $1
+      `,
+      [documentId]
+    );
+  }
+
+  async markDocumentIndexFailed(documentId: string, message: string, diagnosisCode: string | null) {
+    await this.pool.query(
+      `
+        update documents
+        set index_status = 'failed',
+            citation_ready = false,
+            diagnosis_code = $3,
+            diagnosis_summary = $2,
+            updated_at = now()
+        where id = $1
+      `,
+      [documentId, message, diagnosisCode]
+    );
+  }
+
   async markDocumentOcrQueued(documentId: string) {
     await this.pool.query(
       `
@@ -446,7 +476,7 @@ export class WorkerRepository {
   async createProcessingEvent(values: {
     documentId: string;
     eventType: string;
-    stage: "upload" | "parse" | "ocr" | "fetch" | "projection" | "ops";
+    stage: "upload" | "parse" | "ocr" | "fetch" | "projection" | "ops" | "index";
     status: "pending" | "processing" | "success" | "failed";
     summary: string;
     diagnosisCode?: string | null;

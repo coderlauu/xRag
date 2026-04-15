@@ -6,7 +6,7 @@
 - `phase`: `Phase 2B`
 - `status`: `in-progress`
 - `owner`: `codex`
-- `updated_at`: `2026-04-14`
+- `updated_at`: `2026-04-15`
 
 ## 2. Goal
 
@@ -40,7 +40,7 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证。`answers` integration 已补 `search_result snapshot query + filters round-trip`，web e2e/smoke 已补 `search -> ask scope handoff / detail -> ask document scope / restored active session continue asking / citation jumpback`。
+- `now`: 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证。`2026-04-15` 已修复文档长期停留 `not_indexed` 导致 Ask retrieval 为空的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`，并新增 `pnpm recovery:backfill-indexing` 作为既有旧文档的一次性回补入口。
 - `next`: 等待 current HEAD 的 latest GitHub Actions run 给出最终结论；若 success，直接把 `testing-and-release-readiness` 标记为 completed 并收口 `Phase 2B`。
 
 ## 5. Blockers
@@ -51,7 +51,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-14` 已完成本地 release-readiness 验证：`git diff --check`、`pnpm docs:check`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/*.test.js`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`./scripts/run-e2e-smoke.sh` 通过。current HEAD 的 latest GitHub Actions run 在文档更新时仍未给出最终结论
+- `latest_validation`: `2026-04-15` 已完成本地定向修复验证：`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js` 通过；此前 `2026-04-14` 的 release-readiness 验证仍保持有效。current HEAD 的 latest GitHub Actions run 在文档更新时仍未给出最终结论
 - `result`: `passed`
 - `latest_failure`: `none`
 

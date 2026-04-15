@@ -88,12 +88,16 @@
 - `corepack pnpm --filter @xrag/web typecheck`
 - `./scripts/run-e2e-smoke.sh`
 - `corepack pnpm docs:check`
+- `2026-04-15`: `pnpm --filter @xrag/worker test:unit`
+- `2026-04-15`: `pnpm --filter @xrag/api build:test`
+- `2026-04-15`: `node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js`
 
 ## 6. Risks
 
 - 若 integration 只覆盖 happy path，`continued_from_session_id / retrieval summary / evidence_groups` 很容易在后续重构时退化
 - 若 e2e 不覆盖 `/search -> /ask -> /detail` 的跳转链路，web 上的 scope handoff 与 citation jumpback 会长期缺少回归保护
 - 若测试阶段重新修改 contract，会把原本已冻结的边界重新打散
+- 若文档长期停在 `not_indexed`，Ask 会在 retrieval 阶段整体失效；关闭本计划前必须确认自动排索引链路已接通，必要时执行 `pnpm recovery:backfill-indexing`
 
 ## 7. Exit Criteria
 
@@ -109,3 +113,4 @@
 - `2026-04-14`: `Lane C / D` 已完成，`Phase 2B` feature lanes 退出条件满足
 - `2026-04-14`: 原 `implementation-lanes` 计划归档，测试与发布准备切到独立 active exec plan
 - `2026-04-14`: `Lane E / F` 已在本地完成，当前仅剩 current HEAD 的 latest GitHub Actions run 最终结论；在 CI 成功前，本计划保持 active
+- `2026-04-15`: 已修复 `document-processing` 成功后不自动进入 `document-indexing` 的实现缺口；新增 `pnpm recovery:backfill-indexing` 作为既有 `not_indexed` 文档的恢复入口

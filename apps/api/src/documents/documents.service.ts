@@ -55,7 +55,7 @@ export class DocumentsService {
   ) {}
 
   async createTextDocument(body: CreateTextDocumentRequestDto): Promise<CreateTextDocumentResponse> {
-    return this.database.db.transaction(async (tx) => {
+    const created = await this.database.db.transaction(async (tx) => {
       const title = normalizeWhitespace(body.title);
       const contentRaw = body.content.trim();
       const contentClean = normalizeWhitespace(body.content);
@@ -106,6 +106,13 @@ export class DocumentsService {
         parse_status: document.parseStatus
       };
     });
+
+    await this.enqueueDocumentIndexing(created.id, {
+      summary: "手动文本已入库，已创建问答索引任务。",
+      throwOnEnqueueFailure: false
+    });
+
+    return created;
   }
 
   async createLinkDocument(body: CreateLinkDocumentRequestDto): Promise<CreateLinkDocumentResponse> {
@@ -461,20 +468,39 @@ export class DocumentsService {
   }
 
   async reindexDocument(documentId: string): Promise<ReindexDocumentResponse> {
+    const document = await this.documentsRepository.getDocumentById(documentId);
+    if (!document) {
+      throw new NotFoundException("Document not found");
+    }
+
+    if (document.parseStatus !== "success") {
+      throw new BadRequestException("Only successfully parsed documents can be reindexed");
+    }
+
+    if (this.isIndexActive(document.indexStatus)) {
+      throw new BadRequestException("Document indexing is already in progress");
+    }
+
+    const reindexResult = await this.enqueueDocumentIndexing(documentId, {
+      summary: "已创建问答索引重建任务。",
+      throwOnEnqueueFailure: true
+    });
+
+    if (!reindexResult) {
+      throw new BadRequestException("Failed to enqueue reindex job");
+    }
+
+    return reindexResult;
+  }
+
+  private async enqueueDocumentIndexing(
+    documentId: string,
+    options: {
+      summary: string;
+      throwOnEnqueueFailure: boolean;
+    }
+  ): Promise<ReindexDocumentResponse | null> {
     const reindexResult = await this.database.db.transaction(async (tx) => {
-      const document = await this.documentsRepository.getDocumentById(documentId, tx);
-      if (!document) {
-        throw new NotFoundException("Document not found");
-      }
-
-      if (document.parseStatus !== "success") {
-        throw new BadRequestException("Only successfully parsed documents can be reindexed");
-      }
-
-      if (this.isIndexActive(document.indexStatus)) {
-        throw new BadRequestException("Document indexing is already in progress");
-      }
-
       const nextAttempt = await this.jobsRepository.getNextAttempt(documentId, tx);
       const job = await this.jobsRepository.createJob(
         {
@@ -510,7 +536,7 @@ export class DocumentsService {
           stage: "index",
           status: "pending",
           diagnosisCode: null,
-          summary: "已创建问答索引重建任务。",
+          summary: options.summary,
           payload: {
             job_id: job.id
           }
@@ -531,6 +557,7 @@ export class DocumentsService {
       await this.jobsRepository.updateJob(reindexResult.job_id, {
         queueJobId
       });
+      return reindexResult;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to enqueue reindex job";
       await this.jobsRepository.updateJob(reindexResult.job_id, {
@@ -542,6 +569,7 @@ export class DocumentsService {
       });
       await this.documentsRepository.updateDocumentProjection(documentId, {
         indexStatus: "failed",
+        citationReady: false,
         diagnosisCode: "queue_backlog",
         diagnosisSummary: "索引任务未能入队，请稍后重试。"
       });
@@ -553,12 +581,17 @@ export class DocumentsService {
         status: "failed",
         diagnosisCode: "queue_backlog",
         summary: "问答索引任务入队失败。",
-        payload: null
+        payload: {
+          job_id: reindexResult.job_id
+        }
       });
-      throw new BadRequestException("Failed to enqueue reindex job");
-    }
 
-    return reindexResult;
+      if (options.throwOnEnqueueFailure) {
+        throw new BadRequestException("Failed to enqueue reindex job");
+      }
+
+      return null;
+    }
   }
 
   private toDocumentSummary(

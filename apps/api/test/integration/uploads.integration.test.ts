@@ -74,7 +74,8 @@ async function runLatestParseJob(documentId: string) {
       info: () => {},
       warn: () => {},
       error: () => {}
-    }
+    },
+    enqueueChunkDocument: async () => "integration-index-job"
   });
 
   try {
@@ -109,6 +110,7 @@ async function runLatestParseJobWithOverrides(
       warn: () => {},
       error: () => {}
     },
+    enqueueChunkDocument: async () => "integration-index-job",
     ...overrides
   });
 
@@ -144,6 +146,7 @@ async function runLatestOcrJob(
       warn: () => {},
       error: () => {}
     },
+    enqueueChunkDocument: async () => "integration-index-job",
     ...overrides
   });
 
@@ -439,9 +442,10 @@ test("uploads API plus worker parses PDF and exposes search/detail diagnostics",
     assert.equal(detailResponse.statusCode, 200);
     const detail = detailResponse.json();
     assert.equal(detail.parse_status, "success");
+    assert.equal(detail.index_status, "queued");
     assert.equal(detail.upload_status, "uploaded");
     assert.equal(detail.diagnosis_code, null);
-    assert.equal(detail.latest_job.status, "succeeded");
+    assert.equal(detail.latest_job.status, "queued");
     assert.equal(detail.page_count, 1);
     assert.equal(detail.parser_name, "pdf-parse");
     assert.match(detail.content_preview, /Hello PDF/);
@@ -455,7 +459,8 @@ test("uploads API plus worker parses PDF and exposes search/detail diagnostics",
     assert.equal(list.total, 1);
     assert.equal(list.items[0].title, "Phase 1B PDF 回归样本");
     assert.equal(list.items[0].parse_status, "success");
-    assert.equal(list.items[0].latest_job_status, "succeeded");
+    assert.equal(list.items[0].index_status, "queued");
+    assert.equal(list.items[0].latest_job_status, "queued");
     assert.equal(list.items[0].page_count, 1);
     assert.equal(list.items[0].parser_name, "pdf-parse");
   } finally {
@@ -530,6 +535,7 @@ test("uploads API routes scanned PDFs into OCR and projects OCR text", async () 
     const detail = detailResponse.json();
     assert.equal(detail.parse_status, "success");
     assert.equal(detail.ocr_status, "success");
+    assert.equal(detail.index_status, "queued");
     assert.equal(detail.ocr_engine, "tesseract-ocr");
     assert.equal(detail.ocr_language, "chi_sim+eng");
     assert.match(detail.content_preview, /OCR 识别出的正文/);
@@ -543,6 +549,7 @@ test("uploads API routes scanned PDFs into OCR and projects OCR text", async () 
     assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "ocr_queued"), true);
     assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "ocr_started"), true);
     assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "ocr_succeeded"), true);
+    assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "index_queued"), true);
   } finally {
     await app.close();
   }

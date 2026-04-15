@@ -10,6 +10,7 @@
     "dev": "nodemon --watch src --ext ts --exec \"node --loader ts-node/esm src/main.ts\"",
     "lint": "tsc --noEmit -p tsconfig.json",
     "openapi:generate": "tsx src/openapi.ts",
+    "recovery:backfill-indexing": "tsx src/recovery/backfill-document-indexing.ts",
     "recovery:scan-storage": "tsx src/recovery/scan-storage-recovery.ts",
     "start": "node dist/apps/api/src/main.js",
     "test": "pnpm test:integration",

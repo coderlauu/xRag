@@ -35,6 +35,7 @@ export interface DocumentProcessingDependencies {
   runOcr?: (bytes: Uint8Array) => Promise<ParsedOcrDocument>;
   fetchLink?: (url: string) => Promise<ParsedLinkDocument>;
   enqueueOcr?: (documentId: string, uploadId?: string) => Promise<string>;
+  enqueueChunkDocument: (documentId: string, jobId: string) => Promise<string>;
 }
 
 async function processDocument(context: JobContext, deps: DocumentProcessingDependencies): Promise<DocumentProcessingJobResult> {
@@ -88,6 +89,9 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
           sourceUrl: document.source_url
         })
       });
+      await queueIndexingForDocument(document.id, deps, {
+        summary: "正文解析完成，已排入问答索引队列。"
+      });
       await repository.markJobCompleted(job.id);
       return {
         documentId: document.id,
@@ -138,6 +142,9 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
         parserName: parsedPdf.parserName,
         parserVersion: parsedPdf.parserVersion
       });
+      await queueIndexingForDocument(document.id, deps, {
+        summary: "PDF 解析完成，已排入问答索引队列。"
+      });
       await repository.markJobCompleted(job.id);
 
       return {
@@ -162,6 +169,9 @@ async function processDocument(context: JobContext, deps: DocumentProcessingDepe
         fileName: document.file_name,
         sourceUrl: document.source_url
       })
+    });
+    await queueIndexingForDocument(document.id, deps, {
+      summary: "文档解析完成，已排入问答索引队列。"
     });
     await repository.markJobCompleted(job.id);
 
@@ -297,6 +307,58 @@ async function queueOcrForDocument(
   }
 }
 
+async function queueIndexingForDocument(
+  documentId: string,
+  deps: DocumentProcessingDependencies,
+  values: {
+    summary: string;
+  }
+): Promise<boolean> {
+  const { repository, enqueueChunkDocument } = deps;
+  const nextAttempt = await repository.getNextAttempt(documentId);
+  const indexingJob = await repository.createJob({
+    id: randomUUID(),
+    documentId,
+    jobType: "chunk_document",
+    status: "queued",
+    attempt: nextAttempt
+  });
+
+  await repository.markDocumentIndexQueued(documentId);
+  await repository.createProcessingEvent({
+    documentId,
+    eventType: "index_queued",
+    stage: "index",
+    status: "pending",
+    summary: values.summary,
+    payload: {
+      job_id: indexingJob.id
+    }
+  });
+
+  try {
+    const queueJobId = await enqueueChunkDocument(documentId, indexingJob.id);
+    await repository.updateJobQueueId(indexingJob.id, queueJobId);
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "failed to enqueue indexing job";
+    await repository.markDocumentIndexFailed(documentId, "索引任务未能入队，请稍后重试。", "queue_backlog");
+    await repository.markJobFailed(indexingJob.id, message, "queue_backlog");
+    await repository.createProcessingEvent({
+      documentId,
+      eventType: "index_enqueue_failed",
+      stage: "index",
+      status: "failed",
+      diagnosisCode: "queue_backlog",
+      summary: "问答索引任务入队失败。",
+      payload: {
+        job_id: indexingJob.id
+      }
+    });
+    return false;
+  }
+}
+
 type WorkerDocumentRecordLike = {
   id: string;
   title: string;
@@ -382,6 +444,9 @@ async function processLinkFetch(context: JobContext, deps: DocumentProcessingDep
       parserName: parsed.parserName,
       parserVersion: parsed.parserVersion
     });
+    const indexingQueued = await queueIndexingForDocument(document.id, deps, {
+      summary: "链接正文抓取成功，已排入问答索引队列。"
+    });
     await repository.markSourceFetchSucceeded(fetchRecord.id, {
       contentType: parsed.contentType,
       canonicalUrl: parsed.canonicalUrl,
@@ -392,11 +457,12 @@ async function processLinkFetch(context: JobContext, deps: DocumentProcessingDep
       eventType: "link_fetch_succeeded",
       stage: "fetch",
       status: "success",
-      summary: "链接正文抓取成功，已写入搜索投影。",
+      summary: indexingQueued ? "链接正文抓取成功，已写入搜索投影并排入问答索引。" : "链接正文抓取成功，已写入搜索投影，但问答索引入队失败。",
       payload: {
         fetch_id: fetchRecord.id,
         canonical_url: parsed.canonicalUrl,
-        parser_name: parsed.parserName
+        parser_name: parsed.parserName,
+        indexing_queued: indexingQueued
       }
     });
     await repository.markJobCompleted(job.id);
@@ -510,16 +576,20 @@ async function processOcr(context: JobContext, deps: DocumentProcessingDependenc
       ocrEngine: parsed.ocrEngine,
       ocrLanguage: parsed.ocrLanguage
     });
+    const indexingQueued = await queueIndexingForDocument(document.id, deps, {
+      summary: "OCR 成功，已排入问答索引队列。"
+    });
     await repository.createProcessingEvent({
       documentId: document.id,
       eventType: "ocr_succeeded",
       stage: "ocr",
       status: "success",
-      summary: "OCR 成功，已写入搜索投影。",
+      summary: indexingQueued ? "OCR 成功，已写入搜索投影并排入问答索引。" : "OCR 成功，已写入搜索投影，但问答索引入队失败。",
       payload: {
         ocr_engine: parsed.ocrEngine,
         ocr_language: parsed.ocrLanguage,
-        page_count: parsed.pageCount
+        page_count: parsed.pageCount,
+        indexing_queued: indexingQueued
       }
     });
     await repository.markJobCompleted(job.id);

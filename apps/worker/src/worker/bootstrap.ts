@@ -178,6 +178,7 @@ export async function bootstrapWorker() {
     storage,
     logger,
     enqueueOcr: (documentId, uploadId) => queueProducer.enqueueRunOcr(documentId, uploadId),
+    enqueueChunkDocument: (documentId, jobId) => queueProducer.enqueueChunkDocument(documentId, jobId),
     fetchLink: (url) =>
       fetchAndExtractLinkDocument(url, fetch, {
         timeoutMs: env.linkFetchTimeoutMs,

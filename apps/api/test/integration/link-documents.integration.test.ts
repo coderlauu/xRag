@@ -37,7 +37,8 @@ async function runLatestFetchJob(documentId: string) {
       info: () => {},
       warn: () => {},
       error: () => {}
-    }
+    },
+    enqueueChunkDocument: async () => "integration-index-job"
   });
 
   try {
@@ -133,6 +134,7 @@ test("link documents API creates a link document, fetches body text and exposes 
     assert.equal(detailResponse.statusCode, 200);
     const detail = detailResponse.json();
     assert.equal(detail.parse_status, "success");
+    assert.equal(detail.index_status, "queued");
     assert.match(detail.content_preview, /抓取到的第一段正文/);
     assert.equal(detail.source_type, "link");
 
@@ -146,6 +148,7 @@ test("link documents API creates a link document, fetches body text and exposes 
     assert.equal(timeline.items.length >= 2, true);
     assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "link_fetch_started"), true);
     assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "link_fetch_succeeded"), true);
+    assert.equal(timeline.items.some((item: { event_type: string }) => item.event_type === "index_queued"), true);
   } finally {
     await app.close();
     await htmlServer.close();

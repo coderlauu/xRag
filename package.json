@@ -14,6 +14,7 @@
     "ops:inspect:ci-run": "./scripts/ops-inspect-ci-run.sh",
     "ops:inspect:document": "./scripts/ops-inspect-document.sh",
     "ops:inspect:upload": "./scripts/ops-inspect-upload.sh",
+    "recovery:backfill-indexing": "pnpm --filter @xrag/api recovery:backfill-indexing",
     "record:deploy:evidence": "./scripts/record-deploy-evidence.sh",
     "structure:check": "node ./scripts/check-structure.mjs",
     "test": "pnpm test:unit && pnpm test:integration",

@@ -62,7 +62,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证；当前下一步是等待 current HEAD 的 latest GitHub Actions run 最终结论，并据此关闭 `Phase 2B`。
+在 `Phase 2A` 可信问答闭环完成后，`Phase 2B` 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证；`2026-04-15` 已补上 `document-processing -> document-indexing` 自动排索引链路与 `not_indexed` recovery backfill 脚本，当前下一步是等待 current HEAD 的 latest GitHub Actions run 最终结论，并据此关闭 `Phase 2B`。
 
 ---
 
@@ -100,6 +100,8 @@
 - `2026-04-13` 本地已完成 `Lane 0 / A / B` 相关验证：`git diff --check`、`@xrag/api typecheck`、`@xrag/worker typecheck`、`pnpm --filter @xrag/worker test:unit`、`pnpm test:integration`
 - `2026-04-14` 本地已完成 `Lane C / D` 相关验证：`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`
 - `2026-04-14` 本地已完成 `Lane E / F` 相关验证：`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/*.test.js`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`./scripts/run-e2e-smoke.sh`、`pnpm docs:check`
+- `2026-04-15` 已修复 Ask 被 `not_indexed` 文档整体阻断的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`；新增 `pnpm recovery:backfill-indexing -- --dry-run` 与正式 backfill 入口，用于把既有 `parse_status=success` 且 `index_status=not_indexed` 的文档补入索引队列
+- `2026-04-15` 已完成本地定向验证：`@xrag/worker test:unit`、`@xrag/api build:test`、`documents / uploads / link-documents` integration
 - current HEAD 的 latest GitHub Actions run 在文档更新时仍未给出最终结论
 
 ---
