@@ -10,7 +10,7 @@ test("inbox to search to detail flow works", async ({ page }) => {
   await page.locator("#inbox-save-note").click();
 
   await expect(page).toHaveURL(/\/detail\//);
-  await expect(page.getByText(title)).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
   await page.locator("#detail-back-to-search").click();
   await page.locator("#search-query").fill(title);
@@ -20,7 +20,7 @@ test("inbox to search to detail flow works", async ({ page }) => {
   await page.getByRole("link", { name: title }).click();
 
   await expect(page).toHaveURL(/\/detail\//);
-  await expect(page.getByText(title)).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
   await expect(page.getByText("处理时间线")).toBeVisible();
 });
 
@@ -32,6 +32,6 @@ test("inbox link import entry creates a link document and opens detail", async (
   await page.locator("#link-submit").click();
 
   await expect(page).toHaveURL(/\/detail\//);
-  await expect(page.getByText("Playwright 链接导入")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Playwright 链接导入" })).toBeVisible();
   await expect(page.getByText("来源链接：https://example.com/")).toBeVisible();
 });

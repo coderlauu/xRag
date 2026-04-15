@@ -99,14 +99,12 @@ async function createIndexedDocument(
   await page.locator("#inbox-tags").fill(input.tags);
   await page.locator("#inbox-save-note").click();
 
-  await expect(page.getByText(input.title)).toBeVisible();
+  await expect(page.getByRole("heading", { name: input.title })).toBeVisible();
   const documentId = extractDocumentId(page.url());
   if (!documentId) {
     throw new Error(`failed to extract document id from ${page.url()}`);
   }
 
-  await page.getByRole("button", { name: "重建索引" }).click();
-  await expect(page.getByText("索引任务已提交")).toBeVisible({ timeout: ANSWER_STATUS_TIMEOUT_MS });
   await waitForEvidenceChunkId(page);
 
   return documentId;

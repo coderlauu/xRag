@@ -40,8 +40,8 @@
 
 ## 4. Current Node
 
-- `now`: 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证。`2026-04-15` 已修复文档长期停留 `not_indexed` 导致 Ask retrieval 为空的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`，并新增 `pnpm recovery:backfill-indexing` 作为既有旧文档的一次性回补入口。
-- `next`: 等待 current HEAD 的 latest GitHub Actions run 给出最终结论；若 success，直接把 `testing-and-release-readiness` 标记为 completed 并收口 `Phase 2B`。
+- `now`: 已完成 `Lane 0 / A / B / C / D / E / F` 的本地实现与验证。`2026-04-15` 已修复文档长期停留 `not_indexed` 导致 Ask retrieval 为空的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`，并新增 `pnpm recovery:backfill-indexing` 作为既有旧文档的一次性回补入口。同日 GitHub Actions run `24460473108` 在 `e2e` 因 detail 页 locator 文本新增导致 Playwright strict-mode 选择器漂移失败；本地已修复 e2e 断言并重新跑通 smoke。
+- `next`: 推送当前 e2e 修复后，等待 latest GitHub Actions run 给出最终结论；若 success，直接把 `testing-and-release-readiness` 标记为 completed 并收口 `Phase 2B`。
 
 ## 5. Blockers
 
@@ -51,9 +51,9 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-15` 已完成本地定向修复验证：`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js` 通过；此前 `2026-04-14` 的 release-readiness 验证仍保持有效。current HEAD 的 latest GitHub Actions run 在文档更新时仍未给出最终结论
+- `latest_validation`: `2026-04-15` 已完成本地定向修复验证：`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js`、`./scripts/run-e2e-smoke.sh`、`pnpm --filter @xrag/web typecheck` 通过；此前 `2026-04-14` 的 release-readiness 验证仍保持有效。当前等待 e2e 修复 commit 的 latest CI run
 - `result`: `passed`
-- `latest_failure`: `none`
+- `latest_failure`: `GitHub Actions run 24460473108 failed in e2e because detail-page locator text made several getByText(title) assertions ambiguous under Playwright strict mode; fixed locally on 2026-04-15`
 
 ## 7. Linked Artifacts
 
@@ -70,4 +70,4 @@
 - `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
 - `exec_plans`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-14-phase-2b-testing-and-release-readiness.md), [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
 - `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`, `2949dd0`, `12b22fb`, `1bf8d27`, `e470270`, `c2df206`
-- `latest_ci_run`: `pending for current HEAD at time of update`
+- `latest_ci_run`: `24460473108 failed in e2e; rerun pending after local selector-fix commit`

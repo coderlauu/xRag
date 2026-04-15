@@ -114,3 +114,4 @@
 - `2026-04-14`: 原 `implementation-lanes` 计划归档，测试与发布准备切到独立 active exec plan
 - `2026-04-14`: `Lane E / F` 已在本地完成，当前仅剩 current HEAD 的 latest GitHub Actions run 最终结论；在 CI 成功前，本计划保持 active
 - `2026-04-15`: 已修复 `document-processing` 成功后不自动进入 `document-indexing` 的实现缺口；新增 `pnpm recovery:backfill-indexing` 作为既有 `not_indexed` 文档的恢复入口
+- `2026-04-15`: GitHub Actions run `24460473108` 在 `e2e` 因 detail 页新增 locator 文本触发 Playwright strict-mode 选择器歧义；已将 smoke 用例标题断言收敛到 detail 页 heading，并把依赖旧 `not_indexed` 行为的 e2e 路径对齐到自动排索引后的当前运行时，本地 `./scripts/run-e2e-smoke.sh` 与 `pnpm --filter @xrag/web typecheck` 已重新通过

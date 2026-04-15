@@ -2,15 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, and ops summary", async ({ page }) => {
   const nonce = Date.now();
-  const baseTitle = `Phase2A E2E ${nonce}`;
-  const plainTitle = `${baseTitle} not indexed`;
-  const indexedTitle = `${baseTitle} indexed`;
-
-  const plainDocId = await createTextDocument(page, {
-    title: plainTitle,
-    content: "This document stays unindexed for search filter coverage.",
-    tags: "e2e, search"
-  });
+  const indexedTitle = `Phase2A E2E ${nonce} indexed`;
 
   const indexedDocId = await createTextDocument(page, {
     title: indexedTitle,
@@ -18,19 +10,10 @@ test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, 
     tags: "e2e, detail, ask"
   });
 
-  await reindexDocument(page);
   const initialEvidenceChunkId = await waitForEvidenceChunkId(page);
 
   await page.goto("/search");
-  await page.getByLabel("搜索文档").fill(baseTitle);
-  await page.getByLabel("索引状态").selectOption("not_indexed");
-  await page.getByRole("button", { name: "开始检索" }).click();
-
-  await expect(page).toHaveURL(/index_status=not_indexed/);
-  const plainResultCard = page.locator("article").filter({ has: page.getByRole("link", { name: plainTitle }) });
-  await expect(plainResultCard).toBeVisible();
-  await expect(plainResultCard.getByText(/^待引用$/)).toBeVisible();
-
+  await page.getByLabel("搜索文档").fill(indexedTitle);
   await page.getByLabel("索引状态").selectOption("ready");
   await page.getByRole("button", { name: "开始检索" }).click();
 
@@ -85,7 +68,7 @@ test("inbox link import entry creates a link document and opens detail", async (
   await page.locator("#link-submit").click();
 
   await expect(page).toHaveURL(/\/detail\//);
-  await expect(page.getByText("Playwright 链接导入")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Playwright 链接导入" })).toBeVisible();
   await expect(page.getByText("来源链接：https://example.com/")).toBeVisible();
 });
 
@@ -103,19 +86,13 @@ async function createTextDocument(
   await page.locator("#inbox-tags").fill(input.tags);
   await page.locator("#inbox-save-note").click();
 
-  await expect(page.getByText(input.title)).toBeVisible();
+  await expect(page.getByRole("heading", { name: input.title })).toBeVisible();
   const documentId = extractDocumentId(page.url());
   if (!documentId) {
     throw new Error(`failed to extract document id from ${page.url()}`);
   }
 
   return documentId;
-}
-
-async function reindexDocument(page: Page) {
-  await expect(page.getByRole("button", { name: "重建索引" })).toBeEnabled();
-  await page.getByRole("button", { name: "重建索引" }).click();
-  await expect(page.getByText("索引任务已提交")).toBeVisible({ timeout: 60_000 });
 }
 
 async function waitForEvidenceChunkId(page: Page, previousChunkId?: string) {
