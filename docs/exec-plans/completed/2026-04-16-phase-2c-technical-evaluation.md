@@ -3,13 +3,13 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-2c-technical-evaluation`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: `docs/handoff/v6.md`, `docs/status/v6-phase-2c.md`, `docs/prd/2026-04-16-xrag-phase-2c-prd.md`, `docs/prd/2026-04-16-xrag-phase-2c-backlog.md`, `design/spec/2026-04-16-v6-interaction-delta.md`, `docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md`
 
 ## 2. Objective
 
-在 `v6 / Phase 2C` 已完成产品范围冻结后，对 `corpus readiness / quality scorecard / incident clustering / release guard` 进行正式技术评估，明确事实源、架构边界、数据模型方向和 API 扩展策略，并判断是否进入 `contract-freeze`。
+在 `v6 / Phase 2C` 已完成产品范围冻结后，对 `corpus readiness / quality scorecard / incident clustering / release guard` 进行正式技术评估，明确事实源、架构边界、数据模型方向和 API 扩展策略，并完成是否进入 `contract-freeze` 的判断。
 
 ## 3. Scope
 
@@ -31,7 +31,7 @@
 ## 4. Assumptions
 
 - `v6 / Phase 2C` 已完成第一版 `PRD / backlog / interaction delta / tradeoff`
-- GitHub Actions run `24485981323` 已成功，当前 main 维持绿态
+- GitHub Actions run `24486354750` 已成功，当前 main 维持绿态
 - `Phase 2A / 2B` 已冻结 `citation / refusal / freshness / release-readiness` 主边界
 - 当前 `ops` 页面和 `/ops/*` 资源已经存在最小事实源，但尚未形成完整治理主板
 
@@ -63,3 +63,4 @@
 - `2026-04-16`: `v6 / Phase 2C` 已完成第一版 `PRD / backlog / interaction delta / technical tradeoff`
 - `2026-04-16`: 产品范围已冻结为 `corpus readiness / quality scorecard / incident clustering / release guard`
 - `2026-04-16`: active exec plan 从 `planning-and-scope` 切换到 `technical-evaluation`
+- `2026-04-16`: 已形成 `architecture / data-model / api / contract-freeze-prerequisites` 第一版技术评估文档，并确认可以进入 `contract-freeze`
