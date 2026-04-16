@@ -37,7 +37,7 @@
 - [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
 - [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
 - [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
-- [Phase 2C Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-freeze.md)
+- [Phase 2C Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-lanes.md)
 - [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
 - [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
 - [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
@@ -46,6 +46,7 @@
 - [Phase 2C Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-backlog.md)
 - [v6 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-16-v6-interaction-delta.md)
 - [Phase 2C P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md)
+- [Phase 2C Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md)
 - [Phase 2C Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-contract-freeze.md)
 - [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
@@ -60,7 +61,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已完成 contract freeze；当前目标不是直接编码，而是围绕 `schema / shared-types / API contract / ops read model / web ops board / tests` 固定 implementation lanes，再开始实现。
+在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已完成 implementation freeze；当前进入 implementation lanes，但必须先由主线程完成 `Lane 0: Contract To Code`，再启动后续并行 lane。
 
 ---
 
@@ -71,7 +72,8 @@
 - 启动 `v6 / Phase 2C` 的版本级脚手架与恢复入口
 - 明确本轮问题定义、目标用户和验收标准
 - 冻结 `PRD / backlog / interaction delta / technical tradeoff` 第一版事实源
-- 完成 `contract-freeze`，并进入 `implementation-freeze`
+- 完成 `implementation-freeze`，并进入 `implementation-lanes`
+- 主线程先完成 `Lane 0` 的 `schema / migration / shared-types / DTO / OpenAPI / API client / web api adapter`
 
 ### 本轮次级目标
 
@@ -79,8 +81,8 @@
 
 ### 明确不做
 
-- 直接进入代码实现或新的 implementation lanes
-- 未经 `implementation-freeze` 或显式 contract 变更流程直接修改 `schema / shared-types / API / citation / scope` 主边界
+- 绕过 `Lane 0` 直接启动并行 implementation lanes
+- 未经显式 contract 变更流程直接修改 `schema / shared-types / API / citation / scope` 主边界
 - 默认把目标环境的历史回补当成版本产品目标
 - 开放互联网联网回答
 - 浏览器插件
@@ -91,7 +93,7 @@
 ### 当前阶段依赖的既有基线
 
 - `v5 / Phase 2B` 已完成正式收口，并在 `2026-04-16` 切入归档态
-- latest main GitHub Actions run `24486856197` 已成功，当前 main 维持绿态
+- latest main GitHub Actions run `24512680036` 已成功，当前 main 维持绿态
 - `Phase 2A / 2B` 已建立可信问答的核心信任边界与 release-ready 工程基线
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
 - `pnpm recovery:backfill-indexing` 仍可用于目标环境的历史 `not_indexed` 文档治理，但目前不自动并入 `v6` 产品范围
@@ -103,7 +105,7 @@
 1. [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
 2. [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
 3. [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
-4. [Phase 2C Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-freeze.md)
+4. [Phase 2C Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-lanes.md)
 5. [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
 6. [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
 7. [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
@@ -120,10 +122,10 @@
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v6 / Phase 2C`，当前节点为 `implementation-freeze`
+1. 当前有效版本为 `v6 / Phase 2C`，当前节点为 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v6-phase-2c.md`
-4. 当前已完成 contract freeze，并切到 `implementation-freeze`；在实现冻结完成前，不进入并行 implementation lanes
+4. 当前已完成 implementation freeze，并切到 `implementation-lanes`；`Lane 0` 完成前，不进入并行 implementation lanes
 5. `v5 / Phase 2B` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---
