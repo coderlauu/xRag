@@ -22,6 +22,9 @@ import type {
   OpsAnswerSummaryResponse,
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
+  OpsOverviewResponse,
+  OpsTrendsQuery,
+  OpsTrendsResponse,
   ReindexDocumentResponse,
   RetryDocumentResponse,
   TagItem,
@@ -239,6 +242,15 @@ export async function getLatestDeployment(baseUrl = "http://localhost:3001") {
 
 export async function fetchOpsAnswerSummary(baseUrl = "http://localhost:3001") {
   return requestJson<OpsAnswerSummaryResponse>("/api/v1/ops/answer-summary", undefined, baseUrl);
+}
+
+export async function fetchOpsOverview(baseUrl = "http://localhost:3001") {
+  return requestJson<OpsOverviewResponse>("/api/v1/ops/overview", undefined, baseUrl);
+}
+
+export async function fetchOpsTrends(baseUrl = "http://localhost:3001", query: OpsTrendsQuery = {}) {
+  const search = buildSearchParams(query);
+  return requestJson<OpsTrendsResponse>(`/api/v1/ops/trends${search}`, undefined, baseUrl);
 }
 
 export async function createAnswer(body: CreateAnswerRequest, baseUrl = "http://localhost:3001") {

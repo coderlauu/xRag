@@ -15,7 +15,7 @@
 
 进入并行编码前，主线程必须先完成 `Lane 0: Contract To Code`。
 
-`Lane 0` 当前状态：`not-started`
+`Lane 0` 当前状态：`completed`
 
 主线程完成项固定为：
 
@@ -41,7 +41,7 @@
 6. 保留既有 `/ops/health-summary / incidents / answer-summary / deployments/latest` 向后兼容
 7. 不给 `AnswerSessionResponse / DocumentDetail / Search` 响应新增治理字段
 
-在 `Lane 0` 合并前，不启动子 agent 写代码。
+`Lane 0` 已完成后，后续可按本计划启动 `Lane A / B`；任何 lane 触碰 schema、shared-types、DTO、OpenAPI 或 API client contract 时必须回到主线程。
 
 ## 4. Lanes
 
@@ -68,6 +68,8 @@
   - `apps/web/src/features/detail/pages/detail-page.tsx`
   - `apps/worker/**`
   - `.github/workflows/ci.yml`
+- 实施例外：
+  - `apps/worker/src/queue/constants.ts` 已做最小兼容修复：停止从 `@xrag/shared-types` 做运行期 value re-export，避免 `dist-integration` 直接加载 shared-types 源码 TS；队列名和 job name 字面量未改变。
 - 完成定义：
   - schema / migration 已包含 `evaluation_runs / deployment_records`
   - shared-types 已导出全部 Phase 2C ops response types
@@ -184,6 +186,8 @@
 
 `Lane A / B / C / D` 只有在 `Lane 0` 完成后才允许使用子 agent 并行。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI 或 API client contract，必须暂停并切回主线程。
 
+当前恢复点：`Lane 0` 已完成，下一步优先启动 `Lane A: API Read Model And Governance Aggregation` 与 `Lane B: Deployment And Evaluation Fact Ingestion`；`Lane C` 可在 API read model 稳定后接入，`Lane D` 在 `Lane A / B / C` 合流后启动。
+
 ## 6. Ownership Rules
 
 1. `apps/api/src/database/schema.ts`、`migrations/*`、`packages/shared-types/src/index.ts`、`apps/api/src/openapi.ts`、`docs/generated/openapi/*`、`packages/api-client/src/index.ts`、`apps/web/src/lib/api.ts` 始终归主线程。
@@ -237,3 +241,6 @@
 - `2026-04-16`: `Phase 2C` implementation freeze 退出条件已满足，正式切换到 implementation lanes。
 - `2026-04-16`: 主线程 ownership 固定为 `schema / migrations / shared-types / DTO / OpenAPI / API client / web api adapter`。
 - `2026-04-16`: 首批实现 lane 固定为 `Lane A / B / C / D`，且必须等 `Lane 0` 完成后才能启动。
+- `2026-04-16`: `Lane 0` 已完成 contract-to-code 落地：新增 `evaluation_runs / deployment_records` schema 与 migration，导出 Phase 2C ops shared-types/DTO/OpenAPI/API client/web adapter，并保留既有 ops endpoints 兼容。
+- `2026-04-16`: `Lane 0` 集成测试发现 worker constants 运行期 re-export 会在 `dist-integration` 加载 `@xrag/shared-types` 源码 TS；已在 worker constants 内本地定义运行期常量并用 shared-types union 做类型约束，不改变 queue/job contract。
+- `2026-04-16`: `Lane 0` 已通过 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/api openapi:generate`、`pnpm --filter @xrag/web build`、`pnpm test:integration`。

@@ -225,6 +225,64 @@
         ]
       }
     },
+    "/api/v1/ops/overview": {
+      "get": {
+        "operationId": "OpsController_getOverview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsOverviewResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get the Phase 2C operations governance overview",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/trends": {
+      "get": {
+        "operationId": "OpsController_getTrends",
+        "parameters": [
+          {
+            "name": "window",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsTrendsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get Phase 2C operations governance trends",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
     "/api/v1/ops/deployments/latest": {
       "get": {
         "operationId": "OpsController_getLatestDeployment",
@@ -911,8 +969,8 @@
   },
   "info": {
     "title": "xRag API",
-    "description": "Phase 2B API contract",
-    "version": "0.6.0",
+    "description": "Phase 2C API contract",
+    "version": "0.7.0",
     "contact": {}
   },
   "tags": [],
@@ -1582,6 +1640,579 @@
           "ready_document_count",
           "stale_document_count",
           "failed_document_count"
+        ]
+      },
+      "OpsReadinessSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "queued_count": {
+            "type": "number"
+          },
+          "chunking_count": {
+            "type": "number"
+          },
+          "embedding_count": {
+            "type": "number"
+          },
+          "ready_count": {
+            "type": "number"
+          },
+          "stale_count": {
+            "type": "number"
+          },
+          "failed_count": {
+            "type": "number"
+          },
+          "total_count": {
+            "type": "number"
+          },
+          "readiness_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "freshness_lag_p95_ms": {
+            "type": "number",
+            "nullable": true
+          },
+          "blocking_reason": {
+            "type": "string",
+            "enum": [
+              "none",
+              "no_ready_documents",
+              "indexing_backlog",
+              "indexing_failed",
+              "stale_corpus"
+            ]
+          }
+        },
+        "required": [
+          "queued_count",
+          "chunking_count",
+          "embedding_count",
+          "ready_count",
+          "stale_count",
+          "failed_count",
+          "total_count",
+          "blocking_reason"
+        ]
+      },
+      "OpsRuntimeQualitySummaryDto": {
+        "type": "object",
+        "properties": {
+          "window": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ]
+          },
+          "terminal_session_count": {
+            "type": "number"
+          },
+          "answered_session_count": {
+            "type": "number"
+          },
+          "latency_p50_ms": {
+            "type": "number",
+            "nullable": true
+          },
+          "latency_p95_ms": {
+            "type": "number",
+            "nullable": true
+          },
+          "citation_coverage": {
+            "type": "number",
+            "nullable": true
+          },
+          "refusal_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "avg_token_cost_usd": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "window",
+          "terminal_session_count",
+          "answered_session_count"
+        ]
+      },
+      "OpsEvaluationQualitySummaryDto": {
+        "type": "object",
+        "properties": {
+          "latest_run_ref": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "failed"
+            ]
+          },
+          "commit_sha": {
+            "type": "string",
+            "nullable": true
+          },
+          "dataset_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "recall_at_10": {
+            "type": "number",
+            "nullable": true
+          },
+          "mrr": {
+            "type": "number",
+            "nullable": true
+          },
+          "hit_in_answer_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "groundedness": {
+            "type": "number",
+            "nullable": true
+          },
+          "citation_coverage": {
+            "type": "number",
+            "nullable": true
+          },
+          "refusal_precision": {
+            "type": "number",
+            "nullable": true
+          },
+          "latency_p95_ms": {
+            "type": "number",
+            "nullable": true
+          },
+          "avg_token_cost_usd": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "latest_run_ref",
+          "environment",
+          "source",
+          "status"
+        ]
+      },
+      "OpsIncidentClusterDto": {
+        "type": "object",
+        "properties": {
+          "cluster_key": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "upload",
+              "parse",
+              "ocr",
+              "fetch",
+              "projection",
+              "deploy",
+              "ci"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "tracked",
+              "resolved"
+            ]
+          },
+          "incident_count": {
+            "type": "number"
+          },
+          "latest_incident_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "affected_surface": {
+            "type": "string",
+            "enum": [
+              "upload",
+              "indexing",
+              "retrieval",
+              "answer",
+              "deployment",
+              "ci",
+              "ops"
+            ]
+          },
+          "recommended_action_code": {
+            "type": "string",
+            "enum": [
+              "inspect_indexing_backlog",
+              "inspect_failed_documents",
+              "run_backfill_indexing_dry_run",
+              "inspect_quality_regression",
+              "inspect_incident_cluster",
+              "verify_latest_deployment",
+              "rollback_to_previous_stable",
+              "monitor_without_action"
+            ]
+          }
+        },
+        "required": [
+          "cluster_key",
+          "source",
+          "severity",
+          "status",
+          "incident_count",
+          "affected_surface",
+          "recommended_action_code"
+        ]
+      },
+      "OpsIncidentSummaryBlockDto": {
+        "type": "object",
+        "properties": {
+          "open_count": {
+            "type": "number"
+          },
+          "high_risk_count": {
+            "type": "number"
+          },
+          "clusters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsIncidentClusterDto"
+            }
+          }
+        },
+        "required": [
+          "open_count",
+          "high_risk_count",
+          "clusters"
+        ]
+      },
+      "OpsReleaseGuardDto": {
+        "type": "object",
+        "properties": {
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "warning",
+              "critical"
+            ]
+          },
+          "current_image_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "previous_stable_image_tag": {
+            "type": "string",
+            "nullable": true
+          },
+          "smoke_status": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "unknown"
+            ]
+          },
+          "smoke_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "deployed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "workflow_run_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "related_evaluation_run_ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "related_incident_count": {
+            "type": "number"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk_level",
+          "smoke_status",
+          "related_incident_count",
+          "summary"
+        ]
+      },
+      "OpsRecommendedActionDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "inspect_indexing_backlog",
+              "inspect_failed_documents",
+              "run_backfill_indexing_dry_run",
+              "inspect_quality_regression",
+              "inspect_incident_cluster",
+              "verify_latest_deployment",
+              "rollback_to_previous_stable",
+              "monitor_without_action"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "ops",
+              "ask",
+              "search",
+              "detail",
+              "deployment",
+              "indexing",
+              "evaluation"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "priority",
+          "surface",
+          "title",
+          "summary"
+        ]
+      },
+      "OpsGovernanceNoticeDto": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "search",
+              "detail"
+            ]
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "warning",
+              "critical"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "none",
+              "no_ready_documents",
+              "indexing_backlog",
+              "indexing_failed",
+              "stale_corpus",
+              "inspect_indexing_backlog",
+              "inspect_failed_documents",
+              "run_backfill_indexing_dry_run",
+              "inspect_quality_regression",
+              "inspect_incident_cluster",
+              "verify_latest_deployment",
+              "rollback_to_previous_stable",
+              "monitor_without_action"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "level",
+          "code",
+          "title",
+          "summary"
+        ]
+      },
+      "OpsOverviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "generated_at": {
+            "type": "string"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/OpsReadinessSnapshotDto"
+          },
+          "runtime_quality": {
+            "$ref": "#/components/schemas/OpsRuntimeQualitySummaryDto"
+          },
+          "evaluation_quality": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpsEvaluationQualitySummaryDto"
+              }
+            ]
+          },
+          "incident_summary": {
+            "$ref": "#/components/schemas/OpsIncidentSummaryBlockDto"
+          },
+          "release_guard": {
+            "$ref": "#/components/schemas/OpsReleaseGuardDto"
+          },
+          "recommended_actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecommendedActionDto"
+            }
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsGovernanceNoticeDto"
+            }
+          }
+        },
+        "required": [
+          "generated_at",
+          "readiness",
+          "runtime_quality",
+          "incident_summary",
+          "release_guard",
+          "recommended_actions",
+          "notices"
+        ]
+      },
+      "OpsTrendPointDto": {
+        "type": "object",
+        "properties": {
+          "ts": {
+            "type": "string"
+          },
+          "value": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ts"
+        ]
+      },
+      "OpsTrendSeriesDto": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "citation_coverage",
+              "refusal_rate",
+              "latency_p95_ms",
+              "avg_token_cost_usd",
+              "groundedness",
+              "refusal_precision",
+              "recall_at_10",
+              "mrr",
+              "hit_in_answer_rate",
+              "embedding_backlog",
+              "freshness_lag_p95_ms"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "runtime",
+              "evaluation"
+            ]
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "day"
+            ]
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsTrendPointDto"
+            }
+          }
+        },
+        "required": [
+          "metric",
+          "source",
+          "granularity",
+          "points"
+        ]
+      },
+      "OpsTrendsResponseDto": {
+        "type": "object",
+        "properties": {
+          "window": {
+            "type": "string",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ]
+          },
+          "generated_at": {
+            "type": "string"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsTrendSeriesDto"
+            }
+          }
+        },
+        "required": [
+          "window",
+          "generated_at",
+          "series"
         ]
       },
       "LatestDeploymentResponseDto": {

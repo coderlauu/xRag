@@ -1,10 +1,14 @@
-import { Controller, Get } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Controller, Get, Query } from "@nestjs/common";
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
+import type { OpsTrendWindow } from "@xrag/shared-types";
 import {
   LatestDeploymentResponseDto,
+  OPS_TREND_WINDOW_VALUES,
   OpsAnswerSummaryResponseDto,
   OpsHealthSummaryResponseDto,
-  OpsIncidentListResponseDto
+  OpsIncidentListResponseDto,
+  OpsOverviewResponseDto,
+  OpsTrendsResponseDto
 } from "./ops.dto";
 import { OpsService } from "./ops.service";
 
@@ -32,6 +36,21 @@ export class OpsController {
   @ApiOkResponse({ type: OpsAnswerSummaryResponseDto })
   getAnswerSummary() {
     return this.opsService.getAnswerSummary();
+  }
+
+  @Get("overview")
+  @ApiOperation({ summary: "Get the Phase 2C operations governance overview" })
+  @ApiOkResponse({ type: OpsOverviewResponseDto })
+  getOverview() {
+    return this.opsService.getOverview();
+  }
+
+  @Get("trends")
+  @ApiOperation({ summary: "Get Phase 2C operations governance trends" })
+  @ApiQuery({ name: "window", required: false, enum: OPS_TREND_WINDOW_VALUES })
+  @ApiOkResponse({ type: OpsTrendsResponseDto })
+  getTrends(@Query("window") window?: OpsTrendWindow) {
+    return this.opsService.getTrends(window);
   }
 
   @Get("deployments/latest")

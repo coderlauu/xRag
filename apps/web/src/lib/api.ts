@@ -9,6 +9,8 @@ import {
   fetchHealth as fetchHealthRequest,
   fetchOpsAnswerSummary as fetchOpsAnswerSummaryRequest,
   fetchOpsHealthSummary as fetchOpsHealthSummaryRequest,
+  fetchOpsOverview as fetchOpsOverviewRequest,
+  fetchOpsTrends as fetchOpsTrendsRequest,
   getAnswer as getAnswerRequest,
   getAnswerRetrieval as getAnswerRetrievalRequest,
   getDocument as getDocumentRequest,
@@ -49,6 +51,9 @@ import type {
   OpsAnswerSummaryResponse,
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
+  OpsOverviewResponse,
+  OpsTrendsQuery,
+  OpsTrendsResponse,
   ReindexDocumentResponse,
   RetryDocumentResponse,
   TagItem,
@@ -128,6 +133,14 @@ export function listOpsIncidents(): Promise<OpsIncidentListResponse> {
 
 export function fetchOpsAnswerSummary(): Promise<OpsAnswerSummaryResponse> {
   return fetchOpsAnswerSummaryRequest(API_BASE_URL);
+}
+
+export function fetchOpsOverview(): Promise<OpsOverviewResponse> {
+  return fetchOpsOverviewRequest(API_BASE_URL);
+}
+
+export function fetchOpsTrends(query: OpsTrendsQuery = {}): Promise<OpsTrendsResponse> {
+  return fetchOpsTrendsRequest(API_BASE_URL, query);
 }
 
 export function getLatestDeployment(): Promise<LatestDeploymentResponse> {

@@ -1,18 +1,31 @@
 import { Injectable } from "@nestjs/common";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import type {
   IncidentSeverity,
   IncidentSource,
   IncidentStatus,
   LatestDeploymentResponse,
   OpsAnswerSummaryResponse,
+  OpsEvaluationQualitySummary,
+  OpsGovernanceNotice,
   OpsHealthSummaryResponse,
+  OpsIncidentCluster,
   OpsIncidentListResponse,
-  OpsServiceStatus
+  OpsIncidentSummaryBlock,
+  OpsOverviewResponse,
+  OpsReadinessBlockingReason,
+  OpsReadinessSnapshot,
+  OpsRecommendedAction,
+  OpsRecommendedActionCode,
+  OpsReleaseGuard,
+  OpsServiceStatus,
+  OpsRuntimeQualitySummary,
+  OpsTrendsResponse,
+  OpsTrendWindow
 } from "@xrag/shared-types";
 import { loadApiEnv } from "../config/env";
 import { DatabaseService } from "../database/database.service";
-import { answerCitations, answerSessions, documents } from "../database/schema";
+import { answerCitations, answerSessions, deploymentRecords, documents, evaluationRuns } from "../database/schema";
 import { JobsRepository } from "../jobs/jobs.repository";
 import { QueueService } from "../queue/queue.service";
 import { StorageService } from "../storage/storage.service";
@@ -133,6 +146,36 @@ export class OpsService {
     };
   }
 
+  async getOverview(): Promise<OpsOverviewResponse> {
+    const [readiness, runtimeQuality, evaluationQuality, incidents] = await Promise.all([
+      this.getReadinessSnapshot(),
+      this.getRuntimeQualitySummary("24h"),
+      this.getEvaluationQualitySummary(),
+      this.listIncidents()
+    ]);
+    const incidentSummary = this.getIncidentSummaryBlock(incidents);
+    const releaseGuard = await this.getReleaseGuard(incidentSummary.high_risk_count);
+
+    return {
+      generated_at: new Date().toISOString(),
+      readiness,
+      runtime_quality: runtimeQuality,
+      evaluation_quality: evaluationQuality,
+      incident_summary: incidentSummary,
+      release_guard: releaseGuard,
+      recommended_actions: this.getRecommendedActions(readiness, incidentSummary, releaseGuard),
+      notices: this.getGovernanceNotices(readiness, releaseGuard)
+    };
+  }
+
+  async getTrends(window: OpsTrendWindow | undefined): Promise<OpsTrendsResponse> {
+    return {
+      window: this.normalizeTrendWindow(window),
+      generated_at: new Date().toISOString(),
+      series: []
+    };
+  }
+
   async getLatestDeployment(): Promise<LatestDeploymentResponse> {
     return {
       current_image_tag: process.env.XRAG_IMAGE_TAG || null,
@@ -140,6 +183,398 @@ export class OpsService {
       last_smoke_status: (process.env.XRAG_LAST_SMOKE_STATUS as LatestDeploymentResponse["last_smoke_status"]) || "unknown",
       last_smoke_at: process.env.XRAG_LAST_SMOKE_AT || null
     };
+  }
+
+  private async getReadinessSnapshot(): Promise<OpsReadinessSnapshot> {
+    const [summary] = await this.database.db
+      .select({
+        queuedCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'queued')::int`,
+        chunkingCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'chunking')::int`,
+        embeddingCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'embedding')::int`,
+        readyCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'ready' and ${documents.citationReady} = true)::int`,
+        staleCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'stale')::int`,
+        failedCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'failed')::int`,
+        totalCount: sql<number>`count(*)::int`
+      })
+      .from(documents);
+
+    const queuedCount = summary?.queuedCount ?? 0;
+    const chunkingCount = summary?.chunkingCount ?? 0;
+    const embeddingCount = summary?.embeddingCount ?? 0;
+    const readyCount = summary?.readyCount ?? 0;
+    const staleCount = summary?.staleCount ?? 0;
+    const failedCount = summary?.failedCount ?? 0;
+    const totalCount = summary?.totalCount ?? 0;
+    const backlogCount = queuedCount + chunkingCount + embeddingCount;
+
+    return {
+      queued_count: queuedCount,
+      chunking_count: chunkingCount,
+      embedding_count: embeddingCount,
+      ready_count: readyCount,
+      stale_count: staleCount,
+      failed_count: failedCount,
+      total_count: totalCount,
+      readiness_rate: totalCount > 0 ? Number((readyCount / totalCount).toFixed(4)) : null,
+      freshness_lag_p95_ms: null,
+      blocking_reason: this.getReadinessBlockingReason({
+        readyCount,
+        backlogCount,
+        failedCount,
+        staleCount
+      })
+    };
+  }
+
+  private async getRuntimeQualitySummary(window: OpsTrendWindow): Promise<OpsRuntimeQualitySummary> {
+    const [answerSummary] = await this.database.db
+      .select({
+        terminalCount: sql<number>`count(*) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))::int`,
+        answeredCount: sql<number>`count(*) filter (where ${answerSessions.status} = 'answered')::int`,
+        refusedCount: sql<number>`count(*) filter (where ${answerSessions.status} = 'refused')::int`,
+        latencyP50Ms: sql<number | null>`percentile_cont(0.50) within group (order by ${answerSessions.latencyMs}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))`,
+        latencyP95Ms: sql<number | null>`percentile_cont(0.95) within group (order by ${answerSessions.latencyMs}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))`,
+        avgTokenCostUsd: sql<string | null>`to_char(avg(${answerSessions.totalCostUsd}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused')), 'FM999999990.0000')`
+      })
+      .from(answerSessions);
+
+    const [citationSummary] = await this.database.db
+      .select({
+        citedAnsweredSessionCount: sql<number>`count(distinct ${answerCitations.sessionId})::int`
+      })
+      .from(answerCitations)
+      .innerJoin(answerSessions, eq(answerSessions.id, answerCitations.sessionId))
+      .where(sql`${answerSessions.status} = 'answered'`);
+
+    const terminalCount = answerSummary?.terminalCount ?? 0;
+    const answeredCount = answerSummary?.answeredCount ?? 0;
+    const refusedCount = answerSummary?.refusedCount ?? 0;
+    const citedAnsweredSessionCount = citationSummary?.citedAnsweredSessionCount ?? 0;
+
+    return {
+      window,
+      terminal_session_count: terminalCount,
+      answered_session_count: answeredCount,
+      latency_p50_ms: answerSummary?.latencyP50Ms ?? null,
+      latency_p95_ms: answerSummary?.latencyP95Ms ?? null,
+      citation_coverage: answeredCount > 0 ? Number((citedAnsweredSessionCount / answeredCount).toFixed(4)) : null,
+      refusal_rate: terminalCount > 0 ? Number((refusedCount / terminalCount).toFixed(4)) : null,
+      avg_token_cost_usd: answerSummary?.avgTokenCostUsd?.trim() ? answerSummary.avgTokenCostUsd.trim() : null
+    };
+  }
+
+  private async getEvaluationQualitySummary(): Promise<OpsEvaluationQualitySummary | null> {
+    const [latestRun] = await this.database.db
+      .select()
+      .from(evaluationRuns)
+      .where(sql`${evaluationRuns.status} in ('completed', 'failed')`)
+      .orderBy(desc(evaluationRuns.completedAt), desc(evaluationRuns.createdAt))
+      .limit(1);
+
+    if (!latestRun || (latestRun.status !== "completed" && latestRun.status !== "failed")) {
+      return null;
+    }
+
+    return {
+      latest_run_ref: latestRun.runRef,
+      environment: latestRun.environment,
+      source: latestRun.source,
+      status: latestRun.status,
+      commit_sha: latestRun.commitSha,
+      dataset_version: latestRun.datasetVersion,
+      completed_at: latestRun.completedAt?.toISOString() ?? null,
+      recall_at_10: this.toNullableNumber(latestRun.recallAt10),
+      mrr: this.toNullableNumber(latestRun.mrr),
+      hit_in_answer_rate: this.toNullableNumber(latestRun.hitInAnswerRate),
+      groundedness: this.toNullableNumber(latestRun.groundedness),
+      citation_coverage: this.toNullableNumber(latestRun.citationCoverage),
+      refusal_precision: this.toNullableNumber(latestRun.refusalPrecision),
+      latency_p95_ms: latestRun.latencyP95Ms,
+      avg_token_cost_usd: latestRun.avgTokenCostUsd
+    };
+  }
+
+  private async getReleaseGuard(relatedIncidentCount: number): Promise<OpsReleaseGuard> {
+    const [latestRecord] = await this.database.db
+      .select()
+      .from(deploymentRecords)
+      .orderBy(desc(deploymentRecords.deployedAt), desc(deploymentRecords.createdAt))
+      .limit(1);
+
+    if (latestRecord) {
+      return {
+        risk_level: this.getReleaseGuardRiskLevel(latestRecord.smokeStatus, relatedIncidentCount),
+        current_image_tag: latestRecord.currentImageTag,
+        previous_stable_image_tag: latestRecord.previousStableImageTag,
+        smoke_status: latestRecord.smokeStatus,
+        smoke_at: latestRecord.smokeAt?.toISOString() ?? null,
+        deployed_at: latestRecord.deployedAt.toISOString(),
+        workflow_run_id: latestRecord.workflowRunId,
+        related_evaluation_run_ref: null,
+        related_incident_count: relatedIncidentCount,
+        summary: this.getReleaseGuardSummary(latestRecord.smokeStatus, relatedIncidentCount)
+      };
+    }
+
+    const latestDeployment = await this.getLatestDeployment();
+
+    return {
+      risk_level: this.getReleaseGuardRiskLevel(latestDeployment.last_smoke_status, relatedIncidentCount),
+      current_image_tag: latestDeployment.current_image_tag,
+      previous_stable_image_tag: latestDeployment.previous_stable_image_tag,
+      smoke_status: latestDeployment.last_smoke_status,
+      smoke_at: latestDeployment.last_smoke_at,
+      deployed_at: null,
+      workflow_run_id: null,
+      related_evaluation_run_ref: null,
+      related_incident_count: relatedIncidentCount,
+      summary: latestDeployment.current_image_tag
+        ? this.getReleaseGuardSummary(latestDeployment.last_smoke_status, relatedIncidentCount)
+        : "尚未记录 deployment_records，release guard 只能使用环境变量兜底。"
+    };
+  }
+
+  private getReadinessBlockingReason(input: {
+    readyCount: number;
+    backlogCount: number;
+    failedCount: number;
+    staleCount: number;
+  }): OpsReadinessBlockingReason {
+    if (input.readyCount === 0) {
+      return "no_ready_documents";
+    }
+
+    if (input.failedCount > 0) {
+      return "indexing_failed";
+    }
+
+    if (input.backlogCount > 0) {
+      return "indexing_backlog";
+    }
+
+    if (input.staleCount > 0) {
+      return "stale_corpus";
+    }
+
+    return "none";
+  }
+
+  private getIncidentSummaryBlock(incidents: OpsIncidentListResponse): OpsIncidentSummaryBlock {
+    const clusters = new Map<string, OpsIncidentCluster>();
+
+    for (const incident of incidents.items) {
+      const key = `${incident.source}:${incident.severity}:${incident.status}`;
+      const existing = clusters.get(key);
+
+      if (existing) {
+        existing.incident_count += 1;
+        existing.latest_incident_ref = existing.latest_incident_ref || incident.incident_ref;
+        continue;
+      }
+
+      clusters.set(key, {
+        cluster_key: key,
+        source: incident.source,
+        severity: incident.severity,
+        status: incident.status,
+        incident_count: 1,
+        latest_incident_ref: incident.incident_ref,
+        affected_surface: this.getAffectedSurface(incident.source),
+        recommended_action_code: this.getIncidentRecommendedActionCode(incident.source)
+      });
+    }
+
+    return {
+      open_count: incidents.items.filter((incident) => incident.status !== "resolved").length,
+      high_risk_count: incidents.items.filter((incident) => incident.severity === "high").length,
+      clusters: Array.from(clusters.values())
+    };
+  }
+
+  private getRecommendedActions(
+    readiness: OpsReadinessSnapshot,
+    incidentSummary: OpsIncidentSummaryBlock,
+    releaseGuard: OpsReleaseGuard
+  ): OpsRecommendedAction[] {
+    const actions: OpsRecommendedAction[] = [];
+
+    if (readiness.blocking_reason !== "none") {
+      actions.push({
+        code: this.getReadinessActionCode(readiness.blocking_reason),
+        priority: readiness.blocking_reason === "indexing_failed" || readiness.blocking_reason === "no_ready_documents"
+          ? "high"
+          : "medium",
+        surface: "indexing",
+        title: "检查语料就绪状态",
+        summary: "当前语料就绪状态可能影响 Ask 可信回答，先检查索引积压、失败和 stale 文档。"
+      });
+    }
+
+    if (incidentSummary.high_risk_count > 0) {
+      actions.push({
+        code: "inspect_incident_cluster",
+        priority: "high",
+        surface: "ops",
+        title: "检查高风险 incident cluster",
+        summary: `当前有 ${incidentSummary.high_risk_count} 条高风险 incident，优先按来源聚类排查。`
+      });
+    }
+
+    if (releaseGuard.risk_level === "critical") {
+      actions.push({
+        code: "rollback_to_previous_stable",
+        priority: "high",
+        surface: "deployment",
+        title: "核对上一稳定版本",
+        summary: "release guard 处于 critical，需要人工核对 smoke、incident 和上一稳定镜像后再决定是否回滚。"
+      });
+    }
+
+    if (actions.length === 0) {
+      actions.push({
+        code: "monitor_without_action",
+        priority: "low",
+        surface: "ops",
+        title: "继续观察",
+        summary: "当前没有必须立即处理的治理动作，保持常规巡检即可。"
+      });
+    }
+
+    return actions;
+  }
+
+  private getGovernanceNotices(readiness: OpsReadinessSnapshot, releaseGuard: OpsReleaseGuard): OpsGovernanceNotice[] {
+    const notices: OpsGovernanceNotice[] = [];
+
+    if (readiness.blocking_reason !== "none") {
+      notices.push(
+        {
+          target: "ask",
+          level: readiness.blocking_reason === "no_ready_documents" ? "critical" : "warning",
+          code: readiness.blocking_reason,
+          title: "语料就绪状态需要关注",
+          summary: "当前索引或引用就绪状态可能影响回答证据，请先查看运维主板。"
+        },
+        {
+          target: "search",
+          level: "warning",
+          code: readiness.blocking_reason,
+          title: "索引状态需要关注",
+          summary: "搜索结果可能受索引积压、失败或 stale 文档影响。"
+        },
+        {
+          target: "detail",
+          level: "warning",
+          code: readiness.blocking_reason,
+          title: "文档引用状态需要关注",
+          summary: "文档详情中的 citation readiness 可能需要重新索引或人工排查。"
+        }
+      );
+    }
+
+    if (releaseGuard.risk_level === "critical") {
+      notices.push({
+        target: "ask",
+        level: "critical",
+        code: "rollback_to_previous_stable",
+        title: "发布风险需要关注",
+        summary: "最近发布或 smoke 状态存在高风险，继续问答前建议查看 release guard。"
+      });
+    }
+
+    return notices;
+  }
+
+  private normalizeTrendWindow(window: OpsTrendWindow | undefined): OpsTrendWindow {
+    if (window === "24h" || window === "7d" || window === "30d") {
+      return window;
+    }
+
+    return "7d";
+  }
+
+  private getAffectedSurface(source: IncidentSource): OpsIncidentCluster["affected_surface"] {
+    switch (source) {
+      case "upload":
+        return "upload";
+      case "ocr":
+      case "parse":
+      case "fetch":
+      case "projection":
+        return "indexing";
+      case "deploy":
+        return "deployment";
+      case "ci":
+        return "ci";
+    }
+  }
+
+  private getIncidentRecommendedActionCode(source: IncidentSource): OpsRecommendedActionCode {
+    switch (source) {
+      case "upload":
+      case "parse":
+      case "ocr":
+      case "fetch":
+      case "projection":
+        return "inspect_incident_cluster";
+      case "deploy":
+      case "ci":
+        return "verify_latest_deployment";
+    }
+  }
+
+  private getReadinessActionCode(reason: OpsReadinessBlockingReason): OpsRecommendedActionCode {
+    switch (reason) {
+      case "indexing_backlog":
+        return "inspect_indexing_backlog";
+      case "indexing_failed":
+        return "inspect_failed_documents";
+      case "no_ready_documents":
+        return "run_backfill_indexing_dry_run";
+      case "stale_corpus":
+        return "inspect_quality_regression";
+      case "none":
+        return "monitor_without_action";
+    }
+  }
+
+  private getReleaseGuardRiskLevel(smokeStatus: LatestDeploymentResponse["last_smoke_status"], relatedIncidentCount: number) {
+    if (smokeStatus === "failed") {
+      return "critical";
+    }
+
+    if (smokeStatus === "unknown" || relatedIncidentCount > 0) {
+      return "warning";
+    }
+
+    return "healthy";
+  }
+
+  private getReleaseGuardSummary(
+    smokeStatus: LatestDeploymentResponse["last_smoke_status"],
+    relatedIncidentCount: number
+  ) {
+    if (smokeStatus === "failed") {
+      return "最近 smoke 失败，需要人工核对并评估是否回滚。";
+    }
+
+    if (relatedIncidentCount > 0) {
+      return "存在高风险 incident，需要结合最近部署记录判断是否发布相关。";
+    }
+
+    if (smokeStatus === "unknown") {
+      return "尚未记录稳定 smoke 结果，需要继续观察。";
+    }
+
+    return "最近部署与 smoke 未显示明显风险。";
+  }
+
+  private toNullableNumber(value: string | number | null): number | null {
+    if (value === null) {
+      return null;
+    }
+
+    return Number(value);
   }
 
   private async toHealthItem(name: string, check: Promise<string>) {

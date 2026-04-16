@@ -38,8 +38,8 @@
 
 ## 4. Current Node
 
-- `now`: `v6 / Phase 2C` 已完成 [Phase 2C Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md)，当前 active exec plan 已切到 `implementation-lanes`。
-- `next`: 主线程先执行 `Lane 0: Contract To Code`，落地 `schema / migration / shared-types / DTO / OpenAPI / API client / web api adapter`；`Lane 0` 完成前不启动并行 lane。
+- `now`: `v6 / Phase 2C` 已完成 `Lane 0: Contract To Code`，`evaluation_runs / deployment_records` schema 与 migration、Phase 2C ops shared-types/DTO/OpenAPI/API client/web adapter 已落成代码事实源。
+- `next`: 启动 `Lane A: API Read Model And Governance Aggregation` 与 `Lane B: Deployment And Evaluation Fact Ingestion`；若需要并行子 agent，必须保持写入范围隔离，且不得修改 schema、shared-types、DTO、OpenAPI 或 API client contract。
 
 ## 5. Blockers
 
@@ -49,9 +49,9 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-16` 已完成 `Phase 2C` implementation freeze 收口与 implementation lanes 计划切换，并通过 `pnpm docs:check`
+- `latest_validation`: `2026-04-16` 已完成 `Phase 2C Lane 0` contract-to-code 收口；通过 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/api openapi:generate`、`pnpm --filter @xrag/web build`、`pnpm test:integration`
 - `result`: `passed`
-- `latest_failure`: `none`
+- `latest_failure`: `pnpm test:integration` 曾因 `apps/worker/src/queue/constants.ts` 运行期 value re-export 触发 Node 直接加载 `@xrag/shared-types` 源码 TS 而失败；已改为 worker 本地运行期常量定义并用 shared-types union type 约束，重跑 `pnpm test:integration` 通过 `16/16`
 
 ## 7. Linked Artifacts
 

@@ -94,6 +94,8 @@ export const answerSessionStatusEnum = pgEnum("answer_session_status", [
   "refused",
   "failed"
 ]);
+export const evaluationRunStatusEnum = pgEnum("evaluation_run_status", ["running", "completed", "failed"]);
+export const deploymentSmokeStatusEnum = pgEnum("deployment_smoke_status", ["passed", "failed", "unknown"]);
 
 export const documents = pgTable(
   "documents",
@@ -479,6 +481,67 @@ export const answerCitations = pgTable(
   })
 );
 
+export const evaluationRuns = pgTable(
+  "evaluation_runs",
+  {
+    id: uuid("id").primaryKey(),
+    runRef: varchar("run_ref", { length: 64 }).notNull(),
+    environment: varchar("environment", { length: 32 }).notNull(),
+    source: varchar("source", { length: 32 }).notNull(),
+    status: evaluationRunStatusEnum("status").notNull().default("running"),
+    commitSha: char("commit_sha", { length: 40 }),
+    datasetVersion: varchar("dataset_version", { length: 64 }),
+    recallAt10: numeric("recall_at_10", { precision: 6, scale: 4 }),
+    mrr: numeric("mrr", { precision: 6, scale: 4 }),
+    hitInAnswerRate: numeric("hit_in_answer_rate", { precision: 6, scale: 4 }),
+    groundedness: numeric("groundedness", { precision: 6, scale: 4 }),
+    citationCoverage: numeric("citation_coverage", { precision: 6, scale: 4 }),
+    refusalPrecision: numeric("refusal_precision", { precision: 6, scale: 4 }),
+    latencyP95Ms: integer("latency_p95_ms"),
+    avgTokenCostUsd: numeric("avg_token_cost_usd", { precision: 12, scale: 4 }),
+    embeddingBacklog: integer("embedding_backlog"),
+    freshnessLagP95Ms: integer("freshness_lag_p95_ms"),
+    artifactUrl: text("artifact_url"),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true })
+  },
+  (table) => ({
+    runRefUniqueIdx: uniqueIndex("idx_evaluation_runs_run_ref").on(table.runRef),
+    environmentCompletedAtIdx: index("idx_evaluation_runs_environment_completed_at").on(
+      table.environment,
+      table.completedAt
+    ),
+    commitShaIdx: index("idx_evaluation_runs_commit_sha").on(table.commitSha),
+    statusIdx: index("idx_evaluation_runs_status").on(table.status)
+  })
+);
+
+export const deploymentRecords = pgTable(
+  "deployment_records",
+  {
+    id: uuid("id").primaryKey(),
+    environment: varchar("environment", { length: 32 }).notNull(),
+    commitSha: char("commit_sha", { length: 40 }),
+    workflowRunId: varchar("workflow_run_id", { length: 32 }),
+    currentImageTag: text("current_image_tag").notNull(),
+    previousStableImageTag: text("previous_stable_image_tag"),
+    smokeStatus: deploymentSmokeStatusEnum("smoke_status").notNull().default("unknown"),
+    smokeAt: timestamp("smoke_at", { withTimezone: true }),
+    deployedAt: timestamp("deployed_at", { withTimezone: true }).notNull(),
+    evidenceUrl: text("evidence_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    environmentDeployedAtIdx: index("idx_deployment_records_environment_deployed_at").on(
+      table.environment,
+      table.deployedAt
+    ),
+    commitShaIdx: index("idx_deployment_records_commit_sha").on(table.commitSha),
+    workflowRunIdIdx: index("idx_deployment_records_workflow_run_id").on(table.workflowRunId)
+  })
+);
+
 export const documentsRelations = relations(documents, ({ many, one }) => ({
   documentTags: many(documentTags),
   parseJobs: many(documentParseJobs),
@@ -614,5 +677,7 @@ export const schema = {
   answerClaims,
   retrievalRuns,
   retrievalRunHits,
-  answerCitations
+  answerCitations,
+  evaluationRuns,
+  deploymentRecords
 };

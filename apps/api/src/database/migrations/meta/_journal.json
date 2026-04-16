@@ -36,6 +36,13 @@
       "when": 1776090013791,
       "tag": "0004_premium_forge",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776347297025,
+      "tag": "0005_slippery_photon",
+      "breakpoints": true
     }
   ]
 }

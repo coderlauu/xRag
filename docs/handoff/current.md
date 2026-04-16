@@ -61,7 +61,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已完成 implementation freeze；当前进入 implementation lanes，但必须先由主线程完成 `Lane 0: Contract To Code`，再启动后续并行 lane。
+在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已进入 implementation lanes；`Lane 0: Contract To Code` 已完成，下一步按计划推进 `Lane A / Lane B`，并继续保护 schema、shared-types、DTO、OpenAPI 和 API client contract。
 
 ---
 
@@ -73,15 +73,16 @@
 - 明确本轮问题定义、目标用户和验收标准
 - 冻结 `PRD / backlog / interaction delta / technical tradeoff` 第一版事实源
 - 完成 `implementation-freeze`，并进入 `implementation-lanes`
-- 主线程先完成 `Lane 0` 的 `schema / migration / shared-types / DTO / OpenAPI / API client / web api adapter`
+- 已完成 `Lane 0` 的 `schema / migration / shared-types / DTO / OpenAPI / API client / web api adapter`
+- 下一步完成 `Lane A` 的 `/ops/overview` 与 `/ops/trends` 真实聚合，以及 `Lane B` 的 deployment/evaluation fact ingestion
 
 ### 本轮次级目标
 
-- 切分 `Lane 0 / API / ingestion / web / tests`，保证 contract 先落地再并行
+- 在 `Lane A / B / C / D` 中保持清晰写入边界，保证后续实现不漂移已冻结 contract
 
 ### 明确不做
 
-- 绕过 `Lane 0` 直接启动并行 implementation lanes
+- 绕过已冻结 contract 修改 schema、shared-types、DTO、OpenAPI 或 API client
 - 未经显式 contract 变更流程直接修改 `schema / shared-types / API / citation / scope` 主边界
 - 默认把目标环境的历史回补当成版本产品目标
 - 开放互联网联网回答
@@ -93,7 +94,7 @@
 ### 当前阶段依赖的既有基线
 
 - `v5 / Phase 2B` 已完成正式收口，并在 `2026-04-16` 切入归档态
-- latest main GitHub Actions run `24512680036` 已成功，当前 main 维持绿态
+- latest main GitHub Actions run `24512680036` 已成功，当前 main 维持进入 `Lane 0` 前的绿态
 - `Phase 2A / 2B` 已建立可信问答的核心信任边界与 release-ready 工程基线
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
 - `pnpm recovery:backfill-indexing` 仍可用于目标环境的历史 `not_indexed` 文档治理，但目前不自动并入 `v6` 产品范围
@@ -125,7 +126,7 @@
 1. 当前有效版本为 `v6 / Phase 2C`，当前节点为 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v6-phase-2c.md`
-4. 当前已完成 implementation freeze，并切到 `implementation-lanes`；`Lane 0` 完成前，不进入并行 implementation lanes
+4. 当前已完成 implementation freeze，并切到 `implementation-lanes`；`Lane 0` 已完成，下一步按 `Lane A / B / C / D` 边界推进
 5. `v5 / Phase 2B` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---

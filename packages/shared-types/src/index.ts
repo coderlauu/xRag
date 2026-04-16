@@ -74,6 +74,36 @@ export type IncidentSource = "upload" | "parse" | "ocr" | "fetch" | "projection"
 export type IncidentSeverity = "low" | "medium" | "high";
 export type IncidentStatus = "open" | "tracked" | "resolved";
 export type DeploymentSmokeStatus = "passed" | "failed" | "unknown";
+export type OpsReadinessBlockingReason =
+  | "none"
+  | "no_ready_documents"
+  | "indexing_backlog"
+  | "indexing_failed"
+  | "stale_corpus";
+export type OpsRecommendedActionCode =
+  | "inspect_indexing_backlog"
+  | "inspect_failed_documents"
+  | "run_backfill_indexing_dry_run"
+  | "inspect_quality_regression"
+  | "inspect_incident_cluster"
+  | "verify_latest_deployment"
+  | "rollback_to_previous_stable"
+  | "monitor_without_action";
+export type OpsReleaseGuardRiskLevel = "healthy" | "warning" | "critical";
+export type OpsTrendWindow = "24h" | "7d" | "30d";
+export type OpsTrendSource = "runtime" | "evaluation";
+export type OpsTrendMetric =
+  | "citation_coverage"
+  | "refusal_rate"
+  | "latency_p95_ms"
+  | "avg_token_cost_usd"
+  | "groundedness"
+  | "refusal_precision"
+  | "recall_at_10"
+  | "mrr"
+  | "hit_in_answer_rate"
+  | "embedding_backlog"
+  | "freshness_lag_p95_ms";
 export type ProcessingEventStage = "upload" | "parse" | "ocr" | "fetch" | "projection" | "ops" | "index";
 
 export const DOCUMENT_PROCESSING_QUEUE_NAME = "document-processing" as const;
@@ -533,4 +563,125 @@ export interface LatestDeploymentResponse {
   previous_stable_image_tag: string | null;
   last_smoke_status: DeploymentSmokeStatus;
   last_smoke_at: string | null;
+}
+
+export interface OpsReadinessSnapshot {
+  queued_count: number;
+  chunking_count: number;
+  embedding_count: number;
+  ready_count: number;
+  stale_count: number;
+  failed_count: number;
+  total_count: number;
+  readiness_rate: number | null;
+  freshness_lag_p95_ms: number | null;
+  blocking_reason: OpsReadinessBlockingReason;
+}
+
+export interface OpsRuntimeQualitySummary {
+  window: OpsTrendWindow;
+  terminal_session_count: number;
+  answered_session_count: number;
+  latency_p50_ms: number | null;
+  latency_p95_ms: number | null;
+  citation_coverage: number | null;
+  refusal_rate: number | null;
+  avg_token_cost_usd: string | null;
+}
+
+export interface OpsEvaluationQualitySummary {
+  latest_run_ref: string;
+  environment: string;
+  source: string;
+  status: "completed" | "failed";
+  commit_sha: string | null;
+  dataset_version: string | null;
+  completed_at: string | null;
+  recall_at_10: number | null;
+  mrr: number | null;
+  hit_in_answer_rate: number | null;
+  groundedness: number | null;
+  citation_coverage: number | null;
+  refusal_precision: number | null;
+  latency_p95_ms: number | null;
+  avg_token_cost_usd: string | null;
+}
+
+export interface OpsIncidentCluster {
+  cluster_key: string;
+  source: IncidentSource;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  incident_count: number;
+  latest_incident_ref: string | null;
+  affected_surface: "upload" | "indexing" | "retrieval" | "answer" | "deployment" | "ci" | "ops";
+  recommended_action_code: OpsRecommendedActionCode;
+}
+
+export interface OpsIncidentSummaryBlock {
+  open_count: number;
+  high_risk_count: number;
+  clusters: OpsIncidentCluster[];
+}
+
+export interface OpsReleaseGuard {
+  risk_level: OpsReleaseGuardRiskLevel;
+  current_image_tag: string | null;
+  previous_stable_image_tag: string | null;
+  smoke_status: DeploymentSmokeStatus;
+  smoke_at: string | null;
+  deployed_at: string | null;
+  workflow_run_id: string | null;
+  related_evaluation_run_ref: string | null;
+  related_incident_count: number;
+  summary: string;
+}
+
+export interface OpsRecommendedAction {
+  code: OpsRecommendedActionCode;
+  priority: IncidentSeverity;
+  surface: "ops" | "ask" | "search" | "detail" | "deployment" | "indexing" | "evaluation";
+  title: string;
+  summary: string;
+}
+
+export interface OpsGovernanceNotice {
+  target: "ask" | "search" | "detail";
+  level: OpsReleaseGuardRiskLevel;
+  code: OpsReadinessBlockingReason | OpsRecommendedActionCode;
+  title: string;
+  summary: string;
+}
+
+export interface OpsOverviewResponse {
+  generated_at: string;
+  readiness: OpsReadinessSnapshot;
+  runtime_quality: OpsRuntimeQualitySummary;
+  evaluation_quality: OpsEvaluationQualitySummary | null;
+  incident_summary: OpsIncidentSummaryBlock;
+  release_guard: OpsReleaseGuard;
+  recommended_actions: OpsRecommendedAction[];
+  notices: OpsGovernanceNotice[];
+}
+
+export interface OpsTrendPoint {
+  ts: string;
+  value: number | string | null;
+}
+
+export interface OpsTrendSeries {
+  metric: OpsTrendMetric;
+  source: OpsTrendSource;
+  granularity: "hour" | "day";
+  points: OpsTrendPoint[];
+}
+
+export interface OpsTrendsResponse {
+  window: OpsTrendWindow;
+  generated_at: string;
+  series: OpsTrendSeries[];
+}
+
+export interface OpsTrendsQuery {
+  window?: OpsTrendWindow;
 }
