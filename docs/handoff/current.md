@@ -61,7 +61,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已进入 implementation lanes；`Lane 0: Contract To Code` 已完成，下一步按计划推进 `Lane A / Lane B`，并继续保护 schema、shared-types、DTO、OpenAPI 和 API client contract。
+在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已进入 implementation lanes；`Lane 0: Contract To Code` 与 `Lane A: API Read Model And Governance Aggregation` 已完成，下一步按计划推进 `Lane B / Lane C`，并继续保护 schema、shared-types、DTO、OpenAPI 和 API client contract。
 
 ---
 
@@ -74,7 +74,8 @@
 - 冻结 `PRD / backlog / interaction delta / technical tradeoff` 第一版事实源
 - 完成 `implementation-freeze`，并进入 `implementation-lanes`
 - 已完成 `Lane 0` 的 `schema / migration / shared-types / DTO / OpenAPI / API client / web api adapter`
-- 下一步完成 `Lane A` 的 `/ops/overview` 与 `/ops/trends` 真实聚合，以及 `Lane B` 的 deployment/evaluation fact ingestion
+- 已完成 `Lane A` 的 `/ops/overview` 与 `/ops/trends` 真实聚合：`readiness` 基于 `documents`，`runtime quality` 基于 `answer_sessions / answer_citations`，`evaluation quality` 基于 `evaluation_runs`，`incident clusters` 复用既有 incident candidates，`release guard` 优先读取 `deployment_records`
+- 下一步完成 `Lane B` 的 deployment/evaluation fact ingestion，以及 `Lane C` 的 web ops board 和 lightweight notices
 
 ### 本轮次级目标
 
@@ -94,7 +95,7 @@
 ### 当前阶段依赖的既有基线
 
 - `v5 / Phase 2B` 已完成正式收口，并在 `2026-04-16` 切入归档态
-- latest main GitHub Actions run `24512680036` 已成功，当前 main 维持进入 `Lane 0` 前的绿态
+- latest main GitHub Actions run `24514690725` 已成功，当前 main 维持进入 `Lane A` 前的绿态
 - `Phase 2A / 2B` 已建立可信问答的核心信任边界与 release-ready 工程基线
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
 - `pnpm recovery:backfill-indexing` 仍可用于目标环境的历史 `not_indexed` 文档治理，但目前不自动并入 `v6` 产品范围

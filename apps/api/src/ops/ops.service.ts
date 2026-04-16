@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql, type SQL } from "drizzle-orm";
 import type {
   IncidentSeverity,
   IncidentSource,
@@ -20,6 +20,8 @@ import type {
   OpsReleaseGuard,
   OpsServiceStatus,
   OpsRuntimeQualitySummary,
+  OpsTrendMetric,
+  OpsTrendSeries,
   OpsTrendsResponse,
   OpsTrendWindow
 } from "@xrag/shared-types";
@@ -30,6 +32,38 @@ import { JobsRepository } from "../jobs/jobs.repository";
 import { QueueService } from "../queue/queue.service";
 import { StorageService } from "../storage/storage.service";
 import { UploadsRepository } from "../uploads/uploads.repository";
+
+type OpsIncidentCandidate = OpsIncidentListResponse["items"][number] & {
+  occurredAt: Date;
+};
+
+type OpsWindowConfig = {
+  window: OpsTrendWindow;
+  startAt: Date;
+  endAt: Date;
+  granularity: OpsTrendSeries["granularity"];
+};
+
+type RuntimeTrendBucket = {
+  bucket: Date | string;
+  terminalCount: number;
+  answeredCount: number;
+  refusedCount: number;
+  latencyP95Ms: number | null;
+  avgTokenCostUsd: string | null;
+  citedAnsweredSessionCount?: number;
+};
+
+type EvaluationTrendBucket = {
+  bucket: Date | string;
+  groundedness: string | number | null;
+  refusalPrecision: string | number | null;
+  recallAt10: string | number | null;
+  mrr: string | number | null;
+  hitInAnswerRate: string | number | null;
+  embeddingBacklog: string | number | null;
+  freshnessLagP95Ms: string | number | null;
+};
 
 @Injectable()
 export class OpsService {
@@ -62,42 +96,10 @@ export class OpsService {
   }
 
   async listIncidents(): Promise<OpsIncidentListResponse> {
-    const [jobIncidents, uploadIncidents] = await Promise.all([
-      this.jobsRepository.listRecentIncidentCandidates(12),
-      this.uploadsRepository.listRecentFailedUploads(8)
-    ]);
-
-    const items = [
-      ...jobIncidents.map((job) => {
-        const source = this.resolveIncidentSource(job.jobType);
-        const title = this.getJobIncidentTitle(job.diagnosisCode, job.jobType);
-        const summary = job.errorMessage || this.getDefaultIncidentSummary(source);
-
-        return {
-          incident_ref: job.incidentRef || this.buildIncidentRef("JOB", job.id),
-          source: source as IncidentSource,
-          severity: this.getIncidentSeverity(job.diagnosisCode, source),
-          status: this.getIncidentStatus(job.status),
-          title,
-          summary,
-          external_url: null
-        };
-      }),
-      ...uploadIncidents.map((upload) => ({
-        incident_ref: this.buildIncidentRef("UPL", upload.id),
-        source: "upload" as IncidentSource,
-        severity: this.getIncidentSeverity(upload.errorCode, "upload"),
-        status: "open" as IncidentStatus,
-        title: this.getUploadIncidentTitle(upload.errorCode),
-        summary: upload.errorMessage || `上传 ${upload.fileName} 失败，请检查对象存储与分片状态。`,
-        external_url: null
-      }))
-    ]
-      .sort((left, right) => left.incident_ref.localeCompare(right.incident_ref) * -1)
-      .slice(0, 20);
+    const items = await this.listIncidentCandidates();
 
     return {
-      items
+      items: items.map(({ occurredAt: _occurredAt, ...item }) => item)
     };
   }
 
@@ -147,17 +149,18 @@ export class OpsService {
   }
 
   async getOverview(): Promise<OpsOverviewResponse> {
+    const now = new Date();
     const [readiness, runtimeQuality, evaluationQuality, incidents] = await Promise.all([
       this.getReadinessSnapshot(),
-      this.getRuntimeQualitySummary("24h"),
+      this.getRuntimeQualitySummary("24h", now),
       this.getEvaluationQualitySummary(),
-      this.listIncidents()
+      this.listIncidentCandidates()
     ]);
     const incidentSummary = this.getIncidentSummaryBlock(incidents);
-    const releaseGuard = await this.getReleaseGuard(incidentSummary.high_risk_count);
+    const releaseGuard = await this.getReleaseGuard(incidentSummary.high_risk_count, evaluationQuality);
 
     return {
-      generated_at: new Date().toISOString(),
+      generated_at: now.toISOString(),
       readiness,
       runtime_quality: runtimeQuality,
       evaluation_quality: evaluationQuality,
@@ -169,10 +172,16 @@ export class OpsService {
   }
 
   async getTrends(window: OpsTrendWindow | undefined): Promise<OpsTrendsResponse> {
+    const config = this.getWindowConfig(window);
+    const [runtimeSeries, evaluationSeries] = await Promise.all([
+      this.getRuntimeTrendSeries(config),
+      this.getEvaluationTrendSeries(config)
+    ]);
+
     return {
-      window: this.normalizeTrendWindow(window),
-      generated_at: new Date().toISOString(),
-      series: []
+      window: config.window,
+      generated_at: config.endAt.toISOString(),
+      series: [...runtimeSeries, ...evaluationSeries]
     };
   }
 
@@ -194,7 +203,15 @@ export class OpsService {
         readyCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'ready' and ${documents.citationReady} = true)::int`,
         staleCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'stale')::int`,
         failedCount: sql<number>`count(*) filter (where ${documents.indexStatus} = 'failed')::int`,
-        totalCount: sql<number>`count(*)::int`
+        totalCount: sql<number>`count(*)::int`,
+        freshnessLagP95Ms: sql<number | null>`
+          percentile_cont(0.95) within group (
+            order by extract(epoch from (${documents.indexedAt} - ${documents.importedAt})) * 1000
+          ) filter (
+            where ${documents.indexedAt} is not null
+              and ${documents.indexStatus} in ('ready', 'stale')
+          )
+        `
       })
       .from(documents);
 
@@ -216,7 +233,7 @@ export class OpsService {
       failed_count: failedCount,
       total_count: totalCount,
       readiness_rate: totalCount > 0 ? Number((readyCount / totalCount).toFixed(4)) : null,
-      freshness_lag_p95_ms: null,
+      freshness_lag_p95_ms: this.toNullableNumber(summary?.freshnessLagP95Ms ?? null),
       blocking_reason: this.getReadinessBlockingReason({
         readyCount,
         backlogCount,
@@ -226,7 +243,9 @@ export class OpsService {
     };
   }
 
-  private async getRuntimeQualitySummary(window: OpsTrendWindow): Promise<OpsRuntimeQualitySummary> {
+  private async getRuntimeQualitySummary(window: OpsTrendWindow, now: Date): Promise<OpsRuntimeQualitySummary> {
+    const config = this.getWindowConfig(window, now);
+    const answerEventAtExpr = this.getAnswerEventAtExpression();
     const [answerSummary] = await this.database.db
       .select({
         terminalCount: sql<number>`count(*) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))::int`,
@@ -236,18 +255,22 @@ export class OpsService {
         latencyP95Ms: sql<number | null>`percentile_cont(0.95) within group (order by ${answerSessions.latencyMs}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))`,
         avgTokenCostUsd: sql<string | null>`to_char(avg(${answerSessions.totalCostUsd}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused')), 'FM999999990.0000')`
       })
-      .from(answerSessions);
+      .from(answerSessions)
+      .where(sql`${answerEventAtExpr} >= ${config.startAt} and ${answerEventAtExpr} <= ${config.endAt}`);
 
     const [citationSummary] = await this.database.db
       .select({
-        citedAnsweredSessionCount: sql<number>`count(distinct ${answerCitations.sessionId})::int`
+        answeredCount: sql<number>`count(distinct ${answerSessions.id})::int`,
+        citedAnsweredSessionCount: sql<number>`count(distinct ${answerSessions.id}) filter (where ${answerCitations.id} is not null)::int`
       })
-      .from(answerCitations)
-      .innerJoin(answerSessions, eq(answerSessions.id, answerCitations.sessionId))
-      .where(sql`${answerSessions.status} = 'answered'`);
+      .from(answerSessions)
+      .leftJoin(answerCitations, eq(answerSessions.id, answerCitations.sessionId))
+      .where(
+        sql`${answerSessions.status} = 'answered' and ${answerEventAtExpr} >= ${config.startAt} and ${answerEventAtExpr} <= ${config.endAt}`
+      );
 
     const terminalCount = answerSummary?.terminalCount ?? 0;
-    const answeredCount = answerSummary?.answeredCount ?? 0;
+    const answeredCount = citationSummary?.answeredCount ?? answerSummary?.answeredCount ?? 0;
     const refusedCount = answerSummary?.refusedCount ?? 0;
     const citedAnsweredSessionCount = citationSummary?.citedAnsweredSessionCount ?? 0;
 
@@ -294,7 +317,10 @@ export class OpsService {
     };
   }
 
-  private async getReleaseGuard(relatedIncidentCount: number): Promise<OpsReleaseGuard> {
+  private async getReleaseGuard(
+    relatedIncidentCount: number,
+    evaluationQuality: OpsEvaluationQualitySummary | null
+  ): Promise<OpsReleaseGuard> {
     const [latestRecord] = await this.database.db
       .select()
       .from(deploymentRecords)
@@ -302,6 +328,11 @@ export class OpsService {
       .limit(1);
 
     if (latestRecord) {
+      const relatedEvaluationRunRef =
+        latestRecord.commitSha && evaluationQuality?.commit_sha === latestRecord.commitSha
+          ? evaluationQuality.latest_run_ref
+          : await this.getEvaluationRunRefByCommitSha(latestRecord.commitSha);
+
       return {
         risk_level: this.getReleaseGuardRiskLevel(latestRecord.smokeStatus, relatedIncidentCount),
         current_image_tag: latestRecord.currentImageTag,
@@ -310,7 +341,7 @@ export class OpsService {
         smoke_at: latestRecord.smokeAt?.toISOString() ?? null,
         deployed_at: latestRecord.deployedAt.toISOString(),
         workflow_run_id: latestRecord.workflowRunId,
-        related_evaluation_run_ref: null,
+        related_evaluation_run_ref: relatedEvaluationRunRef,
         related_incident_count: relatedIncidentCount,
         summary: this.getReleaseGuardSummary(latestRecord.smokeStatus, relatedIncidentCount)
       };
@@ -359,10 +390,10 @@ export class OpsService {
     return "none";
   }
 
-  private getIncidentSummaryBlock(incidents: OpsIncidentListResponse): OpsIncidentSummaryBlock {
+  private getIncidentSummaryBlock(incidents: OpsIncidentCandidate[]): OpsIncidentSummaryBlock {
     const clusters = new Map<string, OpsIncidentCluster>();
 
-    for (const incident of incidents.items) {
+    for (const incident of incidents) {
       const key = `${incident.source}:${incident.severity}:${incident.status}`;
       const existing = clusters.get(key);
 
@@ -385,9 +416,11 @@ export class OpsService {
     }
 
     return {
-      open_count: incidents.items.filter((incident) => incident.status !== "resolved").length,
-      high_risk_count: incidents.items.filter((incident) => incident.severity === "high").length,
-      clusters: Array.from(clusters.values())
+      open_count: incidents.filter((incident) => incident.status !== "resolved").length,
+      high_risk_count: incidents.filter((incident) => incident.severity === "high").length,
+      clusters: Array.from(clusters.values()).sort((left, right) => {
+        return right.incident_count - left.incident_count || left.cluster_key.localeCompare(right.cluster_key);
+      })
     };
   }
 
@@ -427,6 +460,14 @@ export class OpsService {
         surface: "deployment",
         title: "核对上一稳定版本",
         summary: "release guard 处于 critical，需要人工核对 smoke、incident 和上一稳定镜像后再决定是否回滚。"
+      });
+    } else if (releaseGuard.risk_level === "warning") {
+      actions.push({
+        code: "verify_latest_deployment",
+        priority: "medium",
+        surface: "deployment",
+        title: "核对最近部署事实",
+        summary: "当前 release guard 仍有观察风险，先核对最近部署、smoke 和关联质量运行结果。"
       });
     }
 
@@ -575,6 +616,269 @@ export class OpsService {
     }
 
     return Number(value);
+  }
+
+  private getWindowConfig(window: OpsTrendWindow | undefined, now = new Date()): OpsWindowConfig {
+    const normalized = this.normalizeTrendWindow(window);
+    const endAt = new Date(now);
+    const startAt = new Date(now);
+
+    switch (normalized) {
+      case "24h":
+        startAt.setHours(startAt.getHours() - 24);
+        return { window: normalized, startAt, endAt, granularity: "hour" };
+      case "30d":
+        startAt.setDate(startAt.getDate() - 30);
+        return { window: normalized, startAt, endAt, granularity: "day" };
+      case "7d":
+      default:
+        startAt.setDate(startAt.getDate() - 7);
+        return { window: "7d", startAt, endAt, granularity: "day" };
+    }
+  }
+
+  private getAnswerEventAtExpression(): SQL {
+    return sql`coalesce(${answerSessions.finishedAt}, ${answerSessions.updatedAt}, ${answerSessions.createdAt})`;
+  }
+
+  private getEvaluationEventAtExpression(): SQL {
+    return sql`coalesce(${evaluationRuns.completedAt}, ${evaluationRuns.createdAt})`;
+  }
+
+  private getBucketExpression(timestampExpression: SQL, granularity: OpsTrendSeries["granularity"]) {
+    if (granularity === "hour") {
+      return sql<Date>`date_trunc('hour', ${timestampExpression})`;
+    }
+
+    return sql<Date>`date_trunc('day', ${timestampExpression})`;
+  }
+
+  private async getRuntimeTrendSeries(config: OpsWindowConfig): Promise<OpsTrendSeries[]> {
+    const answerEventAtExpr = this.getAnswerEventAtExpression();
+    const bucketExpr = this.getBucketExpression(answerEventAtExpr, config.granularity);
+
+    const [runtimeRows, citationRows] = await Promise.all([
+      this.database.db
+        .select({
+          bucket: bucketExpr,
+          terminalCount: sql<number>`count(*) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))::int`,
+          answeredCount: sql<number>`count(*) filter (where ${answerSessions.status} = 'answered')::int`,
+          refusedCount: sql<number>`count(*) filter (where ${answerSessions.status} = 'refused')::int`,
+          latencyP95Ms: sql<number | null>`percentile_cont(0.95) within group (order by ${answerSessions.latencyMs}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused'))`,
+          avgTokenCostUsd: sql<string | null>`to_char(avg(${answerSessions.totalCostUsd}) filter (where ${answerSessions.status} in ('answered', 'needs_scope', 'refused')), 'FM999999990.0000')`
+        })
+        .from(answerSessions)
+        .where(sql`${answerEventAtExpr} >= ${config.startAt} and ${answerEventAtExpr} <= ${config.endAt}`)
+        .groupBy(bucketExpr)
+        .orderBy(bucketExpr),
+      this.database.db
+        .select({
+          bucket: bucketExpr,
+          answeredCount: sql<number>`count(distinct ${answerSessions.id})::int`,
+          citedAnsweredSessionCount: sql<number>`count(distinct ${answerSessions.id}) filter (where ${answerCitations.id} is not null)::int`
+        })
+        .from(answerSessions)
+        .leftJoin(answerCitations, eq(answerSessions.id, answerCitations.sessionId))
+        .where(
+          sql`${answerSessions.status} = 'answered' and ${answerEventAtExpr} >= ${config.startAt} and ${answerEventAtExpr} <= ${config.endAt}`
+        )
+        .groupBy(bucketExpr)
+        .orderBy(bucketExpr)
+    ]);
+
+    const buckets = new Map<string, RuntimeTrendBucket>();
+
+    for (const row of runtimeRows) {
+      buckets.set(this.toBucketTimestamp(row.bucket), {
+        bucket: row.bucket,
+        terminalCount: row.terminalCount ?? 0,
+        answeredCount: row.answeredCount ?? 0,
+        refusedCount: row.refusedCount ?? 0,
+        latencyP95Ms: row.latencyP95Ms ?? null,
+        avgTokenCostUsd: row.avgTokenCostUsd?.trim() ? row.avgTokenCostUsd.trim() : null
+      });
+    }
+
+    for (const row of citationRows) {
+      const key = this.toBucketTimestamp(row.bucket);
+      const existing = buckets.get(key);
+
+      if (existing) {
+        existing.citedAnsweredSessionCount = row.citedAnsweredSessionCount ?? 0;
+        existing.answeredCount = row.answeredCount ?? existing.answeredCount;
+      } else {
+        buckets.set(key, {
+          bucket: row.bucket,
+          terminalCount: 0,
+          answeredCount: row.answeredCount ?? 0,
+          refusedCount: 0,
+          latencyP95Ms: null,
+          avgTokenCostUsd: null,
+          citedAnsweredSessionCount: row.citedAnsweredSessionCount ?? 0
+        });
+      }
+    }
+
+    const rows = Array.from(buckets.values()).sort((left, right) => {
+      return this.toBucketTimestamp(left.bucket).localeCompare(this.toBucketTimestamp(right.bucket));
+    });
+
+    return [
+      this.buildTrendSeries("citation_coverage", "runtime", config.granularity, rows, (row) =>
+        row.answeredCount > 0
+          ? Number((((row.citedAnsweredSessionCount ?? 0) / row.answeredCount).toFixed(4)))
+          : null
+      ),
+      this.buildTrendSeries("refusal_rate", "runtime", config.granularity, rows, (row) =>
+        row.terminalCount > 0 ? Number((row.refusedCount / row.terminalCount).toFixed(4)) : null
+      ),
+      this.buildTrendSeries("latency_p95_ms", "runtime", config.granularity, rows, (row) =>
+        this.toNullableNumber(row.latencyP95Ms)
+      ),
+      this.buildTrendSeries("avg_token_cost_usd", "runtime", config.granularity, rows, (row) => row.avgTokenCostUsd)
+    ].filter((series): series is OpsTrendSeries => series !== null);
+  }
+
+  private async getEvaluationTrendSeries(config: OpsWindowConfig): Promise<OpsTrendSeries[]> {
+    const evaluationEventAtExpr = this.getEvaluationEventAtExpression();
+    const bucketExpr = this.getBucketExpression(evaluationEventAtExpr, config.granularity);
+
+    const rows = await this.database.db
+      .select({
+        bucket: bucketExpr,
+        groundedness: sql<string | null>`avg(${evaluationRuns.groundedness})::text`,
+        refusalPrecision: sql<string | null>`avg(${evaluationRuns.refusalPrecision})::text`,
+        recallAt10: sql<string | null>`avg(${evaluationRuns.recallAt10})::text`,
+        mrr: sql<string | null>`avg(${evaluationRuns.mrr})::text`,
+        hitInAnswerRate: sql<string | null>`avg(${evaluationRuns.hitInAnswerRate})::text`,
+        embeddingBacklog: sql<string | null>`avg(${evaluationRuns.embeddingBacklog})::text`,
+        freshnessLagP95Ms: sql<string | null>`avg(${evaluationRuns.freshnessLagP95Ms})::text`
+      })
+      .from(evaluationRuns)
+      .where(
+        sql`${evaluationRuns.status} in ('completed', 'failed') and ${evaluationEventAtExpr} >= ${config.startAt} and ${evaluationEventAtExpr} <= ${config.endAt}`
+      )
+      .groupBy(bucketExpr)
+      .orderBy(bucketExpr);
+
+    const normalizedRows: EvaluationTrendBucket[] = rows.map((row) => ({
+      bucket: row.bucket,
+      groundedness: row.groundedness,
+      refusalPrecision: row.refusalPrecision,
+      recallAt10: row.recallAt10,
+      mrr: row.mrr,
+      hitInAnswerRate: row.hitInAnswerRate,
+      embeddingBacklog: row.embeddingBacklog,
+      freshnessLagP95Ms: row.freshnessLagP95Ms
+    }));
+
+    return [
+      this.buildTrendSeries("groundedness", "evaluation", config.granularity, normalizedRows, (row) =>
+        this.toNullableNumber(row.groundedness)
+      ),
+      this.buildTrendSeries("refusal_precision", "evaluation", config.granularity, normalizedRows, (row) =>
+        this.toNullableNumber(row.refusalPrecision)
+      ),
+      this.buildTrendSeries("recall_at_10", "evaluation", config.granularity, normalizedRows, (row) =>
+        this.toNullableNumber(row.recallAt10)
+      ),
+      this.buildTrendSeries("mrr", "evaluation", config.granularity, normalizedRows, (row) =>
+        this.toNullableNumber(row.mrr)
+      ),
+      this.buildTrendSeries("hit_in_answer_rate", "evaluation", config.granularity, normalizedRows, (row) =>
+        this.toNullableNumber(row.hitInAnswerRate)
+      ),
+      this.buildTrendSeries("embedding_backlog", "evaluation", config.granularity, normalizedRows, (row) =>
+        this.toNullableNumber(row.embeddingBacklog)
+      ),
+      this.buildTrendSeries("freshness_lag_p95_ms", "evaluation", config.granularity, normalizedRows, (row) =>
+        this.toNullableNumber(row.freshnessLagP95Ms)
+      )
+    ].filter((series): series is OpsTrendSeries => series !== null);
+  }
+
+  private buildTrendSeries<TBucket extends { bucket: Date | string }>(
+    metric: OpsTrendMetric,
+    source: OpsTrendSeries["source"],
+    granularity: OpsTrendSeries["granularity"],
+    rows: TBucket[],
+    getValue: (row: TBucket) => number | string | null
+  ): OpsTrendSeries | null {
+    const points = rows.map((row) => ({
+      ts: this.toBucketTimestamp(row.bucket),
+      value: getValue(row)
+    }));
+
+    if (!points.some((point) => point.value !== null)) {
+      return null;
+    }
+
+    return {
+      metric,
+      source,
+      granularity,
+      points
+    };
+  }
+
+  private toBucketTimestamp(value: Date | string): string {
+    const date = value instanceof Date ? value : new Date(value);
+    return date.toISOString();
+  }
+
+  private async getEvaluationRunRefByCommitSha(commitSha: string | null): Promise<string | null> {
+    if (!commitSha) {
+      return null;
+    }
+
+    const [run] = await this.database.db
+      .select({
+        runRef: evaluationRuns.runRef
+      })
+      .from(evaluationRuns)
+      .where(sql`${evaluationRuns.commitSha} = ${commitSha} and ${evaluationRuns.status} in ('completed', 'failed')`)
+      .orderBy(desc(evaluationRuns.completedAt), desc(evaluationRuns.createdAt))
+      .limit(1);
+
+    return run?.runRef ?? null;
+  }
+
+  private async listIncidentCandidates(): Promise<OpsIncidentCandidate[]> {
+    const [jobIncidents, uploadIncidents] = await Promise.all([
+      this.jobsRepository.listRecentIncidentCandidates(12),
+      this.uploadsRepository.listRecentFailedUploads(8)
+    ]);
+
+    return [
+      ...jobIncidents.map((job) => {
+        const source = this.resolveIncidentSource(job.jobType);
+        const title = this.getJobIncidentTitle(job.diagnosisCode, job.jobType);
+        const summary = job.errorMessage || this.getDefaultIncidentSummary(source);
+
+        return {
+          incident_ref: job.incidentRef || this.buildIncidentRef("JOB", job.id),
+          source: source as IncidentSource,
+          severity: this.getIncidentSeverity(job.diagnosisCode, source),
+          status: this.getIncidentStatus(job.status),
+          title,
+          summary,
+          external_url: null,
+          occurredAt: job.finishedAt || job.createdAt
+        };
+      }),
+      ...uploadIncidents.map((upload) => ({
+        incident_ref: this.buildIncidentRef("UPL", upload.id),
+        source: "upload" as IncidentSource,
+        severity: this.getIncidentSeverity(upload.errorCode, "upload"),
+        status: "open" as IncidentStatus,
+        title: this.getUploadIncidentTitle(upload.errorCode),
+        summary: upload.errorMessage || `上传 ${upload.fileName} 失败，请检查对象存储与分片状态。`,
+        external_url: null,
+        occurredAt: upload.completedAt || upload.createdAt
+      }))
+    ]
+      .sort((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime())
+      .slice(0, 20);
   }
 
   private async toHealthItem(name: string, check: Promise<string>) {

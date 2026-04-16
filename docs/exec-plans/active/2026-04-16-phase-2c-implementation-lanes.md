@@ -83,6 +83,7 @@
 ### Lane A: API Read Model And Governance Aggregation
 
 - 类型：可并行 lane，必须等 `Lane 0` 完成后启动
+- 当前状态：`completed`
 - 目标：实现 `/ops/overview` 与 `/ops/trends` 的真实聚合逻辑
 - 写入范围：
   - `apps/api/src/ops/ops.service.ts`
@@ -186,7 +187,7 @@
 
 `Lane A / B / C / D` 只有在 `Lane 0` 完成后才允许使用子 agent 并行。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI 或 API client contract，必须暂停并切回主线程。
 
-当前恢复点：`Lane 0` 已完成，下一步优先启动 `Lane A: API Read Model And Governance Aggregation` 与 `Lane B: Deployment And Evaluation Fact Ingestion`；`Lane C` 可在 API read model 稳定后接入，`Lane D` 在 `Lane A / B / C` 合流后启动。
+当前恢复点：`Lane 0` 与 `Lane A` 已完成，下一步优先启动 `Lane B: Deployment And Evaluation Fact Ingestion` 与 `Lane C: Web Ops Board And Lightweight Notices`；`Lane D` 在 `Lane B / C` 合流后启动。
 
 ## 6. Ownership Rules
 
@@ -244,3 +245,5 @@
 - `2026-04-16`: `Lane 0` 已完成 contract-to-code 落地：新增 `evaluation_runs / deployment_records` schema 与 migration，导出 Phase 2C ops shared-types/DTO/OpenAPI/API client/web adapter，并保留既有 ops endpoints 兼容。
 - `2026-04-16`: `Lane 0` 集成测试发现 worker constants 运行期 re-export 会在 `dist-integration` 加载 `@xrag/shared-types` 源码 TS；已在 worker constants 内本地定义运行期常量并用 shared-types union 做类型约束，不改变 queue/job contract。
 - `2026-04-16`: `Lane 0` 已通过 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/api openapi:generate`、`pnpm --filter @xrag/web build`、`pnpm test:integration`。
+- `2026-04-16`: `Lane A` 已完成真实治理聚合：`readiness` 由 `documents` 聚合，`runtime quality` 由 `answer_sessions / answer_citations` 聚合，`evaluation quality` 由 `evaluation_runs` 聚合，`incident clusters` 复用既有 incident candidates，`release guard` 优先读取 `deployment_records`。
+- `2026-04-16`: `Lane A` 已通过 `git diff --check`、`pnpm --filter @xrag/api typecheck`、`pnpm test:integration`，且 `/ops/overview`、`/ops/trends` integration coverage 已补齐。
