@@ -187,6 +187,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: staging
+    outputs:
+      deploy_enabled: ${{ steps.staging-preflight.outputs.enabled }}
+      deployed_at: ${{ steps.deploy-staging-ssh.outputs.deployed_at }}
+      previous_api_image: ${{ steps.deploy-staging-ssh.outputs.previous_api_image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -202,6 +206,7 @@ jobs:
           fi
 
       - name: Deploy staging over SSH
+        id: deploy-staging-ssh
         if: ${{ steps.staging-preflight.outputs.enabled == 'true' }}
         env:
           DEPLOY_ENVIRONMENT: staging
@@ -231,6 +236,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
       - name: Check staging smoke target
         id: staging-smoke-preflight
         run: |
@@ -254,8 +265,25 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_SHA: ${{ github.sha }}
+          XRAG_API_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-api:${{ github.sha }}
+          XRAG_PREVIOUS_API_IMAGE: ${{ needs.deploy-staging.outputs.previous_api_image }}
+          XRAG_DEPLOYED_AT: ${{ needs.deploy-staging.outputs.deployed_at }}
+          XRAG_SMOKE_EXECUTED: ${{ steps.staging-smoke-preflight.outputs.enabled }}
           XRAG_SMOKE_STATUS: ${{ job.status }}
         run: scripts/record-deploy-evidence.sh
+
+      - name: Persist staging deployment record
+        if: ${{ always() && needs.deploy-staging.outputs.deploy_enabled == 'true' }}
+        env:
+          DEPLOY_EVIDENCE_JSON: artifacts/deploy-evidence/staging/evidence.json
+          DEPLOY_ENVIRONMENT: staging
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: node scripts/write-deployment-record.mjs
 
       - name: Upload staging smoke evidence
         if: always()
@@ -271,6 +299,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: production
+    outputs:
+      deploy_enabled: ${{ steps.production-preflight.outputs.enabled }}
+      deployed_at: ${{ steps.deploy-production-ssh.outputs.deployed_at }}
+      previous_api_image: ${{ steps.deploy-production-ssh.outputs.previous_api_image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -286,6 +318,7 @@ jobs:
           fi
 
       - name: Deploy production over SSH
+        id: deploy-production-ssh
         if: ${{ steps.production-preflight.outputs.enabled == 'true' }}
         env:
           DEPLOY_ENVIRONMENT: production
@@ -315,6 +348,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
       - name: Check production smoke target
         id: production-smoke-preflight
         run: |
@@ -338,8 +377,25 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_SHA: ${{ github.sha }}
+          XRAG_API_IMAGE: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_NAMESPACE }}/xrag-api:${{ github.sha }}
+          XRAG_PREVIOUS_API_IMAGE: ${{ needs.deploy-production.outputs.previous_api_image }}
+          XRAG_DEPLOYED_AT: ${{ needs.deploy-production.outputs.deployed_at }}
+          XRAG_SMOKE_EXECUTED: ${{ steps.production-smoke-preflight.outputs.enabled }}
           XRAG_SMOKE_STATUS: ${{ job.status }}
         run: scripts/record-deploy-evidence.sh
+
+      - name: Persist production deployment record
+        if: ${{ always() && needs.deploy-production.outputs.deploy_enabled == 'true' }}
+        env:
+          DEPLOY_EVIDENCE_JSON: artifacts/deploy-evidence/production/evidence.json
+          DEPLOY_ENVIRONMENT: production
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: node scripts/write-deployment-record.mjs
 
       - name: Upload production smoke evidence
         if: always()

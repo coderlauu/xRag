@@ -23,6 +23,10 @@ remote_tmp_dir="${DEPLOY_PATH}/shared/tmp"
 bundle_path="${remote_tmp_dir}/xrag-${DEPLOY_ENVIRONMENT}-${XRAG_IMAGE_TAG}.tar.gz"
 bundle_file="$(mktemp /tmp/xrag-deploy-XXXXXX.tar.gz)"
 key_file="$(mktemp /tmp/xrag-ssh-key-XXXXXX)"
+deployed_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+previous_api_image=""
+previous_worker_image=""
+previous_web_image=""
 
 cleanup() {
   rm -f "${bundle_file}" "${key_file}"
@@ -73,6 +77,54 @@ Check these values and server state:
 - whether the ${SSH_USER} user is allowed to log in via public key
 EOF
   exit 1
+fi
+
+project_name="xrag-${DEPLOY_ENVIRONMENT}"
+printf -v project_name_q '%q' "${project_name}"
+previous_images="$(
+  ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "bash -s -- ${project_name_q}" 2>/dev/null <<'EOF' || true
+project_name="${1:?project name is required}"
+docker_bin="docker"
+
+if ! docker info >/dev/null 2>&1; then
+  docker_bin="sudo -n docker"
+fi
+
+for service in api worker web; do
+  container_id="$($docker_bin ps \
+    --filter "label=com.docker.compose.project=${project_name}" \
+    --filter "label=com.docker.compose.service=${service}" \
+    --format '{{.ID}}' | head -n 1)"
+
+  if [[ -n "${container_id}" ]]; then
+    image="$($docker_bin inspect "${container_id}" --format '{{.Config.Image}}')"
+    printf '%s=%s\n' "${service}" "${image}"
+  fi
+done
+EOF
+)"
+
+while IFS='=' read -r service image; do
+  case "${service}" in
+    api)
+      previous_api_image="${image}"
+      ;;
+    worker)
+      previous_worker_image="${image}"
+      ;;
+    web)
+      previous_web_image="${image}"
+      ;;
+  esac
+done <<<"${previous_images}"
+
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  {
+    echo "deployed_at=${deployed_at}"
+    echo "previous_api_image=${previous_api_image}"
+    echo "previous_worker_image=${previous_worker_image}"
+    echo "previous_web_image=${previous_web_image}"
+  } >>"${GITHUB_OUTPUT}"
 fi
 
 printf -v deploy_path_q '%q' "${DEPLOY_PATH}"

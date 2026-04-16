@@ -27,6 +27,7 @@ mkdir -p "$artifact_dir"
 
 gh api "repos/${repo}/actions/runs/${run_id}" >"$artifact_dir/run.json"
 gh api "repos/${repo}/actions/runs/${run_id}/jobs?per_page=100" >"$artifact_dir/jobs.json"
+gh api "repos/${repo}/actions/runs/${run_id}/artifacts?per_page=100" >"$artifact_dir/artifacts.json"
 gh run view "$run_id" --repo "$repo" >"$artifact_dir/summary.txt"
 
 echo "Saved CI run inspection output to $artifact_dir"

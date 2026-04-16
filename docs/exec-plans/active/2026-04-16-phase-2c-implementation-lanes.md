@@ -109,6 +109,7 @@
 ### Lane B: Deployment And Evaluation Fact Ingestion
 
 - 类型：可并行 lane，必须等 `Lane 0` 完成后启动
+- 当前状态：`completed`
 - 目标：让 deployment / smoke / evaluation 事实可进入 `deployment_records / evaluation_runs`
 - 写入范围：
   - `.github/workflows/ci.yml`
@@ -187,7 +188,7 @@
 
 `Lane A / B / C / D` 只有在 `Lane 0` 完成后才允许使用子 agent 并行。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI 或 API client contract，必须暂停并切回主线程。
 
-当前恢复点：`Lane 0` 与 `Lane A` 已完成，下一步优先启动 `Lane B: Deployment And Evaluation Fact Ingestion` 与 `Lane C: Web Ops Board And Lightweight Notices`；`Lane D` 在 `Lane B / C` 合流后启动。
+当前恢复点：`Lane 0`、`Lane A` 与 `Lane B` 已完成，下一步优先启动 `Lane C: Web Ops Board And Lightweight Notices`；`Lane D` 在 `Lane C` 合流后启动。
 
 ## 6. Ownership Rules
 
@@ -247,3 +248,5 @@
 - `2026-04-16`: `Lane 0` 已通过 `pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/api openapi:generate`、`pnpm --filter @xrag/web build`、`pnpm test:integration`。
 - `2026-04-16`: `Lane A` 已完成真实治理聚合：`readiness` 由 `documents` 聚合，`runtime quality` 由 `answer_sessions / answer_citations` 聚合，`evaluation quality` 由 `evaluation_runs` 聚合，`incident clusters` 复用既有 incident candidates，`release guard` 优先读取 `deployment_records`。
 - `2026-04-16`: `Lane A` 已通过 `git diff --check`、`pnpm --filter @xrag/api typecheck`、`pnpm test:integration`，且 `/ops/overview`、`/ops/trends` integration coverage 已补齐。
+- `2026-04-16`: `Lane B` 已完成最小事实写入闭环：`record-deploy-evidence` 修正 smoke status 语义，CI smoke evidence 可通过 SSH tunnel + PostgreSQL `127.0.0.1:5432` 回环映射写入 `deployment_records`，并新增受控 `evaluation_runs` 写入脚本。
+- `2026-04-16`: `Lane B` 已通过 shell / Node 静态检查与本地 Docker PostgreSQL 实跑落库验证。
