@@ -4,9 +4,9 @@
 
 - `version`: `v5`
 - `phase`: `Phase 2B`
-- `status`: `completed`
+- `status`: `archived`
 - `owner`: `codex`
-- `updated_at`: `2026-04-15`
+- `updated_at`: `2026-04-16`
 
 ## 2. Goal
 
@@ -41,7 +41,7 @@
 ## 4. Current Node
 
 - `now`: `Phase 2B` 已完成正式收口。`2026-04-15` 已修复文档长期停留 `not_indexed` 导致 Ask retrieval 为空的问题：`parse / OCR / link / manual text` 成功后会自动排入 `document-indexing`，并新增 `pnpm recovery:backfill-indexing` 作为既有旧文档的一次性回补入口；同日也已修复 GitHub Actions run `24460473108` 暴露的 web e2e 选择器漂移。
-- `next`: 当前无 active exec plan。若继续推进，先在目标环境确认是否需要执行 `recovery:backfill-indexing`，或直接启动下一版本的 `handoff / status / exec plan` 脚手架。
+- `next`: 当前入口已切到 `v6 / Phase 2C`。若继续回看本版本，按归档文档和 completed exec plans 恢复；运行态若需处理历史 `not_indexed` 文档，单独走 `recovery:backfill-indexing` 检查。
 
 ## 5. Blockers
 
@@ -51,7 +51,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-15` 已完成本地定向修复验证：`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js`、`./scripts/run-e2e-smoke.sh`、`pnpm --filter @xrag/web typecheck` 通过；GitHub Actions run `24461689868` 已成功，`Phase 2B` 发布基线成立
+- `latest_validation`: `2026-04-15` 已完成本地定向修复验证：`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/documents.integration.test.js apps/api/dist-integration/apps/api/test/integration/uploads.integration.test.js apps/api/dist-integration/apps/api/test/integration/link-documents.integration.test.js`、`./scripts/run-e2e-smoke.sh`、`pnpm --filter @xrag/web typecheck` 通过；GitHub Actions run `24461689868` 与收口后 main run `24463955971` 已成功，`Phase 2B` 发布基线成立并维持绿态
 - `result`: `passed`
 - `latest_failure`: `GitHub Actions run 24460473108 failed in e2e because detail-page locator text made several getByText(title) assertions ambiguous under Playwright strict mode; fixed locally on 2026-04-15`
 
@@ -71,4 +71,4 @@
 - `tech_docs`: [Phase 2A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md), [Phase 2A runtime contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md), [Phase 2A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md), [Phase 2A api design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
 - `exec_plans`: [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-14-phase-2b-testing-and-release-readiness.md), [Phase 2B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-lanes.md), [Phase 2B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-13-phase-2b-implementation-freeze.md), [Phase 2B technical evaluation and contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-12-phase-2b-technical-evaluation-and-contract-freeze.md), [Phase 2B planning and design](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-11-phase-2b-planning-and-design.md), [Phase 2A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-lanes.md), [Phase 2A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-08-phase-2a-implementation-freeze.md)
 - `key_commits`: `66767af`, `b0a2bb9`, `717ae07`, `e16726c`, `2949dd0`, `12b22fb`, `1bf8d27`, `e470270`, `c2df206`, `3ed3672`, `bb14372`
-- `latest_ci_run`: `24461689868 success`
+- `latest_ci_run`: `24463955971 success`
