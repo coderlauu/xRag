@@ -36,7 +36,11 @@
 
 - [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
 - [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
-- [Phase 2C Planning And Scope Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-planning-and-scope.md)
+- [Phase 2C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-prd.md)
+- [Phase 2C Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-backlog.md)
+- [v6 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-16-v6-interaction-delta.md)
+- [Phase 2C P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md)
+- [Phase 2C Technical Evaluation Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-technical-evaluation.md)
 - [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
 - [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
 - [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
@@ -50,7 +54,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已启动；当前目标不是直接编码，而是先把下一版本的真实问题、优先级和验收标准冻结下来，形成 `PRD / backlog / interaction delta / technical tradeoff`，再决定是否进入技术评估与实现。
+在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已完成第一版产品范围冻结；当前目标不是直接编码，而是围绕 `corpus readiness / quality scorecard / incident clustering / release guard` 进入正式技术评估，再决定 contract freeze 与实现顺序。
 
 ---
 
@@ -60,12 +64,12 @@
 
 - 启动 `v6 / Phase 2C` 的版本级脚手架与恢复入口
 - 明确本轮问题定义、目标用户和验收标准
-- 产出 `PRD / backlog / interaction delta / technical tradeoff` 的第一版事实源
-- 判断是否进入 `technical-evaluation`
+- 冻结 `PRD / backlog / interaction delta / technical tradeoff` 第一版事实源
+- 进入 `technical-evaluation`，评估 `P0-01 ~ P0-04` 的正式边界
 
 ### 本轮次级目标
 
-- 识别哪些 `Phase 2B` backlog 或运行态反馈值得进入 `v6 / P0`
+- 识别哪些 `ops / eval / readiness / deployment` 事实源可直接复用，哪些需要在后续 contract freeze 中补齐
 
 ### 明确不做
 
@@ -81,7 +85,7 @@
 ### 当前阶段依赖的既有基线
 
 - `v5 / Phase 2B` 已完成正式收口，并在 `2026-04-16` 切入归档态
-- latest main GitHub Actions run `24463955971` 已成功，当前 main 维持绿态
+- latest main GitHub Actions run `24485981323` 已成功，当前 main 维持绿态
 - `Phase 2A / 2B` 已建立可信问答的核心信任边界与 release-ready 工程基线
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
 - `pnpm recovery:backfill-indexing` 仍可用于目标环境的历史 `not_indexed` 文档治理，但目前不自动并入 `v6` 产品范围
@@ -92,24 +96,26 @@
 
 1. [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
 2. [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
-3. [Phase 2C Planning And Scope Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-planning-and-scope.md)
-4. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
-5. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-6. [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
-7. [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
-8. [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
-9. [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
-10. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
-11. [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
+3. [Phase 2C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-prd.md)
+4. [Phase 2C Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-backlog.md)
+5. [v6 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-16-v6-interaction-delta.md)
+6. [Phase 2C P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md)
+7. [Phase 2C Technical Evaluation Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-technical-evaluation.md)
+8. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
+9. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
+10. [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
+11. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
+12. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
+13. [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
 
 ---
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v6 / Phase 2C`，当前节点为 `planning-and-scope`
+1. 当前有效版本为 `v6 / Phase 2C`，当前节点为 `technical-evaluation`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v6-phase-2c.md`
-4. 当前只启动了版本脚手架和规划 exec plan；在 `PRD / backlog / interaction delta / technical tradeoff` 成型前，不进入实现或 contract 变更
+4. 当前已完成 `PRD / backlog / interaction delta / technical tradeoff` 第一版，并切到 `technical-evaluation`；在技术评估完成前，不进入实现或 contract 变更
 5. `v5 / Phase 2B` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---

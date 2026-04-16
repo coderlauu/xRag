@@ -3,13 +3,13 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-2c-planning-and-scope`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: `docs/handoff/v6.md`, `docs/status/v6-phase-2c.md`
 
 ## 2. Objective
 
-在 `Phase 2B` 已完成的可信问答基线上，为 `v6 / Phase 2C` 形成清晰的问题定义、优先级和版本边界，并决定是否进入 `technical-evaluation`。
+在 `Phase 2B` 已完成的可信问答基线上，为 `v6 / Phase 2C` 形成清晰的问题定义、优先级和版本边界，并完成是否进入 `technical-evaluation` 的判断。
 
 ## 3. Scope
 
@@ -28,7 +28,7 @@
 
 ## 4. Assumptions
 
-- `v5 / Phase 2B` 已完成并归档，latest main CI run `24463955971` 为成功
+- `v5 / Phase 2B` 已完成并归档，且 GitHub Actions run `24485981323` 已维持切版后的 main 绿态
 - `Phase 2A / 2B` 已建立可信问答的核心信任边界，本轮只能在此基础上扩展
 - 当前还没有经过确认的 `v6 P0`，因此先做规划和取舍，而不是技术实现
 
@@ -58,3 +58,4 @@
 
 - `2026-04-16`: 将“进入下一版本”归类为 `new-version`，创建 `v6 / Phase 2C` handoff、status 与 active exec plan
 - `2026-04-16`: `v6` 脚手架补全文档后，`pnpm docs:check` 已通过
+- `2026-04-16`: 已完成 `Phase 2C` 第一版 `PRD / backlog / interaction delta / technical tradeoff`，并切换到 `technical-evaluation`

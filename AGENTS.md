@@ -6,13 +6,13 @@
 
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
-3. [当前 Planning And Scope Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-planning-and-scope.md)
-4. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
-5. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
-6. [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md)
-7. [Phase 2B Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md)
-8. [v5 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md)
-9. [Phase 2B P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
+3. [Phase 2C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-prd.md)
+4. [Phase 2C Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-backlog.md)
+5. [v6 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-16-v6-interaction-delta.md)
+6. [Phase 2C P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md)
+7. [当前 Technical Evaluation Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-technical-evaluation.md)
+8. [v5 Handoff](/Users/coderlauu/xRag/docs/handoff/v5.md)
+9. [v5 Status](/Users/coderlauu/xRag/docs/status/v5-phase-2b.md)
 10. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
 11. [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
 12. [Phase 2A Runtime Contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
@@ -28,8 +28,8 @@
 - `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C`、`v4 / Phase 2A` 与 `v5 / Phase 2B` 已完成
 - 当前活跃版本为 `v6 / Phase 2C`
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
-- `v5 / Phase 2B` 已归档，latest main GitHub Actions run `24463955971` 仍维持收口后的 main 绿态
-- `v6 / Phase 2C` 当前仅进入 `planning-and-scope`：先冻结问题定义、优先级和验收标准，再决定是否进入技术评估与实现
+- `v5 / Phase 2B` 已归档，GitHub Actions run `24485981323` 维持切版后的 main 绿态
+- `v6 / Phase 2C` 已完成第一版 `PRD / backlog / interaction delta / technical tradeoff`，当前进入 `technical-evaluation`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -139,7 +139,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v6 / Phase 2C` 只启动了版本脚手架与 `planning-and-scope` exec plan；在 `PRD / backlog / interaction delta / technical tradeoff` 形成前，不进入实现或 contract 变更。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
+   当前 `v6 / Phase 2C` 已完成第一版 `PRD / backlog / interaction delta / technical tradeoff`，并进入 `technical-evaluation`；在 `contract-freeze` 完成前，不进入实现或 contract 变更。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口
