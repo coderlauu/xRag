@@ -61,7 +61,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已进入 implementation lanes；`Lane 0: Contract To Code`、`Lane A: API Read Model And Governance Aggregation` 与 `Lane B: Deployment And Evaluation Fact Ingestion` 已完成，下一步按计划推进 `Lane C / Lane D`，并继续保护 schema、shared-types、DTO、OpenAPI 和 API client contract。
+在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已进入 implementation lanes；`Lane 0: Contract To Code`、`Lane A: API Read Model And Governance Aggregation`、`Lane B: Deployment And Evaluation Fact Ingestion` 与 `Lane C: Web Ops Board And Lightweight Notices` 已完成，下一步按计划推进 `Lane D`，并继续保护 schema、shared-types、DTO、OpenAPI 和 API client contract。
 
 ---
 
@@ -76,7 +76,8 @@
 - 已完成 `Lane 0` 的 `schema / migration / shared-types / DTO / OpenAPI / API client / web api adapter`
 - 已完成 `Lane A` 的 `/ops/overview` 与 `/ops/trends` 真实聚合：`readiness` 基于 `documents`，`runtime quality` 基于 `answer_sessions / answer_citations`，`evaluation quality` 基于 `evaluation_runs`，`incident clusters` 复用既有 incident candidates，`release guard` 优先读取 `deployment_records`
 - 已完成 `Lane B` 的 deployment/evaluation fact ingestion：CI smoke evidence 可通过 SSH tunnel + PostgreSQL `127.0.0.1:5432` 回环映射写入 `deployment_records`，并提供受控 `evaluation_runs` 写入脚本
-- 下一步完成 `Lane C` 的 web ops board 和 lightweight notices，以及 `Lane D` 的 integration / e2e / smoke 收口
+- 已完成 `Lane C` 的 web ops board 和 lightweight notices：`/ops` 已消费 `fetchOpsOverview / fetchOpsTrends`，Ask / Search / Detail 已接入 prompt-only notices，且未改变问答、检索、引用与拒答 contract
+- 下一步完成 `Lane D` 的 integration / e2e / smoke 收口
 
 ### 本轮次级目标
 
@@ -96,7 +97,7 @@
 ### 当前阶段依赖的既有基线
 
 - `v5 / Phase 2B` 已完成正式收口，并在 `2026-04-16` 切入归档态
-- latest main GitHub Actions run `24514690725` 已成功，当前 main 维持进入 `Lane A` 前的绿态
+- latest main GitHub Actions run `24514690725` 已成功，当前仍作为已验证的 `implementation-lanes` main 绿态基线
 - `Phase 2A / 2B` 已建立可信问答的核心信任边界与 release-ready 工程基线
 - production 已可访问，且具备 `db.xrag.coderlau.cn` 与 PostgreSQL 回环映射的排查入口
 - `pnpm recovery:backfill-indexing` 仍可用于目标环境的历史 `not_indexed` 文档治理，但目前不自动并入 `v6` 产品范围
@@ -128,7 +129,7 @@
 1. 当前有效版本为 `v6 / Phase 2C`，当前节点为 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v6-phase-2c.md`
-4. 当前已完成 implementation freeze，并切到 `implementation-lanes`；`Lane 0` 已完成，下一步按 `Lane A / B / C / D` 边界推进
+4. 当前已完成 implementation freeze，并切到 `implementation-lanes`；`Lane 0 / A / B / C` 已完成，下一步按 `Lane D` 边界推进
 5. `v5 / Phase 2B` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---

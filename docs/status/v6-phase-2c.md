@@ -38,8 +38,8 @@
 
 ## 4. Current Node
 
-- `now`: `v6 / Phase 2C` 已完成 `Lane 0: Contract To Code`、`Lane A: API Read Model And Governance Aggregation` 与 `Lane B: Deployment And Evaluation Fact Ingestion`；CI smoke evidence 已可写入 `deployment_records`，并提供受控 `evaluation_runs` 写入脚本。
-- `next`: 启动 `Lane C: Web Ops Board And Lightweight Notices` 与 `Lane D: Integration, E2E, Smoke`；若需要并行子 agent，必须保持写入范围隔离，且不得修改 schema、shared-types、DTO、OpenAPI 或 API client contract。
+- `now`: `v6 / Phase 2C` 已完成 `Lane 0: Contract To Code`、`Lane A: API Read Model And Governance Aggregation`、`Lane B: Deployment And Evaluation Fact Ingestion` 与 `Lane C: Web Ops Board And Lightweight Notices`；`/ops` 已切到 `overview + trends` 治理主板，Ask / Search / Detail 已接入 prompt-only governance notices。
+- `next`: 进入 `Lane D: Integration, E2E, Smoke`；保持测试 lane 不修改 schema、shared-types、DTO、OpenAPI、API client contract，也不改变 Ask / Search / Detail 的提交、检索、引用或拒答语义。
 
 ## 5. Blockers
 
@@ -49,7 +49,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-16` 已完成 `Phase 2C Lane B` fact ingestion 落地；通过 `bash -n scripts/record-deploy-evidence.sh scripts/ops-inspect-ci-run.sh scripts/gh-deploy-ssh.sh`、`node --check scripts/lib/ops-fact-db.mjs`、`node --check scripts/write-deployment-record.mjs`、`node --check scripts/write-evaluation-run.mjs`、`git diff --check`、本地 Docker PostgreSQL 实跑 `record-deploy-evidence + write-deployment-record + write-evaluation-run` 落库验证
+- `latest_validation`: `2026-04-16` 已完成 `Phase 2C Lane C` web ops board 落地；通过 `git diff --check`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`
 - `result`: `passed`
 - `latest_failure`: `pnpm test:integration` 曾因 `apps/worker/src/queue/constants.ts` 运行期 value re-export 触发 Node 直接加载 `@xrag/shared-types` 源码 TS 而失败；已改为 worker 本地运行期常量定义并用 shared-types union type 约束，重跑 `pnpm test:integration` 通过 `16/16`
 
@@ -71,5 +71,5 @@
 - `upstream_product_docs`: [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md), [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md), [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md), [Phase 2B P0 technical tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
 - `tech_docs`: [Phase 2B contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
 - `exec_plans`: [Phase 2C implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-lanes.md), [Phase 2C implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md), [Phase 2C contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-contract-freeze.md), [Phase 2C technical evaluation](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-technical-evaluation.md), [Phase 2C planning and scope](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-planning-and-scope.md), [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-14-phase-2b-testing-and-release-readiness.md)
-- `key_commits`: `902fda5`, `5bb983f`, `a5a0965`, `8e35abc`, `4417bb7`, `30e5a88`, `bb5def7`
+- `key_commits`: `902fda5`, `5bb983f`, `a5a0965`, `8e35abc`, `4417bb7`, `30e5a88`, `bb5def7`, `169799a`
 - `latest_ci_run`: `24514690725 success`

@@ -4,6 +4,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { AnswerScope, CreateAnswerRequest } from "@xrag/shared-types";
 import { Badge, Button, Input, PageShell, SectionCard, Select, StatCard, Textarea } from "@xrag/ui";
 import { createAnswer, getAnswer, getAnswerRetrieval, listAnswers } from "../../../lib/api";
+import { GovernanceNoticeStrip } from "../../ops/components/governance-notice-strip";
 import {
   ANSWER_SCOPE_MODE_OPTIONS,
   answerClaimFreshnessLabel,
@@ -231,6 +232,8 @@ export function AskPage() {
         <StatCard label="检索命中" value={String(retrievalCount)} hint={activeSessionId ? retrievalModeLabel(answer?.retrieval_mode) : "等待会话"} />
         <StatCard label="延迟" value={latencyLabel} hint={answer?.total_cost_usd ? formatUsd(answer.total_cost_usd) : "暂无成本数据"} />
       </section>
+
+      <GovernanceNoticeStrip target="ask" />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(360px,0.92fr)_minmax(0,1.08fr)]">
         <div className="grid gap-6">

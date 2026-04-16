@@ -12,6 +12,7 @@ import {
   retryDocument,
   updateDocumentTags
 } from "../../../lib/api";
+import { GovernanceNoticeStrip } from "../../ops/components/governance-notice-strip";
 import {
   buildDocumentAskSearch,
   describeEvidenceLocator,
@@ -258,6 +259,8 @@ export function DetailPage() {
           hint={document.indexed_at ? formatDateTime(document.indexed_at) : "尚未建立索引"}
         />
       </section>
+
+      <GovernanceNoticeStrip target="detail" />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <SectionCard title="正文内容" description="展示提取后的正文，以及必要时的原始内容。">

@@ -1,50 +1,744 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, PageShell, SectionCard, StatCard } from "@xrag/ui";
-import { fetchOpsAnswerSummary, fetchOpsHealthSummary, getLatestDeployment, listOpsIncidents } from "../../../lib/api";
+import type {
+  IncidentSeverity,
+  IncidentSource,
+  OpsIncidentCluster,
+  OpsRecommendedAction,
+  OpsRecommendedActionCode,
+  OpsReadinessBlockingReason,
+  OpsReleaseGuardRiskLevel,
+  OpsTrendMetric,
+  OpsTrendSeries,
+  OpsTrendSource,
+  OpsTrendWindow
+} from "@xrag/shared-types";
+import { Badge, Button, PageShell, SectionCard, StatCard } from "@xrag/ui";
+import { fetchOpsOverview, fetchOpsTrends } from "../../../lib/api";
 import { formatLatencyMs, formatUsd } from "../../../lib/answer-state";
-import type { IncidentSeverity, IncidentSource } from "@xrag/shared-types";
+import { formatDateTime, formatRelativeTime } from "../../../lib/document-state";
 
-function serviceStatusLabel(status: "healthy" | "warning" | "critical") {
-  switch (status) {
-    case "healthy":
-      return "健康";
-    case "warning":
-      return "注意";
-    case "critical":
-      return "严重";
+const TREND_WINDOW_OPTIONS: Array<{ value: OpsTrendWindow; label: string; description: string }> = [
+  { value: "24h", label: "24 小时", description: "适合看最近 deploy、smoke 与答复波动。" },
+  { value: "7d", label: "7 天", description: "适合看一周内的运行与评估轨迹。" },
+  { value: "30d", label: "30 天", description: "适合看长期质量和语料趋势。" }
+];
+
+const TREND_METRIC_ORDER: OpsTrendMetric[] = [
+  "citation_coverage",
+  "refusal_rate",
+  "latency_p95_ms",
+  "avg_token_cost_usd",
+  "groundedness",
+  "refusal_precision",
+  "recall_at_10",
+  "mrr",
+  "hit_in_answer_rate",
+  "embedding_backlog",
+  "freshness_lag_p95_ms"
+];
+
+export function OpsPage() {
+  const [trendWindow, setTrendWindow] = useState<OpsTrendWindow>("7d");
+
+  const overviewQuery = useQuery({
+    queryKey: ["ops", "overview"],
+    queryFn: () => fetchOpsOverview(),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: false
+  });
+
+  const trendsQuery = useQuery({
+    queryKey: ["ops", "trends", trendWindow],
+    queryFn: () => fetchOpsTrends({ window: trendWindow }),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: false
+  });
+
+  const overview = overviewQuery.data;
+  const readiness = overview?.readiness;
+  const runtimeQuality = overview?.runtime_quality;
+  const evaluationQuality = overview?.evaluation_quality;
+  const incidentSummary = overview?.incident_summary;
+  const releaseGuard = overview?.release_guard;
+  const recommendedActions = overview?.recommended_actions ?? [];
+  const noticeCount = overview?.notices.length ?? 0;
+  const backlogCount = readiness ? readiness.queued_count + readiness.chunking_count + readiness.embedding_count : 0;
+  const runtimeTrendSeries = sortTrendSeries((trendsQuery.data?.series ?? []).filter((series) => series.source === "runtime"));
+  const evaluationTrendSeries = sortTrendSeries((trendsQuery.data?.series ?? []).filter((series) => series.source === "evaluation"));
+
+  return (
+    <PageShell
+      eyebrow="运维"
+      title="治理主板"
+      description="把 corpus readiness、runtime/evaluation quality、incident cluster 与 release guard 汇到同一块板上。"
+    >
+      <section className="grid gap-4 md:grid-cols-4">
+        <StatCard
+          label="语料就绪率"
+          value={formatPercent(readiness?.readiness_rate)}
+          hint={
+            readiness
+              ? `${readiness.ready_count}/${readiness.total_count || 0} 已可引用`
+              : overviewQuery.isError
+                ? "overview 读取失败"
+                : "等待治理快照"
+          }
+          tone={readiness && readiness.blocking_reason !== "none" ? "warning" : "default"}
+        />
+        <StatCard
+          label="Runtime 引用覆盖"
+          value={formatPercent(runtimeQuality?.citation_coverage)}
+          hint={runtimeQuality ? `${runtimeQuality.answered_session_count} 个 answered 会话` : "等待 runtime 质量数据"}
+          tone={runtimeQuality?.citation_coverage !== null && runtimeQuality?.citation_coverage !== undefined && runtimeQuality.citation_coverage < 0.8 ? "warning" : "default"}
+        />
+        <StatCard
+          label="最新评估 groundedness"
+          value={formatPercent(evaluationQuality?.groundedness)}
+          hint={evaluationQuality ? `${evaluationStatusLabel(evaluationQuality.status)} · ${formatRelativeTime(evaluationQuality.completed_at)}` : "暂无评估运行事实"}
+          tone={evaluationQuality?.groundedness !== null && evaluationQuality?.groundedness !== undefined && evaluationQuality.groundedness < 0.9 ? "warning" : "default"}
+        />
+        <StatCard
+          label="发布风险"
+          value={releaseGuard ? releaseGuardRiskLabel(releaseGuard.risk_level) : "未知"}
+          hint={releaseGuard ? `Smoke ${deploymentSmokeLabel(releaseGuard.smoke_status)}` : "等待 release guard"}
+          tone={releaseGuard && releaseGuard.risk_level !== "healthy" ? "warning" : "default"}
+        />
+      </section>
+
+      <section className="grid gap-5 rounded-[30px] border border-sky-100 bg-[radial-gradient(circle_at_top_left,rgba(186,230,253,0.48),rgba(255,255,255,0.97)_52%,rgba(254,240,138,0.32))] px-6 py-5 shadow-sm">
+        {overviewQuery.isError ? (
+          <p className="m-0 text-sm leading-6 text-rose-700">
+            治理总览读取失败。请先检查 `/api/v1/ops/overview`、数据库连通性和最新 deploy evidence。
+          </p>
+        ) : overview ? (
+          <>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="grid max-w-3xl gap-2">
+                <p className="m-0 text-xs uppercase tracking-[0.18em] text-sky-700">Governance Pulse</p>
+                <h2 className="m-0 text-2xl font-semibold tracking-[-0.05em] text-slate-950 md:text-3xl">
+                  {overview.release_guard.summary}
+                </h2>
+                <p className="m-0 text-sm leading-7 text-slate-700">{readinessNarrative(overview.readiness)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <RiskBadge level={overview.release_guard.risk_level} />
+                <BlockingReasonBadge reason={overview.readiness.blocking_reason} />
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <article className="rounded-2xl border border-white/80 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700">
+                <strong className="block text-slate-950">当前快照</strong>
+                <span>{formatDateTime(overview.generated_at)}</span>
+              </article>
+              <article className="rounded-2xl border border-white/80 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700">
+                <strong className="block text-slate-950">治理提示</strong>
+                <span>{noticeCount} 条 lightweight notices 正在投递到 Ask / Search / Detail</span>
+              </article>
+              <article className="rounded-2xl border border-white/80 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700">
+                <strong className="block text-slate-950">本轮重点</strong>
+                <span>
+                  {recommendedActions.length} 条推荐动作，{incidentSummary?.high_risk_count ?? 0} 条高风险 incident。
+                </span>
+              </article>
+            </div>
+          </>
+        ) : (
+          <p className="m-0 text-sm leading-6 text-slate-600">正在整合治理总览。</p>
+        )}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+        <div className="grid gap-6">
+          <SectionCard title="Corpus Readiness" description="决定 Ask 是否有足够稳定、可引用的证据底料。">
+            {readiness ? (
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3">
+                  <div className="grid gap-1">
+                    <strong className="text-slate-950">当前阻塞原因</strong>
+                    <p className="m-0 text-sm leading-6 text-slate-700">{blockingReasonSummary(readiness.blocking_reason)}</p>
+                  </div>
+                  <BlockingReasonBadge reason={readiness.blocking_reason} />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <StatCard label="Ready" value={formatCount(readiness.ready_count)} hint="citation_ready = true" />
+                  <StatCard
+                    label="Backlog"
+                    value={formatCount(backlogCount)}
+                    hint={`${readiness.queued_count} queued / ${readiness.chunking_count} chunking / ${readiness.embedding_count} embedding`}
+                    tone={backlogCount > 0 ? "warning" : "default"}
+                  />
+                  <StatCard
+                    label="Failed"
+                    value={formatCount(readiness.failed_count)}
+                    hint="需要人工排查或重建"
+                    tone={readiness.failed_count > 0 ? "warning" : "default"}
+                  />
+                  <StatCard
+                    label="Stale"
+                    value={formatCount(readiness.stale_count)}
+                    hint="索引需要刷新"
+                    tone={readiness.stale_count > 0 ? "warning" : "default"}
+                  />
+                  <StatCard
+                    label="Freshness Lag P95"
+                    value={formatLagMs(readiness.freshness_lag_p95_ms)}
+                    hint="indexed_at - imported_at"
+                    tone={readiness.freshness_lag_p95_ms !== null && readiness.freshness_lag_p95_ms > 6 * 60 * 60 * 1000 ? "warning" : "default"}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="m-0 text-sm leading-6 text-slate-600">正在加载 readiness 快照。</p>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Runtime Quality" description="基于运行中的 Ask 会话，判断线上回答是否稳定、是否仍然可引用。">
+            {runtimeQuality ? (
+              <div className="grid gap-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm leading-6 text-slate-700">
+                  当前窗口 `{windowLabel(runtimeQuality.window)}` 内共有 {runtimeQuality.terminal_session_count} 个终态会话，其中{" "}
+                  {runtimeQuality.answered_session_count} 个已回答。
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <StatCard label="终态会话" value={formatCount(runtimeQuality.terminal_session_count)} hint={windowLabel(runtimeQuality.window)} />
+                  <StatCard label="已回答" value={formatCount(runtimeQuality.answered_session_count)} hint="status = answered" />
+                  <StatCard
+                    label="引用覆盖"
+                    value={formatPercent(runtimeQuality.citation_coverage)}
+                    hint="answered 中至少带一条 citation"
+                    tone={runtimeQuality.citation_coverage !== null && runtimeQuality.citation_coverage < 0.8 ? "warning" : "default"}
+                  />
+                  <StatCard
+                    label="拒答率"
+                    value={formatPercent(runtimeQuality.refusal_rate)}
+                    hint="refused / terminal"
+                    tone={runtimeQuality.refusal_rate !== null && runtimeQuality.refusal_rate > 0.25 ? "warning" : "default"}
+                  />
+                  <StatCard
+                    label="Latency P95"
+                    value={formatLatencyMs(runtimeQuality.latency_p95_ms)}
+                    hint={runtimeQuality.avg_token_cost_usd ? formatUsd(runtimeQuality.avg_token_cost_usd) : "暂无成本数据"}
+                    tone={runtimeQuality.latency_p95_ms !== null && runtimeQuality.latency_p95_ms > 5000 ? "warning" : "default"}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="m-0 text-sm leading-6 text-slate-600">正在加载 runtime quality。</p>
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="grid gap-6">
+          <SectionCard title="Evaluation Quality" description="基于最近一次受控评估运行，判断离线质量是否支持当前发布状态。">
+            {evaluationQuality ? (
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3">
+                  <div className="grid gap-1 text-sm leading-6 text-slate-700">
+                    <strong className="text-slate-950">{evaluationQuality.latest_run_ref}</strong>
+                    <span>
+                      {evaluationQuality.environment} · {evaluationQuality.source} · {formatDateTime(evaluationQuality.completed_at)}
+                    </span>
+                    <span>
+                      commit {shortSha(evaluationQuality.commit_sha)} · dataset {evaluationQuality.dataset_version || "未记录"}
+                    </span>
+                  </div>
+                  <Badge variant={evaluationQuality.status === "completed" ? "success" : "warning"}>
+                    {evaluationStatusLabel(evaluationQuality.status)}
+                  </Badge>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <StatCard label="Groundedness" value={formatPercent(evaluationQuality.groundedness)} hint="答案与证据一致性" />
+                  <StatCard label="引用覆盖" value={formatPercent(evaluationQuality.citation_coverage)} hint="评估集中回答是否带 citation" />
+                  <StatCard label="拒答精度" value={formatPercent(evaluationQuality.refusal_precision)} hint="refusal precision" />
+                  <StatCard label="Recall@10" value={formatPercent(evaluationQuality.recall_at_10)} hint="检索召回" />
+                  <StatCard label="MRR" value={formatMetricValue("mrr", evaluationQuality.mrr)} hint="排序相关性" />
+                  <StatCard label="Hit In Answer" value={formatPercent(evaluationQuality.hit_in_answer_rate)} hint="命中证据是否进入答案" />
+                  <StatCard label="Latency P95" value={formatLatencyMs(evaluationQuality.latency_p95_ms)} hint="评估运行输出" />
+                  <StatCard label="平均成本" value={formatUsd(evaluationQuality.avg_token_cost_usd)} hint="评估运行平均 token 成本" />
+                </div>
+              </div>
+            ) : (
+              <p className="m-0 text-sm leading-6 text-slate-600">暂无 evaluation_runs 事实。Lane B 已提供写入脚本，后续需要接入正式评估节奏。</p>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Release Guard" description="发布阶段的 smoke、镜像与相关 incident 是否允许继续放量。">
+            {releaseGuard ? (
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3">
+                  <div className="grid gap-1 text-sm leading-6 text-slate-700">
+                    <strong className="text-slate-950">{releaseGuard.summary}</strong>
+                    <span>部署于 {formatDateTime(releaseGuard.deployed_at)}，最近 smoke {deploymentSmokeLabel(releaseGuard.smoke_status)}。</span>
+                  </div>
+                  <RiskBadge level={releaseGuard.risk_level} />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ReleaseFactCard label="当前镜像" value={releaseGuard.current_image_tag || "未知"} />
+                  <ReleaseFactCard label="上一稳定版本" value={releaseGuard.previous_stable_image_tag || "未知"} />
+                  <ReleaseFactCard label="Workflow Run" value={releaseGuard.workflow_run_id || "未记录"} />
+                  <ReleaseFactCard label="Smoke 时间" value={formatDateTime(releaseGuard.smoke_at)} />
+                  <ReleaseFactCard label="关联评估" value={releaseGuard.related_evaluation_run_ref || "未关联"} />
+                  <ReleaseFactCard label="关联 incident" value={formatCount(releaseGuard.related_incident_count)} />
+                </div>
+              </div>
+            ) : (
+              <p className="m-0 text-sm leading-6 text-slate-600">正在加载 release guard。</p>
+            )}
+          </SectionCard>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.02fr)_minmax(320px,0.98fr)]">
+        <SectionCard title="Incident Clusters" description="先按来源、风险和影响面聚类，再决定排查优先级。">
+          {incidentSummary ? (
+            <div className="grid gap-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <article className="rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm leading-6 text-slate-700">
+                  <strong className="block text-slate-950">未解决 incident</strong>
+                  <span>{formatCount(incidentSummary.open_count)} 条</span>
+                </article>
+                <article className="rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm leading-6 text-slate-700">
+                  <strong className="block text-slate-950">高风险 incident</strong>
+                  <span>{formatCount(incidentSummary.high_risk_count)} 条</span>
+                </article>
+              </div>
+
+              {incidentSummary.clusters.length > 0 ? (
+                <div className="grid gap-3">
+                  {incidentSummary.clusters.map((cluster) => (
+                    <IncidentClusterCard cluster={cluster} key={cluster.cluster_key} />
+                  ))}
+                </div>
+              ) : (
+                <p className="m-0 text-sm leading-6 text-slate-600">当前没有 incident cluster，继续保持常规巡检。</p>
+              )}
+            </div>
+          ) : (
+            <p className="m-0 text-sm leading-6 text-slate-600">正在加载 incident 汇总。</p>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Recommended Actions" description="这里是治理层给主线程的排查顺序建议，不会自动代替任何操作。">
+          {recommendedActions.length > 0 ? (
+            <div className="grid gap-3">
+              {recommendedActions.map((action) => (
+                <RecommendedActionCard action={action} key={action.code} />
+              ))}
+            </div>
+          ) : (
+            <p className="m-0 text-sm leading-6 text-slate-600">当前没有推荐动作。</p>
+          )}
+        </SectionCard>
+      </section>
+
+      <SectionCard
+        title="Trends"
+        description="同一块板上同时看 runtime 与 evaluation 的走势，快速判断问题是短时抖动还是持续劣化。"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="grid gap-1">
+            <p className="m-0 text-sm leading-6 text-slate-700">当前窗口：{windowLabel(trendWindow)}</p>
+            <p className="m-0 text-xs leading-6 text-slate-500">
+              {TREND_WINDOW_OPTIONS.find((option) => option.value === trendWindow)?.description}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {TREND_WINDOW_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                onClick={() => setTrendWindow(option.value)}
+                size="sm"
+                type="button"
+                variant={trendWindow === option.value ? "default" : "outline"}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {trendsQuery.isError ? (
+          <p className="m-0 text-sm leading-6 text-rose-700">趋势数据读取失败，请检查 `/api/v1/ops/trends`。</p>
+        ) : (
+          <div className="grid gap-6">
+            <TrendGroup
+              description="来自线上 Ask 会话与运行事实。"
+              emptyMessage="当前窗口没有 runtime trend 样本。"
+              series={runtimeTrendSeries}
+              title="Runtime"
+            />
+            <TrendGroup
+              description="来自 evaluation_runs 写入的受控评估事实。"
+              emptyMessage="当前窗口没有 evaluation trend 样本。"
+              series={evaluationTrendSeries}
+              title="Evaluation"
+            />
+          </div>
+        )}
+      </SectionCard>
+    </PageShell>
+  );
+}
+
+function TrendGroup({
+  title,
+  description,
+  series,
+  emptyMessage
+}: {
+  title: string;
+  description: string;
+  series: OpsTrendSeries[];
+  emptyMessage: string;
+}) {
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-1">
+        <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">{title}</p>
+        <p className="m-0 text-sm leading-6 text-slate-600">{description}</p>
+      </div>
+
+      {series.length > 0 ? (
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          {series.map((item) => (
+            <TrendCard key={`${item.source}-${item.metric}`} series={item} />
+          ))}
+        </div>
+      ) : (
+        <p className="m-0 text-sm leading-6 text-slate-600">{emptyMessage}</p>
+      )}
+    </div>
+  );
+}
+
+function TrendCard({ series }: { series: OpsTrendSeries }) {
+  const latestPoint = getLatestPoint(series);
+  const previousPoint = getPreviousPoint(series);
+
+  return (
+    <article className="grid gap-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))] px-4 py-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">{trendSourceLabel(series.source)}</p>
+          <strong className="text-slate-950">{trendMetricLabel(series.metric)}</strong>
+        </div>
+        <Badge variant={series.source === "runtime" ? "info" : "default"}>{series.granularity}</Badge>
+      </div>
+
+      <div className="grid gap-1">
+        <p className="m-0 text-3xl font-semibold tracking-[-0.05em] text-slate-950">
+          {formatMetricValue(series.metric, latestPoint?.value)}
+        </p>
+        <p className="m-0 text-xs leading-6 text-slate-500">
+          {latestPoint
+            ? `最新 bucket ${formatTrendBucket(latestPoint.ts, series.granularity)}`
+            : "当前窗口暂无样本"}
+          {previousPoint ? ` · 上一 bucket ${formatMetricValue(series.metric, previousPoint.value)}` : ""}
+        </p>
+      </div>
+
+      <TrendSparkline series={series} />
+    </article>
+  );
+}
+
+function TrendSparkline({ series }: { series: OpsTrendSeries }) {
+  const numericPoints = series.points
+    .map((point) => ({ ts: point.ts, value: numericValue(point.value) }))
+    .filter((point): point is { ts: string; value: number } => point.value !== null);
+
+  if (numericPoints.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-6 text-center text-sm leading-6 text-slate-500">
+        暂无时间序列样本
+      </div>
+    );
+  }
+
+  const width = 320;
+  const height = 92;
+  const padding = 10;
+  const values = numericPoints.map((point) => point.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const valueRange = max - min || 1;
+  const pointRange = Math.max(1, numericPoints.length - 1);
+  const linePoints = numericPoints.map((point, index) => {
+    const x = padding + (index / pointRange) * (width - padding * 2);
+    const normalized = (point.value - min) / valueRange;
+    const y = height - padding - normalized * (height - padding * 2);
+    return { ...point, x, y };
+  });
+  const polyline = linePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const gradientId = `${series.source}-${series.metric}`.replace(/[^a-z0-9-]/gi, "-");
+
+  return (
+    <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-3">
+      <svg aria-hidden="true" className="h-24 w-full" viewBox={`0 0 ${width} ${height}`}>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" x2="100%" y1="0%" y2="0%">
+            <stop offset="0%" stopColor={series.source === "runtime" ? "#0ea5e9" : "#475569"} />
+            <stop offset="100%" stopColor={series.source === "runtime" ? "#38bdf8" : "#94a3b8"} />
+          </linearGradient>
+        </defs>
+        <path
+          d={`M ${padding} ${height - padding} H ${width - padding}`}
+          fill="none"
+          opacity="0.2"
+          stroke="#94a3b8"
+          strokeDasharray="4 6"
+          strokeWidth="1"
+        />
+        <polyline
+          fill="none"
+          points={polyline}
+          stroke={`url(#${gradientId})`}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="3"
+        />
+        {linePoints.map((point) => (
+          <circle
+            cx={point.x}
+            cy={point.y}
+            fill={series.source === "runtime" ? "#0284c7" : "#475569"}
+            key={`${series.metric}-${point.ts}`}
+            r="3.5"
+          />
+        ))}
+      </svg>
+      <div className="flex items-center justify-between gap-3 text-xs leading-6 text-slate-500">
+        <span>{formatTrendBucket(linePoints[0]?.ts || null, series.granularity)}</span>
+        <span>{formatTrendBucket(linePoints[linePoints.length - 1]?.ts || null, series.granularity)}</span>
+      </div>
+    </div>
+  );
+}
+
+function IncidentClusterCard({ cluster }: { cluster: OpsIncidentCluster }) {
+  return (
+    <article className="grid gap-3 rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <strong className="text-slate-950">{cluster.cluster_key}</strong>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={cluster.status === "resolved" ? "success" : cluster.severity === "high" ? "warning" : "info"}>
+            {incidentStatusLabel(cluster.status)}
+          </Badge>
+          <Badge variant={cluster.severity === "high" ? "warning" : "default"}>{severityLabel(cluster.severity)}</Badge>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+        <span>{sourceLabel(cluster.source)}</span>
+        <span>{affectedSurfaceLabel(cluster.affected_surface)}</span>
+        <span>{formatCount(cluster.incident_count)} 条</span>
+      </div>
+      <p className="m-0">
+        最新 incident：{cluster.latest_incident_ref || "未记录"}。建议动作：{recommendedActionCodeLabel(cluster.recommended_action_code)}。
+      </p>
+    </article>
+  );
+}
+
+function RecommendedActionCard({ action }: { action: OpsRecommendedAction }) {
+  return (
+    <article className="grid gap-3 rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <strong className="text-slate-950">{action.title}</strong>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={action.priority === "high" ? "warning" : action.priority === "medium" ? "info" : "default"}>
+            {priorityLabel(action.priority)}
+          </Badge>
+          <Badge variant="default">{actionSurfaceLabel(action.surface)}</Badge>
+        </div>
+      </div>
+      <p className="m-0">{action.summary}</p>
+      <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">{recommendedActionCodeLabel(action.code)}</p>
+    </article>
+  );
+}
+
+function ReleaseFactCard({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700">
+      <strong className="block text-slate-950">{label}</strong>
+      <span>{value}</span>
+    </article>
+  );
+}
+
+function RiskBadge({ level }: { level: OpsReleaseGuardRiskLevel }) {
+  if (level === "critical") {
+    return <Badge className="border-rose-200 bg-rose-100 text-rose-800">Critical</Badge>;
+  }
+
+  if (level === "warning") {
+    return <Badge variant="warning">Warning</Badge>;
+  }
+
+  return <Badge variant="success">Healthy</Badge>;
+}
+
+function BlockingReasonBadge({ reason }: { reason: OpsReadinessBlockingReason }) {
+  if (reason === "none") {
+    return <Badge variant="success">无阻塞</Badge>;
+  }
+
+  if (reason === "indexing_failed" || reason === "no_ready_documents") {
+    return <Badge className="border-rose-200 bg-rose-100 text-rose-800">{blockingReasonLabel(reason)}</Badge>;
+  }
+
+  return <Badge variant="warning">{blockingReasonLabel(reason)}</Badge>;
+}
+
+function sortTrendSeries(series: OpsTrendSeries[]) {
+  return [...series].sort((left, right) => {
+    const sourceDelta = trendSourceOrder(left.source) - trendSourceOrder(right.source);
+    if (sourceDelta !== 0) {
+      return sourceDelta;
+    }
+
+    return TREND_METRIC_ORDER.indexOf(left.metric) - TREND_METRIC_ORDER.indexOf(right.metric);
+  });
+}
+
+function trendSourceOrder(source: OpsTrendSource) {
+  return source === "runtime" ? 0 : 1;
+}
+
+function getLatestPoint(series: OpsTrendSeries) {
+  return [...series.points].reverse().find((point) => point.value !== null);
+}
+
+function getPreviousPoint(series: OpsTrendSeries) {
+  const validPoints = series.points.filter((point) => point.value !== null);
+  return validPoints.length > 1 ? validPoints[validPoints.length - 2] : null;
+}
+
+function numericValue(value: number | string | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function formatCount(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "未知";
+  }
+
+  return new Intl.NumberFormat("zh-CN").format(value);
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "未知";
+  }
+
+  return new Intl.NumberFormat("zh-CN", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1
+  }).format(value);
+}
+
+function formatLagMs(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "未知";
+  }
+
+  if (value < 60_000) {
+    return `${Math.round(value / 1000)} s`;
+  }
+
+  if (value < 60 * 60_000) {
+    return `${Math.round(value / 60_000)} min`;
+  }
+
+  if (value < 24 * 60 * 60_000) {
+    return `${(value / (60 * 60_000)).toFixed(1)} h`;
+  }
+
+  return `${(value / (24 * 60 * 60_000)).toFixed(1)} d`;
+}
+
+function formatMetricValue(metric: OpsTrendMetric, value: number | string | null | undefined) {
+  switch (metric) {
+    case "citation_coverage":
+    case "refusal_rate":
+    case "groundedness":
+    case "refusal_precision":
+    case "recall_at_10":
+    case "hit_in_answer_rate":
+      return formatPercent(typeof value === "number" ? value : numericValue(value));
+    case "latency_p95_ms":
+      return formatLatencyMs(typeof value === "number" ? value : numericValue(value));
+    case "avg_token_cost_usd":
+      return formatUsd(typeof value === "string" ? value : value === null || value === undefined ? null : String(value));
+    case "mrr":
+      return value === null || value === undefined ? "未知" : Number(value).toFixed(3);
+    case "embedding_backlog":
+      return formatCount(typeof value === "number" ? value : numericValue(value));
+    case "freshness_lag_p95_ms":
+      return formatLagMs(typeof value === "number" ? value : numericValue(value));
   }
 }
 
-function incidentStatusLabel(status: "open" | "tracked" | "resolved") {
-  switch (status) {
-    case "open":
-      return "待处理";
-    case "tracked":
-      return "处理中";
-    case "resolved":
-      return "已解决";
+function windowLabel(window: OpsTrendWindow) {
+  switch (window) {
+    case "24h":
+      return "24 小时";
+    case "7d":
+      return "7 天";
+    case "30d":
+      return "30 天";
   }
 }
 
-function incidentSeverityLabel(severity: "low" | "medium" | "high") {
-  switch (severity) {
-    case "low":
-      return "低";
-    case "medium":
-      return "中";
-    case "high":
-      return "高";
+function trendMetricLabel(metric: OpsTrendMetric) {
+  switch (metric) {
+    case "citation_coverage":
+      return "引用覆盖";
+    case "refusal_rate":
+      return "拒答率";
+    case "latency_p95_ms":
+      return "Latency P95";
+    case "avg_token_cost_usd":
+      return "平均成本";
+    case "groundedness":
+      return "Groundedness";
+    case "refusal_precision":
+      return "拒答精度";
+    case "recall_at_10":
+      return "Recall@10";
+    case "mrr":
+      return "MRR";
+    case "hit_in_answer_rate":
+      return "Hit In Answer";
+    case "embedding_backlog":
+      return "Embedding Backlog";
+    case "freshness_lag_p95_ms":
+      return "Freshness Lag P95";
   }
 }
 
-function deploymentSmokeLabel(status: "passed" | "failed" | "unknown") {
-  switch (status) {
-    case "passed":
-      return "通过";
-    case "failed":
-      return "失败";
-    case "unknown":
-      return "未知";
+function trendSourceLabel(source: OpsTrendSource) {
+  switch (source) {
+    case "runtime":
+      return "Runtime";
+    case "evaluation":
+      return "Evaluation";
   }
 }
 
@@ -78,402 +772,174 @@ function severityLabel(severity: IncidentSeverity) {
   }
 }
 
-function formatPercent(value: number | null | undefined) {
-  if (value === null || value === undefined || Number.isNaN(value)) {
+function incidentStatusLabel(status: OpsIncidentCluster["status"]) {
+  switch (status) {
+    case "open":
+      return "待处理";
+    case "tracked":
+      return "处理中";
+    case "resolved":
+      return "已解决";
+  }
+}
+
+function affectedSurfaceLabel(surface: OpsIncidentCluster["affected_surface"]) {
+  switch (surface) {
+    case "upload":
+      return "上传面";
+    case "indexing":
+      return "索引面";
+    case "retrieval":
+      return "检索面";
+    case "answer":
+      return "回答面";
+    case "deployment":
+      return "发布面";
+    case "ci":
+      return "CI 面";
+    case "ops":
+      return "运维面";
+  }
+}
+
+function actionSurfaceLabel(surface: OpsRecommendedAction["surface"]) {
+  switch (surface) {
+    case "ops":
+      return "治理";
+    case "ask":
+      return "Ask";
+    case "search":
+      return "Search";
+    case "detail":
+      return "Detail";
+    case "deployment":
+      return "发布";
+    case "indexing":
+      return "索引";
+    case "evaluation":
+      return "评估";
+  }
+}
+
+function priorityLabel(priority: IncidentSeverity) {
+  switch (priority) {
+    case "low":
+      return "低优先级";
+    case "medium":
+      return "中优先级";
+    case "high":
+      return "高优先级";
+  }
+}
+
+function evaluationStatusLabel(status: "completed" | "failed") {
+  return status === "completed" ? "已完成" : "失败";
+}
+
+function releaseGuardRiskLabel(level: OpsReleaseGuardRiskLevel) {
+  switch (level) {
+    case "healthy":
+      return "健康";
+    case "warning":
+      return "注意";
+    case "critical":
+      return "严重";
+  }
+}
+
+function deploymentSmokeLabel(status: "passed" | "failed" | "unknown") {
+  switch (status) {
+    case "passed":
+      return "通过";
+    case "failed":
+      return "失败";
+    case "unknown":
+      return "未知";
+  }
+}
+
+function blockingReasonLabel(reason: OpsReadinessBlockingReason) {
+  switch (reason) {
+    case "none":
+      return "无阻塞";
+    case "no_ready_documents":
+      return "无可引用文档";
+    case "indexing_backlog":
+      return "存在索引积压";
+    case "indexing_failed":
+      return "存在失败索引";
+    case "stale_corpus":
+      return "语料已过期";
+  }
+}
+
+function blockingReasonSummary(reason: OpsReadinessBlockingReason) {
+  switch (reason) {
+    case "none":
+      return "当前语料就绪状态允许 Ask 正常进入证据检索。";
+    case "no_ready_documents":
+      return "当前没有任何 citation_ready 文档，Ask 仍可提交，但很难形成可信回答。";
+    case "indexing_backlog":
+      return "当前有文档处在 queued / chunking / embedding 中，搜索与问答结果会存在延迟。";
+    case "indexing_failed":
+      return "已有文档索引失败，必须先查明失败原因，再判断 Ask 的覆盖面是否可接受。";
+    case "stale_corpus":
+      return "已有可引用语料，但部分 corpus 已 stale，需要安排重建以避免旧证据。";
+  }
+}
+
+function recommendedActionCodeLabel(code: OpsRecommendedActionCode) {
+  switch (code) {
+    case "inspect_indexing_backlog":
+      return "检查索引积压";
+    case "inspect_failed_documents":
+      return "检查失败文档";
+    case "run_backfill_indexing_dry_run":
+      return "执行索引回填演练";
+    case "inspect_quality_regression":
+      return "检查质量回退";
+    case "inspect_incident_cluster":
+      return "检查 incident cluster";
+    case "verify_latest_deployment":
+      return "核对最近部署事实";
+    case "rollback_to_previous_stable":
+      return "核对上一稳定版本";
+    case "monitor_without_action":
+      return "继续观察";
+  }
+}
+
+function readinessNarrative(
+  readiness:
+    | {
+        blocking_reason: OpsReadinessBlockingReason;
+        ready_count: number;
+        total_count: number;
+      }
+    | undefined
+) {
+  if (!readiness) {
+    return "正在整理 readiness 快照。";
+  }
+
+  const coverage = readiness.total_count > 0 ? `${readiness.ready_count}/${readiness.total_count}` : "0/0";
+  return `${blockingReasonSummary(readiness.blocking_reason)} 当前 ready 覆盖 ${coverage}。`;
+}
+
+function shortSha(value: string | null | undefined) {
+  if (!value) {
+    return "未记录";
+  }
+
+  return value.slice(0, 8);
+}
+
+function formatTrendBucket(value: string | null | undefined, granularity: OpsTrendSeries["granularity"]) {
+  if (!value) {
     return "未知";
   }
 
-  return new Intl.NumberFormat("zh-CN", {
-    style: "percent",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1
-  }).format(value);
-}
-
-export function OpsPage() {
-  const answerSummaryQuery = useQuery({
-    queryKey: ["ops", "answer-summary"],
-    queryFn: () => fetchOpsAnswerSummary(),
-    refetchInterval: 15_000
-  });
-
-  const healthQuery = useQuery({
-    queryKey: ["ops", "health-summary"],
-    queryFn: () => fetchOpsHealthSummary(),
-    refetchInterval: 10_000
-  });
-
-  const incidentsQuery = useQuery({
-    queryKey: ["ops", "incidents"],
-    queryFn: () => listOpsIncidents(),
-    refetchInterval: 15_000
-  });
-
-  const deploymentQuery = useQuery({
-    queryKey: ["ops", "deployment-latest"],
-    queryFn: () => getLatestDeployment(),
-    refetchInterval: 15_000
-  });
-
-  const health = healthQuery.data;
-  const answerSummary = answerSummaryQuery.data;
-  const incidents = incidentsQuery.data?.items || [];
-  const deployment = deploymentQuery.data;
-  const answerSummaryTotalDocuments =
-    (answerSummary?.embedding_backlog || 0) +
-    (answerSummary?.ready_document_count || 0) +
-    (answerSummary?.stale_document_count || 0) +
-    (answerSummary?.failed_document_count || 0);
-  const readinessRate =
-    answerSummary && answerSummaryTotalDocuments > 0
-      ? answerSummary.ready_document_count / answerSummaryTotalDocuments
-      : null;
-  const answerSummaryStatus =
-    answerSummaryTotalDocuments === 0
-      ? "暂无索引数据"
-      : (answerSummary?.failed_document_count || 0) > 0
-        ? "存在失败索引"
-      : (answerSummary?.embedding_backlog || 0) > 0 || (answerSummary?.stale_document_count || 0) > 0
-        ? "需要处理"
-        : "可用于问答";
-  const openIncidents = incidents.filter((incident) => incident.status !== "resolved").length;
-  const warningServices = health?.services.filter((service) => service.status !== "healthy").length || 0;
-  const highRiskIncidents = incidents.filter((incident) => incident.severity === "high").length;
-  const groupedBySource = incidents.reduce<Record<IncidentSource, number>>(
-    (groups, incident) => ({
-      ...groups,
-      [incident.source]: groups[incident.source] + 1
-    }),
-    { upload: 0, parse: 0, ocr: 0, fetch: 0, projection: 0, deploy: 0, ci: 0 }
+  return new Intl.DateTimeFormat("zh-CN", granularity === "hour" ? { hour: "2-digit", minute: "2-digit" } : { month: "numeric", day: "numeric" }).format(
+    new Date(value)
   );
-  const groupedBySeverity = incidents.reduce<Record<IncidentSeverity, number>>(
-    (groups, incident) => ({
-      ...groups,
-      [incident.severity]: groups[incident.severity] + 1
-    }),
-    { low: 0, medium: 0, high: 0 }
-  );
-  const coreServices = health?.services.filter((service) =>
-    ["api", "worker", "storage", "database"].includes(service.name)
-  ) || [];
-  const runtimeServices = health?.services.filter((service) =>
-    ["ocr-runtime", "link-fetcher", "search-projection", "upload-chain"].includes(service.name)
-  ) || [];
-  const recommendedActions = [
-    warningServices > 0
-      ? `先检查 ${warningServices} 个非健康服务的依赖连通性，再继续查看导入失败事件。`
-      : "核心服务当前均返回健康，可优先从失败事件和最近部署入手排查。",
-    highRiskIncidents > 0
-      ? `当前有 ${highRiskIncidents} 条高风险事件，建议优先处理对象缺失、队列积压或 PDF 解析超时。`
-      : "当前没有高风险事件，可按影响面从中风险事件开始处理。",
-    deployment?.last_smoke_status === "failed"
-      ? "最近一次 smoke 失败，回滚前先核对当前镜像与上一稳定版本差异。"
-      : "最近一次 smoke 未报错，如出现新问题，优先比对最近镜像和 incident 产生时间。",
-    incidents.length > 0
-      ? "处理单条失败时，优先从详情页查看诊断码，再回到运维页核对是否存在同源批量问题。"
-      : "当前没有 incident，可把这里作为部署完成后的日常巡检入口。"
-  ];
-  const degradationActions = [
-    "如 OCR runtime 持续告警，先关闭 OCR feature flag，再继续保留 PDF 基础导入能力。",
-    "如链接抓取器连续失败，先暂停链接抓取入口，必要时引导用户改为复制正文导入。",
-    "如搜索投影连续过期，先暂停批量重建，优先保障新导入文档链路。",
-    deployment?.previous_stable_image_tag
-      ? `如 smoke 失败或 incident 持续扩散，可回退到上一稳定镜像 ${deployment.previous_stable_image_tag}。`
-      : "如 smoke 失败或 incident 持续扩散，请先确认上一稳定镜像标签，再执行回滚。"
-  ];
-
-  return (
-    <PageShell eyebrow="运维" title="运维看板" description="把健康检查、事件分布、推荐动作和回滚基线放到同一块板上。">
-      <section className="grid gap-4 md:grid-cols-4">
-        <StatCard
-          label="健康服务数"
-          value={String(health?.services.length || 0)}
-          hint={
-            healthQuery.isError
-              ? "健康摘要读取失败"
-              : health?.generated_at
-                ? `更新时间 ${health.generated_at}`
-                : "等待接口返回"
-          }
-        />
-        <StatCard label="待处理事件" value={String(openIncidents)} hint={`总事件 ${incidents.length} 条`} />
-        <StatCard
-          label="最近部署"
-          value={deployment?.current_image_tag || "未知"}
-          hint={deployment ? `Smoke ${deploymentSmokeLabel(deployment.last_smoke_status)}` : "等待部署摘要"}
-        />
-        <StatCard
-          label="高风险事件"
-          value={String(highRiskIncidents)}
-          hint="优先处理对象缺失、PDF 超时和队列积压"
-          tone={highRiskIncidents > 0 ? "warning" : "default"}
-        />
-      </section>
-
-      <SectionCard
-        title="答案摘要"
-        description="把索引就绪、答案时延、引用覆盖、拒答率和成本放在一起看，先判断问答链路是否可用。"
-      >
-        {answerSummaryQuery.isError ? (
-          <p className="m-0 text-sm leading-6 text-rose-700">答案摘要加载失败，请检查 API、数据库和 answer_sessions 数据。</p>
-        ) : answerSummary ? (
-          <div className="grid gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
-              <div className="grid gap-1">
-                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">当前状态</p>
-                <p className="m-0 text-sm leading-6 text-slate-700">
-                  {answerSummaryStatus}，共 {answerSummaryTotalDocuments} 个文档参与摘要计算。
-                </p>
-              </div>
-              <Badge variant={readinessRate && readinessRate >= 0.9 ? "success" : "warning"}>
-                {formatPercent(readinessRate)}
-              </Badge>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <StatCard
-                label="索引积压"
-                value={String(answerSummary.embedding_backlog)}
-                hint="queued / chunking / embedding 中的文档数"
-                tone={answerSummary.embedding_backlog > 0 ? "warning" : "default"}
-              />
-              <StatCard
-                label="可回答文档"
-                value={String(answerSummary.ready_document_count)}
-                hint="ready 状态文档数"
-              />
-              <StatCard
-                label="过期文档"
-                value={String(answerSummary.stale_document_count)}
-                hint="需要重新索引的文档数"
-                tone={answerSummary.stale_document_count > 0 ? "warning" : "default"}
-              />
-              <StatCard
-                label="失败文档"
-                value={String(answerSummary.failed_document_count)}
-                hint="索引失败、需要人工排查的文档数"
-                tone={answerSummary.failed_document_count > 0 ? "warning" : "default"}
-              />
-              <StatCard
-                label="就绪率"
-                value={formatPercent(readinessRate)}
-                hint="ready / (ready + backlog + stale + failed)"
-                tone={readinessRate !== null && readinessRate < 0.8 ? "warning" : "default"}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                label="回答延迟 P95"
-                value={formatLatencyMs(answerSummary.answer_latency_p95)}
-                hint="仅统计 answered / needs_scope / refused 的终态会话"
-              />
-              <StatCard
-                label="引用覆盖率"
-                value={formatPercent(answerSummary.citation_coverage)}
-                hint="answered 会话中至少包含一条 citation 的比例"
-              />
-              <StatCard
-                label="拒答率"
-                value={formatPercent(answerSummary.refusal_rate)}
-                hint="refused / (answered + needs_scope + refused)"
-              />
-              <StatCard
-                label="平均成本"
-                value={formatUsd(answerSummary.avg_token_cost_usd)}
-                hint="终态问答会话的平均 token 成本"
-              />
-            </div>
-          </div>
-        ) : (
-          <p className="m-0 text-sm leading-6 text-slate-600">正在加载答案摘要。</p>
-        )}
-      </SectionCard>
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <SectionCard title="服务健康" description="面向内部使用的服务连通性摘要。">
-          {healthQuery.isError ? (
-            <p className="m-0 text-sm leading-6 text-rose-700">健康摘要加载失败，请检查 API 与依赖服务。</p>
-          ) : health ? (
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">核心服务</p>
-                <div className="grid gap-3">
-                  {coreServices.map((service) => (
-                    <article
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700"
-                      key={service.name}
-                    >
-                      <div className="grid gap-1">
-                        <strong className="text-slate-950">{serviceLabel(service.name)}</strong>
-                        <span>{service.detail}</span>
-                      </div>
-                      <Badge variant={service.status === "healthy" ? "success" : "warning"}>
-                        {serviceStatusLabel(service.status)}
-                      </Badge>
-                    </article>
-                  ))}
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">运行时分层</p>
-                <div className="grid gap-3">
-                  {runtimeServices.map((service) => (
-                    <article
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700"
-                      key={service.name}
-                    >
-                      <div className="grid gap-1">
-                        <strong className="text-slate-950">{serviceLabel(service.name)}</strong>
-                        <span>{service.detail}</span>
-                      </div>
-                      <Badge variant={service.status === "healthy" ? "success" : "warning"}>
-                        {serviceStatusLabel(service.status)}
-                      </Badge>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="m-0 text-sm leading-6 text-slate-600">正在加载健康摘要。</p>
-          )}
-
-          {health ? (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700">
-              当前共有 {warningServices} 个服务处于非健康状态。
-            </div>
-          ) : null}
-        </SectionCard>
-
-        <div className="grid gap-6">
-          <SectionCard title="回滚基线" description="部署失败或 smoke 异常时，先看当前镜像、上一稳定版本和 smoke 结果。">
-            {deploymentQuery.isError ? (
-              <p className="m-0 text-sm leading-6 text-rose-700">回滚基线读取失败，请检查最近一次 deploy workflow。</p>
-            ) : deployment ? (
-              <div className="grid gap-3 text-sm leading-6 text-slate-700">
-                <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
-                  <strong className="block text-slate-950">当前镜像</strong>
-                  <span>{deployment.current_image_tag || "未知"}</span>
-                </article>
-                <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
-                  <strong className="block text-slate-950">上一稳定版本</strong>
-                  <span>{deployment.previous_stable_image_tag || "未知"}</span>
-                </article>
-                <article className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
-                  <strong className="block text-slate-950">最近 smoke</strong>
-                  <span>{deploymentSmokeLabel(deployment.last_smoke_status)}</span>
-                  <span className="block text-xs text-slate-500">{deployment.last_smoke_at || "暂无时间戳"}</span>
-                </article>
-              </div>
-            ) : (
-              <p className="m-0 text-sm leading-6 text-slate-600">正在加载回滚基线。</p>
-            )}
-          </SectionCard>
-
-          <SectionCard title="错误分布" description="按来源和风险快速判断问题集中在哪一层。">
-            {incidents.length > 0 ? (
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">按来源</p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {Object.entries(groupedBySource).map(([source, count]) => (
-                      <article
-                        className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700"
-                        key={source}
-                      >
-                        <strong className="block text-slate-950">{sourceLabel(source as IncidentSource)}</strong>
-                        <span>{count} 条</span>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <p className="m-0 text-xs uppercase tracking-[0.18em] text-slate-500">按风险</p>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {Object.entries(groupedBySeverity).map(([severity, count]) => (
-                      <article
-                        className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-700"
-                        key={severity}
-                      >
-                        <strong className="block text-slate-950">{severityLabel(severity as IncidentSeverity)}</strong>
-                        <span>{count} 条</span>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="m-0 text-sm leading-6 text-slate-600">当前没有可统计的 incident，错误分布会在出现链路问题后自动更新。</p>
-            )}
-          </SectionCard>
-
-          <SectionCard title="近期事件" description="如果链路失败，这里会优先展示 incident 摘要。">
-            {incidentsQuery.isError ? (
-              <p className="m-0 text-sm leading-6 text-rose-700">事件摘要加载失败，请稍后重试。</p>
-            ) : incidents.length > 0 ? (
-              <div className="grid gap-3">
-                {incidents.map((incident) => (
-                  <article
-                    className="grid gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm leading-6 text-slate-700"
-                    key={incident.incident_ref}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <strong className="text-slate-950">{incident.title}</strong>
-                      <Badge variant={incident.status === "resolved" ? "success" : incident.severity === "high" ? "warning" : "info"}>
-                        {incidentStatusLabel(incident.status)}
-                      </Badge>
-                    </div>
-                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                      {sourceLabel(incident.source)} · 风险 {incidentSeverityLabel(incident.severity)} · {incident.incident_ref}
-                    </div>
-                    <p className="m-0">{incident.summary}</p>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className="m-0 text-sm leading-6 text-slate-600">当前没有 incident 数据。</p>
-            )}
-          </SectionCard>
-          <SectionCard title="推荐动作" description="这里给出的动作是排查起点，不替代具体 incident 分析。">
-            <ul className="grid gap-3 pl-5 text-sm leading-6 text-slate-700">
-              {recommendedActions.map((action) => (
-                <li key={action}>{action}</li>
-              ))}
-            </ul>
-          </SectionCard>
-          <SectionCard title="降级与回滚建议" description="优先功能降级，其次再回退整套版本。">
-            <ul className="grid gap-3 pl-5 text-sm leading-6 text-slate-700">
-              {degradationActions.map((action) => (
-                <li key={action}>{action}</li>
-              ))}
-            </ul>
-          </SectionCard>
-        </div>
-      </section>
-    </PageShell>
-  );
-}
-
-function serviceLabel(name: string) {
-  switch (name) {
-    case "api":
-      return "API";
-    case "worker":
-      return "Worker";
-    case "storage":
-      return "对象存储";
-    case "database":
-      return "数据库";
-    case "ocr-runtime":
-      return "OCR Runtime";
-    case "link-fetcher":
-      return "链接抓取器";
-    case "search-projection":
-      return "搜索投影";
-    case "upload-chain":
-      return "上传链路";
-    default:
-      return name;
-  }
 }

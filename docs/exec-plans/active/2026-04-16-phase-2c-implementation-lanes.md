@@ -188,7 +188,7 @@
 
 `Lane A / B / C / D` 只有在 `Lane 0` 完成后才允许使用子 agent 并行。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI 或 API client contract，必须暂停并切回主线程。
 
-当前恢复点：`Lane 0`、`Lane A` 与 `Lane B` 已完成，下一步优先启动 `Lane C: Web Ops Board And Lightweight Notices`；`Lane D` 在 `Lane C` 合流后启动。
+当前恢复点：`Lane 0`、`Lane A`、`Lane B` 与 `Lane C` 已完成，下一步优先启动 `Lane D: Integration, E2E, Smoke`；完成后再切到 `testing-and-release-readiness`。
 
 ## 6. Ownership Rules
 
@@ -250,3 +250,5 @@
 - `2026-04-16`: `Lane A` 已通过 `git diff --check`、`pnpm --filter @xrag/api typecheck`、`pnpm test:integration`，且 `/ops/overview`、`/ops/trends` integration coverage 已补齐。
 - `2026-04-16`: `Lane B` 已完成最小事实写入闭环：`record-deploy-evidence` 修正 smoke status 语义，CI smoke evidence 可通过 SSH tunnel + PostgreSQL `127.0.0.1:5432` 回环映射写入 `deployment_records`，并新增受控 `evaluation_runs` 写入脚本。
 - `2026-04-16`: `Lane B` 已通过 shell / Node 静态检查与本地 Docker PostgreSQL 实跑落库验证。
+- `2026-04-16`: `Lane C` 已完成治理主板 UI 合流：`/ops` 已消费 `fetchOpsOverview / fetchOpsTrends` 渲染 readiness、runtime/evaluation quality、incident clusters、release guard 与 recommended actions；Ask / Search / Detail 已接入 `overview.notices` 轻量提示，且未改变既有行为 contract。
+- `2026-04-16`: `Lane C` 已通过 `git diff --check`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`。

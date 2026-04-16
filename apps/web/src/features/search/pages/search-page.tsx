@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Badge, Button, Input, PageShell, SectionCard, Select, StatCard } from "@xrag/ui";
 import { listDocuments } from "../../../lib/api";
+import { GovernanceNoticeStrip } from "../../ops/components/governance-notice-strip";
 import {
   buildDocumentAskSearch,
   buildSearchResultAskSearch,
@@ -104,6 +105,8 @@ export function SearchPage() {
           tone={currentPageStaleCount > 0 ? "warning" : "default"}
         />
       </section>
+
+      <GovernanceNoticeStrip target="search" />
 
       <section className="rounded-[28px] border border-slate-200 bg-white/90 px-5 py-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
