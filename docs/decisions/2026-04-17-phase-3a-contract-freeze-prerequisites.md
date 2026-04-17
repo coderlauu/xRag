@@ -2,7 +2,7 @@
 
 **日期：** 2026-04-17
 **版本：** `v7 / Phase 3A`
-**状态：** draft
+**状态：** completed
 **对应文档：**
 - [Phase 3A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-architecture.md)
 - [Phase 3A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-17-phase-3a-data-model.md)
@@ -153,3 +153,10 @@ contract freeze 时必须写死：
 4. 最后再决定哪些轻量 notice 可以暴露到 `Ask / Search / Detail`
 
 在这个顺序下，`Phase 3A` 可以继续保持“内部诊断增强”而不是膨胀成新平台。
+
+---
+
+## 6. 完成记录
+
+- `2026-04-17`: 已形成 [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md)
+- `2026-04-17`: 已确认可以进入 `implementation-freeze`

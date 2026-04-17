@@ -39,7 +39,7 @@
 ## 4. Current Node
 
 - `now`: `v6 / Phase 2C` 已归档。`Lane 0 / A / B / C / D`、release gate 修复与 testing-and-release-readiness 均已完成；closeout commit `6f052ac` 对应 GitHub Actions run `24543526168` 已成功。
-- `next`: 当前入口已切到 `v7 / Phase 3A` 的 `technical-evaluation`；若回看本版本，按 archived status/handoff/completed exec plans 恢复。
+- `next`: 当前入口已切到 `v7 / Phase 3A` 的 `implementation-freeze`；若回看本版本，按 archived status/handoff/completed exec plans 恢复。
 
 ## 5. Blockers
 

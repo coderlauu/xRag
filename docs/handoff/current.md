@@ -38,7 +38,10 @@
 
 - [v7 Handoff](/Users/coderlauu/xRag/docs/handoff/v7.md)
 - [v7 Status](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md)
-- [Phase 3A Technical Evaluation Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-technical-evaluation.md)
+- [Phase 3A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-freeze.md)
+- [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md)
+- [Phase 3A Contract Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-contract-freeze.md)
+- [Phase 3A Technical Evaluation Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-technical-evaluation.md)
 - [Phase 3A Planning And Scope Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-planning-and-scope.md)
 - [Phase 3A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-prd.md)
 - [Phase 3A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)
@@ -65,7 +68,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `v6 / Phase 2C` 已完成正式收口并归档后，`v7 / Phase 3A` 已完成 `planning-and-scope`，当前进入 `technical-evaluation`：目标是把治理主板继续推进为“深钻诊断与样本回放”版本，并冻结 `diagnostic_sample / replay / deployment compare` 的技术边界，为下一步 `contract-freeze` 做准备。
+在 `v6 / Phase 2C` 已完成正式收口并归档后，`v7 / Phase 3A` 已完成 `contract-freeze`，当前进入 `implementation-freeze`：目标是把 `diagnostic_sample / replay / deployment compare` 的冻结 contract 映射为实现 lane、写入边界和测试矩阵。
 
 ---
 
@@ -74,19 +77,19 @@
 ### 必须实现
 
 - 保持 `v7 / Phase 3A` 的 `P0-01 ~ P0-04` 产品边界不被重新放大
-- 冻结 `architecture / data-model / api / contract-freeze-prerequisites` 第一版事实源
-- 明确 `diagnostic_sample` 是否为 read model、其最小主键和分类是什么
-- 明确 `answer replay / document replay / deployment compare` 的推荐资源族和事实源边界
-- 保持 `v6 / Phase 2C` 归档状态稳定，不在 `v7` 技术评估阶段反向改写上一版本完成态
-- 下一步在 `technical-evaluation` 完成后，进入 `contract-freeze`
+- 以 [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md) 为最高优先级 contract source of truth
+- 拆分 contract-to-code、API read model、Web ops diagnostics、testing/release readiness 的实现 lane
+- 明确主线程先完成哪些写入边界，哪些任务可以后续并行
+- 保持 `v6 / Phase 2C` 归档状态稳定，不在 `v7` implementation freeze 阶段反向改写上一版本完成态
+- 下一步在 `implementation-freeze` 完成后，进入 implementation lanes
 
 ### 本轮次级目标
 
-- 在 `technical-evaluation` 阶段把对象语义、路径方向和 compare 规则切清，不让自动 remediation、协作或多模型治理提前混入
+- 在 `implementation-freeze` 阶段把写入边界和测试矩阵切清，不让自动 remediation、协作或多模型治理提前混入
 
 ### 明确不做
 
-- 在 `technical-evaluation` 阶段直接进入代码实现或并行 lane
+- 在 `implementation-freeze` 完成前直接进入代码实现或并行 lane
 - 绕过已冻结 contract 修改 schema、shared-types、DTO、OpenAPI 或 API client
 - 自动 remediation、自动 rerun、自动回滚
 - 开放互联网联网回答
@@ -109,31 +112,29 @@
 
 1. [v7 Handoff](/Users/coderlauu/xRag/docs/handoff/v7.md)
 2. [v7 Status](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md)
-3. [Phase 3A Technical Evaluation Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-technical-evaluation.md)
-4. [Phase 3A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-prd.md)
-5. [Phase 3A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)
-6. [v7 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-17-v7-interaction-delta.md)
-7. [Phase 3A P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-p0-technical-tradeoffs.md)
-8. [Phase 3A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-architecture.md)
-9. [Phase 3A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-17-phase-3a-data-model.md)
-10. [Phase 3A API Design](/Users/coderlauu/xRag/tech/api/2026-04-17-phase-3a-api.md)
-11. [Phase 3A Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-contract-freeze-prerequisites.md)
-12. [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
-13. [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
-14. [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
-15. [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
-16. [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
-17. [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
-18. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
+3. [Phase 3A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-freeze.md)
+4. [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md)
+5. [Phase 3A API Design](/Users/coderlauu/xRag/tech/api/2026-04-17-phase-3a-api.md)
+6. [Phase 3A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-17-phase-3a-data-model.md)
+7. [Phase 3A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-architecture.md)
+8. [Phase 3A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-prd.md)
+9. [Phase 3A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)
+10. [v7 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-17-v7-interaction-delta.md)
+11. [Phase 3A P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-p0-technical-tradeoffs.md)
+12. [Phase 3A Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-contract-freeze-prerequisites.md)
+13. [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
+14. [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
+15. [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
+16. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
 
 ---
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v7 / Phase 3A`，当前节点为 `technical-evaluation`
+1. 当前有效版本为 `v7 / Phase 3A`，当前节点为 `implementation-freeze`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v7-phase-3a.md`
-4. 当前正处 `technical-evaluation`；在 `contract-freeze` 完成前，不得把 `Phase 3A` 候选能力直接下放为代码实现
+4. 当前正处 `implementation-freeze`；在写入边界和测试矩阵完成前，不得把 `Phase 3A` 候选能力直接下放为代码实现
 5. `v6 / Phase 2C` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---
