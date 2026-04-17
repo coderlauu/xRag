@@ -47,6 +47,7 @@
   - `docs/handoff/v6.md`
 - 最低验收：
   - 当前 main HEAD 至少一轮 validate / integration / e2e / smoke 绿灯，或在文档中明确记录待确认状态与原因
+- `2026-04-17` 更新：GitHub Actions run `24542756511` 已失败，失败点为 `smoke-production` 的 `Persist production deployment record`；根因是 job 未执行 `pnpm install --frozen-lockfile` 就调用了依赖 `pg` 的 `scripts/write-deployment-record.mjs`
 
 ### Completion Or Handoff
 
@@ -98,3 +99,4 @@
 
 - `2026-04-17`: `Lane D` 已完成本地测试收口；`phase-2a-p0` 的 `/ops` e2e 断言已对齐到新治理主板
 - `2026-04-17`: `implementation-lanes` 计划退出条件已满足，改由独立 `testing-and-release-readiness` active exec plan 接手
+- `2026-04-17`: GitHub Actions run `24542756511` failed in `smoke-production` because deployment record persistence executed without workspace dependencies; next step is to fix the workflow and rerun main CI

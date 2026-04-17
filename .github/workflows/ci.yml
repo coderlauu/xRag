@@ -272,6 +272,14 @@ jobs:
           XRAG_SMOKE_STATUS: ${{ job.status }}
         run: scripts/record-deploy-evidence.sh
 
+      - name: Enable Corepack for deployment record persistence
+        if: ${{ always() && needs.deploy-staging.outputs.deploy_enabled == 'true' }}
+        run: corepack enable
+
+      - name: Install dependencies for deployment record persistence
+        if: ${{ always() && needs.deploy-staging.outputs.deploy_enabled == 'true' }}
+        run: pnpm install --frozen-lockfile
+
       - name: Persist staging deployment record
         if: ${{ always() && needs.deploy-staging.outputs.deploy_enabled == 'true' }}
         env:
@@ -383,6 +391,14 @@ jobs:
           XRAG_SMOKE_EXECUTED: ${{ steps.production-smoke-preflight.outputs.enabled }}
           XRAG_SMOKE_STATUS: ${{ job.status }}
         run: scripts/record-deploy-evidence.sh
+
+      - name: Enable Corepack for deployment record persistence
+        if: ${{ always() && needs.deploy-production.outputs.deploy_enabled == 'true' }}
+        run: corepack enable
+
+      - name: Install dependencies for deployment record persistence
+        if: ${{ always() && needs.deploy-production.outputs.deploy_enabled == 'true' }}
+        run: pnpm install --frozen-lockfile
 
       - name: Persist production deployment record
         if: ${{ always() && needs.deploy-production.outputs.deploy_enabled == 'true' }}
