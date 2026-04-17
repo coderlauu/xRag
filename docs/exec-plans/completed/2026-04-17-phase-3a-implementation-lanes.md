@@ -11,7 +11,7 @@
 
 在 `Phase 3A / P0` 已完成 contract freeze 和 implementation freeze 后，正式进入代码开发阶段；先由主线程把冻结 contract 落成代码 source-of-truth，并修复 `P0-G1 Ask active-session 终态收口与轮询兜底`，再按明确写入边界拆出 API diagnostic read model、replay aggregation、web ops diagnostics 和 testing lanes。
 
-当前计划已完成并归档；后续恢复入口转入 [Phase 3A Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-release-readiness.md)。
+当前计划已完成并归档；后续恢复入口转入 [Phase 3A Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-release-readiness.md)。
 
 ## 3. Main Thread First
 

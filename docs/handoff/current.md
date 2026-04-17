@@ -34,11 +34,11 @@
 - [Production Data Loss And Deploy Incident Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-09-production-data-loss-and-deploy-incident-retrospective.md)
 - [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
 
-当前活跃版本资产：
+当前版本资产：
 
 - [v7 Handoff](/Users/coderlauu/xRag/docs/handoff/v7.md)
 - [v7 Status](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md)
-- [Phase 3A Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-release-readiness.md)
+- [Phase 3A Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-release-readiness.md)
 - [Phase 3A Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-lanes.md)
 - [Ask Active Session Stuck Polling Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 - [Phase 3A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-freeze.md)
@@ -71,7 +71,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `v6 / Phase 2C` 已完成正式收口并归档后，`v7 / Phase 3A` 已完成 `implementation-lanes`：`Lane 0 / Lane 0G / Lane A / Lane B / Lane C / Lane D` 已完成并提交验证，当前进入 `testing-and-release-readiness`。
+在 `v6 / Phase 2C` 已完成正式收口并归档后，`v7 / Phase 3A` 已完成：`Lane 0 / Lane 0G / Lane A / Lane B / Lane C / Lane D`、release-readiness 和 GitHub Actions run `24565067913` 均已通过。
 
 ---
 
@@ -86,17 +86,18 @@
 - `Lane A: API Diagnostic Samples And Deployment Compare` 与 `Lane B: API Answer And Document Replay` 已完成
 - `Lane C: Web Ops Diagnostics` 已完成，把 `/ops` 从治理 overview 扩展为 diagnostic workflow
 - `Lane D: Integration, E2E, Smoke` 已完成，覆盖 API 边界、Web E2E diagnostic workflow 与 smoke 脚本入口
-- 下一步按边界推进 `testing-and-release-readiness`
+- `testing-and-release-readiness` 已完成，GitHub Actions run `24565067913` 已成功
+- 下一步若继续演进，应启动下一版本分流
 - 保持 `v6 / Phase 2C` 归档状态稳定，不在 `v7` implementation freeze 阶段反向改写上一版本完成态
-- 当前已经完成 implementation lanes，下一步不得绕过 release-readiness gate
+- 当前已经完成 implementation lanes 与 release-readiness，下一步不得在 v7 closeout 后扩大 Phase 3A scope
 
 ### 本轮次级目标
 
-- 在 `testing-and-release-readiness` 阶段保持验证矩阵稳定，不让自动 remediation、协作或多模型治理提前混入
+- v7 完成后，若继续新增能力应进入新版本分流，不让自动 remediation、协作或多模型治理混入 Phase 3A closeout
 
 ### 明确不做
 
-- 绕过 release-readiness gate 直接修改 API client contract、后端 DTO、Ask/Search/Detail 后端响应字段或自动 remediation 行为
+- 在 v7 closeout 后直接修改 API client contract、后端 DTO、Ask/Search/Detail 后端响应字段或自动 remediation 行为
 - 绕过已冻结 contract 修改 schema、shared-types、DTO、OpenAPI 或 API client
 - 自动 remediation、自动 rerun、自动回滚
 - 开放互联网联网回答
@@ -119,7 +120,7 @@
 
 1. [v7 Handoff](/Users/coderlauu/xRag/docs/handoff/v7.md)
 2. [v7 Status](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md)
-3. [Phase 3A Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-release-readiness.md)
+3. [Phase 3A Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-release-readiness.md)
 4. [Ask Active Session Stuck Polling Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 5. [Phase 3A Implementation Freeze Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-freeze.md)
 6. [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md)
@@ -140,10 +141,10 @@
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v7 / Phase 3A`，当前节点为 `testing-and-release-readiness`
+1. 当前有效版本为 `v7 / Phase 3A`，当前节点为 `completed`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v7-phase-3a.md`
-4. 当前正处 `testing-and-release-readiness`；`Lane 0 / Lane 0G / Lane A / Lane B / Lane C / Lane D` 已完成，下一步按 release-readiness exec plan 收口
+4. 当前 `v7 / Phase 3A` 已完成；若继续演进，应先启动下一版本分流
 5. `v6 / Phase 2C` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---
