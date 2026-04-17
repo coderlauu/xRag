@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-2c-implementation-lanes`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v6 handoff](/Users/coderlauu/xRag/docs/handoff/v6.md), [v6 status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md), [Phase 2C contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md), [Phase 2C implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md)
 
@@ -188,7 +188,7 @@
 
 `Lane A / B / C / D` 只有在 `Lane 0` 完成后才允许使用子 agent 并行。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI 或 API client contract，必须暂停并切回主线程。
 
-当前恢复点：`Lane 0`、`Lane A`、`Lane B` 与 `Lane C` 已完成，下一步优先启动 `Lane D: Integration, E2E, Smoke`；完成后再切到 `testing-and-release-readiness`。
+归档时状态：`Lane 0 / A / B / C / D` 已全部完成；后续恢复点已切到独立的 `testing-and-release-readiness` active exec plan。
 
 ## 6. Ownership Rules
 
@@ -252,3 +252,5 @@
 - `2026-04-16`: `Lane B` 已通过 shell / Node 静态检查与本地 Docker PostgreSQL 实跑落库验证。
 - `2026-04-16`: `Lane C` 已完成治理主板 UI 合流：`/ops` 已消费 `fetchOpsOverview / fetchOpsTrends` 渲染 readiness、runtime/evaluation quality、incident clusters、release guard 与 recommended actions；Ask / Search / Detail 已接入 `overview.notices` 轻量提示，且未改变既有行为 contract。
 - `2026-04-16`: `Lane C` 已通过 `git diff --check`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`。
+- `2026-04-17`: `Lane D` 已完成测试收口：legacy ops endpoints 与 `/ops/overview`、`/ops/trends` integration coverage 保持通过；`phase-2a-p0` 的 `/ops` 断言已对齐治理主板，本地 `pnpm test:integration` 与 `./scripts/run-e2e-smoke.sh` 通过。
+- `2026-04-17`: `Lane 0 / A / B / C / D` 全部完成，implementation lanes 退出条件满足，本计划归档，后续切到独立 `testing-and-release-readiness` active exec plan。

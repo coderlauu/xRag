@@ -37,7 +37,8 @@
 - [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
 - [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
 - [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
-- [Phase 2C Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-lanes.md)
+- [Phase 2C Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-2c-testing-and-release-readiness.md)
+- [Phase 2C Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md)
 - [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
 - [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
 - [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
@@ -61,7 +62,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已进入 implementation lanes；`Lane 0: Contract To Code`、`Lane A: API Read Model And Governance Aggregation`、`Lane B: Deployment And Evaluation Fact Ingestion` 与 `Lane C: Web Ops Board And Lightweight Notices` 已完成，下一步按计划推进 `Lane D`，并继续保护 schema、shared-types、DTO、OpenAPI 和 API client contract。
+在 `Phase 2B` 已完成正式收口后，`v6 / Phase 2C` 已完成 `Lane 0 / A / B / C / D`，当前进入 `testing-and-release-readiness`；下一步确认当前 HEAD 的 CI 结论并按证据完成版本收口，继续保护 schema、shared-types、DTO、OpenAPI 和 API client contract。
 
 ---
 
@@ -77,7 +78,8 @@
 - 已完成 `Lane A` 的 `/ops/overview` 与 `/ops/trends` 真实聚合：`readiness` 基于 `documents`，`runtime quality` 基于 `answer_sessions / answer_citations`，`evaluation quality` 基于 `evaluation_runs`，`incident clusters` 复用既有 incident candidates，`release guard` 优先读取 `deployment_records`
 - 已完成 `Lane B` 的 deployment/evaluation fact ingestion：CI smoke evidence 可通过 SSH tunnel + PostgreSQL `127.0.0.1:5432` 回环映射写入 `deployment_records`，并提供受控 `evaluation_runs` 写入脚本
 - 已完成 `Lane C` 的 web ops board 和 lightweight notices：`/ops` 已消费 `fetchOpsOverview / fetchOpsTrends`，Ask / Search / Detail 已接入 prompt-only notices，且未改变问答、检索、引用与拒答 contract
-- 下一步完成 `Lane D` 的 integration / e2e / smoke 收口
+- 已完成 `Lane D` 的 integration / e2e / smoke 收口：`phase-2a-p0` 的 `/ops` 断言已对齐治理主板，本地 `pnpm test:integration` 与 `./scripts/run-e2e-smoke.sh` 已通过
+- 下一步完成 `testing-and-release-readiness` 收口，确认 current HEAD CI 并决定是否关闭 `Phase 2C`
 
 ### 本轮次级目标
 
@@ -109,18 +111,19 @@
 1. [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
 2. [v6 Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
 3. [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
-4. [Phase 2C Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-lanes.md)
-5. [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
-6. [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
-7. [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
-8. [Phase 2C Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-contract-freeze-prerequisites.md)
-9. [Phase 2C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-prd.md)
-10. [Phase 2C Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-backlog.md)
-11. [v6 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-16-v6-interaction-delta.md)
-12. [Phase 2C P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md)
-13. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
-14. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
-15. [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
+4. [Phase 2C Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-2c-testing-and-release-readiness.md)
+5. [Phase 2C Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md)
+6. [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
+7. [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
+8. [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
+9. [Phase 2C Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-contract-freeze-prerequisites.md)
+10. [Phase 2C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-prd.md)
+11. [Phase 2C Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-backlog.md)
+12. [v6 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-16-v6-interaction-delta.md)
+13. [Phase 2C P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md)
+14. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
+15. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
+16. [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
 
 ---
 
@@ -129,7 +132,7 @@
 1. 当前有效版本为 `v6 / Phase 2C`，当前节点为 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v6-phase-2c.md`
-4. 当前已完成 implementation freeze，并切到 `implementation-lanes`；`Lane 0 / A / B / C` 已完成，下一步按 `Lane D` 边界推进
+4. 当前已完成 implementation freeze 与 `implementation-lanes`；`Lane 0 / A / B / C / D` 已完成，下一步按 `testing-and-release-readiness` 边界推进
 5. `v5 / Phase 2B` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---

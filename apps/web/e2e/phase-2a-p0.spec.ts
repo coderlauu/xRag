@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, and ops summary", async ({ page }) => {
+test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, and ops governance board", async ({ page }) => {
   const nonce = Date.now();
   const indexedTitle = `Phase2A E2E ${nonce} indexed`;
 
@@ -54,10 +54,12 @@ test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, 
   await expect(page.getByRole("heading", { name: "引用证据" })).toBeVisible();
 
   await page.goto("/ops");
-  await expect(page.getByRole("heading", { name: "答案摘要" })).toBeVisible();
-  await expect(page.getByText("可回答文档")).toBeVisible();
-  await expect(page.getByText("失败文档")).toBeVisible();
-  await expect(page.getByText("引用覆盖率")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "治理主板" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Corpus Readiness" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Runtime Quality" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Release Guard", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Trends" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "30 天" })).toBeVisible();
 });
 
 test("inbox link import entry creates a link document and opens detail", async ({ page }) => {

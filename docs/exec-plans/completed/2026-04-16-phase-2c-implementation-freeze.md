@@ -167,10 +167,10 @@
 1. `Lane 0` 文件 ownership 已固定。
 2. 后续 `Lane A / B / C / D` 的写入范围、禁止项和启动顺序已固定。
 3. 验证 gate 已固定。
-4. 可以切换到 [Phase 2C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-lanes.md)。
+4. 可以切换到 [Phase 2C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md)。
 
 ## 9. Decision Log
 
 - `2026-04-16`: `Phase 2C` contract freeze 已完成。
 - `2026-04-16`: active exec plan 从 `contract-freeze` 切换到 `implementation-freeze`。
-- `2026-04-16`: implementation freeze 退出条件已满足，active exec plan 切换到 [Phase 2C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-16-phase-2c-implementation-lanes.md)。
+- `2026-04-16`: implementation freeze 退出条件已满足，后续已切换到 [Phase 2C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md)。
