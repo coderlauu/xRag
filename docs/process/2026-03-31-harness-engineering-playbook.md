@@ -340,6 +340,23 @@ packages/ui
 - 每个任务有 `job_id`
 - 文档主对象有 `document_id`
 
+### 5.7 异步状态与轮询标准
+
+任何 queue-driven、worker-driven 或 polling UI 功能，必须在设计和实现前明确：
+
+- 哪些状态是 active，哪些状态是 terminal
+- active 状态的最长允许存在时间
+- 服务端如何把超时、stalled、failed 或不可恢复状态收口为 terminal
+- queue failed / stalled / exhausted retries 如何与业务表对账
+- 前端轮询的停止条件和用户可见 fallback
+- 哪个自动化测试证明“最终会停止”
+
+约束：
+
+- 不要通过新增 enum 掩盖 worker / queue liveness 问题
+- 前端 timeout 不能替代服务端业务终态
+- 对 answer/retrieval 功能，stuck、empty retrieval、freshness 和 failed 事实必须可诊断，不能被 UI 隐藏成“仍在处理”
+
 ---
 
 ## 6. DoD: Definition of Done

@@ -3,7 +3,7 @@
 **日期：** 2026-04-17
 **版本：** `v7 / Phase 3A`
 **状态：** freeze-ready
-**适用范围：** `P0-01 ~ P0-04`
+**适用范围：** `P0-01 ~ P0-04`，以及本轮新增可靠性 guardrail `P0-G1`
 **对应文档：**
 - [Phase 3A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-architecture.md)
 - [Phase 3A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-17-phase-3a-data-model.md)
@@ -11,6 +11,7 @@
 - [Phase 3A Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-contract-freeze-prerequisites.md)
 - [Phase 3A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-prd.md)
 - [Phase 3A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)
+- [Ask Active Session Stuck Polling Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 - [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
 
 ---
@@ -66,6 +67,23 @@
 2. 不新增 `index_status` 值。
 3. 不把 `diagnostic_sample` 写成新的 DB enum。
 4. 不把 compare 结果写入主业务表状态字段。
+
+### 3.1.1 `P0-G1` Ask active-session liveness amendment
+
+`P0-G1` 修复 Ask 页面 stuck polling 时，必须遵守以下状态机约束：
+
+1. `AnswerSessionStatus` 不新增、不重命名、不改既有含义。
+2. `idle / retrieving / synthesizing` 仍是 active status。
+3. `answered / needs_scope / refused / failed` 仍是 terminal status。
+4. 服务端必须保证不可恢复的 active session 最终收口到 terminal status，默认使用既有 `failed`。
+5. BullMQ job failed、stalled 或 retries exhausted 不能只停留在 queue 事件层，必须尽量与 `answer_sessions` 做状态对账。
+6. 前端 stuck fallback 只能停止无意义轮询和展示诊断提示，不能伪造服务端 terminal state。
+
+冻结结论：
+
+1. 不新增 `timed_out`、`stale`、`stuck` 等 answer session status。
+2. 超时、队列阻塞和 worker 不可恢复异常通过 `failed + diagnosis_code` 表达。
+3. `P0-G1` 是状态机 liveness guardrail，不是新的 Ask 主交互重构。
 
 ### 3.2 不新增 durable core table
 
@@ -511,6 +529,22 @@ export interface OpsDeploymentCompareResponse {
 - `GET /api/v1/ops/trends`
 - `GET /api/v1/ops/incidents`
 - `GET /api/v1/ops/deployments/latest`
+
+### 6.6 `P0-G1` API compatibility
+
+Ask active-session stuck polling 修复不得新增或重命名 answer API path。
+
+允许行为变化：
+
+1. 长时间 active 且不可恢复的 answer session 可由服务端更新为 `failed`。
+2. `diagnosis_code` 应给出机器可读失败原因。
+3. `GET /api/v1/answers/:sessionId` 和 replay read model 读取到的 terminal state 必须一致。
+
+禁止行为：
+
+1. 前端通过本地状态把 active session 改写为 terminal。
+2. API 为 stuck session 返回与数据库事实不一致的临时状态。
+3. 通过新增 answer session enum 掩盖 queue / worker liveness 问题。
 
 ---
 

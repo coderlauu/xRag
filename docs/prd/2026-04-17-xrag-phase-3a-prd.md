@@ -38,6 +38,7 @@
 - 让团队可以从趋势、incident 或 release risk 直接进入单个样本、单次 session、单次 indexing 链路
 - 建立 answer session replay、document/indexing replay 和 deployment window compare 的统一工作流
 - 在不改变 `Ask / Search / Detail` 主信任边界的前提下，让内部团队更快定位回归和运行债务
+- 修复 Ask active-session stuck polling 可靠性缺口，确保长时间 active 的 answer session 有服务端终态收口和前端轮询兜底
 
 ---
 
@@ -129,6 +130,7 @@
 | `P0-02` | Answer session 回放 | 回放单次 session 的 query、scope snapshot、retrieval、citation、freshness、refusal / failure 状态与时间线。 | 当前最常见的质量回归仍发生在 session 级，而不是纯聚合数字级。 |
 | `P0-03` | Document / indexing 链路回放 | 回放单个 document 或批次在 `upload -> processing -> indexing -> stale/failure` 的关键状态与阻断点。 | 当前 readiness 问题仍需要跨脚本和数据库手工排查。 |
 | `P0-04` | 发布窗口对比与受影响样本定位 | 支持围绕最新 deployment 观察 before/after 窗口，并关联异常样本与质量漂移。 | 只有聚合 release guard 还不够，团队仍需要定位“到底哪些样本变坏了”。 |
+| `P0-G1` | Ask active-session 终态收口与轮询兜底 | 长时间停留在 `idle / retrieving / synthesizing` 的 session 必须由服务端收口到 `failed`，Ask 页面必须停止无限轮询并给出可解释提示。 | 永久检索中会破坏 Ask 主链路，也会让 session replay 和 diagnostic sample 失去可信终态。 |
 
 ### 8.2 P1 补强
 
@@ -195,6 +197,7 @@
 2. 团队能在一个内部工作流里回放单次 answer session，并看到 query、scope、retrieval、citation、freshness 和 terminal state。
 3. 团队能回放单次 document / indexing 链路，并判断问题更像 backlog、失败、stale 还是 freshness 漂移。
 4. release 对比至少能回答“最近 deploy 后，哪些样本或 cluster 变坏了”，而不是只停留在聚合摘要。
+5. Ask 页面不会因为 answer session 长期停留在 active status 而无限轮询；服务端必须把不可恢复 active session 收口为现有 terminal status。
 
 ### 10.2 Phase 3A 完整度补强
 

@@ -28,6 +28,7 @@
 3. 优先做样本定位和回放，不把 `P0` 变成日志浏览平台
 4. `ops` 深钻是内部诊断入口，不得反向绑架主问答页面
 5. 自动修复、自动回滚、自动调度一律不进入 `P0`
+6. 异步 active 状态必须有服务端终态收口和前端轮询兜底，不能把“仍在处理”作为无限等待的默认解释
 
 ---
 
@@ -161,6 +162,42 @@
 - incident cluster
 - quality trends
 
+### `P0-G1` Ask active-session 终态收口与轮询兜底
+
+**用户价值**
+
+- 用户不会因为 answer session 长期停在 `retrieving` 或 `synthesizing` 而在 Ask 页面无限等待；团队也能把 stuck session 纳入诊断事实，而不是靠页面轮询暴露。
+
+**范围内**
+
+- 服务端确保 `idle / retrieving / synthesizing` 不会无限期保持 active
+- BullMQ failed / stalled / exhausted retries 与 `answer_sessions` 终态对账
+- Worker 处理链路扩大失败保护，进入处理后的不可恢复异常必须尽量写成 `failed`
+- Ask 页面增加最大轮询保护和 stuck 提示
+- answer replay / ops diagnostic 读取 stuck 或 failed session 时保持事实一致
+
+**明确不含**
+
+- 新增 `AnswerSessionStatus` enum 值
+- 把 `stale`、`timed_out` 等新状态写入 session 状态机
+- 前端自行伪造服务端 terminal state
+- 自动 retry、自动 rerun、自动 reindex 或自动 remediation
+
+**验收清单**
+
+- [ ] active answer session 超过服务端阈值后会被收口到 `failed`
+- [ ] BullMQ job failed / stalled / retries exhausted 后不会留下永久 active session
+- [ ] Ask 页面不会无限轮询同一个 active session
+- [ ] 用户能看到可解释 stuck / failed 提示，并可进入诊断入口
+- [ ] 新增测试覆盖服务端终态收口、queue 对账和前端轮询兜底
+
+**前置依赖**
+
+- `AnswerSessionStatus` 既有 enum
+- answer session / retrieval trace 既有事实面
+- BullMQ answer job 生命周期
+- [Ask active session stuck polling retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
+
 ---
 
 ## 4. P1 Backlog
@@ -211,3 +248,4 @@
 - [ ] `Phase 2A Evaluation Plan` 仍被确认为唯一质量口径
 - [ ] `P1` 与 `deferred` 没有重新包装后混入 `P0`
 - [ ] `Ask / Search / Detail` 不会因为内部诊断入口而被重新定义为运维主界面
+- [ ] `P0-G1` 已被识别为本轮可靠性 guardrail，且不通过新增 session enum 解决

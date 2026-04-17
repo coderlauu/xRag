@@ -18,11 +18,12 @@
 - 产出 `architecture / data-model / api / contract-freeze-prerequisites` 第一版
 - 产出 `Phase 3A Contract Freeze`
 - 完成 `implementation-freeze`，形成代码开发 lane、写入边界和测试矩阵
+- 将 Ask active-session stuck polling 纳入本轮 `P0-G1` 可靠性 guardrail，修复服务端终态收口、queue 对账和前端轮询兜底
 - 更新 `handoff / status / current / AGENTS`，把默认恢复入口切到 `implementation-lanes`
 
 ### Out Of Scope
 
-- 在 `Lane 0` 完成前并行下放代码实现
+- 在 `Lane 0 / Lane 0G` 完成前并行下放代码实现
 - 未经显式版本分流与技术评估就修改 `schema / shared-types / API contract / citation / scope / eval`
 - 自动 remediation、自动 rerun、自动回滚
 - 开放互联网联网回答
@@ -43,7 +44,15 @@
 ## 4. Current Node
 
 - `now`: `implementation-freeze` 已完成；`v7 / Phase 3A` 已进入 `implementation-lanes`
-- `next`: 主线程推进 `Lane 0: Contract To Code`，先落地 shared-types、DTO、OpenAPI、API client 与 web adapter；`Lane 0` 完成前不得并行下放代码任务
+- `next`: 主线程推进 `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail`；两者完成前不得并行下放代码任务
+
+### 4.1 P0 Guardrails
+
+- `P0-G1`: Ask active-session 终态收口与轮询兜底
+  - `status`: `accepted`
+  - `reason`: Ask 页面可能因 answer session 长期停留 `retrieving / synthesizing` 而无限轮询，影响主问答链路和 Phase 3A replay 可信度
+  - `required_outcome`: 不新增 `AnswerSessionStatus`，通过服务端 `failed` 终态收口、BullMQ 对账、Worker 失败保护和前端轮询兜底解决
+  - `retrospective`: [Ask active session stuck polling retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 
 ## 5. Blockers
 
@@ -53,7 +62,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-17` 已完成 `planning-and-scope + technical-evaluation + contract-freeze + implementation-freeze` 文档校验；本地通过 `pnpm docs:check` 与 `git diff --check`；GitHub Actions run `24547237776` 已通过 `infra / validate / integration / e2e / build-images / deploy-staging / smoke-staging / deploy-production / smoke-production`
+- `latest_validation`: `2026-04-17` 已完成 `planning-and-scope + technical-evaluation + contract-freeze + implementation-freeze` 文档校验；GitHub Actions run `24547237776` 已通过 `infra / validate / integration / e2e / build-images / deploy-staging / smoke-staging / deploy-production / smoke-production`；`P0-G1` 文档纳入后本地通过 `pnpm docs:check` 与 `git diff --check`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -62,6 +71,7 @@
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v7.md](/Users/coderlauu/xRag/docs/handoff/v7.md)
 - `active_exec_plan`: [Phase 3A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-lanes.md)
+- `bug_retrospective`: [Ask active session stuck polling retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 - `completed_exec_plans`: [Phase 3A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-freeze.md), [Phase 3A contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-contract-freeze.md), [Phase 3A technical evaluation](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-technical-evaluation.md), [Phase 3A planning and scope](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-planning-and-scope.md)
 - `prd`: [Phase 3A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-prd.md)
 - `product_backlog`: [Phase 3A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)

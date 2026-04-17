@@ -8,6 +8,7 @@
 - [Phase 3A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)
 - [v7 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-17-v7-interaction-delta.md)
 - [Phase 3A P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-p0-technical-tradeoffs.md)
+- [Ask Active Session Stuck Polling Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 - [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
 - [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
 
@@ -48,6 +49,7 @@
    - session replay read model
    - document replay read model
    - deployment compare read model
+7. 当前 Ask 页面按 answer session active status 轮询，若后端长期不写入 terminal status，会暴露为“检索中”无限等待。
 
 结论：`Phase 3A` 不是从零起步，而是要把已有的分散读面组织成统一诊断工作流。
 
@@ -142,6 +144,28 @@
 
 - `Phase 2A / 2B / 2C` 已冻结终端可信边界。
 - `Phase 3A` 的目标是加快内部定位，不是把主产品路径改造成值班台。
+
+### 3.6 Ask active-session reliability guardrail
+
+**结论**
+
+- `P0-G1` 必须作为 Phase 3A 的可靠性 guardrail 进入实现范围。
+- 任意 answer session 从 `idle / retrieving / synthesizing` 进入 active 处理后，都必须存在服务端终态收口路径。
+- 不可恢复的 active session 统一收口到既有 terminal status `failed`，并通过 `diagnosis_code` 表达 queue、worker、provider 或 retrieval 失败原因。
+- 前端轮询兜底只负责停止无限请求和提示诊断入口，不能成为业务事实源。
+
+**原因**
+
+- Answer replay 的前提是 session 有可信 terminal state；永久 active 会让 replay 无法解释当前事实。
+- Queue-driven feature 不能假设 worker 一定会消费、成功写回或正常退出。
+- 新增 `timed_out`、`stuck` 等 enum 会扩大 contract surface，不能解决真正的 liveness 问题。
+
+**实施边界**
+
+- 不新增 answer session status。
+- 不新增 durable table。
+- 不把自动 retry、自动 rerun、自动 reindex 或自动 remediation 混入本轮。
+- 必须补 worker / queue / web 相关测试，证明 stuck session 最终停止。
 
 ---
 
