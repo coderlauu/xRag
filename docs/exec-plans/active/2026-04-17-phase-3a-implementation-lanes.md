@@ -175,7 +175,7 @@
 ### Lane C: Web Ops Diagnostics
 
 - 类型：可并行 lane，建议等 `Lane A / B` API 合流后启动
-- 当前状态：`not-started`
+- 当前状态：`completed`
 - 目标：把 `/ops` 从 governance overview 扩展为 diagnostic workflow，同时保持 Ask/Search/Detail 只做轻量 notice
 - 写入范围：
   - `apps/web/src/features/ops/pages/ops-page.tsx`
@@ -221,9 +221,8 @@
 
 推荐实施顺序固定为：
 
-1. `Lane C`
-2. `Lane D`
-3. `testing-and-release-readiness`
+1. `Lane D`
+2. `testing-and-release-readiness`
 
 已完成：
 
@@ -231,6 +230,7 @@
 2. `Lane 0G`
 3. `Lane A`
 4. `Lane B`
+5. `Lane C`
 
 `Lane A / B / C / D` 只有在 `Lane 0 / Lane 0G` 都完成后才允许使用子 agent 并行。`Lane C` 建议等 `Lane A / B` API read model 合流后启动，避免 Web 反向发明 contract。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI、API client contract 或 answer session 状态机语义，必须暂停并切回主线程。
 
@@ -305,3 +305,4 @@
 - `2026-04-17`: `Lane A` 已完成 `/ops/samples` 与 `/ops/deployments/compare` 真实只读聚合：支持 `trend / incident_cluster / release_compare`，compare 输出 before/after window 与 `new_regression / existing_debt` 分类；未新增 schema、DTO、OpenAPI 或 API client contract。
 - `2026-04-17`: `Lane B` 已完成 answer/document replay 聚合补强：answer replay 复用 session/retrieval 并输出 freshness flags，document replay 复用 detail/timeline/evidence 并输出 blocking reason 与 related answer session count；缺失对象保持 `404`。
 - `2026-04-17`: `apps/api/src/ops/ops.service.ts` 在 `Lane A / B` 中仅作为 orchestration glue 修改，用于接入 helper 与数据库查询；contract surface 未变更。
+- `2026-04-17`: `Lane C` 已完成 `/ops` Web diagnostic workflow：保留 governance overview/trends 首屏，同时新增 diagnostic samples、answer/document replay 与 deployment compare 工作区；Web 只消费 `apps/web/src/lib/api.ts` 暴露的冻结 API wrapper，未修改 shared-types、DTO、OpenAPI 或 API client contract。

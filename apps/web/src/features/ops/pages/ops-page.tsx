@@ -17,6 +17,7 @@ import { Badge, Button, PageShell, SectionCard, StatCard } from "@xrag/ui";
 import { fetchOpsOverview, fetchOpsTrends } from "../../../lib/api";
 import { formatLatencyMs, formatUsd } from "../../../lib/answer-state";
 import { formatDateTime, formatRelativeTime } from "../../../lib/document-state";
+import { DiagnosticWorkflow } from "../components/diagnostic-workflow";
 
 const TREND_WINDOW_OPTIONS: Array<{ value: OpsTrendWindow; label: string; description: string }> = [
   { value: "24h", label: "24 小时", description: "适合看最近 deploy、smoke 与答复波动。" },
@@ -148,6 +149,8 @@ export function OpsPage() {
           <p className="m-0 text-sm leading-6 text-slate-600">正在整合治理总览。</p>
         )}
       </section>
+
+      <DiagnosticWorkflow clusters={incidentSummary?.clusters ?? []} onWindowChange={setTrendWindow} window={trendWindow} />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
         <div className="grid gap-6">

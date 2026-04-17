@@ -43,8 +43,8 @@
 
 ## 4. Current Node
 
-- `now`: `Lane 0 / Lane 0G / Lane A / Lane B` 已完成；`v7 / Phase 3A` 继续处于 `implementation-lanes`
-- `next`: 推进 `Lane C: Web Ops Diagnostics`；不得让 Web 反向修改 API client contract、后端 DTO 或 Ask/Search/Detail 后端响应字段
+- `now`: `Lane 0 / Lane 0G / Lane A / Lane B / Lane C` 已完成；`v7 / Phase 3A` 继续处于 `implementation-lanes`
+- `next`: 推进 `Lane D: Integration, E2E, Smoke`；不得让测试 lane 反向修改 API client contract、后端 DTO 或 Ask/Search/Detail 后端响应字段
 
 ### 4.1 P0 Guardrails
 
@@ -62,7 +62,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-17` `Lane A / Lane B` 本地验证已通过：`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api build:test`、`scripts/test-env-up.sh`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/ops.phase-3a.integration.test.js`、`pnpm --filter @xrag/api test:integration`
+- `latest_validation`: `2026-04-17` `Lane C` 本地验证已通过：`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`、`pnpm docs:check`、`pnpm contract:check`、`git diff --check`
 - `result`: `passed`
 - `latest_failure`: 无
 
