@@ -7,7 +7,7 @@
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
 3. [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
-4. [当前 Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-2c-testing-and-release-readiness.md)
+4. [最新 Completed Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-2c-testing-and-release-readiness.md)
 5. [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
 6. [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
 7. [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
@@ -29,10 +29,10 @@
 
 - 当前仓库已经完成正式工程 scaffold
 - `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C`、`v4 / Phase 2A` 与 `v5 / Phase 2B` 已完成
-- 当前活跃版本为 `v6 / Phase 2C`
+- 当前默认恢复版本为 latest completed `v6 / Phase 2C`
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
-- `v5 / Phase 2B` 已归档，GitHub Actions run `24514690725` 仍是当前已确认的 `v6 / Phase 2C` main 绿态基线
-- `v6 / Phase 2C` 已完成 [Phase 2C Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md) 与 [Phase 2C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md)，当前进入 `testing-and-release-readiness`
+- `v5 / Phase 2B` 已归档
+- `v6 / Phase 2C` 已完成 [Phase 2C Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md)、[Phase 2C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md) 与 [Phase 2C Testing And Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-2c-testing-and-release-readiness.md)；GitHub Actions run `24543197926` 已成功，当前默认恢复入口继续指向 latest completed `v6`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
