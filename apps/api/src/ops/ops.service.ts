@@ -40,9 +40,13 @@ import { JobsRepository } from "../jobs/jobs.repository";
 import { QueueService } from "../queue/queue.service";
 import { StorageService } from "../storage/storage.service";
 import { UploadsRepository } from "../uploads/uploads.repository";
-import { getEmptyDiagnosticSampleList } from "./ops.diagnostic-samples";
-import { buildDeploymentCompareResponse } from "./ops.deployment-compare";
-import { buildAnswerSessionReplayResponse, buildDocumentReplayResponse } from "./ops.replays";
+import { listDiagnosticSamplesFromDb } from "./ops.diagnostic-samples";
+import { buildDeploymentCompareResponse, getDeploymentCompareSamples } from "./ops.deployment-compare";
+import {
+  buildAnswerSessionReplayResponse,
+  buildDocumentReplayResponse,
+  countRelatedAnswerSessionsForDocument
+} from "./ops.replays";
 
 type OpsIncidentCandidate = OpsIncidentListResponse["items"][number] & {
   occurredAt: Date;
@@ -201,11 +205,14 @@ export class OpsService {
   async listDiagnosticSamples(query: OpsDiagnosticSampleListQuery): Promise<OpsDiagnosticSampleListResponse> {
     this.validateDiagnosticSampleQuery(query);
 
-    return getEmptyDiagnosticSampleList({
+    return listDiagnosticSamplesFromDb(this.database.db, {
       origin: query.origin,
       window: this.normalizeTrendWindow(query.window ?? "24h"),
       page: query.page ?? 1,
-      pageSize: query.page_size ?? 20
+      pageSize: query.page_size ?? 20,
+      sampleKind: query.sample_kind,
+      clusterKey: query.cluster_key,
+      deploymentRecordId: query.deployment_record_id
     });
   }
 
@@ -222,16 +229,18 @@ export class OpsService {
   }
 
   async getDocumentReplay(documentId: string): Promise<OpsDocumentReplayResponse> {
-    const [document, timeline, evidence] = await Promise.all([
+    const [document, timeline, evidence, relatedAnswerSessionCount] = await Promise.all([
       this.documentsService.getDocument(documentId),
       this.documentsService.getDocumentTimeline(documentId),
-      this.documentsService.getDocumentEvidence(documentId)
+      this.documentsService.getDocumentEvidence(documentId),
+      countRelatedAnswerSessionsForDocument(this.database.db, documentId)
     ]);
 
     return buildDocumentReplayResponse({
       document,
       timeline,
-      evidence
+      evidence,
+      relatedAnswerSessionCount
     });
   }
 
@@ -247,9 +256,15 @@ export class OpsService {
       throw new NotFoundException("Deployment record not found");
     }
 
-    const [previousDeployment, relatedEvaluationRunRef] = await Promise.all([
+    const [previousDeployment, relatedEvaluationRunRef, compareSamples] = await Promise.all([
       this.getPreviousDeploymentRecord(deployment.environment, deployment.deployedAt),
-      this.getEvaluationRunRefByCommitSha(deployment.commitSha)
+      this.getEvaluationRunRefByCommitSha(deployment.commitSha),
+      getDeploymentCompareSamples({
+        db: this.database.db,
+        deployment,
+        window,
+        sampleKind: query.sample_kind
+      })
     ]);
 
     return buildDeploymentCompareResponse({
@@ -257,7 +272,8 @@ export class OpsService {
       previousDeployment,
       relatedEvaluationRunRef,
       window,
-      affectedSamples: []
+      beforeSamples: compareSamples.beforeSamples,
+      affectedSamples: compareSamples.affectedSamples
     });
   }
 

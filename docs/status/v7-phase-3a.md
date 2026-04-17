@@ -43,8 +43,8 @@
 
 ## 4. Current Node
 
-- `now`: `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail` 已完成；`v7 / Phase 3A` 继续处于 `implementation-lanes`
-- `next`: 推进 `Lane A: API Diagnostic Samples And Deployment Compare` 与 `Lane B: API Answer And Document Replay`；任何 schema、API path、DTO 字段、OpenAPI 或 API client contract 变更必须切回主线程
+- `now`: `Lane 0 / Lane 0G / Lane A / Lane B` 已完成；`v7 / Phase 3A` 继续处于 `implementation-lanes`
+- `next`: 推进 `Lane C: Web Ops Diagnostics`；不得让 Web 反向修改 API client contract、后端 DTO 或 Ask/Search/Detail 后端响应字段
 
 ### 4.1 P0 Guardrails
 
@@ -62,7 +62,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-17` `Lane 0 / Lane 0G` 本地验证已通过：`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/api openapi:generate`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`scripts/test-env-up.sh`、`pnpm --filter @xrag/api test:integration`、`pnpm --filter @xrag/web build`、`pnpm docs:check`、`git diff --check`
+- `latest_validation`: `2026-04-17` `Lane A / Lane B` 本地验证已通过：`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api build:test`、`scripts/test-env-up.sh`、`node --test --test-concurrency=1 apps/api/dist-integration/apps/api/test/integration/ops.phase-3a.integration.test.js`、`pnpm --filter @xrag/api test:integration`
 - `result`: `passed`
 - `latest_failure`: 无
 

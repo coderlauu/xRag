@@ -8,6 +8,9 @@ import type {
   OpsDocumentReplayResponse,
   OpsReadinessBlockingReason
 } from "@xrag/shared-types";
+import { countDistinct, eq } from "drizzle-orm";
+import type { DatabaseClient } from "../database/database.service";
+import { answerCitations } from "../database/schema";
 import { buildAnswerSessionSample, buildDocumentPipelineSample } from "./ops.diagnostic-samples";
 
 export function buildAnswerSessionReplayResponse(input: {
@@ -59,6 +62,17 @@ export function buildDocumentReplayResponse(input: {
       related_deployment_record_id: input.relatedDeploymentRecordId ?? null
     }
   };
+}
+
+export async function countRelatedAnswerSessionsForDocument(db: DatabaseClient, documentId: string): Promise<number> {
+  const [row] = await db
+    .select({
+      total: countDistinct(answerCitations.sessionId)
+    })
+    .from(answerCitations)
+    .where(eq(answerCitations.documentId, documentId));
+
+  return row?.total ?? 0;
 }
 
 function getAnswerFreshnessFlags(session: AnswerSessionResponse, retrieval: AnswerRetrievalTraceResponse) {

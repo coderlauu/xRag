@@ -119,12 +119,13 @@
 ### Lane A: API Diagnostic Samples And Deployment Compare
 
 - 类型：可并行 lane，必须等 `Lane 0 / Lane 0G` 完成后启动
-- 当前状态：`not-started`
+- 当前状态：`completed`
 - 目标：实现 `/ops/samples` 与 `/ops/deployments/compare` 的真实聚合逻辑
 - 写入范围：
   - `apps/api/src/ops/ops.diagnostic-samples.ts`
   - `apps/api/src/ops/ops.deployment-compare.ts`
-  - `apps/api/test/integration/ops.phase-3a.samples.integration.test.ts`
+  - `apps/api/test/integration/ops.phase-3a.integration.test.ts`
+  - `apps/api/src/ops/ops.service.ts` 只允许作为 orchestration glue 调用 helper，不允许改 API contract
 - 可读取但不得修改：
   - `packages/shared-types/src/index.ts`
   - `apps/api/src/ops/ops.dto.ts`
@@ -146,11 +147,12 @@
 ### Lane B: API Answer And Document Replay
 
 - 类型：可并行 lane，必须等 `Lane 0 / Lane 0G` 完成后启动
-- 当前状态：`not-started`
+- 当前状态：`completed`
 - 目标：实现 answer session replay 与 document pipeline replay
 - 写入范围：
   - `apps/api/src/ops/ops.replays.ts`
-  - `apps/api/test/integration/ops.phase-3a.replays.integration.test.ts`
+  - `apps/api/test/integration/ops.phase-3a.integration.test.ts`
+  - `apps/api/src/ops/ops.service.ts` 只允许作为 orchestration glue 调用 helper，不允许改 API contract
 - 可读取但不得修改：
   - `packages/shared-types/src/index.ts`
   - `apps/api/src/answers/**`
@@ -219,15 +221,16 @@
 
 推荐实施顺序固定为：
 
-1. `Lane A` 与 `Lane B`
-2. `Lane C`
-3. `Lane D`
-4. `testing-and-release-readiness`
+1. `Lane C`
+2. `Lane D`
+3. `testing-and-release-readiness`
 
 已完成：
 
 1. `Lane 0`
 2. `Lane 0G`
+3. `Lane A`
+4. `Lane B`
 
 `Lane A / B / C / D` 只有在 `Lane 0 / Lane 0G` 都完成后才允许使用子 agent 并行。`Lane C` 建议等 `Lane A / B` API read model 合流后启动，避免 Web 反向发明 contract。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI、API client contract 或 answer session 状态机语义，必须暂停并切回主线程。
 
@@ -299,3 +302,6 @@
 - `2026-04-17`: `Lane 0` 已完成 Phase 3A ops contract-to-code：shared-types、DTO、controller、OpenAPI、API client 与 web adapter 已对齐，新增 endpoints 以稳定空集合或既有事实源 read model 返回。
 - `2026-04-17`: `Lane 0G` 已完成 Ask active-session stuck polling guardrail：服务端 stale active session 读侧收口、Worker queue exhausted/前置失败对账、Ask 页面最大轮询保护均已落地。
 - `2026-04-17`: 本地验证通过 typecheck、OpenAPI generation、worker unit、API build:test 与 API integration；下一步进入 `Lane A / Lane B`。
+- `2026-04-17`: `Lane A` 已完成 `/ops/samples` 与 `/ops/deployments/compare` 真实只读聚合：支持 `trend / incident_cluster / release_compare`，compare 输出 before/after window 与 `new_regression / existing_debt` 分类；未新增 schema、DTO、OpenAPI 或 API client contract。
+- `2026-04-17`: `Lane B` 已完成 answer/document replay 聚合补强：answer replay 复用 session/retrieval 并输出 freshness flags，document replay 复用 detail/timeline/evidence 并输出 blocking reason 与 related answer session count；缺失对象保持 `404`。
+- `2026-04-17`: `apps/api/src/ops/ops.service.ts` 在 `Lane A / B` 中仅作为 orchestration glue 修改，用于接入 helper 与数据库查询；contract surface 未变更。
