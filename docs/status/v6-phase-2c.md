@@ -4,7 +4,7 @@
 
 - `version`: `v6`
 - `phase`: `Phase 2C`
-- `status`: `completed`
+- `status`: `archived`
 - `owner`: `codex`
 - `updated_at`: `2026-04-17`
 
@@ -38,8 +38,8 @@
 
 ## 4. Current Node
 
-- `now`: `v6 / Phase 2C` 已完成正式收口。`Lane 0 / A / B / C / D`、release gate 修复与 testing-and-release-readiness 均已完成；GitHub Actions run `24543197926` 已成功，原 `smoke-production` deployment record persistence 失败已由提交 `1a9a603` 修复。
-- `next`: 当前默认恢复入口仍指向 latest completed `v6 / Phase 2C`；若继续推进新需求或下一版本，先通过 `xrag-iteration-governor` 重新分流并创建新的 handoff/status/exec plan。
+- `now`: `v6 / Phase 2C` 已归档。`Lane 0 / A / B / C / D`、release gate 修复与 testing-and-release-readiness 均已完成；closeout commit `6f052ac` 对应 GitHub Actions run `24543526168` 已成功。
+- `next`: 当前入口已切到 `v7 / Phase 3A` 的 `technical-evaluation`；若回看本版本，按 archived status/handoff/completed exec plans 恢复。
 
 ## 5. Blockers
 
@@ -49,9 +49,9 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-17` 已完成 `Phase 2C` 本地与 main CI 收口；通过 `git diff --check`、`pnpm docs:check`、`pnpm test:integration`、`./scripts/run-e2e-smoke.sh`，以及 GitHub Actions run `24543197926`
+- `latest_validation`: `2026-04-17` 已完成 `Phase 2C` 本地与 main CI 收口；通过 `git diff --check`、`pnpm docs:check`、`pnpm test:integration`、`./scripts/run-e2e-smoke.sh`，以及 GitHub Actions runs `24543197926` 与 `24543526168`
 - `result`: `passed`
-- `latest_failure`: `GitHub Actions run 24542756511` 曾在 `smoke-production` 的 `Persist production deployment record` 失败；根因是 job 未执行 `pnpm install --frozen-lockfile` 就调用了依赖 `pg` 的 `scripts/write-deployment-record.mjs`，已由提交 `1a9a603` 修复并在 run `24543197926` 验证通过
+- `latest_failure`: `GitHub Actions run 24542756511` 曾在 `smoke-production` 的 `Persist production deployment record` 失败；根因是 job 未执行 `pnpm install --frozen-lockfile` 就调用了依赖 `pg` 的 `scripts/write-deployment-record.mjs`，已由提交 `1a9a603` 修复并在 runs `24543197926 / 24543526168` 验证通过
 
 ## 7. Linked Artifacts
 
@@ -72,5 +72,5 @@
 - `upstream_product_docs`: [Phase 2B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-prd.md), [Phase 2B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-11-xrag-phase-2b-backlog.md), [v5 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-11-v5-interaction-delta.md), [Phase 2B P0 technical tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-11-phase-2b-p0-technical-tradeoffs.md)
 - `tech_docs`: [Phase 2B contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md), [Phase 2A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
 - `exec_plans`: [Phase 2C testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-2c-testing-and-release-readiness.md), [Phase 2C implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md), [Phase 2C implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md), [Phase 2C contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-contract-freeze.md), [Phase 2C technical evaluation](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-technical-evaluation.md), [Phase 2C planning and scope](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-planning-and-scope.md), [Phase 2B testing and release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-14-phase-2b-testing-and-release-readiness.md)
-- `key_commits`: `902fda5`, `5bb983f`, `a5a0965`, `8e35abc`, `4417bb7`, `30e5a88`, `bb5def7`, `169799a`, `cefbbf7`, `149996d`
-- `latest_ci_run`: `24543197926 success`
+- `key_commits`: `902fda5`, `5bb983f`, `a5a0965`, `8e35abc`, `4417bb7`, `30e5a88`, `bb5def7`, `169799a`, `cefbbf7`, `149996d`, `1a9a603`, `6f052ac`
+- `latest_ci_run`: `24543526168 success`

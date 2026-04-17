@@ -5,34 +5,34 @@
 ## 1. 先看哪里
 
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
-2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
-3. [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
-4. [最新 Completed Testing And Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-2c-testing-and-release-readiness.md)
-5. [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
-6. [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
-7. [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
-8. [Phase 2C Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-contract-freeze-prerequisites.md)
-9. [Phase 2C PRD](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-prd.md)
-10. [Phase 2C Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-16-xrag-phase-2c-backlog.md)
-11. [v6 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-16-v6-interaction-delta.md)
-12. [Phase 2C P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-16-phase-2c-p0-technical-tradeoffs.md)
-13. [Phase 2B Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-13-phase-2b-contract-freeze.md)
-14. [Phase 2A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-contract-freeze.md)
-15. [Phase 2A Runtime Contracts](/Users/coderlauu/xRag/tech/architecture/2026-04-08-phase-2a-runtime-contracts.md)
-16. [Phase 2A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-07-phase-2a-architecture.md)
-17. [Phase 2A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-07-phase-2a-data-model.md)
-18. [Phase 2A API Design](/Users/coderlauu/xRag/tech/api/2026-04-07-phase-2a-api.md)
-19. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
-20. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
+2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md)
+3. [当前 Technical Evaluation Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-technical-evaluation.md)
+4. [Phase 3A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-prd.md)
+5. [Phase 3A Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)
+6. [v7 Interaction Delta](/Users/coderlauu/xRag/design/spec/2026-04-17-v7-interaction-delta.md)
+7. [Phase 3A P0 Technical Tradeoffs](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-p0-technical-tradeoffs.md)
+8. [Phase 3A Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-architecture.md)
+9. [Phase 3A Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-17-phase-3a-data-model.md)
+10. [Phase 3A API Design](/Users/coderlauu/xRag/tech/api/2026-04-17-phase-3a-api.md)
+11. [Phase 3A Contract Freeze Prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-17-phase-3a-contract-freeze-prerequisites.md)
+12. [v6 / Phase 2C Status](/Users/coderlauu/xRag/docs/status/v6-phase-2c.md)
+13. [v6 Handoff](/Users/coderlauu/xRag/docs/handoff/v6.md)
+14. [Phase 2C Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-contract-freeze.md)
+15. [Phase 2C Architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-16-phase-2c-architecture.md)
+16. [Phase 2C Data Model](/Users/coderlauu/xRag/tech/data-model/2026-04-16-phase-2c-data-model.md)
+17. [Phase 2C API Design](/Users/coderlauu/xRag/tech/api/2026-04-16-phase-2c-api.md)
+18. [Phase 2A Evaluation Plan](/Users/coderlauu/xRag/docs/process/2026-04-07-phase-2a-evaluation-plan.md)
+19. [Harness Engineering Playbook](/Users/coderlauu/xRag/docs/process/2026-03-31-harness-engineering-playbook.md)
 
 ## 2. 当前项目状态
 
 - 当前仓库已经完成正式工程 scaffold
 - `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C`、`v4 / Phase 2A` 与 `v5 / Phase 2B` 已完成
-- 当前默认恢复版本为 latest completed `v6 / Phase 2C`
+- 当前活跃版本为 `v7 / Phase 3A`
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
 - `v5 / Phase 2B` 已归档
-- `v6 / Phase 2C` 已完成 [Phase 2C Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-freeze.md)、[Phase 2C Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-16-phase-2c-implementation-lanes.md) 与 [Phase 2C Testing And Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-2c-testing-and-release-readiness.md)；GitHub Actions run `24543197926` 已成功，当前默认恢复入口继续指向 latest completed `v6`
+- `v6 / Phase 2C` 已归档，closeout commit `6f052ac` 的 GitHub Actions run `24543526168` 已成功，当前作为 `v7` 启动前的最近 main 绿态基线
+- `v7 / Phase 3A` 已完成 `planning-and-scope`，当前进入 `technical-evaluation`，正在冻结 `diagnostic_sample / replay / deployment compare` 的技术边界
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -142,7 +142,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v6 / Phase 2C` 已完成 implementation freeze，并进入 `implementation-lanes`；`Lane 0` 已完成，后续 `Lane A / B / C / D` 必须继续遵守写入边界。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
+   当前 `v7 / Phase 3A` 已进入 `technical-evaluation`，尚未进入 `contract-freeze / implementation-freeze`；在 `diagnostic_sample`、replay 资源、deployment compare 与页面暴露边界未冻结前，不得把 `web / api / worker / test` 实现任务并行下放。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口
