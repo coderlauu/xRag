@@ -6,7 +6,7 @@
 
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 2. [当前版本状态](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md)
-3. [当前 Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-lanes.md)
+3. [当前 Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-release-readiness.md)
 4. [Ask Active Session Stuck Polling Retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 5. [Phase 3A Implementation Freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-freeze.md)
 6. [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md)
@@ -31,7 +31,7 @@
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
 - `v5 / Phase 2B` 已归档
 - `v6 / Phase 2C` 已归档，closeout commit `6f052ac` 的 GitHub Actions run `24543526168` 已成功，当前作为 `v7` 启动前的最近 main 绿态基线
-- `v7 / Phase 3A` 已完成 `implementation-freeze` 并进入 `implementation-lanes`；`Lane 0 / Lane 0G / Lane A / Lane B / Lane C` 已完成，下一步推进 `Lane D: Integration, E2E, Smoke`
+- `v7 / Phase 3A` 已完成 `implementation-lanes`；`Lane 0 / Lane 0G / Lane A / Lane B / Lane C / Lane D` 已完成，当前进入 `testing-and-release-readiness`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -141,7 +141,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v7 / Phase 3A` 已完成 `Lane 0 / Lane 0G / Lane A / Lane B / Lane C`；下一步推进 `Lane D`，任何 schema、API path、DTO 字段、OpenAPI、API client contract 或 answer session 状态机语义变更都必须切回主线程。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
+   当前 `v7 / Phase 3A` 已完成 `Lane 0 / Lane 0G / Lane A / Lane B / Lane C / Lane D`；下一步推进 `testing-and-release-readiness`，任何 schema、API path、DTO 字段、OpenAPI、API client contract 或 answer session 状态机语义变更都必须切回主线程。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口

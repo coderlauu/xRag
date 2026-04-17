@@ -3,13 +3,15 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-3a-implementation-lanes`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v7 handoff](/Users/coderlauu/xRag/docs/handoff/v7.md), [v7 status](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md), [Phase 3A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md), [Phase 3A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-freeze.md), [Ask stuck polling retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 
 ## 2. Objective
 
 在 `Phase 3A / P0` 已完成 contract freeze 和 implementation freeze 后，正式进入代码开发阶段；先由主线程把冻结 contract 落成代码 source-of-truth，并修复 `P0-G1 Ask active-session 终态收口与轮询兜底`，再按明确写入边界拆出 API diagnostic read model、replay aggregation、web ops diagnostics 和 testing lanes。
+
+当前计划已完成并归档；后续恢复入口转入 [Phase 3A Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-release-readiness.md)。
 
 ## 3. Main Thread First
 
@@ -199,7 +201,7 @@
 ### Lane D: Integration, E2E, Smoke
 
 - 类型：测试 lane，建议在 `Lane A / B / C` 合流后启动
-- 当前状态：`not-started`
+- 当前状态：`completed`
 - 目标：补齐 Phase 3A 的 integration / e2e / smoke 验证
 - 写入范围：
   - `apps/api/test/integration/ops.integration.test.ts`
@@ -306,3 +308,4 @@
 - `2026-04-17`: `Lane B` 已完成 answer/document replay 聚合补强：answer replay 复用 session/retrieval 并输出 freshness flags，document replay 复用 detail/timeline/evidence 并输出 blocking reason 与 related answer session count；缺失对象保持 `404`。
 - `2026-04-17`: `apps/api/src/ops/ops.service.ts` 在 `Lane A / B` 中仅作为 orchestration glue 修改，用于接入 helper 与数据库查询；contract surface 未变更。
 - `2026-04-17`: `Lane C` 已完成 `/ops` Web diagnostic workflow：保留 governance overview/trends 首屏，同时新增 diagnostic samples、answer/document replay 与 deployment compare 工作区；Web 只消费 `apps/web/src/lib/api.ts` 暴露的冻结 API wrapper，未修改 shared-types、DTO、OpenAPI 或 API client contract。
+- `2026-04-17`: `Lane D` 已完成 Phase 3A integration / E2E / smoke 覆盖：API integration 增补空集合、分页、参数校验、404；Web E2E 增补 `/ops` sample list、answer replay、document replay、deployment compare 最小可见路径；`scripts/run-e2e-smoke.sh` 已纳入 Phase 3A 规格。

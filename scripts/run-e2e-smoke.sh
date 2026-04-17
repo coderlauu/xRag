@@ -17,4 +17,5 @@ cd "$repo_root/apps/web"
 "$repo_root/apps/web/node_modules/.bin/playwright" test \
   e2e/inbox-search-detail.spec.ts \
   e2e/phase-2a-p0.spec.ts \
-  e2e/phase-2b-lane-f.spec.ts
+  e2e/phase-2b-lane-f.spec.ts \
+  e2e/phase-3a-ops-diagnostics.spec.ts

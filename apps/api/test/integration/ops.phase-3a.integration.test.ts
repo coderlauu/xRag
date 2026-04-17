@@ -425,6 +425,67 @@ test("phase 3A ops samples and deployment compare derive read models from existi
   }
 });
 
+test("phase 3A ops diagnostics handle empty states, pagination, validation, and 404s", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const emptyTrendResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/ops/samples?origin=trend&page=1&page_size=1"
+    });
+    assert.equal(emptyTrendResponse.statusCode, 200);
+    const emptyTrend = emptyTrendResponse.json();
+    assert.equal(emptyTrend.total, 0);
+    assert.equal(emptyTrend.items.length, 0);
+
+    const invalidOriginResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/ops/samples?origin=not_real"
+    });
+    assert.equal(invalidOriginResponse.statusCode, 400);
+
+    const missingClusterResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/ops/samples?origin=incident_cluster"
+    });
+    assert.equal(missingClusterResponse.statusCode, 400);
+
+    const missingReleaseDeploymentResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/ops/samples?origin=release_compare"
+    });
+    assert.equal(missingReleaseDeploymentResponse.statusCode, 400);
+
+    const missingCompareDeploymentResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/ops/deployments/compare"
+    });
+    assert.equal(missingCompareDeploymentResponse.statusCode, 400);
+
+    const unknownCompareDeploymentResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/ops/deployments/compare?deployment_record_id=${randomUUID()}`
+    });
+    assert.equal(unknownCompareDeploymentResponse.statusCode, 404);
+
+    const seeded = await seedSamplesAndCompareData();
+    const pagedReleaseSamplesResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/ops/samples?origin=release_compare&deployment_record_id=${seeded.deploymentRecordId}&window=24h&page=2&page_size=1`
+    });
+    assert.equal(pagedReleaseSamplesResponse.statusCode, 200);
+    const pagedReleaseSamples = pagedReleaseSamplesResponse.json();
+    assert.equal(pagedReleaseSamples.page, 2);
+    assert.equal(pagedReleaseSamples.page_size, 1);
+    assert.equal(pagedReleaseSamples.total, 3);
+    assert.equal(pagedReleaseSamples.items.length, 1);
+  } finally {
+    await app.close();
+  }
+});
+
 test("phase 3A ops replays preserve answer evidence and document pipeline facts", async () => {
   await resetDatabase();
   const seeded = await seedReplayData();

@@ -19,7 +19,7 @@
 - 产出 `Phase 3A Contract Freeze`
 - 完成 `implementation-freeze`，形成代码开发 lane、写入边界和测试矩阵
 - 将 Ask active-session stuck polling 纳入本轮 `P0-G1` 可靠性 guardrail，修复服务端终态收口、queue 对账和前端轮询兜底
-- 更新 `handoff / status / current / AGENTS`，把默认恢复入口切到 `implementation-lanes`
+- 更新 `handoff / status / current / AGENTS`，把默认恢复入口切到 `testing-and-release-readiness`
 
 ### Out Of Scope
 
@@ -38,13 +38,13 @@
 - `technical-evaluation`: `completed`
 - `contract-freeze`: `completed`
 - `implementation-freeze`: `completed`
-- `implementation-lanes`: `in-progress`
-- `testing-and-release-readiness`: `not-started`
+- `implementation-lanes`: `completed`
+- `testing-and-release-readiness`: `in-progress`
 
 ## 4. Current Node
 
-- `now`: `Lane 0 / Lane 0G / Lane A / Lane B / Lane C` 已完成；`v7 / Phase 3A` 继续处于 `implementation-lanes`
-- `next`: 推进 `Lane D: Integration, E2E, Smoke`；不得让测试 lane 反向修改 API client contract、后端 DTO 或 Ask/Search/Detail 后端响应字段
+- `now`: `Lane 0 / Lane 0G / Lane A / Lane B / Lane C / Lane D` 已完成；`v7 / Phase 3A` 进入 `testing-and-release-readiness`
+- `next`: 运行 release-readiness 验证矩阵并检查 GitHub Actions；不得在 release gate 内扩大产品范围或修改 contract
 
 ### 4.1 P0 Guardrails
 
@@ -62,7 +62,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-17` `Lane C` 本地验证已通过：`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`、`pnpm docs:check`、`pnpm contract:check`、`git diff --check`
+- `latest_validation`: `2026-04-17` `Lane D` 本地验证已通过：`scripts/run-api-integration.sh`（20/20）、`scripts/run-e2e-smoke.sh`（8/8）、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/web build`、`pnpm docs:check`、`pnpm contract:check`、`git diff --check`
 - `result`: `passed`
 - `latest_failure`: 无
 
@@ -70,9 +70,9 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v7.md](/Users/coderlauu/xRag/docs/handoff/v7.md)
-- `active_exec_plan`: [Phase 3A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-lanes.md)
+- `active_exec_plan`: [Phase 3A release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-release-readiness.md)
 - `bug_retrospective`: [Ask active session stuck polling retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
-- `completed_exec_plans`: [Phase 3A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-freeze.md), [Phase 3A contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-contract-freeze.md), [Phase 3A technical evaluation](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-technical-evaluation.md), [Phase 3A planning and scope](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-planning-and-scope.md)
+- `completed_exec_plans`: [Phase 3A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-lanes.md), [Phase 3A implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-freeze.md), [Phase 3A contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-contract-freeze.md), [Phase 3A technical evaluation](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-technical-evaluation.md), [Phase 3A planning and scope](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-planning-and-scope.md)
 - `prd`: [Phase 3A PRD](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-prd.md)
 - `product_backlog`: [Phase 3A backlog](/Users/coderlauu/xRag/docs/prd/2026-04-17-xrag-phase-3a-backlog.md)
 - `interaction_delta`: [v7 interaction delta](/Users/coderlauu/xRag/design/spec/2026-04-17-v7-interaction-delta.md)

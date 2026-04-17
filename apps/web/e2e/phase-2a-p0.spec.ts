@@ -59,7 +59,7 @@ test("phase 2A web flow covers search freshness, detail evidence, ask jumpback, 
   await expect(page.getByRole("heading", { name: "Runtime Quality" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Release Guard", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Trends" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "30 天" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "30 天", exact: true })).toBeVisible();
 });
 
 test("inbox link import entry creates a link document and opens detail", async ({ page }) => {

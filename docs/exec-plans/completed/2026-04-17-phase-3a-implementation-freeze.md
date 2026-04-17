@@ -5,7 +5,7 @@
 - `plan_id`: `phase-3a-implementation-freeze`
 - `status`: `completed`
 - `owner`: `codex`
-- `related_docs`: [v7 handoff](/Users/coderlauu/xRag/docs/handoff/v7.md), [v7 status](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md), [Phase 3A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md), [Phase 3A api design](/Users/coderlauu/xRag/tech/api/2026-04-17-phase-3a-api.md), [Phase 3A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-17-phase-3a-data-model.md), [Phase 3A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-architecture.md), [Phase 3A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-lanes.md)
+- `related_docs`: [v7 handoff](/Users/coderlauu/xRag/docs/handoff/v7.md), [v7 status](/Users/coderlauu/xRag/docs/status/v7-phase-3a.md), [Phase 3A contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md), [Phase 3A api design](/Users/coderlauu/xRag/tech/api/2026-04-17-phase-3a-api.md), [Phase 3A data model](/Users/coderlauu/xRag/tech/data-model/2026-04-17-phase-3a-data-model.md), [Phase 3A architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-architecture.md), [Phase 3A implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-lanes.md)
 
 ## 2. Objective
 
@@ -243,10 +243,10 @@
 1. `Lane 0` 文件 ownership 已固定。
 2. 后续 `Lane A / B / C / D` 的写入范围、禁止项和启动顺序已固定。
 3. 验证 gate 已固定。
-4. 当前活跃 exec plan 已切换到 [Phase 3A Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-lanes.md)。
+4. 当前活跃 exec plan 已切换到 [Phase 3A Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-lanes.md)。
 
 ## 11. Decision Log
 
 - `2026-04-17`: `Phase 3A Contract Freeze` 已完成。
 - `2026-04-17`: GitHub Actions run `24547237776` 已通过 `infra / validate / integration / e2e / build-images / deploy-staging / smoke-staging / deploy-production / smoke-production`。
-- `2026-04-17`: implementation freeze 退出条件已满足，后续切换到 [Phase 3A Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-17-phase-3a-implementation-lanes.md)。
+- `2026-04-17`: implementation freeze 退出条件已满足，后续切换到 [Phase 3A Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-17-phase-3a-implementation-lanes.md)。

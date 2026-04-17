@@ -270,6 +270,7 @@ export function DiagnosticWorkflow({ clusters, onWindowChange, window }: Diagnos
               <div className="flex flex-wrap gap-2">
                 {WINDOW_OPTIONS.map((option) => (
                   <Button
+                    aria-label={`Diagnostics window ${option.label}`}
                     key={option.value}
                     onClick={() => changeWindow(option.value)}
                     size="sm"
