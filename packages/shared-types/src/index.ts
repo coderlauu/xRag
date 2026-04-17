@@ -92,6 +92,14 @@ export type OpsRecommendedActionCode =
 export type OpsReleaseGuardRiskLevel = "healthy" | "warning" | "critical";
 export type OpsTrendWindow = "24h" | "7d" | "30d";
 export type OpsTrendSource = "runtime" | "evaluation";
+export type OpsDiagnosticSampleKind = "answer_session" | "document_pipeline";
+export type OpsDiagnosticOrigin = "trend" | "incident_cluster" | "release_compare";
+export type OpsRegressionClass = "new_regression" | "existing_debt" | "unknown";
+export type OpsReplayFreshnessFlag =
+  | "stale_document"
+  | "citation_unready"
+  | "retrieval_scope_empty"
+  | "unknown";
 export type OpsTrendMetric =
   | "citation_coverage"
   | "refusal_rate"
@@ -684,4 +692,126 @@ export interface OpsTrendsResponse {
 
 export interface OpsTrendsQuery {
   window?: OpsTrendWindow;
+}
+
+export interface OpsReplayRef {
+  method: "GET";
+  path: string;
+}
+
+export interface OpsDiagnosticSample {
+  sample_id: string;
+  sample_kind: OpsDiagnosticSampleKind;
+  source_id: string;
+  origin: OpsDiagnosticOrigin;
+  severity: IncidentSeverity;
+  detected_at: string;
+  title: string;
+  summary: string;
+  related_incident_ref: string | null;
+  related_deployment_record_id: string | null;
+  regression_class: OpsRegressionClass | null;
+  next_replay_ref: OpsReplayRef;
+}
+
+export interface OpsDiagnosticSampleListQuery {
+  origin: OpsDiagnosticOrigin;
+  sample_kind?: OpsDiagnosticSampleKind;
+  window?: OpsTrendWindow;
+  cluster_key?: string;
+  deployment_record_id?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface OpsDiagnosticSampleListResponse {
+  generated_at: string;
+  origin: OpsDiagnosticOrigin;
+  window: OpsTrendWindow;
+  page: number;
+  page_size: number;
+  total: number;
+  items: OpsDiagnosticSample[];
+}
+
+export interface OpsAnswerSessionReplayRelatedContext {
+  related_incident_ref: string | null;
+  related_deployment_record_id: string | null;
+  related_evaluation_run_ref: string | null;
+  freshness_flags: OpsReplayFreshnessFlag[];
+}
+
+export interface OpsAnswerSessionReplayResponse {
+  generated_at: string;
+  sample: OpsDiagnosticSample;
+  session: AnswerSessionResponse;
+  retrieval: AnswerRetrievalTraceResponse;
+  related_context: OpsAnswerSessionReplayRelatedContext;
+}
+
+export interface OpsDocumentReplayRelatedContext {
+  blocking_reason: OpsReadinessBlockingReason | null;
+  related_incident_ref: string | null;
+  related_answer_session_count: number;
+  related_deployment_record_id: string | null;
+}
+
+export interface OpsDocumentReplayResponse {
+  generated_at: string;
+  sample: OpsDiagnosticSample;
+  document: DocumentDetail;
+  timeline: DocumentTimelineResponse;
+  evidence: DocumentEvidenceResponse;
+  related_context: OpsDocumentReplayRelatedContext;
+}
+
+export interface OpsDeploymentCompareQuery {
+  deployment_record_id: string;
+  window?: OpsTrendWindow;
+  sample_kind?: OpsDiagnosticSampleKind;
+}
+
+export interface OpsDeploymentCompareDeployment {
+  deployment_record_id: string;
+  environment: string;
+  commit_sha: string | null;
+  workflow_run_id: string | null;
+  current_image_tag: string;
+  previous_stable_image_tag: string | null;
+  smoke_status: DeploymentSmokeStatus;
+  smoke_at: string | null;
+  deployed_at: string;
+  evidence_url: string | null;
+}
+
+export interface OpsDeploymentCompareBaseline {
+  previous_stable_image_tag: string | null;
+  previous_deployment_record_id: string | null;
+  related_evaluation_run_ref: string | null;
+}
+
+export interface OpsDeploymentCompareWindow {
+  start_at: string;
+  end_at: string;
+  sample_count: number;
+  high_severity_count: number;
+}
+
+export interface OpsDeploymentCompareDeltaSummary {
+  regression_count: number;
+  new_regression_count: number;
+  existing_debt_count: number;
+  affected_answer_session_count: number;
+  affected_document_count: number;
+  summary: string;
+}
+
+export interface OpsDeploymentCompareResponse {
+  generated_at: string;
+  deployment: OpsDeploymentCompareDeployment;
+  baseline: OpsDeploymentCompareBaseline;
+  before_window: OpsDeploymentCompareWindow;
+  after_window: OpsDeploymentCompareWindow;
+  delta_summary: OpsDeploymentCompareDeltaSummary;
+  affected_samples: OpsDiagnosticSample[];
 }

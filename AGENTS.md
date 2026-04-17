@@ -31,7 +31,7 @@
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
 - `v5 / Phase 2B` 已归档
 - `v6 / Phase 2C` 已归档，closeout commit `6f052ac` 的 GitHub Actions run `24543526168` 已成功，当前作为 `v7` 启动前的最近 main 绿态基线
-- `v7 / Phase 3A` 已完成 `implementation-freeze`，当前进入 `implementation-lanes`；下一步由主线程推进 `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail`
+- `v7 / Phase 3A` 已完成 `implementation-freeze` 并进入 `implementation-lanes`；`Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail` 已完成，下一步推进 `Lane A / Lane B`
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -141,7 +141,7 @@
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
 8. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-   当前 `v7 / Phase 3A` 已完成 `implementation-freeze` 并进入 `implementation-lanes`；在 `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail` 完成前，不得把 `web / api / worker / test` 实现任务并行下放。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
+   当前 `v7 / Phase 3A` 已完成 `Lane 0 / Lane 0G`；下一步推进 `Lane A / Lane B`，任何 schema、API path、DTO 字段、OpenAPI、API client contract 或 answer session 状态机语义变更都必须切回主线程。若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补；`v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线
 9. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行
 10. 子 agent 不允许擅自修改 API 路径、字段命名、状态枚举和主数据模型语义
 11. 一旦并行 lane 触碰上游 contract 或集成失稳，立即切回主线程收口

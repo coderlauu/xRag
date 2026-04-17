@@ -43,15 +43,15 @@
 
 ## 4. Current Node
 
-- `now`: `implementation-freeze` 已完成；`v7 / Phase 3A` 已进入 `implementation-lanes`
-- `next`: 主线程推进 `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail`；两者完成前不得并行下放代码任务
+- `now`: `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail` 已完成；`v7 / Phase 3A` 继续处于 `implementation-lanes`
+- `next`: 推进 `Lane A: API Diagnostic Samples And Deployment Compare` 与 `Lane B: API Answer And Document Replay`；任何 schema、API path、DTO 字段、OpenAPI 或 API client contract 变更必须切回主线程
 
 ### 4.1 P0 Guardrails
 
 - `P0-G1`: Ask active-session 终态收口与轮询兜底
-  - `status`: `accepted`
+  - `status`: `implemented`
   - `reason`: Ask 页面可能因 answer session 长期停留 `retrieving / synthesizing` 而无限轮询，影响主问答链路和 Phase 3A replay 可信度
-  - `required_outcome`: 不新增 `AnswerSessionStatus`，通过服务端 `failed` 终态收口、BullMQ 对账、Worker 失败保护和前端轮询兜底解决
+  - `outcome`: 未新增 `AnswerSessionStatus`；服务端读侧会将超时 active session 收口到 `failed`，Worker 会在 queue exhausted / 前置失败时尽量对账，Ask 页面增加最大轮询保护和 stuck 提示
   - `retrospective`: [Ask active session stuck polling retrospective](/Users/coderlauu/xRag/docs/retro/2026-04-17-ask-active-session-stuck-polling-retrospective.md)
 
 ## 5. Blockers
@@ -62,7 +62,7 @@
 
 ## 6. Validation
 
-- `latest_validation`: `2026-04-17` 已完成 `planning-and-scope + technical-evaluation + contract-freeze + implementation-freeze` 文档校验；GitHub Actions run `24547237776` 已通过 `infra / validate / integration / e2e / build-images / deploy-staging / smoke-staging / deploy-production / smoke-production`；`P0-G1` 文档纳入后本地通过 `pnpm docs:check` 与 `git diff --check`
+- `latest_validation`: `2026-04-17` `Lane 0 / Lane 0G` 本地验证已通过：`pnpm --filter @xrag/shared-types typecheck`、`pnpm --filter @xrag/api typecheck`、`pnpm --filter @xrag/api-client typecheck`、`pnpm --filter @xrag/web typecheck`、`pnpm --filter @xrag/worker typecheck`、`pnpm --filter @xrag/api openapi:generate`、`pnpm --filter @xrag/worker test:unit`、`pnpm --filter @xrag/api build:test`、`scripts/test-env-up.sh`、`pnpm --filter @xrag/api test:integration`、`pnpm --filter @xrag/web build`、`pnpm docs:check`、`git diff --check`
 - `result`: `passed`
 - `latest_failure`: 无
 

@@ -372,6 +372,32 @@ export class AnswerRepository {
     );
   }
 
+  async markActiveAnswerSessionFailedByQueueJobId(
+    queueJobId: string,
+    values: {
+      refusalReason: string | null;
+      diagnosisCode: string | null;
+    },
+    db: DatabaseExecutor = this.pool
+  ): Promise<boolean> {
+    const result = await db.query(
+      `
+        update answer_sessions
+        set status = 'failed',
+            answer_summary = null,
+            refusal_reason = $2,
+            diagnosis_code = $3,
+            finished_at = now(),
+            updated_at = now()
+        where queue_job_id = $1
+          and status in ('idle', 'retrieving', 'synthesizing')
+      `,
+      [queueJobId, values.refusalReason, values.diagnosisCode]
+    );
+
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async countEligibleDocuments(
     documentIds: string[] | null,
     filters: ScopeFilterSet | null,

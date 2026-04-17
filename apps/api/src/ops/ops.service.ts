@@ -1,11 +1,17 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { desc, eq, sql, type SQL } from "drizzle-orm";
 import type {
   IncidentSeverity,
   IncidentSource,
   IncidentStatus,
   LatestDeploymentResponse,
+  OpsAnswerSessionReplayResponse,
   OpsAnswerSummaryResponse,
+  OpsDeploymentCompareQuery,
+  OpsDeploymentCompareResponse,
+  OpsDiagnosticSampleListQuery,
+  OpsDiagnosticSampleListResponse,
+  OpsDocumentReplayResponse,
   OpsEvaluationQualitySummary,
   OpsGovernanceNotice,
   OpsHealthSummaryResponse,
@@ -25,13 +31,18 @@ import type {
   OpsTrendsResponse,
   OpsTrendWindow
 } from "@xrag/shared-types";
+import { AnswersService } from "../answers/answers.service";
 import { loadApiEnv } from "../config/env";
 import { DatabaseService } from "../database/database.service";
 import { answerCitations, answerSessions, deploymentRecords, documents, evaluationRuns } from "../database/schema";
+import { DocumentsService } from "../documents/documents.service";
 import { JobsRepository } from "../jobs/jobs.repository";
 import { QueueService } from "../queue/queue.service";
 import { StorageService } from "../storage/storage.service";
 import { UploadsRepository } from "../uploads/uploads.repository";
+import { getEmptyDiagnosticSampleList } from "./ops.diagnostic-samples";
+import { buildDeploymentCompareResponse } from "./ops.deployment-compare";
+import { buildAnswerSessionReplayResponse, buildDocumentReplayResponse } from "./ops.replays";
 
 type OpsIncidentCandidate = OpsIncidentListResponse["items"][number] & {
   occurredAt: Date;
@@ -71,6 +82,8 @@ export class OpsService {
 
   constructor(
     private readonly database: DatabaseService,
+    private readonly answersService: AnswersService,
+    private readonly documentsService: DocumentsService,
     private readonly jobsRepository: JobsRepository,
     private readonly queueService: QueueService,
     private readonly storageService: StorageService,
@@ -183,6 +196,69 @@ export class OpsService {
       generated_at: config.endAt.toISOString(),
       series: [...runtimeSeries, ...evaluationSeries]
     };
+  }
+
+  async listDiagnosticSamples(query: OpsDiagnosticSampleListQuery): Promise<OpsDiagnosticSampleListResponse> {
+    this.validateDiagnosticSampleQuery(query);
+
+    return getEmptyDiagnosticSampleList({
+      origin: query.origin,
+      window: this.normalizeTrendWindow(query.window ?? "24h"),
+      page: query.page ?? 1,
+      pageSize: query.page_size ?? 20
+    });
+  }
+
+  async getAnswerSessionReplay(sessionId: string): Promise<OpsAnswerSessionReplayResponse> {
+    const [session, retrieval] = await Promise.all([
+      this.answersService.getAnswer(sessionId),
+      this.answersService.getAnswerRetrieval(sessionId)
+    ]);
+
+    return buildAnswerSessionReplayResponse({
+      session,
+      retrieval
+    });
+  }
+
+  async getDocumentReplay(documentId: string): Promise<OpsDocumentReplayResponse> {
+    const [document, timeline, evidence] = await Promise.all([
+      this.documentsService.getDocument(documentId),
+      this.documentsService.getDocumentTimeline(documentId),
+      this.documentsService.getDocumentEvidence(documentId)
+    ]);
+
+    return buildDocumentReplayResponse({
+      document,
+      timeline,
+      evidence
+    });
+  }
+
+  async getDeploymentCompare(query: OpsDeploymentCompareQuery): Promise<OpsDeploymentCompareResponse> {
+    const window = this.normalizeTrendWindow(query.window ?? "24h");
+    const [deployment] = await this.database.db
+      .select()
+      .from(deploymentRecords)
+      .where(eq(deploymentRecords.id, query.deployment_record_id))
+      .limit(1);
+
+    if (!deployment) {
+      throw new NotFoundException("Deployment record not found");
+    }
+
+    const [previousDeployment, relatedEvaluationRunRef] = await Promise.all([
+      this.getPreviousDeploymentRecord(deployment.environment, deployment.deployedAt),
+      this.getEvaluationRunRefByCommitSha(deployment.commitSha)
+    ]);
+
+    return buildDeploymentCompareResponse({
+      deployment,
+      previousDeployment,
+      relatedEvaluationRunRef,
+      window,
+      affectedSamples: []
+    });
   }
 
   async getLatestDeployment(): Promise<LatestDeploymentResponse> {
@@ -532,6 +608,30 @@ export class OpsService {
     }
 
     return "7d";
+  }
+
+  private validateDiagnosticSampleQuery(query: OpsDiagnosticSampleListQuery) {
+    if (query.origin === "incident_cluster" && !query.cluster_key) {
+      throw new BadRequestException("cluster_key is required when origin=incident_cluster");
+    }
+
+    if (query.origin === "release_compare" && !query.deployment_record_id) {
+      throw new BadRequestException("deployment_record_id is required when origin=release_compare");
+    }
+  }
+
+  private async getPreviousDeploymentRecord(environment: string, deployedAt: Date) {
+    const [record] = await this.database.db
+      .select({
+        id: deploymentRecords.id,
+        currentImageTag: deploymentRecords.currentImageTag
+      })
+      .from(deploymentRecords)
+      .where(sql`${deploymentRecords.environment} = ${environment} and ${deploymentRecords.deployedAt} < ${deployedAt}`)
+      .orderBy(desc(deploymentRecords.deployedAt), desc(deploymentRecords.createdAt))
+      .limit(1);
+
+    return record ?? null;
   }
 
   private getAffectedSurface(source: IncidentSource): OpsIncidentCluster["affected_surface"] {

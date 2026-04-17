@@ -20,6 +20,12 @@ import type {
   ListDocumentsQuery,
   ListTagsQuery,
   OpsAnswerSummaryResponse,
+  OpsAnswerSessionReplayResponse,
+  OpsDeploymentCompareQuery,
+  OpsDeploymentCompareResponse,
+  OpsDiagnosticSampleListQuery,
+  OpsDiagnosticSampleListResponse,
+  OpsDocumentReplayResponse,
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
   OpsOverviewResponse,
@@ -251,6 +257,34 @@ export async function fetchOpsOverview(baseUrl = "http://localhost:3001") {
 export async function fetchOpsTrends(baseUrl = "http://localhost:3001", query: OpsTrendsQuery = {}) {
   const search = buildSearchParams(query);
   return requestJson<OpsTrendsResponse>(`/api/v1/ops/trends${search}`, undefined, baseUrl);
+}
+
+export async function fetchOpsDiagnosticSamples(
+  query: OpsDiagnosticSampleListQuery,
+  baseUrl = "http://localhost:3001"
+) {
+  const search = buildSearchParams(query);
+  return requestJson<OpsDiagnosticSampleListResponse>(`/api/v1/ops/samples${search}`, undefined, baseUrl);
+}
+
+export async function fetchOpsAnswerSessionReplay(sessionId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<OpsAnswerSessionReplayResponse>(
+    `/api/v1/ops/replays/answer-sessions/${sessionId}`,
+    undefined,
+    baseUrl
+  );
+}
+
+export async function fetchOpsDocumentReplay(documentId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<OpsDocumentReplayResponse>(`/api/v1/ops/replays/documents/${documentId}`, undefined, baseUrl);
+}
+
+export async function fetchOpsDeploymentCompare(
+  query: OpsDeploymentCompareQuery,
+  baseUrl = "http://localhost:3001"
+) {
+  const search = buildSearchParams(query);
+  return requestJson<OpsDeploymentCompareResponse>(`/api/v1/ops/deployments/compare${search}`, undefined, baseUrl);
 }
 
 export async function createAnswer(body: CreateAnswerRequest, baseUrl = "http://localhost:3001") {

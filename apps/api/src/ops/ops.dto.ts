@@ -5,7 +5,22 @@ import type {
   IncidentSource,
   IncidentStatus,
   LatestDeploymentResponse,
+  OpsAnswerSessionReplayRelatedContext,
+  OpsAnswerSessionReplayResponse,
   OpsAnswerSummaryResponse,
+  OpsDeploymentCompareBaseline,
+  OpsDeploymentCompareDeltaSummary,
+  OpsDeploymentCompareDeployment,
+  OpsDeploymentCompareQuery,
+  OpsDeploymentCompareResponse,
+  OpsDeploymentCompareWindow,
+  OpsDiagnosticOrigin,
+  OpsDiagnosticSample,
+  OpsDiagnosticSampleKind,
+  OpsDiagnosticSampleListQuery,
+  OpsDiagnosticSampleListResponse,
+  OpsDocumentReplayRelatedContext,
+  OpsDocumentReplayResponse,
   OpsEvaluationQualitySummary,
   OpsGovernanceNotice,
   OpsHealthService,
@@ -19,8 +34,11 @@ import type {
   OpsReadinessSnapshot,
   OpsRecommendedAction,
   OpsRecommendedActionCode,
+  OpsRegressionClass,
   OpsReleaseGuard,
   OpsReleaseGuardRiskLevel,
+  OpsReplayFreshnessFlag,
+  OpsReplayRef,
   OpsServiceStatus,
   OpsRuntimeQualitySummary,
   OpsTrendMetric,
@@ -30,6 +48,10 @@ import type {
   OpsTrendsResponse,
   OpsTrendWindow
 } from "@xrag/shared-types";
+import { Type } from "class-transformer";
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
+import { AnswerRetrievalTraceResponseDto, AnswerSessionResponseDto } from "../answers/answers.dto";
+import { DocumentDetailDto, DocumentEvidenceResponseDto, DocumentTimelineResponseDto } from "../documents/documents.dto";
 
 const OPS_SERVICE_STATUS_VALUES: OpsServiceStatus[] = ["healthy", "warning", "critical"];
 const INCIDENT_SOURCE_VALUES: IncidentSource[] = ["upload", "parse", "ocr", "fetch", "projection", "deploy", "ci"];
@@ -88,6 +110,19 @@ const OPS_RECOMMENDED_ACTION_SURFACE_VALUES: OpsRecommendedAction["surface"][] =
   "evaluation"
 ];
 const OPS_GOVERNANCE_NOTICE_TARGET_VALUES: OpsGovernanceNotice["target"][] = ["ask", "search", "detail"];
+export const OPS_DIAGNOSTIC_SAMPLE_KIND_VALUES: OpsDiagnosticSampleKind[] = ["answer_session", "document_pipeline"];
+export const OPS_DIAGNOSTIC_ORIGIN_VALUES: OpsDiagnosticOrigin[] = [
+  "trend",
+  "incident_cluster",
+  "release_compare"
+];
+const OPS_REGRESSION_CLASS_VALUES: OpsRegressionClass[] = ["new_regression", "existing_debt", "unknown"];
+const OPS_REPLAY_FRESHNESS_FLAG_VALUES: OpsReplayFreshnessFlag[] = [
+  "stale_document",
+  "citation_unready",
+  "retrieval_scope_empty",
+  "unknown"
+];
 
 export class OpsHealthServiceDto implements OpsHealthService {
   @ApiProperty({ type: String })
@@ -448,4 +483,295 @@ export class OpsTrendsResponseDto implements OpsTrendsResponse {
 
   @ApiProperty({ type: () => OpsTrendSeriesDto, isArray: true })
   series!: OpsTrendSeriesDto[];
+}
+
+export class OpsReplayRefDto implements OpsReplayRef {
+  @ApiProperty({ type: String, enum: ["GET"] })
+  method!: "GET";
+
+  @ApiProperty({ type: String })
+  path!: string;
+}
+
+export class OpsDiagnosticSampleDto implements OpsDiagnosticSample {
+  @ApiProperty({ type: String })
+  sample_id!: string;
+
+  @ApiProperty({ type: String, enum: OPS_DIAGNOSTIC_SAMPLE_KIND_VALUES })
+  sample_kind!: OpsDiagnosticSampleKind;
+
+  @ApiProperty({ type: String })
+  source_id!: string;
+
+  @ApiProperty({ type: String, enum: OPS_DIAGNOSTIC_ORIGIN_VALUES })
+  origin!: OpsDiagnosticOrigin;
+
+  @ApiProperty({ type: String, enum: INCIDENT_SEVERITY_VALUES })
+  severity!: IncidentSeverity;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  detected_at!: string;
+
+  @ApiProperty({ type: String })
+  title!: string;
+
+  @ApiProperty({ type: String })
+  summary!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_incident_ref!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_deployment_record_id!: string | null;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_REGRESSION_CLASS_VALUES, nullable: true })
+  regression_class!: OpsRegressionClass | null;
+
+  @ApiProperty({ type: () => OpsReplayRefDto })
+  next_replay_ref!: OpsReplayRefDto;
+}
+
+export class OpsDiagnosticSampleListQueryDto implements OpsDiagnosticSampleListQuery {
+  @ApiProperty({ type: String, enum: OPS_DIAGNOSTIC_ORIGIN_VALUES })
+  @IsIn(OPS_DIAGNOSTIC_ORIGIN_VALUES)
+  origin!: OpsDiagnosticOrigin;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_DIAGNOSTIC_SAMPLE_KIND_VALUES })
+  @IsOptional()
+  @IsIn(OPS_DIAGNOSTIC_SAMPLE_KIND_VALUES)
+  sample_kind?: OpsDiagnosticSampleKind;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_TREND_WINDOW_VALUES, default: "24h" })
+  @IsOptional()
+  @IsIn(OPS_TREND_WINDOW_VALUES)
+  window?: OpsTrendWindow;
+
+  @ApiPropertyOptional({ type: String })
+  @IsOptional()
+  @IsString()
+  cluster_key?: string;
+
+  @ApiPropertyOptional({ type: String, format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  deployment_record_id?: string;
+
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  page_size?: number;
+}
+
+export class OpsDiagnosticSampleListResponseDto implements OpsDiagnosticSampleListResponse {
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: String, enum: OPS_DIAGNOSTIC_ORIGIN_VALUES })
+  origin!: OpsDiagnosticOrigin;
+
+  @ApiProperty({ type: String, enum: OPS_TREND_WINDOW_VALUES })
+  window!: OpsTrendWindow;
+
+  @ApiProperty({ type: Number })
+  page!: number;
+
+  @ApiProperty({ type: Number })
+  page_size!: number;
+
+  @ApiProperty({ type: Number })
+  total!: number;
+
+  @ApiProperty({ type: () => OpsDiagnosticSampleDto, isArray: true })
+  items!: OpsDiagnosticSampleDto[];
+}
+
+export class OpsAnswerSessionReplayRelatedContextDto implements OpsAnswerSessionReplayRelatedContext {
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_incident_ref!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_deployment_record_id!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_evaluation_run_ref!: string | null;
+
+  @ApiProperty({ type: () => String, enum: OPS_REPLAY_FRESHNESS_FLAG_VALUES, isArray: true })
+  freshness_flags!: OpsReplayFreshnessFlag[];
+}
+
+export class OpsAnswerSessionReplayResponseDto implements OpsAnswerSessionReplayResponse {
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: () => OpsDiagnosticSampleDto })
+  sample!: OpsDiagnosticSampleDto;
+
+  @ApiProperty({ type: () => AnswerSessionResponseDto })
+  session!: OpsAnswerSessionReplayResponse["session"];
+
+  @ApiProperty({ type: () => AnswerRetrievalTraceResponseDto })
+  retrieval!: OpsAnswerSessionReplayResponse["retrieval"];
+
+  @ApiProperty({ type: () => OpsAnswerSessionReplayRelatedContextDto })
+  related_context!: OpsAnswerSessionReplayRelatedContextDto;
+}
+
+export class OpsDocumentReplayRelatedContextDto implements OpsDocumentReplayRelatedContext {
+  @ApiPropertyOptional({ type: String, enum: OPS_READINESS_BLOCKING_REASON_VALUES, nullable: true })
+  blocking_reason!: OpsReadinessBlockingReason | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_incident_ref!: string | null;
+
+  @ApiProperty({ type: Number })
+  related_answer_session_count!: number;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_deployment_record_id!: string | null;
+}
+
+export class OpsDocumentReplayResponseDto implements OpsDocumentReplayResponse {
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: () => OpsDiagnosticSampleDto })
+  sample!: OpsDiagnosticSampleDto;
+
+  @ApiProperty({ type: () => DocumentDetailDto })
+  document!: OpsDocumentReplayResponse["document"];
+
+  @ApiProperty({ type: () => DocumentTimelineResponseDto })
+  timeline!: OpsDocumentReplayResponse["timeline"];
+
+  @ApiProperty({ type: () => DocumentEvidenceResponseDto })
+  evidence!: OpsDocumentReplayResponse["evidence"];
+
+  @ApiProperty({ type: () => OpsDocumentReplayRelatedContextDto })
+  related_context!: OpsDocumentReplayRelatedContextDto;
+}
+
+export class OpsDeploymentCompareQueryDto implements OpsDeploymentCompareQuery {
+  @ApiProperty({ type: String, format: "uuid" })
+  @IsUUID()
+  deployment_record_id!: string;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_TREND_WINDOW_VALUES, default: "24h" })
+  @IsOptional()
+  @IsIn(OPS_TREND_WINDOW_VALUES)
+  window?: OpsTrendWindow;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_DIAGNOSTIC_SAMPLE_KIND_VALUES })
+  @IsOptional()
+  @IsIn(OPS_DIAGNOSTIC_SAMPLE_KIND_VALUES)
+  sample_kind?: OpsDiagnosticSampleKind;
+}
+
+export class OpsDeploymentCompareDeploymentDto implements OpsDeploymentCompareDeployment {
+  @ApiProperty({ type: String })
+  deployment_record_id!: string;
+
+  @ApiProperty({ type: String })
+  environment!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  commit_sha!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  workflow_run_id!: string | null;
+
+  @ApiProperty({ type: String })
+  current_image_tag!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  previous_stable_image_tag!: string | null;
+
+  @ApiProperty({ type: String, enum: DEPLOYMENT_SMOKE_STATUS_VALUES })
+  smoke_status!: DeploymentSmokeStatus;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  smoke_at!: string | null;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  deployed_at!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  evidence_url!: string | null;
+}
+
+export class OpsDeploymentCompareBaselineDto implements OpsDeploymentCompareBaseline {
+  @ApiPropertyOptional({ type: String, nullable: true })
+  previous_stable_image_tag!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  previous_deployment_record_id!: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  related_evaluation_run_ref!: string | null;
+}
+
+export class OpsDeploymentCompareWindowDto implements OpsDeploymentCompareWindow {
+  @ApiProperty({ type: String, format: "date-time" })
+  start_at!: string;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  end_at!: string;
+
+  @ApiProperty({ type: Number })
+  sample_count!: number;
+
+  @ApiProperty({ type: Number })
+  high_severity_count!: number;
+}
+
+export class OpsDeploymentCompareDeltaSummaryDto implements OpsDeploymentCompareDeltaSummary {
+  @ApiProperty({ type: Number })
+  regression_count!: number;
+
+  @ApiProperty({ type: Number })
+  new_regression_count!: number;
+
+  @ApiProperty({ type: Number })
+  existing_debt_count!: number;
+
+  @ApiProperty({ type: Number })
+  affected_answer_session_count!: number;
+
+  @ApiProperty({ type: Number })
+  affected_document_count!: number;
+
+  @ApiProperty({ type: String })
+  summary!: string;
+}
+
+export class OpsDeploymentCompareResponseDto implements OpsDeploymentCompareResponse {
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: () => OpsDeploymentCompareDeploymentDto })
+  deployment!: OpsDeploymentCompareDeploymentDto;
+
+  @ApiProperty({ type: () => OpsDeploymentCompareBaselineDto })
+  baseline!: OpsDeploymentCompareBaselineDto;
+
+  @ApiProperty({ type: () => OpsDeploymentCompareWindowDto })
+  before_window!: OpsDeploymentCompareWindowDto;
+
+  @ApiProperty({ type: () => OpsDeploymentCompareWindowDto })
+  after_window!: OpsDeploymentCompareWindowDto;
+
+  @ApiProperty({ type: () => OpsDeploymentCompareDeltaSummaryDto })
+  delta_summary!: OpsDeploymentCompareDeltaSummaryDto;
+
+  @ApiProperty({ type: () => OpsDiagnosticSampleDto, isArray: true })
+  affected_samples!: OpsDiagnosticSampleDto[];
 }

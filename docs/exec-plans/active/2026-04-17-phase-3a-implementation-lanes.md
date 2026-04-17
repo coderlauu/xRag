@@ -15,9 +15,9 @@
 
 进入并行编码前，主线程必须先完成 `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail`。
 
-`Lane 0` 当前状态：`not-started`
+`Lane 0` 当前状态：`completed`
 
-`Lane 0G` 当前状态：`not-started`
+`Lane 0G` 当前状态：`completed`
 
 主线程写入范围固定为：
 
@@ -54,7 +54,7 @@
 ### Lane 0: Main Thread Contract To Code
 
 - 类型：主线程
-- 当前状态：`not-started`
+- 当前状态：`completed`
 - 目标：把 [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md) 映射到 shared-types、DTO、controller、OpenAPI、API client 和 web API adapter
 - 写入范围：
   - `packages/shared-types/src/index.ts`
@@ -87,7 +87,7 @@
 ### Lane 0G: Main Thread Ask Active Session Reliability Guardrail
 
 - 类型：主线程
-- 当前状态：`not-started`
+- 当前状态：`completed`
 - 目标：修复 Ask 页面因 answer session 长期停留 active status 而无限轮询的问题，并保证服务端事实最终进入 terminal status
 - 写入范围：
   - `apps/api/src/answers/**`
@@ -219,12 +219,15 @@
 
 推荐实施顺序固定为：
 
+1. `Lane A` 与 `Lane B`
+2. `Lane C`
+3. `Lane D`
+4. `testing-and-release-readiness`
+
+已完成：
+
 1. `Lane 0`
 2. `Lane 0G`
-3. `Lane A` 与 `Lane B`
-4. `Lane C`
-5. `Lane D`
-6. `testing-and-release-readiness`
 
 `Lane A / B / C / D` 只有在 `Lane 0 / Lane 0G` 都完成后才允许使用子 agent 并行。`Lane C` 建议等 `Lane A / B` API read model 合流后启动，避免 Web 反向发明 contract。若任何 lane 需要改 schema、shared-types、DTO、OpenAPI、API client contract 或 answer session 状态机语义，必须暂停并切回主线程。
 
@@ -293,3 +296,6 @@
 - `2026-04-17`: 主线程 ownership 固定为 `shared-types / DTO / controller / OpenAPI / API client / web api adapter`；schema 默认不进入 P0 写入范围。
 - `2026-04-17`: 首批实现 lane 固定为 `Lane A / B / C / D`，且必须等 `Lane 0 / Lane 0G` 完成后才能启动。
 - `2026-04-17`: 用户反馈 Ask 页面可能因 answer session 长期 active 而无限轮询；将其纳入本轮 `P0-G1`，由主线程在并行 fan-out 前完成。
+- `2026-04-17`: `Lane 0` 已完成 Phase 3A ops contract-to-code：shared-types、DTO、controller、OpenAPI、API client 与 web adapter 已对齐，新增 endpoints 以稳定空集合或既有事实源 read model 返回。
+- `2026-04-17`: `Lane 0G` 已完成 Ask active-session stuck polling guardrail：服务端 stale active session 读侧收口、Worker queue exhausted/前置失败对账、Ask 页面最大轮询保护均已落地。
+- `2026-04-17`: 本地验证通过 typecheck、OpenAPI generation、worker unit、API build:test 与 API integration；下一步进入 `Lane A / Lane B`。

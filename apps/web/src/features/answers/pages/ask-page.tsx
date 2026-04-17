@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { AnswerScope, CreateAnswerRequest } from "@xrag/shared-types";
+import type { AnswerScope, AnswerSessionStatus, CreateAnswerRequest } from "@xrag/shared-types";
 import { Badge, Button, Input, PageShell, SectionCard, Select, StatCard, Textarea } from "@xrag/ui";
 import { createAnswer, getAnswer, getAnswerRetrieval, listAnswers } from "../../../lib/api";
 import { GovernanceNoticeStrip } from "../../ops/components/governance-notice-strip";
@@ -39,6 +39,7 @@ import {
 const MAX_SCOPE_DOCUMENT_IDS = 100;
 const HISTORY_PAGE_SIZE = 8;
 const GLOBAL_OR_SEARCH_SOURCE_TYPE_HINT = "text, file, pdf, link";
+const ACTIVE_SESSION_CLIENT_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function AskPage() {
   const queryClient = useQueryClient();
@@ -54,6 +55,9 @@ export function AskPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(() => storedWorkspace?.activeSessionId ?? null);
   const [continuedFromSessionId, setContinuedFromSessionId] = useState<string | null>(() =>
     routeState.hasPrefill ? routeState.continuedFromSessionId : storedWorkspace?.continuedFromSessionId ?? null
+  );
+  const [activeSessionObservedAt, setActiveSessionObservedAt] = useState<number | null>(() =>
+    storedWorkspace?.activeSessionId ? Date.now() : null
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
@@ -76,24 +80,51 @@ export function AskPage() {
     });
   }, [activeSessionId, continuedFromSessionId, scopeDraft]);
 
+  useEffect(() => {
+    setActiveSessionObservedAt(activeSessionId ? Date.now() : null);
+  }, [activeSessionId]);
+
+  const isPollingStuck = (status: AnswerSessionStatus | undefined, updatedAt?: string) => {
+    if (!activeSessionId || !isAnswerSessionActive(status)) {
+      return false;
+    }
+
+    const referenceTime = updatedAt ? new Date(updatedAt).getTime() : activeSessionObservedAt;
+    if (!referenceTime) {
+      return false;
+    }
+
+    return Date.now() - referenceTime >= ACTIVE_SESSION_CLIENT_TIMEOUT_MS;
+  };
+
   const answerQuery = useQuery({
     queryKey: ["answers", activeSessionId],
     queryFn: () => getAnswer(activeSessionId || ""),
     enabled: Boolean(activeSessionId),
-    refetchInterval: (query) => (isAnswerSessionActive(query.state.data?.status) ? 2500 : false)
+    refetchInterval: (query) =>
+      isAnswerSessionActive(query.state.data?.status) &&
+      !isPollingStuck(query.state.data?.status, query.state.data?.updated_at)
+        ? 2500
+        : false
   });
 
   const retrievalQuery = useQuery({
     queryKey: ["answers", activeSessionId, "retrieval"],
     queryFn: () => getAnswerRetrieval(activeSessionId || ""),
     enabled: Boolean(activeSessionId),
-    refetchInterval: () => (isAnswerSessionActive(answerQuery.data?.status) ? 2500 : false)
+    refetchInterval: () =>
+      isAnswerSessionActive(answerQuery.data?.status) && !isPollingStuck(answerQuery.data?.status, answerQuery.data?.updated_at)
+        ? 2500
+        : false
   });
 
   const historyQuery = useQuery({
     queryKey: ["answers", "history", HISTORY_PAGE_SIZE],
     queryFn: () => listAnswers({ page: 1, page_size: HISTORY_PAGE_SIZE }),
-    refetchInterval: () => (isAnswerSessionActive(answerQuery.data?.status) ? 5000 : false)
+    refetchInterval: () =>
+      isAnswerSessionActive(answerQuery.data?.status) && !isPollingStuck(answerQuery.data?.status, answerQuery.data?.updated_at)
+        ? 5000
+        : false
   });
 
   const createAnswerMutation = useMutation({
@@ -112,6 +143,7 @@ export function AskPage() {
 
   const answer = answerQuery.data;
   const retrieval = retrievalQuery.data;
+  const activeSessionPollingStuck = isPollingStuck(answer?.status, answer?.updated_at);
   const historyItems = historyQuery.data?.items || [];
   const sessionStatus = answer?.status ?? "idle";
   const evidenceGroups = answer?.evidence_groups ?? [];
@@ -542,6 +574,34 @@ export function AskPage() {
                     <span>继续来源：{answer.continued_from_session_id}</span>
                   ) : null}
                 </div>
+                {activeSessionPollingStuck ? (
+                  <article className="grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                    <div className="grid gap-1">
+                      <strong>该会话长时间未进入终态</strong>
+                      <span>
+                        页面已停止自动轮询，避免持续请求同一个 active session。服务端应最终将不可恢复会话收口为 failed；如果状态仍未变化，请进入运维主板继续排查 queue / worker。
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={async () => {
+                          await Promise.all([
+                            answerQuery.refetch(),
+                            retrievalQuery.refetch(),
+                            historyQuery.refetch()
+                          ]);
+                        }}
+                      >
+                        手动刷新一次
+                      </Button>
+                      <Link className="text-sm font-semibold underline-offset-4 hover:underline" to="/ops">
+                        查看运维主板
+                      </Link>
+                    </div>
+                  </article>
+                ) : null}
                 <div className="grid gap-2 text-sm leading-6 text-slate-700">
                   <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                     <strong className="block text-slate-950">答案摘要</strong>

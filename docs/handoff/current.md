@@ -70,7 +70,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `v6 / Phase 2C` 已完成正式收口并归档后，`v7 / Phase 3A` 已完成 `implementation-freeze`，当前进入 `implementation-lanes`：下一步由主线程推进 `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail`，先把 `diagnostic_sample / replay / deployment compare` contract 落到 shared-types、DTO、OpenAPI、API client 与 web adapter，并修复 Ask active-session stuck polling。
+在 `v6 / Phase 2C` 已完成正式收口并归档后，`v7 / Phase 3A` 已进入 `implementation-lanes`：`Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail` 已完成并提交验证，下一步推进 `Lane A / Lane B`，分别实现 diagnostic samples / deployment compare 的真实聚合与 answer/document replay 聚合。
 
 ---
 
@@ -80,9 +80,9 @@
 
 - 保持 `v7 / Phase 3A` 的 `P0-01 ~ P0-04` 产品边界不被重新放大
 - 以 [Phase 3A Contract Freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-17-phase-3a-contract-freeze.md) 为最高优先级 contract source of truth
-- 先由主线程完成 `Lane 0: Contract To Code`
-- 将 Ask 页面 active session 无限轮询纳入本轮 `P0-G1`，通过服务端终态收口、queue 对账、Worker 失败保护和前端轮询兜底解决
-- 在 `Lane 0 / Lane 0G` 完成后，再按边界推进 API diagnostic samples / replay / Web ops diagnostics / testing lanes
+- `Lane 0: Contract To Code` 已由主线程完成，Phase 3A 新增 ops contract 已落到 shared-types、DTO、OpenAPI、API client 与 web adapter
+- Ask 页面 active session 无限轮询已纳入并完成本轮 `P0-G1`，通过服务端终态收口、queue 对账、Worker 失败保护和前端轮询兜底解决
+- 下一步按边界推进 `Lane A: API Diagnostic Samples And Deployment Compare` 与 `Lane B: API Answer And Document Replay`
 - 保持 `v6 / Phase 2C` 归档状态稳定，不在 `v7` implementation freeze 阶段反向改写上一版本完成态
 - 当前已经进入 implementation lanes，下一步不得跳过 `Lane 0`
 
@@ -92,7 +92,7 @@
 
 ### 明确不做
 
-- 在 `Lane 0 / Lane 0G` 完成前直接并行下放代码实现
+- 绕过 `Lane A / Lane B` 写入边界直接修改 schema、API path、DTO 字段、OpenAPI 或 API client contract
 - 绕过已冻结 contract 修改 schema、shared-types、DTO、OpenAPI 或 API client
 - 自动 remediation、自动 rerun、自动回滚
 - 开放互联网联网回答
@@ -139,7 +139,7 @@
 1. 当前有效版本为 `v7 / Phase 3A`，当前节点为 `implementation-lanes`
 2. 当前规划必须以 `Phase 2A / 2B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
 3. 复杂任务继续先写 `docs/exec-plans/active/*.md`，当前真实进度统一写入 `docs/status/v7-phase-3a.md`
-4. 当前正处 `implementation-lanes`；在 `Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail` 完成前，不得把 `Phase 3A` 代码实现并行下放
+4. 当前正处 `implementation-lanes`；`Lane 0: Contract To Code` 与 `Lane 0G: Ask Active Session Reliability Guardrail` 已完成，下一步可按 exec plan 启动 `Lane A / Lane B`
 5. `v6 / Phase 2C` 已归档，`v4 / Phase 2A` 继续作为实现、回滚与生产排障的现实基线
 
 ---

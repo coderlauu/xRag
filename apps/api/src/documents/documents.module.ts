@@ -10,6 +10,6 @@ import { DocumentsService } from "./documents.service";
   imports: [TagsModule, JobsModule, forwardRef(() => UploadsModule)],
   controllers: [DocumentsController],
   providers: [DocumentsRepository, DocumentsService],
-  exports: [DocumentsRepository]
+  exports: [DocumentsRepository, DocumentsService]
 })
 export class DocumentsModule {}

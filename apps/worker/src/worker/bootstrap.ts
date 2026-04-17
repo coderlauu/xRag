@@ -70,7 +70,8 @@ function createQueueRuntime<TData>(
   logger: Logger,
   queueName: string,
   concurrency: number,
-  processor: (job: Job<TData>) => Promise<unknown>
+  processor: (job: Job<TData>) => Promise<unknown>,
+  onExhaustedFailure?: (job: Job<TData>, error: Error) => Promise<void>
 ): QueueRuntime {
   const redisConnection = createRedisConnection(env);
   const worker = new Worker<TData>(queueName, processor, {
@@ -100,13 +101,32 @@ function createQueueRuntime<TData>(
   });
 
   worker.on("failed", (job, error) => {
+    const attempts = typeof job?.opts.attempts === "number" ? job.opts.attempts : 1;
+    const attemptsMade = job?.attemptsMade ?? 0;
+    const retriesExhausted = attemptsMade >= attempts;
+
     logger.error("job failed", {
       queueName,
       workerName: env.workerName,
       jobId: job?.id,
       jobName: job?.name,
-      errorMessage: error.message
+      errorMessage: error.message,
+      attemptsMade,
+      attempts,
+      retriesExhausted
     });
+
+    if (job && retriesExhausted && onExhaustedFailure) {
+      void onExhaustedFailure(job, error).catch((reconcileError) => {
+        logger.error("job failure reconciliation failed", {
+          queueName,
+          workerName: env.workerName,
+          jobId: job.id,
+          jobName: job.name,
+          errorMessage: reconcileError instanceof Error ? reconcileError.message : String(reconcileError)
+        });
+      });
+    }
   });
 
   queueEvents.on("failed", ({ jobId, failedReason }) => {
@@ -285,6 +305,24 @@ export async function bootstrapWorker() {
           id: job.id ?? "unknown",
           data: job.data,
           attemptsMade: job.attemptsMade
+        });
+      },
+      async (job, error) => {
+        if (!job.id) {
+          return;
+        }
+
+        const reconciled = await answerRuntime.repository.markActiveAnswerSessionFailedByQueueJobId(job.id, {
+          refusalReason: error.message || "Answer orchestration job exhausted retries.",
+          diagnosisCode: "queue_backlog"
+        });
+
+        logger.warn("answer session reconciled after exhausted queue failure", {
+          queueName: env.answerOrchestrationQueueName || ANSWER_ORCHESTRATION_QUEUE_NAME,
+          workerName: env.workerName,
+          jobId: job.id,
+          sessionId: job.data.sessionId,
+          reconciled
         });
       }
     )

@@ -337,6 +337,67 @@ test("answers API creates and exposes answer session, citations, and retrieval t
   }
 });
 
+test("answers API reconciles stale active sessions to failed on read", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+  const sessionId = randomUUID();
+  const staleUpdatedAt = new Date(Date.now() - 11 * 60 * 1000);
+
+  try {
+    const pool = new Pool({
+      connectionString: databaseUrl
+    });
+    try {
+      await pool.query(
+        `
+          insert into answer_sessions (
+            id,
+            queue_job_id,
+            question,
+            scope_mode,
+            scope_payload,
+            retrieval_mode,
+            status,
+            created_at,
+            updated_at
+          )
+          values ($1, 'queue-job-stale-active', 'Will this stop polling?', 'global', null, 'hybrid', 'retrieving', $2, $2)
+        `,
+        [sessionId, staleUpdatedAt]
+      );
+    } finally {
+      await pool.end();
+    }
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/answers/${sessionId}`
+    });
+    assert.equal(response.statusCode, 200);
+    const body = response.json();
+    assert.equal(body.status, "failed");
+    assert.equal(body.diagnosis_code, "queue_backlog");
+    assert.match(body.refusal_reason, /exceeded active processing timeout/);
+
+    const poolAfter = new Pool({
+      connectionString: databaseUrl
+    });
+    try {
+      const result = await poolAfter.query<{ status: string; finished_at: Date | null }>(
+        "select status, finished_at from answer_sessions where id = $1",
+        [sessionId]
+      );
+      assert.equal(result.rows[0]?.status, "failed");
+      assert.ok(result.rows[0]?.finished_at);
+    } finally {
+      await poolAfter.end();
+    }
+  } finally {
+    await app.close();
+  }
+});
+
 test("answers API orders recent history by created_at and exposes continue lineage", async () => {
   await resetDatabase();
   const app = await createApp();

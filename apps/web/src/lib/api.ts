@@ -8,6 +8,10 @@ import {
   createTextDocument as createTextDocumentRequest,
   fetchHealth as fetchHealthRequest,
   fetchOpsAnswerSummary as fetchOpsAnswerSummaryRequest,
+  fetchOpsAnswerSessionReplay as fetchOpsAnswerSessionReplayRequest,
+  fetchOpsDeploymentCompare as fetchOpsDeploymentCompareRequest,
+  fetchOpsDiagnosticSamples as fetchOpsDiagnosticSamplesRequest,
+  fetchOpsDocumentReplay as fetchOpsDocumentReplayRequest,
   fetchOpsHealthSummary as fetchOpsHealthSummaryRequest,
   fetchOpsOverview as fetchOpsOverviewRequest,
   fetchOpsTrends as fetchOpsTrendsRequest,
@@ -49,6 +53,12 @@ import type {
   ListDocumentsQuery,
   ListTagsQuery,
   OpsAnswerSummaryResponse,
+  OpsAnswerSessionReplayResponse,
+  OpsDeploymentCompareQuery,
+  OpsDeploymentCompareResponse,
+  OpsDiagnosticSampleListQuery,
+  OpsDiagnosticSampleListResponse,
+  OpsDocumentReplayResponse,
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
   OpsOverviewResponse,
@@ -141,6 +151,24 @@ export function fetchOpsOverview(): Promise<OpsOverviewResponse> {
 
 export function fetchOpsTrends(query: OpsTrendsQuery = {}): Promise<OpsTrendsResponse> {
   return fetchOpsTrendsRequest(API_BASE_URL, query);
+}
+
+export function fetchOpsDiagnosticSamples(
+  query: OpsDiagnosticSampleListQuery
+): Promise<OpsDiagnosticSampleListResponse> {
+  return fetchOpsDiagnosticSamplesRequest(query, API_BASE_URL);
+}
+
+export function fetchOpsAnswerSessionReplay(sessionId: string): Promise<OpsAnswerSessionReplayResponse> {
+  return fetchOpsAnswerSessionReplayRequest(sessionId, API_BASE_URL);
+}
+
+export function fetchOpsDocumentReplay(documentId: string): Promise<OpsDocumentReplayResponse> {
+  return fetchOpsDocumentReplayRequest(documentId, API_BASE_URL);
+}
+
+export function fetchOpsDeploymentCompare(query: OpsDeploymentCompareQuery): Promise<OpsDeploymentCompareResponse> {
+  return fetchOpsDeploymentCompareRequest(query, API_BASE_URL);
 }
 
 export function getLatestDeployment(): Promise<LatestDeploymentResponse> {

@@ -91,9 +91,8 @@ async function processAnswerSession(
     };
   }
 
-  await repository.markAnswerSessionRetrieving(session.id, context.id);
-
   try {
+    await repository.markAnswerSessionRetrieving(session.id, context.id);
     const scopeDocumentIds = resolveScopeDocumentIds(session);
     const scopeFilters = resolveScopeFilters(session);
     const retriever = new HybridRetriever({

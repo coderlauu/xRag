@@ -164,6 +164,44 @@ test("answer orchestration refuses immediately when no eligible evidence exists"
   assert.match(session.refusalReason ?? "", /没有检索到足够相关的可引用证据/);
 });
 
+test("answer orchestration marks session failed when retrieving transition throws", async () => {
+  const session = createSession();
+  const repository = createRepository({
+    session,
+    eligibleDocumentCount: 1,
+    lexicalCandidates: [createCandidate("chunk-1", 0.8, null)],
+    semanticCandidates: [createCandidate("chunk-1", null, 0.9)],
+    chunkRecords: [createChunkRecord("chunk-1", "这里有足够的引用证据。")]
+  });
+  repository.markAnswerSessionRetrieving = async () => {
+    throw new Error("retrieving transition failed");
+  };
+
+  const handlers = createAnswerOrchestrationHandlers({
+    repository,
+    getEmbeddingProvider: () => createEmbeddingProvider(),
+    getAnswerProvider: () => createAnswerProvider({
+      decision: "answered",
+      answer_summary: "这里有足够的引用证据。",
+      supporting_chunk_ids: ["chunk-1"]
+    }),
+    logger: createLogger()
+  });
+
+  const result = await handlers.answer_session({
+    name: "answer_session",
+    id: "queue-job-retrieving-failure",
+    data: {
+      sessionId: session.id
+    },
+    attemptsMade: 0
+  });
+
+  assert.equal(result.status, "failed");
+  assert.equal(session.status, "failed");
+  assert.equal(session.refusalReason, "retrieving transition failed");
+});
+
 function createSession(overrides: Partial<AnswerSessionRecord> = {}): AnswerSessionRecord {
   return {
     id: "session-1",

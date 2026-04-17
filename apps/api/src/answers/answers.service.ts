@@ -26,6 +26,9 @@ const RETRIEVAL_EXCLUSION_REASON_VALUES: RetrievalExclusionReason[] = [
   "low_support",
   "citation_unready"
 ];
+const ACTIVE_ANSWER_SESSION_TIMEOUT_MS = 10 * 60 * 1000;
+
+type AnswerSessionRow = NonNullable<Awaited<ReturnType<AnswersRepository["getAnswerSessionById"]>>>;
 
 @Injectable()
 export class AnswersService {
@@ -42,8 +45,10 @@ export class AnswersService {
       this.answersRepository.countAnswerSessions()
     ]);
 
+    const reconciledSessions = await Promise.all(sessions.map((session) => this.reconcileStaleActiveSession(session)));
+
     return {
-      items: sessions.map((session) => {
+      items: reconciledSessions.map((session) => {
         const scope = toAnswerScope(session.scopeMode, session.scopePayload);
         return {
           session_id: session.id,
@@ -99,17 +104,19 @@ export class AnswersService {
       await this.answersRepository.updateAnswerSession(session.id, {
         status: "failed",
         diagnosisCode: "queue_backlog",
-        refusalReason: null
+        refusalReason: "Failed to enqueue answer session.",
+        finishedAt: new Date()
       });
       throw new BadRequestException(error instanceof Error ? error.message : "Failed to enqueue answer session");
     }
   }
 
   async getAnswer(sessionId: string): Promise<AnswerSessionResponse> {
-    const session = await this.answersRepository.getAnswerSessionById(sessionId);
-    if (!session) {
+    const storedSession = await this.answersRepository.getAnswerSessionById(sessionId);
+    if (!storedSession) {
       throw new NotFoundException("Answer session not found");
     }
+    const session = await this.reconcileStaleActiveSession(storedSession);
 
     const [citations, claims] = await Promise.all([
       this.answersRepository.listCitationsBySessionId(sessionId),
@@ -150,10 +157,11 @@ export class AnswersService {
   }
 
   async getAnswerRetrieval(sessionId: string): Promise<AnswerRetrievalTraceResponse> {
-    const session = await this.answersRepository.getAnswerSessionById(sessionId);
-    if (!session) {
+    const storedSession = await this.answersRepository.getAnswerSessionById(sessionId);
+    if (!storedSession) {
       throw new NotFoundException("Answer session not found");
     }
+    const session = await this.reconcileStaleActiveSession(storedSession);
 
     const retrievalRun = await this.answersRepository.getLatestRetrievalRunBySessionId(sessionId);
     if (!retrievalRun) {
@@ -187,6 +195,28 @@ export class AnswersService {
         exclusion_reason: normalizeExclusionReason(item.exclusionReason)
       }))
     };
+  }
+
+  private async reconcileStaleActiveSession(session: AnswerSessionRow): Promise<AnswerSessionRow> {
+    if (!isActiveAnswerStatus(session.status)) {
+      return session;
+    }
+
+    const activeAgeMs = Date.now() - session.updatedAt.getTime();
+    if (activeAgeMs < ACTIVE_ANSWER_SESSION_TIMEOUT_MS) {
+      return session;
+    }
+
+    const diagnosisCode: DiagnosisCode = session.status === "synthesizing" ? "provider_timeout" : "queue_backlog";
+    const updated = await this.answersRepository.updateAnswerSession(session.id, {
+      status: "failed",
+      answerSummary: null,
+      refusalReason: "Answer session exceeded active processing timeout and was marked failed.",
+      diagnosisCode,
+      finishedAt: new Date()
+    });
+
+    return updated ?? session;
   }
 
   private normalizeScope(scope: AnswerScopeDto): AnswerScope {
@@ -399,6 +429,10 @@ function normalizeExclusionReason(value: string | null): RetrievalExclusionReaso
   return RETRIEVAL_EXCLUSION_REASON_VALUES.includes(value as RetrievalExclusionReason)
     ? (value as RetrievalExclusionReason)
     : null;
+}
+
+function isActiveAnswerStatus(status: AnswerSessionRow["status"]) {
+  return status === "idle" || status === "retrieving" || status === "synthesizing";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
