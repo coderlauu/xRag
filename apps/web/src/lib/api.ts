@@ -14,12 +14,16 @@ import {
   fetchOpsDocumentReplay as fetchOpsDocumentReplayRequest,
   fetchOpsHealthSummary as fetchOpsHealthSummaryRequest,
   fetchOpsOverview as fetchOpsOverviewRequest,
+  fetchOpsRecoveryCandidates as fetchOpsRecoveryCandidatesRequest,
+  fetchOpsRollbackPlan as fetchOpsRollbackPlanRequest,
   fetchOpsTrends as fetchOpsTrendsRequest,
   getAnswer as getAnswerRequest,
   getAnswerRetrieval as getAnswerRetrievalRequest,
   getDocument as getDocumentRequest,
   getDocumentEvidence as getDocumentEvidenceRequest,
   getDocumentTimeline as getDocumentTimelineRequest,
+  getOpsRecoveryAction as getOpsRecoveryActionRequest,
+  getOpsRecoveryActionAudit as getOpsRecoveryActionAuditRequest,
   getUploadPartUrls as getUploadPartUrlsRequest,
   getJob as getJobRequest,
   getLatestDeployment as getLatestDeploymentRequest,
@@ -27,6 +31,8 @@ import {
   listDocuments as listDocumentsRequest,
   listTags as listTagsRequest,
   listOpsIncidents as listOpsIncidentsRequest,
+  previewOpsRecoveryAction as previewOpsRecoveryActionRequest,
+  createOpsRecoveryAction as createOpsRecoveryActionRequest,
   reindexDocument as reindexDocumentRequest,
   retryDocument as retryDocumentRequest,
   updateDocumentTags as updateDocumentTagsRequest
@@ -62,6 +68,15 @@ import type {
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
   OpsOverviewResponse,
+  OpsRecoveryActionAuditResponse,
+  OpsRecoveryActionCreateRequest,
+  OpsRecoveryActionPreviewRequest,
+  OpsRecoveryActionPreviewResponse,
+  OpsRecoveryActionResponse,
+  OpsRecoveryCandidateListQuery,
+  OpsRecoveryCandidateListResponse,
+  OpsRollbackPlanQuery,
+  OpsRollbackPlanResponse,
   OpsTrendsQuery,
   OpsTrendsResponse,
   ReindexDocumentResponse,
@@ -173,6 +188,34 @@ export function fetchOpsDeploymentCompare(query: OpsDeploymentCompareQuery): Pro
 
 export function getLatestDeployment(): Promise<LatestDeploymentResponse> {
   return getLatestDeploymentRequest(API_BASE_URL);
+}
+
+export function fetchOpsRecoveryCandidates(
+  query: OpsRecoveryCandidateListQuery = {}
+): Promise<OpsRecoveryCandidateListResponse> {
+  return fetchOpsRecoveryCandidatesRequest(query, API_BASE_URL);
+}
+
+export function previewOpsRecoveryAction(
+  body: OpsRecoveryActionPreviewRequest
+): Promise<OpsRecoveryActionPreviewResponse> {
+  return previewOpsRecoveryActionRequest(body, API_BASE_URL);
+}
+
+export function createOpsRecoveryAction(body: OpsRecoveryActionCreateRequest): Promise<OpsRecoveryActionResponse> {
+  return createOpsRecoveryActionRequest(body, API_BASE_URL);
+}
+
+export function getOpsRecoveryAction(actionId: string): Promise<OpsRecoveryActionResponse> {
+  return getOpsRecoveryActionRequest(actionId, API_BASE_URL);
+}
+
+export function getOpsRecoveryActionAudit(actionId: string): Promise<OpsRecoveryActionAuditResponse> {
+  return getOpsRecoveryActionAuditRequest(actionId, API_BASE_URL);
+}
+
+export function fetchOpsRollbackPlan(query: OpsRollbackPlanQuery): Promise<OpsRollbackPlanResponse> {
+  return fetchOpsRollbackPlanRequest(query, API_BASE_URL);
 }
 
 export function createAnswer(body: CreateAnswerRequest): Promise<CreateAnswerResponse> {

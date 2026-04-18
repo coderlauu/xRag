@@ -1,10 +1,14 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
+import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import type { OpsTrendWindow } from "@xrag/shared-types";
 import {
   LatestDeploymentResponseDto,
   OPS_DIAGNOSTIC_ORIGIN_VALUES,
   OPS_DIAGNOSTIC_SAMPLE_KIND_VALUES,
+  OPS_RECOVERY_ACTION_TYPE_VALUES,
+  OPS_RECOVERY_CANDIDATE_SOURCE_TYPE_VALUES,
+  OPS_RECOVERY_RECOMMENDATION_STATE_VALUES,
+  OPS_RECOVERY_RISK_LEVEL_VALUES,
   OPS_TREND_WINDOW_VALUES,
   OpsAnswerSummaryResponseDto,
   OpsAnswerSessionReplayResponseDto,
@@ -16,6 +20,15 @@ import {
   OpsHealthSummaryResponseDto,
   OpsIncidentListResponseDto,
   OpsOverviewResponseDto,
+  OpsRecoveryActionAuditResponseDto,
+  OpsRecoveryActionCreateRequestDto,
+  OpsRecoveryActionPreviewRequestDto,
+  OpsRecoveryActionPreviewResponseDto,
+  OpsRecoveryActionResponseDto,
+  OpsRecoveryCandidateListQueryDto,
+  OpsRecoveryCandidateListResponseDto,
+  OpsRollbackPlanQueryDto,
+  OpsRollbackPlanResponseDto,
   OpsTrendsResponseDto
 } from "./ops.dto";
 import { OpsService } from "./ops.service";
@@ -99,6 +112,63 @@ export class OpsController {
   @ApiOkResponse({ type: OpsDeploymentCompareResponseDto })
   getDeploymentCompare(@Query() query: OpsDeploymentCompareQueryDto) {
     return this.opsService.getDeploymentCompare(query);
+  }
+
+  @Get("recovery/candidates")
+  @ApiOperation({ summary: "List Phase 3B recovery candidates" })
+  @ApiQuery({ name: "source_type", required: false, enum: OPS_RECOVERY_CANDIDATE_SOURCE_TYPE_VALUES })
+  @ApiQuery({ name: "source_ref", required: false, type: String })
+  @ApiQuery({ name: "action_type", required: false, enum: OPS_RECOVERY_ACTION_TYPE_VALUES })
+  @ApiQuery({ name: "risk_level", required: false, enum: OPS_RECOVERY_RISK_LEVEL_VALUES })
+  @ApiQuery({ name: "recommendation_state", required: false, enum: OPS_RECOVERY_RECOMMENDATION_STATE_VALUES })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "page_size", required: false, type: Number })
+  @ApiOkResponse({ type: OpsRecoveryCandidateListResponseDto })
+  listRecoveryCandidates(@Query() query: OpsRecoveryCandidateListQueryDto) {
+    return this.opsService.listRecoveryCandidates(query);
+  }
+
+  @Post("recovery/actions/preview")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Preview a Phase 3B recovery action without executing it" })
+  @ApiBody({ type: OpsRecoveryActionPreviewRequestDto })
+  @ApiOkResponse({ type: OpsRecoveryActionPreviewResponseDto })
+  previewRecoveryAction(@Body() body: OpsRecoveryActionPreviewRequestDto) {
+    return this.opsService.previewRecoveryAction(body);
+  }
+
+  @Post("recovery/actions")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Create an operator-approved recovery action" })
+  @ApiBody({ type: OpsRecoveryActionCreateRequestDto })
+  @ApiOkResponse({ type: OpsRecoveryActionResponseDto })
+  createRecoveryAction(@Body() body: OpsRecoveryActionCreateRequestDto) {
+    return this.opsService.createRecoveryAction(body);
+  }
+
+  @Get("recovery/actions/:actionId")
+  @ApiOperation({ summary: "Get a Phase 3B recovery action status" })
+  @ApiParam({ name: "actionId", type: String })
+  @ApiOkResponse({ type: OpsRecoveryActionResponseDto })
+  getRecoveryAction(@Param("actionId") actionId: string) {
+    return this.opsService.getRecoveryAction(actionId);
+  }
+
+  @Get("recovery/actions/:actionId/audit")
+  @ApiOperation({ summary: "Get a Phase 3B recovery action audit trail" })
+  @ApiParam({ name: "actionId", type: String })
+  @ApiOkResponse({ type: OpsRecoveryActionAuditResponseDto })
+  getRecoveryActionAudit(@Param("actionId") actionId: string) {
+    return this.opsService.getRecoveryActionAudit(actionId);
+  }
+
+  @Get("recovery/rollback-plan")
+  @ApiOperation({ summary: "Build a manual rollback plan from deployment compare evidence" })
+  @ApiQuery({ name: "deployment_record_id", required: true, type: String })
+  @ApiQuery({ name: "window", required: false, enum: OPS_TREND_WINDOW_VALUES })
+  @ApiOkResponse({ type: OpsRollbackPlanResponseDto })
+  getRollbackPlan(@Query() query: OpsRollbackPlanQueryDto) {
+    return this.opsService.getRollbackPlan(query);
   }
 
   @Get("deployments/latest")

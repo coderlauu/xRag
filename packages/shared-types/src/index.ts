@@ -100,6 +100,17 @@ export type OpsReplayFreshnessFlag =
   | "citation_unready"
   | "retrieval_scope_empty"
   | "unknown";
+export type OpsRecoveryCandidateSourceType =
+  | "diagnostic_sample"
+  | "answer_session_replay"
+  | "document_replay"
+  | "deployment_compare";
+export type OpsRecoveryActionType = "document_reindex" | "document_retry" | "answer_diagnostic_rerun";
+export type OpsRecoveryTargetType = "document" | "answer_session";
+export type OpsRecoveryRiskLevel = "low" | "medium" | "high";
+export type OpsRecoveryRecommendationState = "recommended" | "available" | "blocked" | "not_applicable";
+export type OpsRecoveryActionStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "blocked";
+export type OpsRollbackPlanConfidence = "low" | "medium" | "high";
 export type OpsTrendMetric =
   | "citation_coverage"
   | "refusal_rate"
@@ -814,4 +825,141 @@ export interface OpsDeploymentCompareResponse {
   after_window: OpsDeploymentCompareWindow;
   delta_summary: OpsDeploymentCompareDeltaSummary;
   affected_samples: OpsDiagnosticSample[];
+}
+
+export interface OpsRecoveryTargetRef {
+  type: OpsRecoveryTargetType;
+  id: string;
+}
+
+export interface OpsRecoveryFactSnapshot {
+  captured_at: string;
+  target_type: OpsRecoveryTargetType;
+  target_refs: OpsRecoveryTargetRef[];
+  facts: Record<string, unknown>;
+}
+
+export interface OpsRecoveryPrecondition {
+  code: string;
+  label: string;
+  satisfied: boolean;
+  detail: string | null;
+}
+
+export interface OpsRecoveryCandidate {
+  candidate_id: string;
+  source_type: OpsRecoveryCandidateSourceType;
+  source_ref: string;
+  action_type: OpsRecoveryActionType;
+  target_type: OpsRecoveryTargetType;
+  target_refs: OpsRecoveryTargetRef[];
+  risk_level: OpsRecoveryRiskLevel;
+  recommendation_state: OpsRecoveryRecommendationState;
+  title: string;
+  summary: string;
+  preconditions: OpsRecoveryPrecondition[];
+  blocked_reason: string | null;
+  preview_ref: OpsReplayRef;
+}
+
+export interface OpsRecoveryCandidateListQuery {
+  source_type?: OpsRecoveryCandidateSourceType;
+  source_ref?: string;
+  action_type?: OpsRecoveryActionType;
+  risk_level?: OpsRecoveryRiskLevel;
+  recommendation_state?: OpsRecoveryRecommendationState;
+  page?: number;
+  page_size?: number;
+}
+
+export interface OpsRecoveryCandidateListResponse {
+  generated_at: string;
+  page: number;
+  page_size: number;
+  total: number;
+  items: OpsRecoveryCandidate[];
+}
+
+export interface OpsRecoveryActionPreviewRequest {
+  candidate_id: string;
+  action_type: OpsRecoveryActionType;
+  target_type: OpsRecoveryTargetType;
+  target_refs: OpsRecoveryTargetRef[];
+}
+
+export interface OpsRecoveryActionPreviewResponse {
+  preview_id: string;
+  generated_at: string;
+  expires_at: string;
+  candidate_id: string;
+  action_type: OpsRecoveryActionType;
+  target_type: OpsRecoveryTargetType;
+  target_refs: OpsRecoveryTargetRef[];
+  risk_level: OpsRecoveryRiskLevel;
+  recommendation_state: OpsRecoveryRecommendationState;
+  preconditions: OpsRecoveryPrecondition[];
+  blocked_reason: string | null;
+  estimated_blast_radius: string;
+  idempotency_key: string;
+  source_facts: OpsRecoveryFactSnapshot;
+  before_facts: OpsRecoveryFactSnapshot;
+}
+
+export interface OpsRecoveryActionCreateRequest {
+  candidate_id: string;
+  preview_id: string;
+  idempotency_key: string;
+  reason: string;
+}
+
+export interface OpsRecoveryActionResponse {
+  action_id: string;
+  candidate_id: string | null;
+  status: OpsRecoveryActionStatus;
+  action_type: OpsRecoveryActionType;
+  target_type: OpsRecoveryTargetType;
+  target_refs: OpsRecoveryTargetRef[];
+  queue_job_refs: OpsReplayRef[];
+  diagnosis_code: DiagnosisCode | null;
+  error_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  updated_at: string;
+}
+
+export interface OpsRecoveryStatusTimelineEntry {
+  status: OpsRecoveryActionStatus;
+  at: string;
+  summary: string;
+}
+
+export interface OpsRecoveryActionAuditResponse {
+  generated_at: string;
+  action: OpsRecoveryActionResponse;
+  actor: string;
+  reason: string;
+  source_facts: OpsRecoveryFactSnapshot;
+  preview: OpsRecoveryActionPreviewResponse;
+  before_facts: OpsRecoveryFactSnapshot;
+  after_facts: OpsRecoveryFactSnapshot | null;
+  status_timeline: OpsRecoveryStatusTimelineEntry[];
+  manual_follow_up: string[];
+}
+
+export interface OpsRollbackPlanQuery {
+  deployment_record_id: string;
+  window?: OpsTrendWindow;
+}
+
+export interface OpsRollbackPlanResponse {
+  generated_at: string;
+  deployment_record_id: string;
+  compare_ref: OpsReplayRef;
+  affected_samples: OpsDiagnosticSample[];
+  quality_delta_summary: OpsDeploymentCompareDeltaSummary;
+  smoke_summary: string;
+  confidence: OpsRollbackPlanConfidence;
+  missing_evidence: string[];
+  manual_checklist: string[];
 }

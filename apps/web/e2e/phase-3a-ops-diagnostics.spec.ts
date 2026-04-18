@@ -175,6 +175,18 @@ test("phase 3A ops diagnostic workflow opens samples, replays, and deployment co
     });
   });
 
+  await page.route("**/api/v1/ops/recovery/candidates**", async (route) => {
+    await route.fulfill({
+      json: {
+        generated_at: generatedAt,
+        page: 1,
+        page_size: 6,
+        total: 0,
+        items: []
+      }
+    });
+  });
+
   await page.route("**/api/v1/ops/deployments/compare**", async (route) => {
     await route.fulfill({
       json: {
@@ -221,6 +233,32 @@ test("phase 3A ops diagnostic workflow opens samples, replays, and deployment co
     });
   });
 
+  await page.route("**/api/v1/ops/recovery/rollback-plan**", async (route) => {
+    await route.fulfill({
+      json: {
+        generated_at: generatedAt,
+        deployment_record_id: "deploy-e2e-001",
+        compare_ref: {
+          method: "GET",
+          path: "/api/v1/ops/deployments/compare?deployment_record_id=deploy-e2e-001&window=7d"
+        },
+        affected_samples: [answerSample],
+        quality_delta_summary: {
+          regression_count: 1,
+          new_regression_count: 1,
+          existing_debt_count: 0,
+          affected_answer_session_count: 1,
+          affected_document_count: 0,
+          summary: "1 new regression after deployment."
+        },
+        smoke_summary: "Smoke failed after deployment.",
+        confidence: "medium",
+        missing_evidence: ["缺少额外的 release evidence。"],
+        manual_checklist: ["先检查 answer replay，再决定是否继续人工处置。"]
+      }
+    });
+  });
+
   await page.goto("/ops");
   await expect(page.getByRole("heading", { name: "Diagnostics Workflow" })).toBeVisible();
   await expect(page.getByText("E2E answer regression")).toBeVisible();
@@ -240,9 +278,10 @@ test("phase 3A ops diagnostic workflow opens samples, replays, and deployment co
     .filter({ hasText: "E2E answer regression" })
     .getByRole("button", { name: "Compare deployment" })
     .click();
-  await expect(page.getByRole("heading", { name: "Deployment compare" })).toBeVisible();
-  await expect(page.getByText("xrag-api:e2e-current")).toBeVisible();
-  await expect(page.getByText("1 new regression after deployment.")).toBeVisible();
+  const comparePanel = page.getByRole("heading", { name: "Deployment compare" }).locator("xpath=..");
+  await expect(comparePanel).toBeVisible();
+  await expect(comparePanel.getByText("xrag-api:e2e-current")).toBeVisible();
+  await expect(comparePanel.getByText("1 new regression after deployment.", { exact: true })).toBeVisible();
 
   await page
     .locator("article")

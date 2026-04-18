@@ -39,6 +39,27 @@ import type {
   OpsReleaseGuardRiskLevel,
   OpsReplayFreshnessFlag,
   OpsReplayRef,
+  OpsRecoveryActionCreateRequest,
+  OpsRecoveryActionAuditResponse,
+  OpsRecoveryActionPreviewRequest,
+  OpsRecoveryActionPreviewResponse,
+  OpsRecoveryActionResponse,
+  OpsRecoveryActionStatus,
+  OpsRecoveryActionType,
+  OpsRecoveryCandidate,
+  OpsRecoveryCandidateListQuery,
+  OpsRecoveryCandidateListResponse,
+  OpsRecoveryCandidateSourceType,
+  OpsRecoveryFactSnapshot,
+  OpsRecoveryPrecondition,
+  OpsRecoveryRecommendationState,
+  OpsRecoveryRiskLevel,
+  OpsRecoveryStatusTimelineEntry,
+  OpsRecoveryTargetRef,
+  OpsRecoveryTargetType,
+  OpsRollbackPlanConfidence,
+  OpsRollbackPlanQuery,
+  OpsRollbackPlanResponse,
   OpsServiceStatus,
   OpsRuntimeQualitySummary,
   OpsTrendMetric,
@@ -49,7 +70,7 @@ import type {
   OpsTrendWindow
 } from "@xrag/shared-types";
 import { Type } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
+import { IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from "class-validator";
 import { AnswerRetrievalTraceResponseDto, AnswerSessionResponseDto } from "../answers/answers.dto";
 import { DocumentDetailDto, DocumentEvidenceResponseDto, DocumentTimelineResponseDto } from "../documents/documents.dto";
 
@@ -123,6 +144,34 @@ const OPS_REPLAY_FRESHNESS_FLAG_VALUES: OpsReplayFreshnessFlag[] = [
   "retrieval_scope_empty",
   "unknown"
 ];
+export const OPS_RECOVERY_CANDIDATE_SOURCE_TYPE_VALUES: OpsRecoveryCandidateSourceType[] = [
+  "diagnostic_sample",
+  "answer_session_replay",
+  "document_replay",
+  "deployment_compare"
+];
+export const OPS_RECOVERY_ACTION_TYPE_VALUES: OpsRecoveryActionType[] = [
+  "document_reindex",
+  "document_retry",
+  "answer_diagnostic_rerun"
+];
+export const OPS_RECOVERY_TARGET_TYPE_VALUES: OpsRecoveryTargetType[] = ["document", "answer_session"];
+export const OPS_RECOVERY_RISK_LEVEL_VALUES: OpsRecoveryRiskLevel[] = ["low", "medium", "high"];
+export const OPS_RECOVERY_RECOMMENDATION_STATE_VALUES: OpsRecoveryRecommendationState[] = [
+  "recommended",
+  "available",
+  "blocked",
+  "not_applicable"
+];
+export const OPS_RECOVERY_ACTION_STATUS_VALUES: OpsRecoveryActionStatus[] = [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "blocked"
+];
+const OPS_ROLLBACK_PLAN_CONFIDENCE_VALUES: OpsRollbackPlanConfidence[] = ["low", "medium", "high"];
 
 export class OpsHealthServiceDto implements OpsHealthService {
   @ApiProperty({ type: String })
@@ -774,4 +823,351 @@ export class OpsDeploymentCompareResponseDto implements OpsDeploymentCompareResp
 
   @ApiProperty({ type: () => OpsDiagnosticSampleDto, isArray: true })
   affected_samples!: OpsDiagnosticSampleDto[];
+}
+
+export class OpsRecoveryTargetRefDto implements OpsRecoveryTargetRef {
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_TARGET_TYPE_VALUES })
+  @IsIn(OPS_RECOVERY_TARGET_TYPE_VALUES)
+  type!: OpsRecoveryTargetType;
+
+  @ApiProperty({ type: String })
+  @IsString()
+  id!: string;
+}
+
+export class OpsRecoveryFactSnapshotDto implements OpsRecoveryFactSnapshot {
+  @ApiProperty({ type: String, format: "date-time" })
+  captured_at!: string;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_TARGET_TYPE_VALUES })
+  target_type!: OpsRecoveryTargetType;
+
+  @ApiProperty({ type: () => OpsRecoveryTargetRefDto, isArray: true })
+  target_refs!: OpsRecoveryTargetRefDto[];
+
+  @ApiProperty({ type: Object })
+  facts!: Record<string, unknown>;
+}
+
+export class OpsRecoveryPreconditionDto implements OpsRecoveryPrecondition {
+  @ApiProperty({ type: String })
+  code!: string;
+
+  @ApiProperty({ type: String })
+  label!: string;
+
+  @ApiProperty({ type: Boolean })
+  satisfied!: boolean;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  detail!: string | null;
+}
+
+export class OpsRecoveryCandidateDto implements OpsRecoveryCandidate {
+  @ApiProperty({ type: String })
+  candidate_id!: string;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_CANDIDATE_SOURCE_TYPE_VALUES })
+  source_type!: OpsRecoveryCandidateSourceType;
+
+  @ApiProperty({ type: String })
+  source_ref!: string;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_ACTION_TYPE_VALUES })
+  action_type!: OpsRecoveryActionType;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_TARGET_TYPE_VALUES })
+  target_type!: OpsRecoveryTargetType;
+
+  @ApiProperty({ type: () => OpsRecoveryTargetRefDto, isArray: true })
+  target_refs!: OpsRecoveryTargetRefDto[];
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_RISK_LEVEL_VALUES })
+  risk_level!: OpsRecoveryRiskLevel;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_RECOMMENDATION_STATE_VALUES })
+  recommendation_state!: OpsRecoveryRecommendationState;
+
+  @ApiProperty({ type: String })
+  title!: string;
+
+  @ApiProperty({ type: String })
+  summary!: string;
+
+  @ApiProperty({ type: () => OpsRecoveryPreconditionDto, isArray: true })
+  preconditions!: OpsRecoveryPreconditionDto[];
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  blocked_reason!: string | null;
+
+  @ApiProperty({ type: () => OpsReplayRefDto })
+  preview_ref!: OpsReplayRefDto;
+}
+
+export class OpsRecoveryCandidateListQueryDto implements OpsRecoveryCandidateListQuery {
+  @ApiPropertyOptional({ type: String, enum: OPS_RECOVERY_CANDIDATE_SOURCE_TYPE_VALUES })
+  @IsOptional()
+  @IsIn(OPS_RECOVERY_CANDIDATE_SOURCE_TYPE_VALUES)
+  source_type?: OpsRecoveryCandidateSourceType;
+
+  @ApiPropertyOptional({ type: String })
+  @IsOptional()
+  @IsString()
+  source_ref?: string;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_RECOVERY_ACTION_TYPE_VALUES })
+  @IsOptional()
+  @IsIn(OPS_RECOVERY_ACTION_TYPE_VALUES)
+  action_type?: OpsRecoveryActionType;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_RECOVERY_RISK_LEVEL_VALUES })
+  @IsOptional()
+  @IsIn(OPS_RECOVERY_RISK_LEVEL_VALUES)
+  risk_level?: OpsRecoveryRiskLevel;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_RECOVERY_RECOMMENDATION_STATE_VALUES })
+  @IsOptional()
+  @IsIn(OPS_RECOVERY_RECOMMENDATION_STATE_VALUES)
+  recommendation_state?: OpsRecoveryRecommendationState;
+
+  @ApiPropertyOptional({ type: Number, default: 1, minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ type: Number, default: 20, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  page_size?: number;
+}
+
+export class OpsRecoveryCandidateListResponseDto implements OpsRecoveryCandidateListResponse {
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: Number })
+  page!: number;
+
+  @ApiProperty({ type: Number })
+  page_size!: number;
+
+  @ApiProperty({ type: Number })
+  total!: number;
+
+  @ApiProperty({ type: () => OpsRecoveryCandidateDto, isArray: true })
+  items!: OpsRecoveryCandidateDto[];
+}
+
+export class OpsRecoveryActionPreviewRequestDto implements OpsRecoveryActionPreviewRequest {
+  @ApiProperty({ type: String })
+  @IsString()
+  candidate_id!: string;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_ACTION_TYPE_VALUES })
+  @IsIn(OPS_RECOVERY_ACTION_TYPE_VALUES)
+  action_type!: OpsRecoveryActionType;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_TARGET_TYPE_VALUES })
+  @IsIn(OPS_RECOVERY_TARGET_TYPE_VALUES)
+  target_type!: OpsRecoveryTargetType;
+
+  @ApiProperty({ type: () => OpsRecoveryTargetRefDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OpsRecoveryTargetRefDto)
+  target_refs!: OpsRecoveryTargetRefDto[];
+}
+
+export class OpsRecoveryActionPreviewResponseDto implements OpsRecoveryActionPreviewResponse {
+  @ApiProperty({ type: String })
+  preview_id!: string;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  expires_at!: string;
+
+  @ApiProperty({ type: String })
+  candidate_id!: string;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_ACTION_TYPE_VALUES })
+  action_type!: OpsRecoveryActionType;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_TARGET_TYPE_VALUES })
+  target_type!: OpsRecoveryTargetType;
+
+  @ApiProperty({ type: () => OpsRecoveryTargetRefDto, isArray: true })
+  target_refs!: OpsRecoveryTargetRefDto[];
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_RISK_LEVEL_VALUES })
+  risk_level!: OpsRecoveryRiskLevel;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_RECOMMENDATION_STATE_VALUES })
+  recommendation_state!: OpsRecoveryRecommendationState;
+
+  @ApiProperty({ type: () => OpsRecoveryPreconditionDto, isArray: true })
+  preconditions!: OpsRecoveryPreconditionDto[];
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  blocked_reason!: string | null;
+
+  @ApiProperty({ type: String })
+  estimated_blast_radius!: string;
+
+  @ApiProperty({ type: String })
+  idempotency_key!: string;
+
+  @ApiProperty({ type: () => OpsRecoveryFactSnapshotDto })
+  source_facts!: OpsRecoveryFactSnapshotDto;
+
+  @ApiProperty({ type: () => OpsRecoveryFactSnapshotDto })
+  before_facts!: OpsRecoveryFactSnapshotDto;
+}
+
+export class OpsRecoveryActionCreateRequestDto implements OpsRecoveryActionCreateRequest {
+  @ApiProperty({ type: String })
+  @IsString()
+  candidate_id!: string;
+
+  @ApiProperty({ type: String })
+  @IsString()
+  preview_id!: string;
+
+  @ApiProperty({ type: String })
+  @IsString()
+  idempotency_key!: string;
+
+  @ApiProperty({ type: String })
+  @IsString()
+  reason!: string;
+}
+
+export class OpsRecoveryActionResponseDto implements OpsRecoveryActionResponse {
+  @ApiProperty({ type: String, format: "uuid" })
+  action_id!: string;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  candidate_id!: string | null;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_ACTION_STATUS_VALUES })
+  status!: OpsRecoveryActionStatus;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_ACTION_TYPE_VALUES })
+  action_type!: OpsRecoveryActionType;
+
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_TARGET_TYPE_VALUES })
+  target_type!: OpsRecoveryTargetType;
+
+  @ApiProperty({ type: () => OpsRecoveryTargetRefDto, isArray: true })
+  target_refs!: OpsRecoveryTargetRefDto[];
+
+  @ApiProperty({ type: () => OpsReplayRefDto, isArray: true })
+  queue_job_refs!: OpsReplayRefDto[];
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  diagnosis_code!: OpsRecoveryActionResponse["diagnosis_code"];
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  error_message!: string | null;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  created_at!: string;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  started_at!: string | null;
+
+  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  completed_at!: string | null;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  updated_at!: string;
+}
+
+export class OpsRecoveryStatusTimelineEntryDto implements OpsRecoveryStatusTimelineEntry {
+  @ApiProperty({ type: String, enum: OPS_RECOVERY_ACTION_STATUS_VALUES })
+  status!: OpsRecoveryActionStatus;
+
+  @ApiProperty({ type: String, format: "date-time" })
+  at!: string;
+
+  @ApiProperty({ type: String })
+  summary!: string;
+}
+
+export class OpsRecoveryActionAuditResponseDto implements OpsRecoveryActionAuditResponse {
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: () => OpsRecoveryActionResponseDto })
+  action!: OpsRecoveryActionResponseDto;
+
+  @ApiProperty({ type: String })
+  actor!: string;
+
+  @ApiProperty({ type: String })
+  reason!: string;
+
+  @ApiProperty({ type: () => OpsRecoveryFactSnapshotDto })
+  source_facts!: OpsRecoveryFactSnapshotDto;
+
+  @ApiProperty({ type: () => OpsRecoveryActionPreviewResponseDto })
+  preview!: OpsRecoveryActionPreviewResponseDto;
+
+  @ApiProperty({ type: () => OpsRecoveryFactSnapshotDto })
+  before_facts!: OpsRecoveryFactSnapshotDto;
+
+  @ApiPropertyOptional({ type: () => OpsRecoveryFactSnapshotDto, nullable: true })
+  after_facts!: OpsRecoveryFactSnapshotDto | null;
+
+  @ApiProperty({ type: () => OpsRecoveryStatusTimelineEntryDto, isArray: true })
+  status_timeline!: OpsRecoveryStatusTimelineEntryDto[];
+
+  @ApiProperty({ type: String, isArray: true })
+  manual_follow_up!: string[];
+}
+
+export class OpsRollbackPlanQueryDto implements OpsRollbackPlanQuery {
+  @ApiProperty({ type: String, format: "uuid" })
+  @IsUUID()
+  deployment_record_id!: string;
+
+  @ApiPropertyOptional({ type: String, enum: OPS_TREND_WINDOW_VALUES, default: "24h" })
+  @IsOptional()
+  @IsIn(OPS_TREND_WINDOW_VALUES)
+  window?: OpsTrendWindow;
+}
+
+export class OpsRollbackPlanResponseDto implements OpsRollbackPlanResponse {
+  @ApiProperty({ type: String, format: "date-time" })
+  generated_at!: string;
+
+  @ApiProperty({ type: String })
+  deployment_record_id!: string;
+
+  @ApiProperty({ type: () => OpsReplayRefDto })
+  compare_ref!: OpsReplayRefDto;
+
+  @ApiProperty({ type: () => OpsDiagnosticSampleDto, isArray: true })
+  affected_samples!: OpsDiagnosticSampleDto[];
+
+  @ApiProperty({ type: () => OpsDeploymentCompareDeltaSummaryDto })
+  quality_delta_summary!: OpsDeploymentCompareDeltaSummaryDto;
+
+  @ApiProperty({ type: String })
+  smoke_summary!: string;
+
+  @ApiProperty({ type: String, enum: OPS_ROLLBACK_PLAN_CONFIDENCE_VALUES })
+  confidence!: OpsRollbackPlanConfidence;
+
+  @ApiProperty({ type: String, isArray: true })
+  missing_evidence!: string[];
+
+  @ApiProperty({ type: String, isArray: true })
+  manual_checklist!: string[];
 }

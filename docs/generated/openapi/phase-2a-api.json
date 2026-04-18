@@ -494,6 +494,277 @@
         ]
       }
     },
+    "/api/v1/ops/recovery/candidates": {
+      "get": {
+        "operationId": "OpsController_listRecoveryCandidates",
+        "parameters": [
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "recommendation_state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "recommended",
+                "available",
+                "blocked",
+                "not_applicable"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "risk_level",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "action_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "document_reindex",
+                "document_retry",
+                "answer_diagnostic_rerun"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_ref",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "diagnostic_sample",
+                "answer_session_replay",
+                "document_replay",
+                "deployment_compare"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsRecoveryCandidateListResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List Phase 3B recovery candidates",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/recovery/actions/preview": {
+      "post": {
+        "operationId": "OpsController_previewRecoveryAction",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsRecoveryActionPreviewRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsRecoveryActionPreviewResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview a Phase 3B recovery action without executing it",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/recovery/actions": {
+      "post": {
+        "operationId": "OpsController_createRecoveryAction",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsRecoveryActionCreateRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsRecoveryActionResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an operator-approved recovery action",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/recovery/actions/{actionId}": {
+      "get": {
+        "operationId": "OpsController_getRecoveryAction",
+        "parameters": [
+          {
+            "name": "actionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsRecoveryActionResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a Phase 3B recovery action status",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/recovery/actions/{actionId}/audit": {
+      "get": {
+        "operationId": "OpsController_getRecoveryActionAudit",
+        "parameters": [
+          {
+            "name": "actionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsRecoveryActionAuditResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a Phase 3B recovery action audit trail",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/api/v1/ops/recovery/rollback-plan": {
+      "get": {
+        "operationId": "OpsController_getRollbackPlan",
+        "parameters": [
+          {
+            "name": "window",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "deployment_record_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsRollbackPlanResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Build a manual rollback plan from deployment compare evidence",
+        "tags": [
+          "ops"
+        ]
+      }
+    },
     "/api/v1/ops/deployments/latest": {
       "get": {
         "operationId": "OpsController_getLatestDeployment",
@@ -1180,8 +1451,8 @@
   },
   "info": {
     "title": "xRag API",
-    "description": "Phase 3A API contract",
-    "version": "0.7.0",
+    "description": "Phase 3B API contract",
+    "version": "0.8.0",
     "contact": {}
   },
   "tags": [],
@@ -3344,6 +3615,585 @@
           "after_window",
           "delta_summary",
           "affected_samples"
+        ]
+      },
+      "OpsRecoveryTargetRefDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "document",
+              "answer_session"
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ]
+      },
+      "OpsRecoveryPreconditionDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "satisfied": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "satisfied"
+        ]
+      },
+      "OpsRecoveryCandidateDto": {
+        "type": "object",
+        "properties": {
+          "candidate_id": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "diagnostic_sample",
+              "answer_session_replay",
+              "document_replay",
+              "deployment_compare"
+            ]
+          },
+          "source_ref": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "document_reindex",
+              "document_retry",
+              "answer_diagnostic_rerun"
+            ]
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "document",
+              "answer_session"
+            ]
+          },
+          "target_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryTargetRefDto"
+            }
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "recommendation_state": {
+            "type": "string",
+            "enum": [
+              "recommended",
+              "available",
+              "blocked",
+              "not_applicable"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "preconditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryPreconditionDto"
+            }
+          },
+          "blocked_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "preview_ref": {
+            "$ref": "#/components/schemas/OpsReplayRefDto"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "source_type",
+          "source_ref",
+          "action_type",
+          "target_type",
+          "target_refs",
+          "risk_level",
+          "recommendation_state",
+          "title",
+          "summary",
+          "preconditions",
+          "preview_ref"
+        ]
+      },
+      "OpsRecoveryCandidateListResponseDto": {
+        "type": "object",
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "page": {
+            "type": "number"
+          },
+          "page_size": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryCandidateDto"
+            }
+          }
+        },
+        "required": [
+          "generated_at",
+          "page",
+          "page_size",
+          "total",
+          "items"
+        ]
+      },
+      "OpsRecoveryActionPreviewRequestDto": {
+        "type": "object",
+        "properties": {
+          "candidate_id": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "document_reindex",
+              "document_retry",
+              "answer_diagnostic_rerun"
+            ]
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "document",
+              "answer_session"
+            ]
+          },
+          "target_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryTargetRefDto"
+            }
+          }
+        },
+        "required": [
+          "candidate_id",
+          "action_type",
+          "target_type",
+          "target_refs"
+        ]
+      },
+      "OpsRecoveryFactSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "captured_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "document",
+              "answer_session"
+            ]
+          },
+          "target_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryTargetRefDto"
+            }
+          },
+          "facts": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "captured_at",
+          "target_type",
+          "target_refs",
+          "facts"
+        ]
+      },
+      "OpsRecoveryActionPreviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "preview_id": {
+            "type": "string"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "candidate_id": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "document_reindex",
+              "document_retry",
+              "answer_diagnostic_rerun"
+            ]
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "document",
+              "answer_session"
+            ]
+          },
+          "target_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryTargetRefDto"
+            }
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "recommendation_state": {
+            "type": "string",
+            "enum": [
+              "recommended",
+              "available",
+              "blocked",
+              "not_applicable"
+            ]
+          },
+          "preconditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryPreconditionDto"
+            }
+          },
+          "blocked_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimated_blast_radius": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "source_facts": {
+            "$ref": "#/components/schemas/OpsRecoveryFactSnapshotDto"
+          },
+          "before_facts": {
+            "$ref": "#/components/schemas/OpsRecoveryFactSnapshotDto"
+          }
+        },
+        "required": [
+          "preview_id",
+          "generated_at",
+          "expires_at",
+          "candidate_id",
+          "action_type",
+          "target_type",
+          "target_refs",
+          "risk_level",
+          "recommendation_state",
+          "preconditions",
+          "estimated_blast_radius",
+          "idempotency_key",
+          "source_facts",
+          "before_facts"
+        ]
+      },
+      "OpsRecoveryActionCreateRequestDto": {
+        "type": "object",
+        "properties": {
+          "candidate_id": {
+            "type": "string"
+          },
+          "preview_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_id",
+          "preview_id",
+          "idempotency_key",
+          "reason"
+        ]
+      },
+      "OpsRecoveryActionResponseDto": {
+        "type": "object",
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "blocked"
+            ]
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "document_reindex",
+              "document_retry",
+              "answer_diagnostic_rerun"
+            ]
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "document",
+              "answer_session"
+            ]
+          },
+          "target_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryTargetRefDto"
+            }
+          },
+          "queue_job_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsReplayRefDto"
+            }
+          },
+          "diagnosis_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "action_id",
+          "status",
+          "action_type",
+          "target_type",
+          "target_refs",
+          "queue_job_refs",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "OpsRecoveryStatusTimelineEntryDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "blocked"
+            ]
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "at",
+          "summary"
+        ]
+      },
+      "OpsRecoveryActionAuditResponseDto": {
+        "type": "object",
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "action": {
+            "$ref": "#/components/schemas/OpsRecoveryActionResponseDto"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "source_facts": {
+            "$ref": "#/components/schemas/OpsRecoveryFactSnapshotDto"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/OpsRecoveryActionPreviewResponseDto"
+          },
+          "before_facts": {
+            "$ref": "#/components/schemas/OpsRecoveryFactSnapshotDto"
+          },
+          "after_facts": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpsRecoveryFactSnapshotDto"
+              }
+            ]
+          },
+          "status_timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsRecoveryStatusTimelineEntryDto"
+            }
+          },
+          "manual_follow_up": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "generated_at",
+          "action",
+          "actor",
+          "reason",
+          "source_facts",
+          "preview",
+          "before_facts",
+          "status_timeline",
+          "manual_follow_up"
+        ]
+      },
+      "OpsRollbackPlanResponseDto": {
+        "type": "object",
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deployment_record_id": {
+            "type": "string"
+          },
+          "compare_ref": {
+            "$ref": "#/components/schemas/OpsReplayRefDto"
+          },
+          "affected_samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpsDiagnosticSampleDto"
+            }
+          },
+          "quality_delta_summary": {
+            "$ref": "#/components/schemas/OpsDeploymentCompareDeltaSummaryDto"
+          },
+          "smoke_summary": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "missing_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "manual_checklist": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "generated_at",
+          "deployment_record_id",
+          "compare_ref",
+          "affected_samples",
+          "quality_delta_summary",
+          "smoke_summary",
+          "confidence",
+          "missing_evidence",
+          "manual_checklist"
         ]
       },
       "LatestDeploymentResponseDto": {

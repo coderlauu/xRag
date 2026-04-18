@@ -96,6 +96,20 @@ export const answerSessionStatusEnum = pgEnum("answer_session_status", [
 ]);
 export const evaluationRunStatusEnum = pgEnum("evaluation_run_status", ["running", "completed", "failed"]);
 export const deploymentSmokeStatusEnum = pgEnum("deployment_smoke_status", ["passed", "failed", "unknown"]);
+export const operatorRecoveryActionTypeEnum = pgEnum("operator_recovery_action_type", [
+  "document_reindex",
+  "document_retry",
+  "answer_diagnostic_rerun"
+]);
+export const operatorRecoveryTargetTypeEnum = pgEnum("operator_recovery_target_type", ["document", "answer_session"]);
+export const operatorRecoveryActionStatusEnum = pgEnum("operator_recovery_action_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "blocked"
+]);
 
 export const documents = pgTable(
   "documents",
@@ -542,6 +556,46 @@ export const deploymentRecords = pgTable(
   })
 );
 
+export const operatorRecoveryActions = pgTable(
+  "operator_recovery_actions",
+  {
+    id: uuid("id").primaryKey(),
+    candidateId: varchar("candidate_id", { length: 255 }),
+    actionType: operatorRecoveryActionTypeEnum("action_type").notNull(),
+    targetType: operatorRecoveryTargetTypeEnum("target_type").notNull(),
+    targetRefs: jsonb("target_refs").$type<Record<string, unknown>[]>().notNull(),
+    status: operatorRecoveryActionStatusEnum("status").notNull().default("queued"),
+    actor: varchar("actor", { length: 255 }).notNull(),
+    reason: text("reason").notNull(),
+    idempotencyKey: varchar("idempotency_key", { length: 255 }).notNull(),
+    previewId: varchar("preview_id", { length: 255 }).notNull(),
+    sourceFacts: jsonb("source_facts").$type<Record<string, unknown>>().notNull(),
+    preview: jsonb("preview").$type<Record<string, unknown>>().notNull(),
+    beforeFacts: jsonb("before_facts").$type<Record<string, unknown>>().notNull(),
+    afterFacts: jsonb("after_facts").$type<Record<string, unknown> | null>(),
+    queueJobRefs: jsonb("queue_job_refs").$type<Record<string, unknown>[] | null>(),
+    diagnosisCode: varchar("diagnosis_code", { length: 64 }),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    idempotencyKeyIdx: uniqueIndex("idx_operator_recovery_actions_idempotency_key").on(
+      table.idempotencyKey
+    ),
+    statusUpdatedAtIdx: index("idx_operator_recovery_actions_status_updated_at").on(
+      table.status,
+      table.updatedAt
+    ),
+    actionTypeCreatedAtIdx: index("idx_operator_recovery_actions_action_type_created_at").on(
+      table.actionType,
+      table.createdAt
+    )
+  })
+);
+
 export const documentsRelations = relations(documents, ({ many, one }) => ({
   documentTags: many(documentTags),
   parseJobs: many(documentParseJobs),
@@ -679,5 +733,6 @@ export const schema = {
   retrievalRunHits,
   answerCitations,
   evaluationRuns,
-  deploymentRecords
+  deploymentRecords,
+  operatorRecoveryActions
 };

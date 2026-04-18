@@ -10,6 +10,8 @@ import type {
   OpsDocumentReplayResponse,
   OpsIncidentCluster,
   OpsRegressionClass,
+  OpsRollbackPlanConfidence,
+  OpsRollbackPlanResponse,
   OpsReplayFreshnessFlag,
   OpsTrendWindow
 } from "@xrag/shared-types";
@@ -20,8 +22,10 @@ import {
   fetchOpsAnswerSessionReplay,
   fetchOpsDeploymentCompare,
   fetchOpsDiagnosticSamples,
-  fetchOpsDocumentReplay
+  fetchOpsDocumentReplay,
+  fetchOpsRollbackPlan
 } from "../../../lib/api";
+import { RecoveryWorkflow } from "./recovery-workflow";
 
 type SampleKindFilter = OpsDiagnosticSampleKind | "all";
 
@@ -118,6 +122,16 @@ export function DiagnosticWorkflow({ clusters, onWindowChange, window }: Diagnos
         deployment_record_id: activeCompareDeploymentRecordId,
         window,
         sample_kind: querySampleKind
+      }),
+    enabled: activeCompareDeploymentRecordId.length > 0,
+    refetchOnWindowFocus: false
+  });
+  const rollbackPlanQuery = useQuery({
+    queryKey: ["ops", "rollback-plan", activeCompareDeploymentRecordId, window],
+    queryFn: () =>
+      fetchOpsRollbackPlan({
+        deployment_record_id: activeCompareDeploymentRecordId,
+        window
       }),
     enabled: activeCompareDeploymentRecordId.length > 0,
     refetchOnWindowFocus: false
@@ -351,12 +365,22 @@ export function DiagnosticWorkflow({ clusters, onWindowChange, window }: Diagnos
                 documentReplayLoading={documentReplayQuery.isLoading || documentReplayQuery.isFetching}
               />
 
+              <RecoveryWorkflow activeSample={activeSample} />
+
               <DeploymentComparePanel
                 activeDeploymentRecordId={activeCompareDeploymentRecordId}
                 compare={compareQuery.data ?? null}
                 error={compareQuery.isError ? toErrorMessage(compareQuery.error) : null}
                 isLoading={compareQuery.isLoading || compareQuery.isFetching}
                 onOpenReplay={openReplay}
+              />
+
+              <RollbackPlanPanel
+                activeDeploymentRecordId={activeCompareDeploymentRecordId}
+                error={rollbackPlanQuery.isError ? toErrorMessage(rollbackPlanQuery.error) : null}
+                isLoading={rollbackPlanQuery.isLoading || rollbackPlanQuery.isFetching}
+                onOpenReplay={openReplay}
+                plan={rollbackPlanQuery.data ?? null}
               />
             </div>
           </div>
@@ -748,6 +772,142 @@ function DeploymentCompareCard({
   );
 }
 
+function RollbackPlanPanel({
+  activeDeploymentRecordId,
+  error,
+  isLoading,
+  onOpenReplay,
+  plan
+}: {
+  activeDeploymentRecordId: string;
+  error: string | null;
+  isLoading: boolean;
+  onOpenReplay: (sample: OpsDiagnosticSample) => void;
+  plan: OpsRollbackPlanResponse | null;
+}) {
+  return (
+    <PanelFrame title="Rollback plan">
+      {activeDeploymentRecordId.length === 0 ? (
+        <EmptyState
+          body="输入 deployment_record_id，或从带有关联 deployment 的样本打开 compare 后再读取 guarded rollback plan。"
+          title="等待 deployment anchor"
+        />
+      ) : error ? (
+        <EmptyState body={error} tone="error" title="Rollback plan 读取失败" />
+      ) : isLoading ? (
+        <EmptyState body={`正在读取 ${activeDeploymentRecordId} 的 rollback plan。`} title="加载中" />
+      ) : plan ? (
+        <RollbackPlanCard onOpenReplay={onOpenReplay} plan={plan} />
+      ) : (
+        <EmptyState body="当前没有可展示的 rollback plan facts。" title="暂无 rollback plan" />
+      )}
+    </PanelFrame>
+  );
+}
+
+function RollbackPlanCard({
+  onOpenReplay,
+  plan
+}: {
+  onOpenReplay: (sample: OpsDiagnosticSample) => void;
+  plan: OpsRollbackPlanResponse;
+}) {
+  const hasMissingEvidence = plan.missing_evidence.length > 0;
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm leading-6 text-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-1">
+            <strong className="text-slate-950">Guarded rollback plan</strong>
+            <span>Deployment {plan.deployment_record_id}</span>
+          </div>
+          <RollbackConfidenceBadge confidence={plan.confidence} />
+        </div>
+        <span>Compare ref: {plan.compare_ref.path}</span>
+        <span>Generated: {formatDateTime(plan.generated_at)}</span>
+        <span>Smoke summary: {plan.smoke_summary}</span>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <StatCard
+          label="受影响样本"
+          value={formatCount(plan.affected_samples.length)}
+          hint="rollback plan 视角下的 affected samples"
+          tone={plan.affected_samples.length > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="新增回归"
+          value={formatCount(plan.quality_delta_summary.new_regression_count)}
+          hint="suspected new regression"
+          tone={plan.quality_delta_summary.new_regression_count > 0 ? "warning" : "default"}
+        />
+        <StatCard label="旧债务" value={formatCount(plan.quality_delta_summary.existing_debt_count)} hint="existing debt" />
+        <StatCard
+          label="缺失证据"
+          value={formatCount(plan.missing_evidence.length)}
+          hint={hasMissingEvidence ? "结论仍需人工补证" : "当前没有缺失证据提示"}
+          tone={hasMissingEvidence ? "warning" : "default"}
+        />
+      </div>
+
+      <p className="m-0 rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700">
+        {plan.quality_delta_summary.summary}
+      </p>
+
+      <div
+        className={[
+          "rounded-2xl border px-4 py-3 text-sm leading-6",
+          hasMissingEvidence ? "border-amber-200 bg-amber-50 text-amber-900" : "border-sky-200 bg-sky-50 text-sky-800"
+        ].join(" ")}
+      >
+        <strong className="block">{hasMissingEvidence ? "证据缺口" : "人工执行说明"}</strong>
+        {hasMissingEvidence ? (
+          <ul className="m-0 mt-2 grid gap-2 pl-5">
+            {plan.missing_evidence.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <span>当前 plan 仅提供人工 checklist，不提供自动 rollback 按钮，也不会把 checklist 伪装成已执行动作。</span>
+        )}
+      </div>
+
+      <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
+        <strong className="text-sm text-slate-950">Manual checklist</strong>
+        <ul className="m-0 grid gap-2 pl-5 text-sm leading-6 text-slate-700">
+          {plan.manual_checklist.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      {plan.affected_samples.length > 0 ? (
+        <div className="grid gap-2">
+          <strong className="text-sm text-slate-950">Affected samples</strong>
+          {plan.affected_samples.slice(0, 4).map((sample) => (
+            <article
+              className="grid gap-3 rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 text-sm leading-6 text-slate-700"
+              key={sample.sample_id}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <strong className="text-slate-950">{sample.title}</strong>
+                <RegressionBadge regressionClass={sample.regression_class} />
+              </div>
+              <span>{sample.summary}</span>
+              <Button onClick={() => onOpenReplay(sample)} size="sm" type="button" variant="outline">
+                打开 replay
+              </Button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState body="该 rollback plan 当前没有受影响样本。" title="暂无受影响样本" />
+      )}
+    </div>
+  );
+}
+
 function PanelFrame({ children, title }: { children: ReactNode; title: string }) {
   return (
     <section className="grid gap-3 rounded-[22px] border border-white/70 bg-white/78 p-4 shadow-sm">
@@ -821,6 +981,22 @@ function RegressionBadge({ regressionClass }: { regressionClass: OpsRegressionCl
   }
 
   return <Badge variant="default">未知分类</Badge>;
+}
+
+function RollbackConfidenceBadge({
+  confidence
+}: {
+  confidence: OpsRollbackPlanConfidence;
+}) {
+  if (confidence === "high") {
+    return <Badge variant="success">高信心</Badge>;
+  }
+
+  if (confidence === "medium") {
+    return <Badge variant="info">中信心</Badge>;
+  }
+
+  return <Badge variant="warning">低信心</Badge>;
 }
 
 function originLabel(origin: OpsDiagnosticOrigin) {

@@ -29,6 +29,15 @@ import type {
   OpsHealthSummaryResponse,
   OpsIncidentListResponse,
   OpsOverviewResponse,
+  OpsRecoveryActionAuditResponse,
+  OpsRecoveryActionCreateRequest,
+  OpsRecoveryActionPreviewRequest,
+  OpsRecoveryActionPreviewResponse,
+  OpsRecoveryActionResponse,
+  OpsRecoveryCandidateListQuery,
+  OpsRecoveryCandidateListResponse,
+  OpsRollbackPlanQuery,
+  OpsRollbackPlanResponse,
   OpsTrendsQuery,
   OpsTrendsResponse,
   ReindexDocumentResponse,
@@ -285,6 +294,61 @@ export async function fetchOpsDeploymentCompare(
 ) {
   const search = buildSearchParams(query);
   return requestJson<OpsDeploymentCompareResponse>(`/api/v1/ops/deployments/compare${search}`, undefined, baseUrl);
+}
+
+export async function fetchOpsRecoveryCandidates(
+  query: OpsRecoveryCandidateListQuery = {},
+  baseUrl = "http://localhost:3001"
+) {
+  const search = buildSearchParams(query);
+  return requestJson<OpsRecoveryCandidateListResponse>(`/api/v1/ops/recovery/candidates${search}`, undefined, baseUrl);
+}
+
+export async function previewOpsRecoveryAction(
+  body: OpsRecoveryActionPreviewRequest,
+  baseUrl = "http://localhost:3001"
+) {
+  return requestJson<OpsRecoveryActionPreviewResponse>(
+    "/api/v1/ops/recovery/actions/preview",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    baseUrl
+  );
+}
+
+export async function createOpsRecoveryAction(
+  body: OpsRecoveryActionCreateRequest,
+  baseUrl = "http://localhost:3001"
+) {
+  return requestJson<OpsRecoveryActionResponse>(
+    "/api/v1/ops/recovery/actions",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    },
+    baseUrl
+  );
+}
+
+export async function getOpsRecoveryAction(actionId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<OpsRecoveryActionResponse>(`/api/v1/ops/recovery/actions/${actionId}`, undefined, baseUrl);
+}
+
+export async function getOpsRecoveryActionAudit(actionId: string, baseUrl = "http://localhost:3001") {
+  return requestJson<OpsRecoveryActionAuditResponse>(
+    `/api/v1/ops/recovery/actions/${actionId}/audit`,
+    undefined,
+    baseUrl
+  );
+}
+
+export async function fetchOpsRollbackPlan(query: OpsRollbackPlanQuery, baseUrl = "http://localhost:3001") {
+  const search = buildSearchParams(query);
+  return requestJson<OpsRollbackPlanResponse>(`/api/v1/ops/recovery/rollback-plan${search}`, undefined, baseUrl);
 }
 
 export async function createAnswer(body: CreateAnswerRequest, baseUrl = "http://localhost:3001") {

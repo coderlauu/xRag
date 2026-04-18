@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { desc, eq, sql, type SQL } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import { BadRequestException, HttpException, Injectable, NotFoundException } from "@nestjs/common";
+import { and, asc, desc, eq, gte, sql, type SQL } from "drizzle-orm";
 import type {
   IncidentSeverity,
   IncidentSource,
@@ -23,6 +24,17 @@ import type {
   OpsReadinessSnapshot,
   OpsRecommendedAction,
   OpsRecommendedActionCode,
+  OpsRecoveryActionCreateRequest,
+  OpsRecoveryActionAuditResponse,
+  OpsRecoveryActionPreviewRequest,
+  OpsRecoveryActionPreviewResponse,
+  OpsRecoveryActionResponse,
+  OpsRecoveryFactSnapshot,
+  OpsRecoveryCandidateListQuery,
+  OpsRecoveryCandidateListResponse,
+  OpsRecoveryCandidateSourceType,
+  OpsRollbackPlanQuery,
+  OpsRollbackPlanResponse,
   OpsReleaseGuard,
   OpsServiceStatus,
   OpsRuntimeQualitySummary,
@@ -34,7 +46,15 @@ import type {
 import { AnswersService } from "../answers/answers.service";
 import { loadApiEnv } from "../config/env";
 import { DatabaseService } from "../database/database.service";
-import { answerCitations, answerSessions, deploymentRecords, documents, evaluationRuns } from "../database/schema";
+import {
+  answerCitations,
+  answerSessions,
+  deploymentRecords,
+  documentParseJobs,
+  documents,
+  evaluationRuns,
+  operatorRecoveryActions
+} from "../database/schema";
 import { DocumentsService } from "../documents/documents.service";
 import { JobsRepository } from "../jobs/jobs.repository";
 import { QueueService } from "../queue/queue.service";
@@ -47,6 +67,23 @@ import {
   buildDocumentReplayResponse,
   countRelatedAnswerSessionsForDocument
 } from "./ops.replays";
+import {
+  buildAnswerRecoveryFactSnapshot,
+  buildDocumentRecoveryFactSnapshot,
+  buildRecoveryCandidate,
+  buildRecoveryPreview,
+  filterRecoveryCandidates,
+  getAnswerPreviewPreconditions,
+  getDocumentPreviewPreconditions
+} from "./ops.recovery-candidates";
+import {
+  buildRecoveryJobRef,
+  parseRecoveryCandidateId,
+  readRecoveryFactSnapshot,
+  toRecoveryActionAuditResponse,
+  toRecoveryActionResponse,
+  type RecoveryActionRow
+} from "./ops.recovery-actions";
 
 type OpsIncidentCandidate = OpsIncidentListResponse["items"][number] & {
   occurredAt: Date;
@@ -79,6 +116,11 @@ type EvaluationTrendBucket = {
   embeddingBacklog: string | number | null;
   freshnessLagP95Ms: string | number | null;
 };
+
+type RecoveryJobRow = typeof documentParseJobs.$inferSelect;
+
+const DEFAULT_RECOVERY_ACTOR = "ops-operator";
+const PG_UNIQUE_VIOLATION = "23505";
 
 @Injectable()
 export class OpsService {
@@ -277,6 +319,200 @@ export class OpsService {
     });
   }
 
+  async listRecoveryCandidates(query: OpsRecoveryCandidateListQuery): Promise<OpsRecoveryCandidateListResponse> {
+    const page = query.page ?? 1;
+    const pageSize = query.page_size ?? 20;
+    const sourceType = query.source_type ?? "diagnostic_sample";
+    const samples = await this.getRecoverySourceSamples(sourceType, query.source_ref);
+    const documentMap = await this.getRecoveryDocumentMap(samples);
+    const allCandidates = filterRecoveryCandidates(
+      samples.map((sample) =>
+        buildRecoveryCandidate({
+          sample,
+          sourceType,
+          sourceRef: query.source_ref,
+          document: documentMap.get(sample.source_id) ?? null
+        })
+      ),
+      {
+        actionType: query.action_type,
+        riskLevel: query.risk_level,
+        recommendationState: query.recommendation_state
+      }
+    );
+    const start = (page - 1) * pageSize;
+
+    return {
+      generated_at: new Date().toISOString(),
+      page,
+      page_size: pageSize,
+      total: allCandidates.length,
+      items: allCandidates.slice(start, start + pageSize)
+    };
+  }
+
+  async previewRecoveryAction(
+    request: OpsRecoveryActionPreviewRequest
+  ): Promise<OpsRecoveryActionPreviewResponse> {
+    this.validateRecoveryTargetRefs(request);
+
+    const generatedAt = new Date();
+    const idempotencyKey = this.buildRecoveryIdempotencyKey(request);
+    const previewFacts = await this.getRecoveryPreviewFacts(request, generatedAt);
+
+    return buildRecoveryPreview({
+      request,
+      generatedAt,
+      idempotencyKey,
+      sourceFacts: previewFacts.sourceFacts,
+      beforeFacts: previewFacts.beforeFacts,
+      preconditions: previewFacts.preconditions
+    });
+  }
+
+  async createRecoveryAction(_request: OpsRecoveryActionCreateRequest): Promise<OpsRecoveryActionResponse> {
+    const request = {
+      ..._request,
+      reason: _request.reason.trim()
+    };
+
+    if (!request.reason) {
+      throw new BadRequestException("reason must not be empty");
+    }
+
+    const existing = await this.getRecoveryActionByIdempotencyKey(request.idempotency_key);
+    if (existing) {
+      return this.getRecoveryAction(existing.id);
+    }
+
+    const preview = await this.buildCreateRecoveryPreview(request);
+    const blockedMessage =
+      preview.action_type === "answer_diagnostic_rerun"
+        ? "Phase 3B keeps answer diagnostic rerun read-only. Review the replay manually."
+        : preview.blocked_reason;
+
+    const now = new Date();
+    const insertValues = {
+      id: randomUUID(),
+      candidateId: request.candidate_id,
+      actionType: preview.action_type,
+      targetType: preview.target_type,
+      targetRefs: preview.target_refs as unknown as Record<string, unknown>[],
+      status: blockedMessage ? "blocked" : "queued",
+      actor: DEFAULT_RECOVERY_ACTOR,
+      reason: request.reason,
+      idempotencyKey: preview.idempotency_key,
+      previewId: preview.preview_id,
+      sourceFacts: preview.source_facts as unknown as Record<string, unknown>,
+      preview: preview as unknown as Record<string, unknown>,
+      beforeFacts: preview.before_facts as unknown as Record<string, unknown>,
+      afterFacts: blockedMessage ? (preview.before_facts as unknown as Record<string, unknown>) : null,
+      queueJobRefs: [] as Record<string, unknown>[],
+      diagnosisCode: blockedMessage ? this.getRecoveryFactDiagnosisCode(preview.before_facts) : null,
+      errorMessage: blockedMessage,
+      completedAt: blockedMessage ? now : null,
+      updatedAt: now
+    } satisfies typeof operatorRecoveryActions.$inferInsert;
+
+    let action: RecoveryActionRow;
+    try {
+      [action] = await this.database.db.insert(operatorRecoveryActions).values(insertValues).returning();
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        const duplicate = await this.getRecoveryActionByIdempotencyKey(request.idempotency_key);
+        if (duplicate) {
+          return this.getRecoveryAction(duplicate.id);
+        }
+      }
+
+      throw error;
+    }
+
+    if (blockedMessage) {
+      return toRecoveryActionResponse(action);
+    }
+
+    try {
+      const targetId = preview.target_refs[0]?.id;
+      const execution =
+        preview.action_type === "document_retry"
+          ? await this.documentsService.retryDocument(targetId)
+          : await this.documentsService.reindexDocument(targetId);
+      const [updated] = await this.database.db
+        .update(operatorRecoveryActions)
+        .set({
+          queueJobRefs: [buildRecoveryJobRef(execution.job_id)] as unknown as Record<string, unknown>[],
+          updatedAt: new Date()
+        })
+        .where(eq(operatorRecoveryActions.id, action.id))
+        .returning();
+
+      return toRecoveryActionResponse(updated ?? action);
+    } catch (error) {
+      const afterFacts = await this.captureRecoveryAfterFacts(
+        preview.action_type,
+        preview.target_type,
+        preview.target_refs[0]?.id ?? null,
+        new Date()
+      );
+      const [failed] = await this.database.db
+        .update(operatorRecoveryActions)
+        .set({
+          status: "failed",
+          diagnosisCode:
+            this.getRecoveryFactDiagnosisCode(afterFacts) ?? this.getRecoveryFactDiagnosisCode(preview.before_facts),
+          errorMessage: this.getRecoveryErrorMessage(error),
+          afterFacts: afterFacts as unknown as Record<string, unknown> | null,
+          completedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(operatorRecoveryActions.id, action.id))
+        .returning();
+
+      return toRecoveryActionResponse(failed ?? action);
+    }
+  }
+
+  async getRecoveryAction(actionId: string): Promise<OpsRecoveryActionResponse> {
+    const action = await this.getRecoveryActionById(actionId);
+    const reconciled = await this.reconcileRecoveryAction(action);
+    return toRecoveryActionResponse(reconciled);
+  }
+
+  async getRecoveryActionAudit(actionId: string): Promise<OpsRecoveryActionAuditResponse> {
+    const action = await this.getRecoveryActionById(actionId);
+    const reconciled = await this.reconcileRecoveryAction(action);
+    return toRecoveryActionAuditResponse(reconciled, new Date());
+  }
+
+  async getRollbackPlan(query: OpsRollbackPlanQuery): Promise<OpsRollbackPlanResponse> {
+    const compare = await this.getDeploymentCompare({
+      deployment_record_id: query.deployment_record_id,
+      window: query.window
+    });
+
+    return {
+      generated_at: new Date().toISOString(),
+      deployment_record_id: query.deployment_record_id,
+      compare_ref: {
+        method: "GET",
+        path: `/api/v1/ops/deployments/compare?deployment_record_id=${query.deployment_record_id}${
+          query.window ? `&window=${query.window}` : ""
+        }`
+      },
+      affected_samples: compare.affected_samples,
+      quality_delta_summary: compare.delta_summary,
+      smoke_summary: `Deployment smoke status is ${compare.deployment.smoke_status}.`,
+      confidence: compare.affected_samples.length > 0 ? "medium" : "low",
+      missing_evidence: compare.deployment.smoke_status === "unknown" ? ["deployment_smoke_status"] : [],
+      manual_checklist: [
+        "Review deployment compare affected samples.",
+        "Verify smoke evidence and production health manually.",
+        "Follow the production rollback runbook outside xRag if rollback is required."
+      ]
+    };
+  }
+
   async getLatestDeployment(): Promise<LatestDeploymentResponse> {
     return {
       current_image_tag: process.env.XRAG_IMAGE_TAG || null,
@@ -284,6 +520,489 @@ export class OpsService {
       last_smoke_status: (process.env.XRAG_LAST_SMOKE_STATUS as LatestDeploymentResponse["last_smoke_status"]) || "unknown",
       last_smoke_at: process.env.XRAG_LAST_SMOKE_AT || null
     };
+  }
+
+  private validateRecoveryTargetRefs(request: OpsRecoveryActionPreviewRequest) {
+    if (request.target_refs.length === 0) {
+      throw new BadRequestException("target_refs must contain at least one target");
+    }
+
+    if (request.target_refs.length !== 1) {
+      throw new BadRequestException("Phase 3B recovery preview supports exactly one target_ref");
+    }
+
+    const mismatchedTarget = request.target_refs.find((targetRef) => targetRef.type !== request.target_type);
+    if (mismatchedTarget) {
+      throw new BadRequestException("target_refs type must match target_type");
+    }
+
+    if (request.action_type === "answer_diagnostic_rerun" && request.target_type !== "answer_session") {
+      throw new BadRequestException("answer_diagnostic_rerun requires target_type answer_session");
+    }
+
+    if (request.action_type !== "answer_diagnostic_rerun" && request.target_type !== "document") {
+      throw new BadRequestException("document recovery actions require target_type document");
+    }
+  }
+
+  private buildRecoveryIdempotencyKey(request: OpsRecoveryActionPreviewRequest) {
+    return createHash("sha256")
+      .update(
+        JSON.stringify({
+          candidate_id: request.candidate_id,
+          action_type: request.action_type,
+          target_type: request.target_type,
+          target_refs: request.target_refs
+        })
+      )
+      .digest("hex");
+  }
+
+  private async getRecoverySourceSamples(sourceType: OpsRecoveryCandidateSourceType, sourceRef?: string) {
+    if (sourceType === "answer_session_replay") {
+      if (!sourceRef) {
+        throw new BadRequestException("source_ref is required for answer_session_replay recovery candidates");
+      }
+
+      return [(await this.getAnswerSessionReplay(sourceRef)).sample];
+    }
+
+    if (sourceType === "document_replay") {
+      if (!sourceRef) {
+        throw new BadRequestException("source_ref is required for document_replay recovery candidates");
+      }
+
+      return [(await this.getDocumentReplay(sourceRef)).sample];
+    }
+
+    if (sourceType === "deployment_compare") {
+      if (!sourceRef) {
+        throw new BadRequestException("source_ref is required for deployment_compare recovery candidates");
+      }
+
+      const compare = await this.getDeploymentCompare({
+        deployment_record_id: sourceRef,
+        window: "24h"
+      });
+      return compare.affected_samples;
+    }
+
+    if (sourceRef) {
+      return [await this.getDiagnosticSampleByRef(sourceRef)];
+    }
+
+    const samples = await this.listDiagnosticSamples({
+      origin: "trend",
+      window: "24h",
+      page: 1,
+      page_size: 100
+    });
+    return samples.items;
+  }
+
+  private async getDiagnosticSampleByRef(sourceRef: string) {
+    const separatorIndex = sourceRef.indexOf(":");
+    if (separatorIndex < 0) {
+      throw new BadRequestException("diagnostic_sample source_ref must be a sample id");
+    }
+
+    const sampleKind = sourceRef.slice(0, separatorIndex);
+    const sourceId = sourceRef.slice(separatorIndex + 1);
+
+    if (sampleKind === "answer_session") {
+      return (await this.getAnswerSessionReplay(sourceId)).sample;
+    }
+
+    if (sampleKind === "document") {
+      return (await this.getDocumentReplay(sourceId)).sample;
+    }
+
+    throw new BadRequestException("Unsupported diagnostic_sample source_ref");
+  }
+
+  private async getRecoveryDocumentMap(samples: Awaited<ReturnType<OpsService["getRecoverySourceSamples"]>>) {
+    const documentIds = [...new Set(samples.filter((sample) => sample.sample_kind === "document_pipeline").map((sample) => sample.source_id))];
+    const entries = await Promise.all(
+      documentIds.map(async (documentId) => {
+        try {
+          return [documentId, await this.documentsService.getDocument(documentId)] as const;
+        } catch (error) {
+          if (error instanceof NotFoundException) {
+            return [documentId, null] as const;
+          }
+
+          throw error;
+        }
+      })
+    );
+
+    return new Map(entries);
+  }
+
+  private async getRecoveryPreviewFacts(request: OpsRecoveryActionPreviewRequest, generatedAt: Date) {
+    const targetRef = request.target_refs[0];
+
+    if (request.target_type === "document") {
+      const document = await this.documentsService.getDocument(targetRef.id);
+      const facts = buildDocumentRecoveryFactSnapshot({
+        document,
+        actionType: request.action_type,
+        capturedAt: generatedAt
+      });
+
+      return {
+        sourceFacts: facts,
+        beforeFacts: facts,
+        preconditions: getDocumentPreviewPreconditions(request.action_type, document)
+      };
+    }
+
+    const session = await this.answersService.getAnswer(targetRef.id);
+    const facts = buildAnswerRecoveryFactSnapshot({
+      session,
+      actionType: request.action_type,
+      capturedAt: generatedAt
+    });
+
+    return {
+      sourceFacts: facts,
+      beforeFacts: facts,
+      preconditions: getAnswerPreviewPreconditions(session)
+    };
+  }
+
+  private async buildCreateRecoveryPreview(request: OpsRecoveryActionCreateRequest) {
+    let candidate;
+    try {
+      candidate = parseRecoveryCandidateId(request.candidate_id);
+    } catch {
+      throw new BadRequestException("candidate_id is invalid");
+    }
+
+    const preview = await this.previewRecoveryAction({
+      candidate_id: request.candidate_id,
+      action_type: candidate.actionType,
+      target_type: candidate.targetType,
+      target_refs: [{ type: candidate.targetType, id: candidate.targetId }]
+    });
+
+    if (preview.preview_id !== request.preview_id) {
+      throw new BadRequestException("preview_id does not match the current recovery preview");
+    }
+
+    if (preview.idempotency_key !== request.idempotency_key) {
+      throw new BadRequestException("idempotency_key does not match the current recovery preview");
+    }
+
+    return preview;
+  }
+
+  private async getRecoveryActionById(actionId: string) {
+    const [action] = await this.database.db
+      .select()
+      .from(operatorRecoveryActions)
+      .where(eq(operatorRecoveryActions.id, actionId))
+      .limit(1);
+
+    if (!action) {
+      throw new NotFoundException("Recovery action not found");
+    }
+
+    return action;
+  }
+
+  private async getRecoveryActionByIdempotencyKey(idempotencyKey: string) {
+    const [action] = await this.database.db
+      .select()
+      .from(operatorRecoveryActions)
+      .where(eq(operatorRecoveryActions.idempotencyKey, idempotencyKey))
+      .limit(1);
+
+    return action ?? null;
+  }
+
+  private async reconcileRecoveryAction(action: RecoveryActionRow): Promise<RecoveryActionRow> {
+    if (action.status !== "queued" && action.status !== "running") {
+      return action;
+    }
+
+    if (action.targetType !== "document") {
+      return action;
+    }
+
+    return this.reconcileDocumentRecoveryAction(action);
+  }
+
+  private async reconcileDocumentRecoveryAction(action: RecoveryActionRow): Promise<RecoveryActionRow> {
+    const documentId = action.targetRefs[0]?.id;
+    if (typeof documentId !== "string" || !documentId) {
+      return action;
+    }
+
+    const now = new Date();
+    const [document, jobs] = await Promise.all([
+      this.documentsService.getDocument(documentId).catch((error) => {
+        if (error instanceof NotFoundException) {
+          return null;
+        }
+
+        throw error;
+      }),
+      this.listRecoveryDocumentJobs(documentId, action.createdAt)
+    ]);
+    const queueJobRefs = jobs.map((job) => buildRecoveryJobRef(job.id));
+    const latestFailedJob = this.getLatestFailedRecoveryJob(jobs);
+    const earliestStartedAt = jobs
+      .map((job) => job.startedAt)
+      .filter((startedAt): startedAt is Date => startedAt instanceof Date)
+      .sort((left, right) => left.getTime() - right.getTime())[0];
+    const latestFinishedAt = jobs
+      .map((job) => job.finishedAt)
+      .filter((finishedAt): finishedAt is Date => finishedAt instanceof Date)
+      .sort((left, right) => right.getTime() - left.getTime())[0];
+    const hasQueuedJobs = jobs.some((job) => job.status === "queued");
+    const hasRunningJobs = jobs.some((job) => job.status === "running");
+    const hasStartedJobs = jobs.some((job) => job.startedAt || job.status === "succeeded");
+
+    if (!document) {
+      return this.updateRecoveryActionIfChanged(action, {
+        status: "failed",
+        queueJobRefs,
+        diagnosisCode: action.diagnosisCode as OpsRecoveryActionResponse["diagnosis_code"],
+        errorMessage: "Recovery target document no longer exists.",
+        completedAt: latestFinishedAt ?? now
+      });
+    }
+
+    if (latestFailedJob || document.parse_status === "failed" || document.index_status === "failed") {
+      const afterFacts = buildDocumentRecoveryFactSnapshot({
+        document,
+        actionType: action.actionType,
+        capturedAt: now
+      });
+      return this.updateRecoveryActionIfChanged(action, {
+        status: "failed",
+        queueJobRefs,
+        startedAt: action.startedAt ?? earliestStartedAt ?? null,
+        completedAt: latestFailedJob?.finishedAt ?? latestFinishedAt ?? now,
+        diagnosisCode:
+          (latestFailedJob?.diagnosisCode as OpsRecoveryActionResponse["diagnosis_code"]) ??
+          (document.diagnosis_code as OpsRecoveryActionResponse["diagnosis_code"]) ??
+          null,
+        errorMessage: latestFailedJob?.errorMessage ?? document.diagnosis_summary ?? "Recovery action failed.",
+        afterFacts
+      });
+    }
+
+    if (this.isDocumentRecoverySuccessful(action.actionType, document)) {
+      const afterFacts = buildDocumentRecoveryFactSnapshot({
+        document,
+        actionType: action.actionType,
+        capturedAt: now
+      });
+      return this.updateRecoveryActionIfChanged(action, {
+        status: "succeeded",
+        queueJobRefs,
+        startedAt: action.startedAt ?? earliestStartedAt ?? null,
+        completedAt: latestFinishedAt ?? now,
+        diagnosisCode: null,
+        errorMessage: null,
+        afterFacts
+      });
+    }
+
+    if (hasRunningJobs || hasQueuedJobs || this.isDocumentRecoveryInFlight(document)) {
+      const nextStatus = hasRunningJobs || hasStartedJobs ? "running" : "queued";
+      return this.updateRecoveryActionIfChanged(action, {
+        status: nextStatus,
+        queueJobRefs,
+        startedAt: nextStatus === "running" ? action.startedAt ?? earliestStartedAt ?? action.createdAt : null
+      });
+    }
+
+    const afterFacts = buildDocumentRecoveryFactSnapshot({
+      document,
+      actionType: action.actionType,
+      capturedAt: now
+    });
+    return this.updateRecoveryActionIfChanged(action, {
+      status: "failed",
+      queueJobRefs,
+      startedAt: action.startedAt ?? earliestStartedAt ?? null,
+      completedAt: latestFinishedAt ?? now,
+      diagnosisCode: document.diagnosis_code ?? null,
+      errorMessage: document.diagnosis_summary ?? "Recovery action did not reach a successful terminal state.",
+      afterFacts
+    });
+  }
+
+  private async listRecoveryDocumentJobs(documentId: string, actionCreatedAt: Date) {
+    return this.database.db
+      .select()
+      .from(documentParseJobs)
+      .where(
+        and(eq(documentParseJobs.documentId, documentId), gte(documentParseJobs.createdAt, actionCreatedAt))
+      )
+      .orderBy(asc(documentParseJobs.createdAt), asc(documentParseJobs.attempt));
+  }
+
+  private getLatestFailedRecoveryJob(jobs: RecoveryJobRow[]) {
+    return [...jobs].reverse().find((job) => job.status === "failed" || job.status === "dead") ?? null;
+  }
+
+  private isDocumentRecoverySuccessful(
+    actionType: OpsRecoveryActionPreviewResponse["action_type"],
+    document: Awaited<ReturnType<DocumentsService["getDocument"]>>
+  ) {
+    if (actionType === "document_retry") {
+      return document.parse_status === "success" && document.index_status === "ready" && document.citation_ready;
+    }
+
+    return document.index_status === "ready" && document.citation_ready;
+  }
+
+  private isDocumentRecoveryInFlight(document: Awaited<ReturnType<DocumentsService["getDocument"]>>) {
+    return (
+      document.parse_status === "pending" ||
+      document.parse_status === "processing" ||
+      document.ocr_status === "queued" ||
+      document.ocr_status === "processing" ||
+      document.index_status === "queued" ||
+      document.index_status === "chunking" ||
+      document.index_status === "embedding"
+    );
+  }
+
+  private async updateRecoveryActionIfChanged(
+    action: RecoveryActionRow,
+    next: {
+      status?: RecoveryActionRow["status"];
+      queueJobRefs?: Array<{ method: "GET"; path: string }>;
+      diagnosisCode?: OpsRecoveryActionResponse["diagnosis_code"];
+      errorMessage?: string | null;
+      startedAt?: Date | null;
+      completedAt?: Date | null;
+      afterFacts?: OpsRecoveryFactSnapshot | null;
+    }
+  ) {
+    const queueJobRefsChanged =
+      next.queueJobRefs !== undefined &&
+      JSON.stringify(action.queueJobRefs ?? []) !== JSON.stringify(next.queueJobRefs);
+    const afterFactsChanged =
+      next.afterFacts !== undefined &&
+      JSON.stringify(readRecoveryFactSnapshot(action.afterFacts)) !== JSON.stringify(next.afterFacts);
+    const changed =
+      (next.status !== undefined && action.status !== next.status) ||
+      queueJobRefsChanged ||
+      (next.diagnosisCode !== undefined && action.diagnosisCode !== next.diagnosisCode) ||
+      (next.errorMessage !== undefined && action.errorMessage !== next.errorMessage) ||
+      (next.startedAt !== undefined &&
+        (action.startedAt?.toISOString() ?? null) !== (next.startedAt?.toISOString() ?? null)) ||
+      (next.completedAt !== undefined &&
+        (action.completedAt?.toISOString() ?? null) !== (next.completedAt?.toISOString() ?? null)) ||
+      afterFactsChanged;
+
+    if (!changed) {
+      return action;
+    }
+
+    const [updated] = await this.database.db
+      .update(operatorRecoveryActions)
+      .set({
+        status: next.status ?? action.status,
+        queueJobRefs:
+          next.queueJobRefs !== undefined
+            ? (next.queueJobRefs as unknown as Record<string, unknown>[])
+            : action.queueJobRefs,
+        diagnosisCode: next.diagnosisCode !== undefined ? next.diagnosisCode : action.diagnosisCode,
+        errorMessage: next.errorMessage !== undefined ? next.errorMessage : action.errorMessage,
+        startedAt: next.startedAt !== undefined ? next.startedAt : action.startedAt,
+        completedAt: next.completedAt !== undefined ? next.completedAt : action.completedAt,
+        afterFacts:
+          next.afterFacts !== undefined
+            ? (next.afterFacts as unknown as Record<string, unknown> | null)
+            : action.afterFacts,
+        updatedAt: new Date()
+      })
+      .where(eq(operatorRecoveryActions.id, action.id))
+      .returning();
+
+    return updated ?? action;
+  }
+
+  private async captureRecoveryAfterFacts(
+    actionType: OpsRecoveryActionPreviewResponse["action_type"],
+    targetType: OpsRecoveryActionPreviewResponse["target_type"],
+    targetId: string | null,
+    capturedAt: Date
+  ) {
+    if (!targetId) {
+      return null;
+    }
+
+    try {
+      if (targetType === "document") {
+        const document = await this.documentsService.getDocument(targetId);
+        return buildDocumentRecoveryFactSnapshot({
+          document,
+          actionType,
+          capturedAt
+        });
+      }
+
+      const session = await this.answersService.getAnswer(targetId);
+      return buildAnswerRecoveryFactSnapshot({
+        session,
+        actionType,
+        capturedAt
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  private getRecoveryFactDiagnosisCode(facts: OpsRecoveryFactSnapshot | null) {
+    const diagnosisCode = facts?.facts?.diagnosis_code;
+    return typeof diagnosisCode === "string"
+      ? (diagnosisCode as OpsRecoveryActionResponse["diagnosis_code"])
+      : null;
+  }
+
+  private getRecoveryErrorMessage(error: unknown) {
+    if (error instanceof HttpException) {
+      const response = error.getResponse();
+      if (typeof response === "string") {
+        return response;
+      }
+
+      if (response && typeof response === "object") {
+        const message = (response as { message?: string | string[] }).message;
+        if (Array.isArray(message)) {
+          return message.join("; ");
+        }
+
+        if (typeof message === "string") {
+          return message;
+        }
+      }
+
+      return error.message;
+    }
+
+    return error instanceof Error ? error.message : "Recovery action execution failed";
+  }
+
+  private isUniqueViolation(error: unknown) {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === PG_UNIQUE_VIOLATION
+    );
   }
 
   private async getReadinessSnapshot(): Promise<OpsReadinessSnapshot> {

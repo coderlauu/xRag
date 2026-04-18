@@ -4,9 +4,9 @@
 
 - `version`: `v7`
 - `phase`: `Phase 3A`
-- `status`: `completed`
+- `status`: `archived`
 - `owner`: `codex`
-- `updated_at`: `2026-04-17`
+- `updated_at`: `2026-04-18`
 
 ## 2. Goal
 
@@ -43,8 +43,8 @@
 
 ## 4. Current Node
 
-- `now`: `v7 / Phase 3A` 已完成 release-readiness；GitHub Actions run `24565067913` 已成功
-- `next`: 若继续演进，应启动下一版本分流；不得在 v7 closeout 后继续扩大 Phase 3A scope
+- `now`: `v7 / Phase 3A` 已完成 release-readiness 并归档为 `v8 / Phase 3B` 的上游诊断基线；GitHub Actions run `24565067913` 已成功
+- `next`: 当前入口已切到 `v8 / Phase 3B` implementation-lanes；不得在 v7 closeout 后继续扩大 Phase 3A scope
 
 ### 4.1 P0 Guardrails
 
