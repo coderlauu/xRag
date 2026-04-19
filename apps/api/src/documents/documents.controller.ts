@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import {
   ApiAcceptedResponse,
   ApiBody,
@@ -69,7 +69,7 @@ export class DocumentsController {
   @ApiOperation({ summary: "Get a document by id" })
   @ApiOkResponse({ type: DocumentDetailDto })
   @ApiParam({ name: "documentId", type: String })
-  getDocument(@Param("documentId") documentId: string) {
+  getDocument(@Param("documentId", ParseUUIDPipe) documentId: string) {
     return this.documentsService.getDocument(documentId);
   }
 
@@ -77,7 +77,7 @@ export class DocumentsController {
   @ApiOperation({ summary: "Get document evidence chunks and citation locators" })
   @ApiOkResponse({ type: DocumentEvidenceResponseDto })
   @ApiParam({ name: "documentId", type: String })
-  getDocumentEvidence(@Param("documentId") documentId: string) {
+  getDocumentEvidence(@Param("documentId", ParseUUIDPipe) documentId: string) {
     return this.documentsService.getDocumentEvidence(documentId);
   }
 
@@ -85,7 +85,7 @@ export class DocumentsController {
   @ApiOperation({ summary: "Get a document processing timeline" })
   @ApiOkResponse({ type: DocumentTimelineResponseDto })
   @ApiParam({ name: "documentId", type: String })
-  getDocumentTimeline(@Param("documentId") documentId: string) {
+  getDocumentTimeline(@Param("documentId", ParseUUIDPipe) documentId: string) {
     return this.documentsService.getDocumentTimeline(documentId);
   }
 
@@ -94,7 +94,10 @@ export class DocumentsController {
   @ApiOkResponse({ type: DocumentDetailDto })
   @ApiParam({ name: "documentId", type: String })
   @ApiBody({ type: UpdateDocumentTagsRequestDto })
-  updateDocumentTags(@Param("documentId") documentId: string, @Body() body: UpdateDocumentTagsRequestDto) {
+  updateDocumentTags(
+    @Param("documentId", ParseUUIDPipe) documentId: string,
+    @Body() body: UpdateDocumentTagsRequestDto
+  ) {
     return this.documentsService.updateDocumentTags(documentId, body);
   }
 
@@ -102,7 +105,7 @@ export class DocumentsController {
   @ApiOperation({ summary: "Retry document parsing" })
   @ApiCreatedResponse({ type: RetryDocumentResponseDto })
   @ApiParam({ name: "documentId", type: String })
-  retryDocument(@Param("documentId") documentId: string) {
+  retryDocument(@Param("documentId", ParseUUIDPipe) documentId: string) {
     return this.documentsService.retryDocument(documentId);
   }
 
@@ -111,7 +114,7 @@ export class DocumentsController {
   @ApiOperation({ summary: "Reindex document chunks and embeddings" })
   @ApiAcceptedResponse({ type: ReindexDocumentResponseDto })
   @ApiParam({ name: "documentId", type: String })
-  reindexDocument(@Param("documentId") documentId: string) {
+  reindexDocument(@Param("documentId", ParseUUIDPipe) documentId: string) {
     return this.documentsService.reindexDocument(documentId);
   }
 }

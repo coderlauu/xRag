@@ -719,3 +719,37 @@ test("answers API keeps evidence groups scoped when multiple claims cite the sam
     await app.close();
   }
 });
+
+test("API rejects invalid uuid path params with 400 instead of 500", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const cases: Array<{ url: string; method: "GET" | "POST" | "PATCH" }> = [
+      { url: "/api/v1/answers/not-a-uuid", method: "GET" },
+      { url: "/api/v1/answers/not-a-uuid/retrieval", method: "GET" },
+      { url: "/api/v1/documents/not-a-uuid", method: "GET" },
+      { url: "/api/v1/documents/not-a-uuid/evidence", method: "GET" },
+      { url: "/api/v1/documents/not-a-uuid/timeline", method: "GET" },
+      { url: "/api/v1/jobs/not-a-uuid", method: "GET" },
+      { url: "/api/v1/ops/replays/answer-sessions/not-a-uuid", method: "GET" },
+      { url: "/api/v1/ops/replays/documents/not-a-uuid", method: "GET" },
+      { url: "/api/v1/ops/recovery/actions/not-a-uuid", method: "GET" },
+      { url: "/api/v1/ops/recovery/actions/not-a-uuid/audit", method: "GET" }
+    ];
+
+    for (const { url, method } of cases) {
+      const response = await app.inject({ method, url });
+      assert.equal(
+        response.statusCode,
+        400,
+        `expected 400 for ${method} ${url}, got ${response.statusCode}: ${response.payload}`
+      );
+      const payload = response.json() as { message?: unknown; error?: string };
+      assert.equal(payload.error, "Bad Request", `error label mismatch for ${method} ${url}`);
+    }
+  } finally {
+    await app.close();
+  }
+});

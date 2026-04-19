@@ -1,4 +1,4 @@
-import { Body, Controller, Param, ParseIntPipe, Post } from "@nestjs/common";
+import { Body, Controller, Param, ParseIntPipe, ParseUUIDPipe, Post } from "@nestjs/common";
 import { ApiBody, ApiCreatedResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import {
   UploadCompleteRequestDto,
@@ -30,7 +30,7 @@ export class UploadsController {
   @ApiCreatedResponse({ type: UploadPartUrlResponseDto })
   @ApiParam({ name: "uploadId", type: String })
   @ApiBody({ type: UploadPartUrlRequestDto })
-  getUploadParts(@Param("uploadId") uploadId: string, @Body() body: UploadPartUrlRequestDto) {
+  getUploadParts(@Param("uploadId", ParseUUIDPipe) uploadId: string, @Body() body: UploadPartUrlRequestDto) {
     return this.uploadsService.getUploadParts(uploadId, body);
   }
 
@@ -41,7 +41,7 @@ export class UploadsController {
   @ApiParam({ name: "partNumber", type: Number })
   @ApiBody({ type: UploadPartCompleteRequestDto })
   completeUploadPart(
-    @Param("uploadId") uploadId: string,
+    @Param("uploadId", ParseUUIDPipe) uploadId: string,
     @Param("partNumber", ParseIntPipe) partNumber: number,
     @Body() body: UploadPartCompleteRequestDto
   ) {
@@ -53,7 +53,7 @@ export class UploadsController {
   @ApiCreatedResponse({ type: UploadCompleteResponseDto })
   @ApiParam({ name: "uploadId", type: String })
   @ApiBody({ type: UploadCompleteRequestDto })
-  completeUpload(@Param("uploadId") uploadId: string, @Body() body: UploadCompleteRequestDto) {
+  completeUpload(@Param("uploadId", ParseUUIDPipe) uploadId: string, @Body() body: UploadCompleteRequestDto) {
     return this.uploadsService.completeUpload(uploadId, body);
   }
 }

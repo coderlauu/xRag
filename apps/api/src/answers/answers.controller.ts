@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { ApiAcceptedResponse, ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import {
   AnswerRetrievalTraceResponseDto,
@@ -35,7 +35,7 @@ export class AnswersController {
   @ApiOperation({ summary: "Get answer session status and answer payload" })
   @ApiOkResponse({ type: AnswerSessionResponseDto })
   @ApiParam({ name: "sessionId", type: String })
-  getAnswer(@Param("sessionId") sessionId: string) {
+  getAnswer(@Param("sessionId", ParseUUIDPipe) sessionId: string) {
     return this.answersService.getAnswer(sessionId);
   }
 
@@ -43,7 +43,7 @@ export class AnswersController {
   @ApiOperation({ summary: "Get retrieval trace for an answer session" })
   @ApiOkResponse({ type: AnswerRetrievalTraceResponseDto })
   @ApiParam({ name: "sessionId", type: String })
-  getAnswerRetrieval(@Param("sessionId") sessionId: string) {
+  getAnswerRetrieval(@Param("sessionId", ParseUUIDPipe) sessionId: string) {
     return this.answersService.getAnswerRetrieval(sessionId);
   }
 }

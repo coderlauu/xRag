@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from "@nestjs/common";
 import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from "@nestjs/swagger";
 import type { OpsTrendWindow } from "@xrag/shared-types";
 import {
@@ -92,7 +92,7 @@ export class OpsController {
   @ApiOperation({ summary: "Replay a single answer session for diagnostics" })
   @ApiParam({ name: "sessionId", type: String })
   @ApiOkResponse({ type: OpsAnswerSessionReplayResponseDto })
-  getAnswerSessionReplay(@Param("sessionId") sessionId: string) {
+  getAnswerSessionReplay(@Param("sessionId", ParseUUIDPipe) sessionId: string) {
     return this.opsService.getAnswerSessionReplay(sessionId);
   }
 
@@ -100,7 +100,7 @@ export class OpsController {
   @ApiOperation({ summary: "Replay a single document pipeline for diagnostics" })
   @ApiParam({ name: "documentId", type: String })
   @ApiOkResponse({ type: OpsDocumentReplayResponseDto })
-  getDocumentReplay(@Param("documentId") documentId: string) {
+  getDocumentReplay(@Param("documentId", ParseUUIDPipe) documentId: string) {
     return this.opsService.getDocumentReplay(documentId);
   }
 
@@ -150,7 +150,7 @@ export class OpsController {
   @ApiOperation({ summary: "Get a Phase 3B recovery action status" })
   @ApiParam({ name: "actionId", type: String })
   @ApiOkResponse({ type: OpsRecoveryActionResponseDto })
-  getRecoveryAction(@Param("actionId") actionId: string) {
+  getRecoveryAction(@Param("actionId", ParseUUIDPipe) actionId: string) {
     return this.opsService.getRecoveryAction(actionId);
   }
 
@@ -158,7 +158,7 @@ export class OpsController {
   @ApiOperation({ summary: "Get a Phase 3B recovery action audit trail" })
   @ApiParam({ name: "actionId", type: String })
   @ApiOkResponse({ type: OpsRecoveryActionAuditResponseDto })
-  getRecoveryActionAudit(@Param("actionId") actionId: string) {
+  getRecoveryActionAudit(@Param("actionId", ParseUUIDPipe) actionId: string) {
     return this.opsService.getRecoveryActionAudit(actionId);
   }
 

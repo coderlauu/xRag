@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from "@nestjs/common";
+import { Controller, Get, Param, ParseUUIDPipe } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { JobStatusResponseDto } from "./jobs.dto";
 import { JobsService } from "./jobs.service";
@@ -12,7 +12,7 @@ export class JobsController {
   @ApiOperation({ summary: "Get background job status" })
   @ApiOkResponse({ type: JobStatusResponseDto })
   @ApiParam({ name: "jobId", type: String })
-  getJob(@Param("jobId") jobId: string) {
+  getJob(@Param("jobId", ParseUUIDPipe) jobId: string) {
     return this.jobsService.getJob(jobId);
   }
 }
