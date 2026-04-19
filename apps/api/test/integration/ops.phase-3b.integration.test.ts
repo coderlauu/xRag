@@ -145,7 +145,7 @@ function getJobIdFromRef(ref: { path: string }) {
 }
 
 async function markRecoveryActionRunning(jobId: string) {
-  const startedAt = new Date("2026-04-18T16:10:00.000Z");
+  const startedAt = new Date();
 
   await withPool(async (pool) => {
     await pool.query(
@@ -162,10 +162,11 @@ async function markRecoveryActionRunning(jobId: string) {
 
 async function markReindexRecoverySucceeded(documentId: string, rootJobId: string) {
   const embedJobId = randomUUID();
-  const rootStartedAt = new Date("2026-04-18T16:10:00.000Z");
-  const rootFinishedAt = new Date("2026-04-18T16:11:00.000Z");
-  const embedStartedAt = new Date("2026-04-18T16:11:05.000Z");
-  const embedFinishedAt = new Date("2026-04-18T16:12:00.000Z");
+  const base = new Date();
+  const rootStartedAt = new Date(base.getTime() + 1000);
+  const rootFinishedAt = new Date(base.getTime() + 2000);
+  const embedStartedAt = new Date(base.getTime() + 3000);
+  const embedFinishedAt = new Date(base.getTime() + 4000);
 
   await withPool(async (pool) => {
     await pool.query(
