@@ -21,8 +21,8 @@
 以后用中文回答。
 
 当前状态：v8 / Phase 3B 已全部完成并归档。
-- closeout commit: 0de02de
-- GitHub Actions run: 24602471351 success
+- closeout commits: 0de02de (impl) / e5e4180 (docs) / 1566163 (test fix)
+- GitHub Actions run: 24623440591 success (all jobs green)
 - 所有 milestones: completed
 - exec plan 已移至 docs/exec-plans/completed/
 
@@ -43,5 +43,5 @@ v8 验证记录（已完成）：
 - pnpm harness:check: passed
 - pnpm docs:check: passed
 - git diff --check: passed
-- GitHub Actions CI: 24602471351 success
+- GitHub Actions CI: 24623440591 success (all jobs green)
 ```
