@@ -2,9 +2,8 @@
 
 当前默认入口始终指向“当前正在推进的版本”；若下一版本尚未启动，则指向最新完成版本。
 
-- 当前有效版本：[v8 / Phase 3B](/Users/coderlauu/xRag/docs/handoff/v8.md)
+- 当前有效版本：[v8 / Phase 3B](/Users/coderlauu/xRag/docs/handoff/v8.md)（已完成，下一版本待启动）
 - 当前版本状态：[v8 / Phase 3B Status](/Users/coderlauu/xRag/docs/status/v8-phase-3b.md)
-- 当前 active exec plan：[Phase 3B Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)
 - 当前会话恢复 prompt：[session-prompt.md](/Users/coderlauu/xRag/docs/handoff/session-prompt.md)
 
 上一阶段归档：
@@ -48,7 +47,7 @@
 - [v8 Handoff](/Users/coderlauu/xRag/docs/handoff/v8.md)
 - [v8 Status](/Users/coderlauu/xRag/docs/status/v8-phase-3b.md)
 - [session-prompt.md](/Users/coderlauu/xRag/docs/handoff/session-prompt.md)
-- [Phase 3B Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)
+- [Phase 3B Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)
 - [Phase 3B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md)
 - [Phase 3B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-18-xrag-phase-3b-prd.md)
 - [Phase 3B Product Backlog](/Users/coderlauu/xRag/docs/prd/2026-04-18-xrag-phase-3b-backlog.md)
@@ -68,7 +67,7 @@
 
 ## 1. 当前版本一句话目标
 
-在 `v7 / Phase 3A` 已完成只读诊断 workflow 后，把 `v8 / Phase 3B` 收敛为 human-in-the-loop ops recovery 版本：从诊断事实生成受控恢复候选、人工确认 rerun、执行审计与 rollback plan，但不进入全自动 remediation。当前已完成 planning-and-scope、product freeze、technical-evaluation、contract-freeze、implementation-freeze、`Lane 0: Contract To Code`、`Lane A: API Recovery Candidates, Preview, Rollback Plan`、`Lane B: API Recovery Action Execution And Reconciliation`、`Lane C: Web Ops Recovery Workflow` 与 `Lane D: Integration, E2E, Smoke`；当前节点已切到 `testing-and-release-readiness`。
+`v8 / Phase 3B` 已全部完成：human-in-the-loop ops recovery——从诊断事实生成受控恢复候选、人工确认 rerun、执行审计与 rollback plan，不进入全自动 remediation。所有 milestones 均已 completed，closeout commit `0de02de`，GitHub Actions run `24602471351` 成功。`v8` 已归档，下一版本待启动。
 
 ---
 
@@ -112,7 +111,7 @@
 ## 3. 建议阅读顺序
 
 1. [v8 Status](/Users/coderlauu/xRag/docs/status/v8-phase-3b.md)
-2. [Phase 3B Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)
+2. [Phase 3B Release Readiness Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)
 3. [v8 Handoff](/Users/coderlauu/xRag/docs/handoff/v8.md)
 4. [Phase 3B Implementation Lanes Exec Plan](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md)
 5. [Phase 3B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-18-xrag-phase-3b-prd.md)
@@ -137,14 +136,12 @@
 
 ## 4. 执行规则
 
-1. 当前有效版本为 `v8 / Phase 3B`，当前节点为 `testing-and-release-readiness`
-2. 当前 active exec plan 是 [Phase 3B Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)
-3. `v7 / Phase 3A` 已归档为上游完成基线，不能继续扩大 Phase 3A scope
-4. 当前规划必须以 `Phase 2A / 2B / 2C / 3A` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
-5. 当前已完成 product freeze、technical evaluation、contract freeze、implementation freeze、Lane 0、Lane A、Lane B、Lane C 与 Lane D；当前 release-readiness 不得修改已冻结 contract surfaces
-6. 多 lane 任务默认由主线程先冻结 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
-7. 若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补或纳入 v8 scope
-8. `v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线；`v7 / Phase 3A` 作为最新 ops diagnostic read model 基线
+1. `v8 / Phase 3B` 已完成并归档；当前无 active 版本，下一版本待启动
+2. 最近完成的 exec plan：[Phase 3B Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)
+3. `v7 / Phase 3A` 与 `v8 / Phase 3B` 均已归档，不得反向扩大 scope
+4. 继续规划必须以 `Phase 2A / 2B / 2C / 3A / 3B` 已完成的信任边界为前提：`citation / refusal / freshness / release-readiness` 不得后退
+5. 下一版本若启动，应先读 `docs/handoff/current.md` 与 `v8.md`，按 `new-version` 流程创建 `docs/handoff/v9.md` 与 `docs/status/v9-*.md`
+6. `v4 / Phase 2A` 继续作为主数据模型、API 和 release 基线；`v8 / Phase 3B` 作为最新 ops recovery contract 基线
 
 ---
 

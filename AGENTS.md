@@ -7,7 +7,7 @@
 1. [当前 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
 2. [当前会话恢复 Prompt](/Users/coderlauu/xRag/docs/handoff/session-prompt.md)
 3. [当前版本状态](/Users/coderlauu/xRag/docs/status/v8-phase-3b.md)
-4. [Phase 3B Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)
+4. [Phase 3B Release Readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)
 5. [v8 Handoff](/Users/coderlauu/xRag/docs/handoff/v8.md)
 6. [Phase 3B Implementation Lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md)
 7. [Phase 3B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-18-xrag-phase-3b-prd.md)
@@ -37,13 +37,13 @@
 ## 2. 当前项目状态
 
 - 当前仓库已经完成正式工程 scaffold
-- `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C`、`v4 / Phase 2A`、`v5 / Phase 2B`、`v6 / Phase 2C` 与 `v7 / Phase 3A` 已完成
-- 当前有效版本为 `v8 / Phase 3B`，当前节点为 `testing-and-release-readiness`
+- `v1 / Phase 1A`、`v2 / Phase 1B`、`v3 / Phase 1C`、`v4 / Phase 2A`、`v5 / Phase 2B`、`v6 / Phase 2C`、`v7 / Phase 3A` 与 `v8 / Phase 3B` 已完成
+- 当前无 active 版本，下一版本待启动
 - `v4 / Phase 2A` 已归档，并作为稳定工程与生产基线保留
 - `v5 / Phase 2B` 已归档
 - `v6 / Phase 2C` 已归档，closeout commit `6f052ac` 的 GitHub Actions run `24543526168` 已成功
 - `v7 / Phase 3A` 已完成 `implementation-lanes`、release-readiness 与 GitHub Actions 验证；run `24565067913` 已成功，当前作为 `v8` 上游 ops diagnostic 基线
-- `v8 / Phase 3B` 目标是 human-in-the-loop ops recovery：从 v7 诊断事实生成恢复候选、人工确认 rerun、执行审计与 rollback plan，不做全自动 remediation；当前已完成 planning-and-scope、product freeze、technical-evaluation、contract-freeze、implementation-freeze、`Lane 0: Contract To Code`、`Lane A: API Recovery Candidates, Preview, Rollback Plan`、`Lane B: API Recovery Action Execution And Reconciliation`、`Lane C: Web Ops Recovery Workflow` 与 `Lane D: Integration, E2E, Smoke`，implementation-lanes 已完成，当前进入 `testing-and-release-readiness`
+- `v8 / Phase 3B` 已完成并归档：human-in-the-loop ops recovery，所有 milestones completed，closeout commit `0de02de`，GitHub Actions run `24602471351` 成功
 - `prototype/` 是产品验证资产，不是正式实现
 
 ## 3. Repo 里的事实来源
@@ -57,7 +57,7 @@
 - `docs/decisions/`
   - 跨文档 tradeoff、范围决策与实现前 gate 的事实来源
 - `tech/`
-  - 正式工程实现的架构、数据模型、API 与 runtime contract 事实来源；当前最新诊断 contract 基线为 `v7 / Phase 3A`，`v8 / Phase 3B` recovery action contract 已冻结，主数据模型与生产回滚基线仍需参考 `v4 / Phase 2A`
+  - 正式工程实现的架构、数据模型、API 与 runtime contract 事实来源；当前最新 recovery action contract 基线为 `v8 / Phase 3B`，最新 diagnostic read model 基线为 `v7 / Phase 3A`，主数据模型与生产回滚基线仍需参考 `v4 / Phase 2A`
 - `docs/process/2026-03-31-harness-engineering-playbook.md`
   - agent 和工程师共用的流程、标准、DoD
 - `docs/exec-plans/`
@@ -152,7 +152,7 @@
 5. API 变更必须更新 OpenAPI 和前端 SDK
 6. 任务完成前至少做相关层级验证
 7. 不要把产品约束只留在聊天记录里
-8. 当前 `v8 / Phase 3B` 已完成 implementation-lanes，当前节点是 `testing-and-release-readiness`；后续 release-readiness 与 closeout 工作不得绕过 `contract-guard` 修改已冻结的 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
+8. `v8 / Phase 3B` 已完成并归档；若启动下一版本，先按 `new-version` 流程创建 `docs/handoff/v9.md` 与 `docs/status/v9-*.md`，不得绕过 `contract-guard` 修改已冻结的 `schema / shared-types / API contract / 状态机`；若涉及 AI 检索与问答，还要先冻结 `citation / scope / eval contract`
 9. `v7 / Phase 3A` 已完成并归档，下一步不得继续扩大 Phase 3A scope；v8 应复用 v7 diagnostic read models，而不是重建诊断影子数据
 10. 若环境里仍有既有旧文档停在 `not_indexed`，先单独执行 `pnpm recovery:backfill-indexing -- --dry-run` 再决定是否正式回补或纳入 v8 scope
 11. 只有在写入边界清晰后，才把 `web / worker / upload / test` 等实现任务交给子 agent 并行

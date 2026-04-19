@@ -46,16 +46,24 @@ function resolveRepoAbsoluteTarget(target) {
     return null;
   }
 
-  const repoName = path.basename(repoRoot);
-  const marker = `${path.sep}${repoName}${path.sep}`;
-  const markerIndex = normalized.lastIndexOf(marker);
+  const candidateNames = [
+    path.basename(repoRoot),
+    path.basename(path.dirname(repoRoot))
+  ].filter(Boolean);
 
-  if (markerIndex === -1) {
-    return null;
+  for (const repoName of candidateNames) {
+    const marker = `${path.sep}${repoName}${path.sep}`;
+    const markerIndex = normalized.lastIndexOf(marker);
+
+    if (markerIndex === -1) {
+      continue;
+    }
+
+    const repoRelativePath = normalized.slice(markerIndex + marker.length);
+    return path.join(repoRoot, repoRelativePath);
   }
 
-  const repoRelativePath = normalized.slice(markerIndex + marker.length);
-  return path.join(repoRoot, repoRelativePath);
+  return null;
 }
 
 function isSkippable(target) {

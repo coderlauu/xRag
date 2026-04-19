@@ -11,7 +11,7 @@
 
 在 `v8 / Phase 3B` 已完成 product scope 后，对 `recovery candidate / operator-approved rerun / recovery execution audit / rollback plan / recovery action liveness` 进行正式技术评估，明确 source-of-truth、读写模型、API/schema/shared-types/queue 影响，以及是否可以进入 `contract-freeze`。
 
-当前计划已完成并归档；后续 contract freeze、implementation freeze 与 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)。
+当前计划已完成并归档；后续 contract freeze、implementation freeze 与 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)。
 
 ## 3. Scope
 

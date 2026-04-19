@@ -11,7 +11,7 @@
 
 把已冻结的 `Phase 3B` recovery contract 转成可执行的 implementation lane 计划：明确主线程写入边界、lane 顺序、并行条件、测试矩阵、rollback 点和 contract drift 防线。
 
-本阶段已完成并归档；后续 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 也已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)。
+本阶段已完成并归档；后续 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 也已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)。
 
 ## 3. Scope
 

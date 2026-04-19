@@ -4,7 +4,7 @@
 
 - `version`: `v8`
 - `phase`: `Phase 3B`
-- `status`: `in-progress`
+- `status`: `completed`
 - `owner`: `codex`
 - `updated_at`: `2026-04-18`
 
@@ -36,12 +36,12 @@
 - `contract-freeze`: `completed`
 - `implementation-freeze`: `completed`
 - `implementation-lanes`: `completed`
-- `testing-and-release-readiness`: `in-progress`
+- `testing-and-release-readiness`: `completed`
 
 ## 4. Current Node
 
-- `now`: `v8 / Phase 3B` 已完成 planning-and-scope、product freeze、technical-evaluation、contract-freeze、implementation-freeze、`Lane 0: Contract To Code`、`Lane A: API Recovery Candidates, Preview, Rollback Plan`、`Lane B: API Recovery Action Execution And Reconciliation`、`Lane C: Web Ops Recovery Workflow` 与 `Lane D: Integration, E2E, Smoke`；implementation-lanes 已完成，当前 active exec plan 已切到 `testing-and-release-readiness`。`v7 / Phase 3A` 已作为完成基线归档，不再扩 scope。
-- `next`: 在不修改已冻结 recovery contract surfaces 的前提下完成剩余 release-readiness 验证、文档收口与 CI evidence 准备。
+- `now`: `v8 / Phase 3B` 已全部完成。commit `0de02de`，GitHub Actions run `24602471351` 成功。所有 milestones 均已 completed：planning-and-scope、product-freeze、technical-evaluation、contract-freeze、implementation-freeze、implementation-lanes、testing-and-release-readiness。`v7 / Phase 3A` 作为上游 ops diagnostic 基线归档，不再扩 scope。
+- `next`: 若继续演进，应按 `new-version` 启动 `v9`；`v8` 已归档，不得再扩大 Phase 3B scope。
 
 ## 5. Blockers
 
@@ -59,7 +59,8 @@
 
 - `current_handoff`: [current.md](/Users/coderlauu/xRag/docs/handoff/current.md)
 - `version_handoff`: [v8.md](/Users/coderlauu/xRag/docs/handoff/v8.md)
-- `active_exec_plan`: [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)
+- `active_exec_plan`: 无（已完成，见 `latest_completed_exec_plan`）
+- `latest_completed_exec_plan_v8_release`: [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)
 - `latest_completed_exec_plan`: [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md)
 - `prd`: [Phase 3B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-18-xrag-phase-3b-prd.md)
 - `product_backlog`: [Phase 3B backlog](/Users/coderlauu/xRag/docs/prd/2026-04-18-xrag-phase-3b-backlog.md)
@@ -77,6 +78,6 @@
 - `contract_freeze`: [Phase 3B contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-18-phase-3b-contract-freeze.md)
 - `contract_freeze_prerequisites`: [Phase 3B contract freeze prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-18-phase-3b-contract-freeze-prerequisites.md)
 - `tech_docs`: [Phase 3B contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-18-phase-3b-contract-freeze.md), [Phase 3B architecture](/Users/coderlauu/xRag/tech/architecture/2026-04-18-phase-3b-architecture.md), [Phase 3B data model](/Users/coderlauu/xRag/tech/data-model/2026-04-18-phase-3b-data-model.md), [Phase 3B API design](/Users/coderlauu/xRag/tech/api/2026-04-18-phase-3b-api.md), [Phase 3B contract freeze prerequisites](/Users/coderlauu/xRag/docs/decisions/2026-04-18-phase-3b-contract-freeze-prerequisites.md)
-- `exec_plans`: [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md), [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md), [Phase 3B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-freeze.md), [Phase 3B contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-contract-freeze.md), [Phase 3B technical evaluation](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-technical-evaluation.md), [Phase 3B planning and scope](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-planning-and-scope.md)
-- `key_commits`: `991725c` 为 v7 docs closeout 当前 main baseline
-- `latest_ci_run`: `24565067913 success (v7 Phase 3A release-readiness baseline)`
+- `exec_plans`: [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md), [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md), [Phase 3B implementation freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-freeze.md), [Phase 3B contract freeze](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-contract-freeze.md), [Phase 3B technical evaluation](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-technical-evaluation.md), [Phase 3B planning and scope](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-planning-and-scope.md)
+- `key_commits`: `0de02de` 为 v8 Phase 3B closeout commit（main baseline）；`991725c` 为 v7 docs closeout 上游基线
+- `latest_ci_run`: `24602471351 success (v8 Phase 3B closeout)`

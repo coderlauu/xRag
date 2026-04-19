@@ -11,7 +11,7 @@
 
 Freeze `v8 / Phase 3B` contract before implementation: schema, shared-types, API paths, request/response DTOs, recovery action state machine, queue reconciliation semantics, OpenAPI/API client impact, and answer-quality boundaries.
 
-当前计划已完成并归档；后续 implementation freeze 与 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 也已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)。
+当前计划已完成并归档；后续 implementation freeze 与 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 也已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)。
 
 ## 3. Scope
 

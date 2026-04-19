@@ -11,7 +11,7 @@
 
 启动 `v8 / Phase 3B`，把 v7 的只读诊断 workflow 推进到 human-in-the-loop ops recovery 的规划边界：从诊断样本生成恢复候选、人工确认 rerun、执行审计与 rollback plan，同时明确不进入全自动 remediation。
 
-当前计划已完成并归档；后续 technical evaluation、contract freeze、implementation freeze 与 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 也已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/active/2026-04-18-phase-3b-release-readiness.md)。
+当前计划已完成并归档；后续 technical evaluation、contract freeze、implementation freeze 与 [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md) 也已完成，当前进入 [Phase 3B release readiness](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-release-readiness.md)。
 
 ## 3. Scope
 

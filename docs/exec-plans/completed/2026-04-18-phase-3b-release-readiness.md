@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `plan_id`: `phase-3b-release-readiness`
-- `status`: `active`
+- `status`: `completed`
 - `owner`: `codex`
 - `related_docs`: [v8 handoff](/Users/coderlauu/xRag/docs/handoff/v8.md), [v8 status](/Users/coderlauu/xRag/docs/status/v8-phase-3b.md), [Phase 3B implementation lanes](/Users/coderlauu/xRag/docs/exec-plans/completed/2026-04-18-phase-3b-implementation-lanes.md), [Phase 3B contract freeze](/Users/coderlauu/xRag/tech/architecture/2026-04-18-phase-3b-contract-freeze.md)
 
@@ -61,3 +61,4 @@
 ## 6. Decision Log
 
 - `2026-04-18`: `Phase 3B implementation-lanes` 完成并归档，下一步进入 release-readiness；当前不得再扩大 v8 scope。
+- `2026-04-18`: closeout commit `0de02de` 推送至 main，GitHub Actions run `24602471351` 成功；所有 exit criteria 满足，本计划移至 completed。
