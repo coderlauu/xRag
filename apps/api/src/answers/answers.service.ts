@@ -219,7 +219,10 @@ export class AnswersService {
     return updated ?? session;
   }
 
-  private normalizeScope(scope: AnswerScopeDto): AnswerScope {
+  private normalizeScope(scope: AnswerScopeDto | undefined | null): AnswerScope {
+    if (!scope || typeof scope !== "object") {
+      throw new BadRequestException("scope is required");
+    }
     if (scope.mode === "global") {
       const filters = normalizeScopeFilters(scope.payload?.filters);
       return {

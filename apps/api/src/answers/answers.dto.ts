@@ -14,6 +14,7 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsDefined,
   IsIn,
   IsInt,
   IsObject,
@@ -150,6 +151,7 @@ export class CreateAnswerRequestDto {
   question!: string;
 
   @ApiProperty({ type: () => AnswerScopeDto })
+  @IsDefined({ message: "scope is required" })
   @ValidateNested()
   @Type(() => AnswerScopeDto)
   scope!: AnswerScopeDto;

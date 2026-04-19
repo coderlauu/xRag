@@ -720,6 +720,25 @@ test("answers API keeps evidence groups scoped when multiple claims cite the sam
   }
 });
 
+test("POST /api/v1/answers without scope returns 400 instead of 500", async () => {
+  await resetDatabase();
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/answers",
+      payload: { question: "hi" }
+    });
+    assert.equal(response.statusCode, 400, response.payload);
+    const payload = response.json() as { message?: unknown; error?: string };
+    assert.equal(payload.error, "Bad Request");
+  } finally {
+    await app.close();
+  }
+});
+
 test("API rejects invalid uuid path params with 400 instead of 500", async () => {
   await resetDatabase();
   const app = await createApp();
