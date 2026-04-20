@@ -25,6 +25,8 @@
 - GitHub Actions run: 24623440591 success (all jobs green)
 - 所有 milestones: completed
 - exec plan 已移至 docs/exec-plans/completed/
+- `2026-04-20` quick-change 已完成：`/api/v1/ops/health-summary` 的 `worker` 现在会对 stale answer session / document job 发 warning；`scripts/prod-ui-smoke.mjs` 已改为读取 Ask 主会话状态，避免整页关键字误判 terminal
+- `2026-04-20` quick-change 已继续收口：生产 `/ask` stuck polling 的根因已经锁定为 `worker` 入口错指向 `apps/worker/dist/main.js`；实际 build 产物在 `apps/worker/dist/apps/worker/src/main.js`，并且 `deploy/scripts/remote-deploy.sh` 已补 deploy 后稳定性 gate
 
 当前无 active 版本，下一步是启动 v9。
 

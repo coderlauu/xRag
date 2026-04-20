@@ -2,10 +2,10 @@
   "name": "@xrag/worker",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
     "dev": "tsx watch src/main.ts",
     "lint": "tsc --noEmit -p tsconfig.json",
-    "start": "node dist/main.js",
+    "start": "node dist/apps/worker/src/main.js",
     "test": "pnpm test:unit",
     "test:unit": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"

@@ -54,6 +54,24 @@ docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep xrag-produ
 ss -lntp | grep -E ':80|:443'
 ```
 
+如果想先用产品内建视角看一眼当前运行态，可直接请求：
+
+```bash
+curl -sS https://xrag.coderlau.cn/api/v1/ops/health-summary | jq '.'
+```
+
+其中 `worker` 项现在不再只表示 `Redis ping` 成功；它会同时检查：
+
+- 是否还能连到 queue
+- 是否存在超过 10 分钟仍未收口的 active answer session
+- 是否存在超过 10 分钟仍停留在 `queued / running` 的 document job
+
+因此：
+
+- `worker = healthy` 只能说明当前没看到明显滞留信号
+- `worker = warning` 时，优先继续看 `docker logs xrag-production-worker-1`
+- `worker` 若持续 `Restarting`，优先核对启动入口是否指向 `apps/worker/dist/apps/worker/src/main.js`；旧的 `apps/worker/dist/main.js` 只会在脏工作区残留，在干净 checkout / CI 镜像里不会生成
+
 ---
 
 ## 1.1 先看磁盘是否接近打满

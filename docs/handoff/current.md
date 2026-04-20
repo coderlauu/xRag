@@ -5,6 +5,8 @@
 - 当前有效版本：[v8 / Phase 3B](/Users/coderlauu/xRag/docs/handoff/v8.md)（已完成，下一版本待启动）
 - 当前版本状态：[v8 / Phase 3B Status](/Users/coderlauu/xRag/docs/status/v8-phase-3b.md)
 - 当前会话恢复 prompt：[session-prompt.md](/Users/coderlauu/xRag/docs/handoff/session-prompt.md)
+- `2026-04-20` quick-change 已完成：`/api/v1/ops/health-summary` 的 `worker` 不再只看 Redis 可达性，而会对 stale answer session / document job 发出 warning；`scripts/prod-ui-smoke.mjs` 改为读取 Ask 主会话状态，不再扫描整页 HTML 误判终态
+- `2026-04-20` quick-change 已继续收口：生产 `/ask` stuck polling 的根因确认为 `worker` 启动入口指向了错误的 build artifact。`tsc` 实际输出到 `apps/worker/dist/apps/worker/src/main.js`，而旧的 `apps/worker/dist/main.js` 只会在脏工作区残留；现已修正 `apps/worker/package.json`、`deploy/docker/worker.Dockerfile`，并让 `deploy/scripts/remote-deploy.sh` 在 deploy 后等待 `api / worker / web` 进入稳定运行态，避免 restart loop 被镜像校验漏报
 
 上一阶段归档：
 

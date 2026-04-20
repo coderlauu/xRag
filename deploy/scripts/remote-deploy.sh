@@ -78,6 +78,42 @@ EOF
   fi
 }
 
+wait_for_service_stable() {
+  local service_name="${1:?service name is required}"
+  local attempts="${2:-15}"
+  local attempt
+  local container_id=""
+  local status=""
+  local health_status=""
+
+  for attempt in $(seq 1 "${attempts}"); do
+    container_id="$(compose_run ps -q "${service_name}")"
+    if [[ -n "${container_id}" ]]; then
+      status="$(docker_run inspect "${container_id}" --format '{{.State.Status}}')"
+      health_status="$(
+        docker_run inspect "${container_id}" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}'
+      )"
+
+      if [[ "${status}" == "running" && ( "${health_status}" == "healthy" || "${health_status}" == "none" ) ]]; then
+        sleep 2
+        status="$(docker_run inspect "${container_id}" --format '{{.State.Status}}')"
+        if [[ "${status}" == "running" ]]; then
+          return 0
+        fi
+      fi
+    fi
+
+    sleep 2
+  done
+
+  echo "Service ${service_name} did not reach a stable running state after deploy." >&2
+  compose_run ps >&2 || true
+  if [[ -n "${container_id}" ]]; then
+    docker_run logs --tail 100 "${container_id}" >&2 || true
+  fi
+  return 1
+}
+
 wait_for_postgres() {
   local attempts=30
   local attempt
@@ -171,6 +207,9 @@ compose_run exec -T postgres sh -lc '
 ' </dev/null
 compose_run run --rm -T api-migrate </dev/null
 compose_run up -d --force-recreate api worker web caddy
+wait_for_service_stable api 20
+wait_for_service_stable worker 20
+wait_for_service_stable web 20
 verify_service_image api "${XRAG_API_IMAGE}"
 verify_service_image worker "${XRAG_WORKER_IMAGE}"
 verify_service_image web "${XRAG_WEB_IMAGE}"

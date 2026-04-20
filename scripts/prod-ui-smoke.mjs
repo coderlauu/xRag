@@ -13,6 +13,7 @@ const playwrightModule = require("@playwright/test");
 const { chromium } = playwrightModule;
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const HOST = process.env.PROD_HOST || "https://xrag.coderlau.cn";
 const TS = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "Z");
@@ -26,6 +27,66 @@ const passed = (label) => findings.push({ kind: "pass", label });
 const note = (label) => findings.push({ kind: "note", label });
 const bug = (severity, label, evidence = {}) =>
   findings.push({ kind: "bug", severity, label, evidence });
+
+export function classifyAskSessionPhase(rawText = "") {
+  const text = rawText.replace(/\s+/g, " ").trim();
+  if (!text) {
+    return null;
+  }
+
+  if (text.includes("该会话长时间未进入终态")) {
+    return "stuck";
+  }
+
+  if (text.includes("需要收窄作用域")) {
+    return "needs_scope";
+  }
+
+  if (text.includes("已拒答")) {
+    return "refused";
+  }
+
+  if (text.includes("已回答")) {
+    return "answered";
+  }
+
+  if (text.includes("失败")) {
+    return "failed";
+  }
+
+  if (text.includes("生成中")) {
+    return "synthesizing";
+  }
+
+  if (text.includes("检索中")) {
+    return "retrieving";
+  }
+
+  if (text.includes("待启动")) {
+    return "idle";
+  }
+
+  return null;
+}
+
+async function readAskSessionPhase(page) {
+  const statusBadge = page.getByTestId("ask-active-session-status").first();
+  if ((await statusBadge.count()) > 0) {
+    const text = (await statusBadge.textContent()) || "";
+    const phase = classifyAskSessionPhase(text);
+    if (phase) {
+      return phase;
+    }
+  }
+
+  const sessionLabel = page.locator("strong").filter({ hasText: /^会话 ID$/ }).first();
+  if ((await sessionLabel.count()) === 0) {
+    return null;
+  }
+
+  const text = await sessionLabel.evaluate((node) => node.closest("section")?.textContent ?? "");
+  return classifyAskSessionPhase(text);
+}
 
 async function ensureOut() {
   await mkdir(OUT_DIR, { recursive: true });
@@ -114,20 +175,24 @@ async function phase2Ask(page) {
     let phase = "loading";
     while (Date.now() < deadline) {
       await page.waitForTimeout(2000);
-      const html = await page.content();
-      if (/answered|已回答|Answered|有依据/i.test(html)) {
+      const sessionPhase = await readAskSessionPhase(page);
+      if (sessionPhase === "answered") {
         phase = "answered";
         terminal = true;
         break;
       }
-      if (/refused|拒绝|超出范围|needs?_?scope|无法回答/i.test(html)) {
+      if (sessionPhase === "needs_scope" || sessionPhase === "refused") {
         phase = "refused";
         terminal = true;
         break;
       }
-      if (/failed|失败|Internal server error/i.test(html)) {
+      if (sessionPhase === "failed") {
         phase = "failed";
         terminal = true;
+        break;
+      }
+      if (sessionPhase === "stuck") {
+        phase = "stuck";
         break;
       }
       lastUrl = page.url();
@@ -137,8 +202,8 @@ async function phase2Ask(page) {
     if (!terminal) {
       bug(
         "P0",
-        `Ask: 90s 内未到 terminal 状态（疑似 stuck polling 回归）`,
-        { url: lastUrl, elapsed_ms: elapsed }
+        phase === "stuck" ? "Ask: 页面进入 stuck fallback，但服务端仍未给出 terminal 状态" : "Ask: 90s 内未到 terminal 状态（疑似 stuck polling 回归）",
+        { url: lastUrl, elapsed_ms: elapsed, observed_phase: phase }
       );
     } else {
       passed(`Ask: ${elapsed}ms 进入 terminal=${phase}`);
@@ -373,7 +438,9 @@ async function main() {
   console.log(`console errors: ${summary.console_errors.length}, network errors: ${summary.network_errors.length}`);
 }
 
-main().catch((err) => {
-  console.error("FATAL:", err);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error("FATAL:", err);
+    process.exit(1);
+  });
+}

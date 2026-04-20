@@ -85,6 +85,8 @@ import {
   type RecoveryActionRow
 } from "./ops.recovery-actions";
 
+const WORKER_STALL_WARNING_WINDOW_MS = 10 * 60 * 1000;
+
 type OpsIncidentCandidate = OpsIncidentListResponse["items"][number] & {
   occurredAt: Date;
 };
@@ -143,7 +145,7 @@ export class OpsService {
 
     const serviceChecks = await Promise.all([
       this.toHealthItem("api", Promise.resolve("ready")),
-      this.toHealthItem("worker", this.queueService.checkConnection().then(() => "queue reachable")),
+      this.getWorkerHealthItem(),
       this.toHealthItem("storage", this.storageService.checkConnection().then(() => "reachable")),
       this.toHealthItem("database", this.database.checkConnection().then(() => "reachable"))
     ]);
@@ -1731,6 +1733,62 @@ export class OpsService {
         detail: error instanceof Error ? error.message : "unavailable"
       };
     }
+  }
+
+  private async getWorkerHealthItem() {
+    try {
+      await this.queueService.checkConnection();
+    } catch (error) {
+      return {
+        name: "worker",
+        status: "warning" as OpsServiceStatus,
+        detail: error instanceof Error ? error.message : "queue unavailable"
+      };
+    }
+
+    const staleCutoff = new Date(Date.now() - WORKER_STALL_WARNING_WINDOW_MS);
+    const [staleAnswerSessionsResult, staleDocumentJobsResult] = await Promise.all([
+      this.database.db
+        .select({
+          count: sql<number>`count(*)::int`
+        })
+        .from(answerSessions)
+        .where(
+          sql`${answerSessions.status} in ('idle', 'retrieving', 'synthesizing') and ${answerSessions.updatedAt} < ${staleCutoff}`
+        ),
+      this.database.db
+        .select({
+          count: sql<number>`count(*)::int`
+        })
+        .from(documentParseJobs)
+        .where(
+          sql`${documentParseJobs.status} in ('queued', 'running') and coalesce(${documentParseJobs.startedAt}, ${documentParseJobs.createdAt}) < ${staleCutoff}`
+        )
+    ]);
+
+    const staleAnswerSessions = staleAnswerSessionsResult[0]?.count ?? 0;
+    const staleDocumentJobs = staleDocumentJobsResult[0]?.count ?? 0;
+    if (staleAnswerSessions === 0 && staleDocumentJobs === 0) {
+      return {
+        name: "worker",
+        status: "healthy" as OpsServiceStatus,
+        detail: "queue reachable; no stale answer sessions or document jobs older than 10m"
+      };
+    }
+
+    const details: string[] = [];
+    if (staleAnswerSessions > 0) {
+      details.push(`${staleAnswerSessions} stale active answer session(s)`);
+    }
+    if (staleDocumentJobs > 0) {
+      details.push(`${staleDocumentJobs} stale queued/running document job(s)`);
+    }
+
+    return {
+      name: "worker",
+      status: "warning" as OpsServiceStatus,
+      detail: `queue reachable; ${details.join("; ")} older than 10m`
+    };
   }
 
   private getIncidentSeverity(code: string | null, source: IncidentSource): IncidentSeverity {

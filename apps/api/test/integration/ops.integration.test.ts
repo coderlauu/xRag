@@ -558,3 +558,87 @@ test("ops API exposes live health, incident aggregation, and deployment summary"
     process.env.XRAG_LAST_SMOKE_AT = lastSmokeAt;
   }
 });
+
+test("ops health warns when stale worker-owned work exceeds the liveness window", async () => {
+  await resetDatabase();
+  const pool = new Pool({
+    connectionString: databaseUrl
+  });
+  const staleDocumentId = randomUUID();
+  const staleAnswerSessionId = randomUUID();
+  const staleDocumentJobId = randomUUID();
+  const staleAt = new Date(Date.now() - 11 * 60 * 1000);
+
+  try {
+    await pool.query(
+      `
+        insert into documents (
+          id,
+          title,
+          source_type,
+          source_origin,
+          parse_status,
+          index_status,
+          created_at,
+          imported_at,
+          updated_at
+        )
+        values ($1, 'Stale queue document', 'text', 'manual_input', 'pending', 'queued', $2, $2, $2)
+      `,
+      [staleDocumentId, staleAt]
+    );
+
+    await pool.query(
+      `
+        insert into document_parse_jobs (
+          id,
+          document_id,
+          job_type,
+          status,
+          attempt,
+          created_at
+        )
+        values ($1, $2, 'parse_document', 'queued', 1, $3)
+      `,
+      [staleDocumentJobId, staleDocumentId, staleAt]
+    );
+
+    await pool.query(
+      `
+        insert into answer_sessions (
+          id,
+          question,
+          scope_mode,
+          scope_payload,
+          retrieval_mode,
+          status,
+          created_at,
+          updated_at
+        )
+        values ($1, 'Why is worker stuck?', 'global', null, 'hybrid', 'retrieving', $2, $2)
+      `,
+      [staleAnswerSessionId, staleAt]
+    );
+  } finally {
+    await pool.end();
+  }
+
+  const app = await createApp();
+  await app.init();
+
+  try {
+    const healthResponse = await app.inject({
+      method: "GET",
+      url: "/api/v1/ops/health-summary"
+    });
+
+    assert.equal(healthResponse.statusCode, 200);
+    const health = healthResponse.json();
+    const worker = health.services.find((service: { name: string }) => service.name === "worker");
+    assert.equal(worker.status, "warning");
+    assert.match(worker.detail, /1 stale active answer session/);
+    assert.match(worker.detail, /1 stale queued\/running document job/);
+  } finally {
+    await app.close();
+  }
+});

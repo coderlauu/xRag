@@ -559,7 +559,9 @@ export function AskPage() {
                     <span className="font-mono text-xs leading-6 text-slate-600">{activeSessionId}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant={answerStatusTone}>{answerStatusLabel}</Badge>
+                    <Badge data-testid="ask-active-session-status" variant={answerStatusTone}>
+                      {answerStatusLabel}
+                    </Badge>
                     <Badge variant="info">{answerScopeModeLabel(answer?.scope.mode)}</Badge>
                     {answer?.continued_from_session_id ? <Badge variant="warning">follow-up</Badge> : null}
                   </div>
@@ -575,7 +577,10 @@ export function AskPage() {
                   ) : null}
                 </div>
                 {activeSessionPollingStuck ? (
-                  <article className="grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                  <article
+                    data-testid="ask-stuck-notice"
+                    className="grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+                  >
                     <div className="grid gap-1">
                       <strong>该会话长时间未进入终态</strong>
                       <span>
