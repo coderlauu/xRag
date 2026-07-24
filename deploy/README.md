@@ -1,8 +1,8 @@
 # Deployment Baseline
 
-本目录提供 `v1 / Phase 1A` 的最小可执行 CD 基线：
+本目录提供一套最小可执行 CD 基线：
 
-- GitHub Actions 构建并推送 `api / worker / web` 镜像到 `GHCR`
+- GitHub Actions 构建并推送 `api / worker / web` 镜像到 `GHCR` 或其他镜像仓库
 - 通过 `SSH + docker compose` 在远端主机部署 `staging / production`
 - 部署后执行 HTTP smoke 验证
 
@@ -10,23 +10,23 @@
 
 - Linux 主机
 - Docker Engine + Docker Compose
-- 可访问你的镜像仓库地址，例如阿里云 ACR
+- 可访问你的镜像仓库地址
 - 对外放行 `80` 和 `443`
 
 ## Recommended Layout
 
-- 部署目录建议固定为 `/srv/xrag`
+- 部署目录建议固定为 `/srv/app`
 - 推荐使用独立的非 root 用户，例如 `deploy`
 - 该用户需要具备：
   - SSH 登录能力
-  - 对 `/srv/xrag` 的读写权限
+  - 对 `/srv/app` 的读写权限
   - Docker 执行权限
 
 如果你不想把 `deploy` 用户加入 `docker` 组，也可以给它配置免密 sudo 用于 Docker：
 
 ```bash
-echo 'deploy ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/bin/docker compose' | sudo tee /etc/sudoers.d/xrag-deploy
-sudo chmod 440 /etc/sudoers.d/xrag-deploy
+echo 'deploy ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/bin/docker compose' | sudo tee /etc/sudoers.d/app-deploy
+sudo chmod 440 /etc/sudoers.d/app-deploy
 ```
 
 示例：
@@ -34,8 +34,8 @@ sudo chmod 440 /etc/sudoers.d/xrag-deploy
 ```bash
 sudo adduser --disabled-password --gecos "" deploy
 sudo usermod -aG docker deploy
-sudo mkdir -p /srv/xrag
-sudo chown -R deploy:deploy /srv/xrag
+sudo mkdir -p /srv/app
+sudo chown -R deploy:deploy /srv/app
 ```
 
 ## SSH Setup
@@ -45,13 +45,13 @@ GitHub Actions 部署依赖一对 SSH 密钥。
 1. 在本机生成专用部署密钥：
 
 ```bash
-ssh-keygen -t ed25519 -C "xrag-github-actions" -f ~/.ssh/xrag_github_actions
+ssh-keygen -t ed25519 -C "app-github-actions" -f ~/.ssh/app_github_actions
 ```
 
 2. 将公钥追加到远端服务器：
 
 ```bash
-ssh-copy-id -i ~/.ssh/xrag_github_actions.pub deploy@YOUR_SERVER_IP
+ssh-copy-id -i ~/.ssh/app_github_actions.pub deploy@YOUR_SERVER_IP
 ```
 
 如果没有 `ssh-copy-id`，也可以手动追加到远端 `~/.ssh/authorized_keys`。
@@ -59,7 +59,7 @@ ssh-copy-id -i ~/.ssh/xrag_github_actions.pub deploy@YOUR_SERVER_IP
 3. 将私钥内容保存为 GitHub environment secret `SSH_PRIVATE_KEY`：
 
 ```bash
-cat ~/.ssh/xrag_github_actions
+cat ~/.ssh/app_github_actions
 ```
 
 4. 对应 secret 推荐值：
@@ -67,12 +67,12 @@ cat ~/.ssh/xrag_github_actions
 - `SSH_HOST=YOUR_SERVER_IP`
 - `SSH_PORT=22`
 - `SSH_USER=deploy`
-- `DEPLOY_PATH=/srv/xrag`
+- `DEPLOY_PATH=/srv/app`
 
 5. 在启用 GitHub Actions 前，先在本机做一次真实登录验证：
 
 ```bash
-ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
+ssh -i ~/.ssh/app_github_actions deploy@YOUR_SERVER_IP
 ```
 
 如果这一步都不能成功，GitHub Actions 一定也会失败。
@@ -95,39 +95,15 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 
 说明：
 
-- `DEPLOY_ENV_FILE` 为完整多行 `.env` 内容，可参考 [staging.env.example](/Users/coderlauu/xRag/deploy/env/staging.env.example) 和 [production.env.example](/Users/coderlauu/xRag/deploy/env/production.env.example)
+- `DEPLOY_ENV_FILE` 为完整多行 `.env` 内容，可参考 [staging.env.example](env/staging.env.example) 和 [production.env.example](env/production.env.example)
 - `APP_BASE_URL` 为部署后的 Web 外部访问地址，例如 `https://staging.example.com`
-- `REGISTRY_HOST` 例如 `crpi-9zaebevr54ofetmt.cn-guangzhou.personal.cr.aliyuncs.com`
-- `REGISTRY_NAMESPACE` 例如 `coderlau`
-- `REGISTRY_USERNAME` 例如 `coderlau`
+- `REGISTRY_HOST` 为你的镜像仓库地址，例如 `your-registry.example.com`
+- `REGISTRY_NAMESPACE` / `REGISTRY_USERNAME` 为你的镜像仓库命名空间与账号
 - `REGISTRY_PASSWORD` 为镜像仓库登录密码或 token
 - `DEPLOY_ENV_FILE` 中还应包含 `STORAGE_PUBLIC_HOST`、`STORAGE_PUBLIC_URL`、`CONSOLE_PUBLIC_HOST`、`CONSOLE_PUBLIC_URL`、`DB_CONSOLE_PUBLIC_HOST`
-- 如果你希望像 `console.xrag.coderlau.cn` 一样通过浏览器输入账号密码后直接进入数据库管理台，还应包含：
+- 如果你希望通过浏览器输入账号密码后直接进入数据库管理台，还应包含：
   - `DB_CONSOLE_BASICAUTH_USERNAME`
   - `DB_CONSOLE_BASICAUTH_PASSWORD_HASH`
-
-## Suggested Values For Current Project
-
-如果当前只先接一台服务器，建议先把 `production` 接通：
-
-- `SSH_HOST=8.134.122.242`
-- `SSH_PORT=22`
-- `SSH_USER=deploy`
-- `DEPLOY_PATH=/srv/xrag`
-- `APP_BASE_URL=https://xrag.coderlau.cn`
-- `APP_DOMAIN=xrag.coderlau.cn`
-- `STORAGE_PUBLIC_HOST=storage.xrag.coderlau.cn`
-- `STORAGE_PUBLIC_URL=https://storage.xrag.coderlau.cn`
-- `CONSOLE_PUBLIC_HOST=console.xrag.coderlau.cn`
-- `CONSOLE_PUBLIC_URL=https://console.xrag.coderlau.cn`
-- `DB_CONSOLE_PUBLIC_HOST=db.xrag.coderlau.cn`
-- `DB_CONSOLE_BASICAUTH_USERNAME=admin`
-- `DB_CONSOLE_BASICAUTH_PASSWORD_HASH=<bcrypt-hash>`
-
-`staging` 有两种做法：
-
-- 推荐：增加 `staging.xrag.coderlau.cn`
-- 临时：先用同一台机器的公网 IP 和一个非 80/443 端口做 smoke
 
 ## HTTPS Termination
 
@@ -153,14 +129,14 @@ ssh -i ~/.ssh/xrag_github_actions deploy@YOUR_SERVER_IP
 
 当前生产栈可选接入一个受控数据库 Web 管理台：
 
-- 入口建议使用：`https://db.xrag.coderlau.cn`
+- 入口建议使用你自己的 `DB_CONSOLE_PUBLIC_HOST` 域名
 - 通过 `Caddy basic auth` 进行第一层访问控制
 - 通过 `pgweb` 直接连接内部 `postgres`，打开页面后无需再次填写数据库连接串
 
 推荐在 `DEPLOY_ENV_FILE` 中加入：
 
 ```env
-DB_CONSOLE_PUBLIC_HOST=db.xrag.coderlau.cn
+DB_CONSOLE_PUBLIC_HOST=db.app.example.com
 DB_CONSOLE_BASICAUTH_USERNAME=admin
 DB_CONSOLE_BASICAUTH_PASSWORD_HASH=$$2y$$10$$mQhXgmqA0c/66a0ixsA9iOL02USstip1ffXy./tzGDp7TJfknHnua
 ```
@@ -175,7 +151,7 @@ change-me
 
 数据库 Web 管理台启用后，访问方式是：
 
-1. 浏览器打开 `https://db.xrag.coderlau.cn`
+1. 浏览器打开你配置的 `DB_CONSOLE_PUBLIC_HOST`
 2. 先输入 `basic auth` 账号密码
 3. 认证通过后直接进入数据库管理台
 
@@ -200,11 +176,11 @@ change-me
 - 常规
   - `Host`: `127.0.0.1`
   - `Port`: `5432`
-  - `Database`: `xrag`
-  - `Username`: `xrag`
+  - `Database`: 你在 `POSTGRES_DB` 中配置的值
+  - `Username`: 你在 `POSTGRES_USER` 中配置的值
   - `Password`: 生产环境中的 `POSTGRES_PASSWORD`
 - SSH
-  - `SSH Host`: `8.134.122.242`
+  - `SSH Host`: 你的服务器地址
   - `SSH Port`: `22`
   - `SSH User`: 你的实际 SSH 登录用户
   - 认证方式：私钥优先
@@ -212,14 +188,13 @@ change-me
 如果你想先在终端里自测，也可以在本机执行：
 
 ```bash
-ssh -N -L 5432:127.0.0.1:5432 root@8.134.122.242
+ssh -N -L 5432:127.0.0.1:5432 root@YOUR_SERVER_IP
 ```
 
 然后再让客户端连接：
 
 - `Host=127.0.0.1`
 - `Port=5432`
-- `Database=xrag`
 
 ## Disk Guard
 
@@ -235,7 +210,7 @@ ssh -N -L 5432:127.0.0.1:5432 root@8.134.122.242
 它只会清理可再生资产：
 
 - `${DEPLOY_PATH}/shared/tmp`
-- 旧 `release` 目录，仅保留最近 `XRAG_KEEP_RELEASES` 个
+- 旧 `release` 目录，仅保留最近 `APP_KEEP_RELEASES` 个
 - stopped containers
 - 无用镜像
 - build cache
@@ -250,59 +225,52 @@ ssh -N -L 5432:127.0.0.1:5432 root@8.134.122.242
 默认阈值可写入 `DEPLOY_ENV_FILE`：
 
 ```env
-XRAG_DISK_WARN_PERCENT=70
-XRAG_DISK_PRUNE_PERCENT=80
-XRAG_DISK_FAIL_PERCENT=95
-XRAG_KEEP_RELEASES=5
-XRAG_DOCKER_LOG_TRUNCATE_MB=200
+APP_DISK_WARN_PERCENT=70
+APP_DISK_PRUNE_PERCENT=80
+APP_DISK_FAIL_PERCENT=95
+APP_KEEP_RELEASES=5
+APP_DOCKER_LOG_TRUNCATE_MB=200
 ```
 
 手工执行：
 
 ```bash
-/srv/xrag/shared/bin/xrag-disk-guard.sh /srv/xrag
+/srv/app/shared/bin/app-disk-guard.sh /srv/app
 ```
 
 ### 定时执行
 
 仓库已提供 `systemd` 资产：
 
-- `deploy/systemd/xrag-disk-guard.service`
-- `deploy/systemd/xrag-disk-guard.timer`
+- `deploy/systemd/app-disk-guard.service`
+- `deploy/systemd/app-disk-guard.timer`
 
 每次 deploy 会把它们同步到：
 
-- `/srv/xrag/shared/systemd`
+- `/srv/app/shared/systemd`
 
 在服务器上启用：
 
 ```bash
-sudo cp /srv/xrag/shared/systemd/xrag-disk-guard.service /etc/systemd/system/
-sudo cp /srv/xrag/shared/systemd/xrag-disk-guard.timer /etc/systemd/system/
+sudo cp /srv/app/shared/systemd/app-disk-guard.service /etc/systemd/system/
+sudo cp /srv/app/shared/systemd/app-disk-guard.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now xrag-disk-guard.timer
-sudo systemctl status xrag-disk-guard.timer
+sudo systemctl enable --now app-disk-guard.timer
+sudo systemctl status app-disk-guard.timer
 ```
 
 查看最近执行记录：
 
 ```bash
-journalctl -u xrag-disk-guard.service -n 100 --no-pager
+journalctl -u app-disk-guard.service -n 100 --no-pager
 ```
 
 ## Local Validation
 
-本仓库已经通过本地容器化验证：
+本地可通过以下方式验证部署基线：
 
 - `api / worker / web / postgres / redis / minio` 可通过 `deploy/compose/stack.compose.yml` 拉起
 - `/api/v1/health` 返回 `{"status":"ok"}`
-- 通过外部入口成功完成了 `create text document -> list -> detail` 的最小业务闭环
-
-## Inspection And Debugging
-
-如果你需要查看 production 当前跑了什么、数据库里有什么、MinIO 里有什么，直接看：
-
-- [Production Inspection Guide](/Users/coderlauu/xRag/deploy/production-inspection-guide.md)
 
 ## Deploy Flow
 
@@ -313,4 +281,4 @@ journalctl -u xrag-disk-guard.service -n 100 --no-pager
 5. `staging` 通过后自动部署 `production`
 6. 对 `production` 执行 smoke
 
-如果 `deploy-production` 前磁盘使用率经过清理后仍高于 `XRAG_DISK_FAIL_PERCENT`，workflow 会直接失败并要求先人工处理主机空间，而不会继续假成功。
+如果 `deploy-production` 前磁盘使用率经过清理后仍高于 `APP_DISK_FAIL_PERCENT`，workflow 会直接失败并要求先人工处理主机空间，而不会继续假成功。

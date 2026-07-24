@@ -102,19 +102,8 @@ fi
 git checkout -b "${branch_name}"
 
 case "${REPAIR_TYPE}" in
-  openapi_contract_out_of_date)
-    corepack pnpm install --frozen-lockfile
-    corepack pnpm contract:generate
-    corepack pnpm contract:check
-    ;;
   outdated_lockfile)
-    corepack pnpm install --no-frozen-lockfile
-    corepack pnpm install --frozen-lockfile
-    ;;
-  search_page_e2e_selector_drift)
-    corepack pnpm install --frozen-lockfile
-    node scripts/fix-search-e2e-selector-drift.mjs
-    corepack pnpm --filter @xrag/web typecheck
+    (cd frontend && corepack pnpm install --no-frozen-lockfile && corepack pnpm install --frozen-lockfile)
     ;;
   *)
     echo "Unsupported repair type: ${REPAIR_TYPE}" >&2

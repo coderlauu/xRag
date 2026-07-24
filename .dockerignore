@@ -6,9 +6,5 @@ node_modules
 coverage
 dist
 build
-apps/api/dist
-apps/api/dist-integration
-apps/web/dist
-apps/web/test-results
-apps/worker/dist
-prototype
+frontend/dist
+backend/target

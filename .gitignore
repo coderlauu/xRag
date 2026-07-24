@@ -1,12 +1,11 @@
 .DS_Store
 Thumbs.db
+.claude/skills
 node_modules
 .turbo
-.codex/skills/*
-!.codex/skills/xrag-iteration-governor/
-!.codex/skills/xrag-iteration-governor/**
 dist
 dist-integration
 build
+target
 coverage
 .pnpm-store

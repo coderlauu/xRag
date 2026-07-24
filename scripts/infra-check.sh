@@ -26,7 +26,7 @@ wait_for() {
   return 1
 }
 
-wait_for "postgres" 15 docker compose exec -T postgres pg_isready -U xrag -d xrag
+wait_for "postgres" 15 docker compose exec -T postgres pg_isready -U app -d app
 wait_for "postgres host port" 15 bash -lc ">/dev/tcp/127.0.0.1/5432"
 wait_for "redis" 15 docker compose exec -T redis redis-cli ping
 wait_for "redis host port" 15 bash -lc ">/dev/tcp/127.0.0.1/6379"

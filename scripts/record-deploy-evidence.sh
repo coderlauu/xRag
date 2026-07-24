@@ -3,11 +3,11 @@ set -euo pipefail
 
 artifact_dir="${ARTIFACT_DIR:-artifacts/deploy-evidence}"
 environment_name="${DEPLOY_ENVIRONMENT:-unknown}"
-raw_smoke_status="${XRAG_SMOKE_STATUS:-unknown}"
-smoke_executed="${XRAG_SMOKE_EXECUTED:-true}"
+raw_smoke_status="${SMOKE_STATUS:-unknown}"
+smoke_executed="${SMOKE_EXECUTED:-true}"
 base_url="${APP_BASE_URL:-}"
 timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-deployed_at="${XRAG_DEPLOYED_AT:-$timestamp}"
+deployed_at="${DEPLOYED_AT:-$timestamp}"
 run_id="${GITHUB_RUN_ID:-}"
 run_url=""
 
@@ -51,11 +51,11 @@ mkdir -p "$artifact_dir"
 json_path="$artifact_dir/evidence.json"
 md_path="$artifact_dir/evidence.md"
 
-XRAG_CAPTURED_AT="${timestamp}" \
-XRAG_DEPLOYED_AT_RESOLVED="${deployed_at}" \
-XRAG_SMOKE_AT_RESOLVED="${smoke_at}" \
-XRAG_RUN_URL="${run_url}" \
-XRAG_SMOKE_STATUS_RESOLVED="${smoke_status}" \
+CAPTURED_AT="${timestamp}" \
+DEPLOYED_AT_RESOLVED="${deployed_at}" \
+SMOKE_AT_RESOLVED="${smoke_at}" \
+RUN_URL="${run_url}" \
+SMOKE_STATUS_RESOLVED="${smoke_status}" \
 python3 - <<'PY' >"$json_path"
 import json
 import os
@@ -64,23 +64,23 @@ def optional(value: str):
     return value if value else None
 
 payload = {
-    "captured_at": os.environ["XRAG_CAPTURED_AT"],
-    "deployed_at": os.environ["XRAG_DEPLOYED_AT_RESOLVED"],
-    "smoke_at": optional(os.environ.get("XRAG_SMOKE_AT_RESOLVED", "")),
+    "captured_at": os.environ["CAPTURED_AT"],
+    "deployed_at": os.environ["DEPLOYED_AT_RESOLVED"],
+    "smoke_at": optional(os.environ.get("SMOKE_AT_RESOLVED", "")),
     "repository": os.environ.get("GITHUB_REPOSITORY", ""),
     "run_id": os.environ.get("GITHUB_RUN_ID", ""),
-    "run_url": optional(os.environ.get("XRAG_RUN_URL", "")),
+    "run_url": optional(os.environ.get("RUN_URL", "")),
     "commit_sha": os.environ.get("GITHUB_SHA", ""),
     "environment": os.environ.get("DEPLOY_ENVIRONMENT", "unknown"),
-    "smoke_status": os.environ["XRAG_SMOKE_STATUS_RESOLVED"],
-    "smoke_executed": os.environ.get("XRAG_SMOKE_EXECUTED", "true") == "true",
+    "smoke_status": os.environ["SMOKE_STATUS_RESOLVED"],
+    "smoke_executed": os.environ.get("SMOKE_EXECUTED", "true") == "true",
     "base_url": optional(os.environ.get("APP_BASE_URL", "")),
-    "current_image_tag": optional(os.environ.get("XRAG_API_IMAGE", "")),
-    "previous_stable_image_tag": optional(os.environ.get("XRAG_PREVIOUS_API_IMAGE", "")),
+    "current_image_tag": optional(os.environ.get("API_IMAGE", "")),
+    "previous_stable_image_tag": optional(os.environ.get("PREVIOUS_API_IMAGE", "")),
     "images": {
-        "api": optional(os.environ.get("XRAG_API_IMAGE", "")),
-        "worker": optional(os.environ.get("XRAG_WORKER_IMAGE", "")),
-        "web": optional(os.environ.get("XRAG_WEB_IMAGE", "")),
+        "api": optional(os.environ.get("API_IMAGE", "")),
+        "worker": optional(os.environ.get("WORKER_IMAGE", "")),
+        "web": optional(os.environ.get("WEB_IMAGE", "")),
     },
     "rollback_hint": "Redeploy the previous known-good image tag or re-run the workflow after restoring the failing environment dependency.",
 }
@@ -107,14 +107,14 @@ PY
   if [[ -n "$base_url" ]]; then
     echo "- Base URL: ${base_url}"
   fi
-  if [[ -n "${XRAG_API_IMAGE:-}" || -n "${XRAG_WORKER_IMAGE:-}" || -n "${XRAG_WEB_IMAGE:-}" ]]; then
+  if [[ -n "${API_IMAGE:-}" || -n "${WORKER_IMAGE:-}" || -n "${WEB_IMAGE:-}" ]]; then
     echo
     echo "## Images"
     echo
-    [[ -n "${XRAG_API_IMAGE:-}" ]] && echo "- API: \`${XRAG_API_IMAGE}\`"
-    [[ -n "${XRAG_PREVIOUS_API_IMAGE:-}" ]] && echo "- Previous Stable API: \`${XRAG_PREVIOUS_API_IMAGE}\`"
-    [[ -n "${XRAG_WORKER_IMAGE:-}" ]] && echo "- Worker: \`${XRAG_WORKER_IMAGE}\`"
-    [[ -n "${XRAG_WEB_IMAGE:-}" ]] && echo "- Web: \`${XRAG_WEB_IMAGE}\`"
+    [[ -n "${API_IMAGE:-}" ]] && echo "- API: \`${API_IMAGE}\`"
+    [[ -n "${PREVIOUS_API_IMAGE:-}" ]] && echo "- Previous Stable API: \`${PREVIOUS_API_IMAGE}\`"
+    [[ -n "${WORKER_IMAGE:-}" ]] && echo "- Worker: \`${WORKER_IMAGE}\`"
+    [[ -n "${WEB_IMAGE:-}" ]] && echo "- Web: \`${WEB_IMAGE}\`"
   fi
   echo
   echo "## Rollback Hint"

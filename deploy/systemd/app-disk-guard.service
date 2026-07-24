@@ -1,0 +1,9 @@
+[Unit]
+Description=App Disk Guard
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/srv/app/shared/production.env
+ExecStart=/srv/app/shared/bin/app-disk-guard.sh /srv/app

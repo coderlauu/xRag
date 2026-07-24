@@ -4,9 +4,9 @@ import path from "node:path";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const markdownRoots = [
   path.join(repoRoot, "AGENTS.md"),
+  path.join(repoRoot, "CLAUDE.md"),
+  path.join(repoRoot, "README.md"),
   path.join(repoRoot, "docs"),
-  path.join(repoRoot, "tech"),
-  path.join(repoRoot, "design"),
   path.join(repoRoot, "deploy")
 ];
 const errors = [];

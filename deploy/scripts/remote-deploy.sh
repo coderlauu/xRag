@@ -13,8 +13,8 @@ shared_systemd_dir="${shared_dir}/systemd"
 env_file="${shared_dir}/${environment}.env"
 caddyfile_path="${shared_dir}/Caddyfile"
 compose_file="${release_dir}/deploy/compose/stack.compose.yml"
-project_name="xrag-${environment}"
-disk_guard_path="${shared_bin_dir}/xrag-disk-guard.sh"
+project_name="app-${environment}"
+disk_guard_path="${shared_bin_dir}/app-disk-guard.sh"
 
 docker_cmd=(docker)
 
@@ -165,11 +165,11 @@ tar -xzf "${bundle_path}" -C "${release_dir}"
 cp "${release_dir}/deploy/caddy/Caddyfile" "${caddyfile_path}"
 cp "${release_dir}/deploy/scripts/disk-guard.sh" "${disk_guard_path}"
 chmod 755 "${disk_guard_path}"
-cp "${release_dir}/deploy/systemd/xrag-disk-guard.service" "${shared_systemd_dir}/xrag-disk-guard.service"
-cp "${release_dir}/deploy/systemd/xrag-disk-guard.timer" "${shared_systemd_dir}/xrag-disk-guard.timer"
+cp "${release_dir}/deploy/systemd/app-disk-guard.service" "${shared_systemd_dir}/app-disk-guard.service"
+cp "${release_dir}/deploy/systemd/app-disk-guard.timer" "${shared_systemd_dir}/app-disk-guard.timer"
 
-if [[ -n "${XRAG_ENV_FILE_B64:-}" ]]; then
-  printf '%s' "${XRAG_ENV_FILE_B64}" | base64 --decode > "${env_file}"
+if [[ -n "${DEPLOY_ENV_FILE_B64:-}" ]]; then
+  printf '%s' "${DEPLOY_ENV_FILE_B64}" | base64 --decode > "${env_file}"
   chmod 600 "${env_file}"
 fi
 
@@ -185,17 +185,17 @@ fi
 
 resolve_docker_access
 
-XRAG_DISK_WARN_PERCENT="$(read_env_file_key XRAG_DISK_WARN_PERCENT || true)" \
-XRAG_DISK_PRUNE_PERCENT="$(read_env_file_key XRAG_DISK_PRUNE_PERCENT || true)" \
-XRAG_DISK_FAIL_PERCENT="$(read_env_file_key XRAG_DISK_FAIL_PERCENT || true)" \
-XRAG_KEEP_RELEASES="$(read_env_file_key XRAG_KEEP_RELEASES || true)" \
-XRAG_DOCKER_LOG_TRUNCATE_MB="$(read_env_file_key XRAG_DOCKER_LOG_TRUNCATE_MB || true)" \
-XRAG_PROTECTED_RELEASES="${image_tag}" \
+APP_DISK_WARN_PERCENT="$(read_env_file_key APP_DISK_WARN_PERCENT || true)" \
+APP_DISK_PRUNE_PERCENT="$(read_env_file_key APP_DISK_PRUNE_PERCENT || true)" \
+APP_DISK_FAIL_PERCENT="$(read_env_file_key APP_DISK_FAIL_PERCENT || true)" \
+APP_KEEP_RELEASES="$(read_env_file_key APP_KEEP_RELEASES || true)" \
+APP_DOCKER_LOG_TRUNCATE_MB="$(read_env_file_key APP_DOCKER_LOG_TRUNCATE_MB || true)" \
+APP_PROTECTED_RELEASES="${image_tag}" \
 "${disk_guard_path}" "${deploy_root}"
 
 docker_login_with_retry
 
-export XRAG_CADDYFILE_PATH="${caddyfile_path}"
+export CADDYFILE_PATH="${caddyfile_path}"
 compose_run down --remove-orphans || true
 compose_run pull
 compose_run up -d postgres redis minio
@@ -210,9 +210,9 @@ compose_run up -d --force-recreate api worker web caddy
 wait_for_service_stable api 20
 wait_for_service_stable worker 20
 wait_for_service_stable web 20
-verify_service_image api "${XRAG_API_IMAGE}"
-verify_service_image worker "${XRAG_WORKER_IMAGE}"
-verify_service_image web "${XRAG_WEB_IMAGE}"
+verify_service_image api "${API_IMAGE}"
+verify_service_image worker "${WORKER_IMAGE}"
+verify_service_image web "${WEB_IMAGE}"
 compose_run ps
 
 rm -f "${bundle_path}"

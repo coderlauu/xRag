@@ -17,18 +17,10 @@ repair_type="unsupported"
 repair_supported="false"
 repair_reason="No supported repair rule matched the failed log."
 
-if grep -Fq "Generated OpenAPI artifact is out of date" "$failed_log_path"; then
-  repair_type="openapi_contract_out_of_date"
-  repair_supported="true"
-  repair_reason="Generated OpenAPI artifact is out of date."
-elif grep -Fq "ERR_PNPM_OUTDATED_LOCKFILE" "$failed_log_path"; then
+if grep -Fq "ERR_PNPM_OUTDATED_LOCKFILE" "$failed_log_path"; then
   repair_type="outdated_lockfile"
   repair_supported="true"
-  repair_reason="Lockfile is stale compared with package manifests."
-elif grep -Fq "waiting for getByLabel('Search documents')" "$failed_log_path" || grep -Fq 'name: "Search"' "$failed_log_path"; then
-  repair_type="search_page_e2e_selector_drift"
-  repair_supported="true"
-  repair_reason="Playwright search page selector drift detected."
+  repair_reason="frontend/pnpm-lock.yaml is stale compared with frontend/package.json."
 fi
 
 cat <<EOF

@@ -13,16 +13,16 @@ cd "${repo_root}"
 : "${SSH_HOST:?SSH_HOST is required}"
 : "${SSH_PRIVATE_KEY:?SSH_PRIVATE_KEY is required}"
 : "${SSH_USER:?SSH_USER is required}"
-: "${XRAG_API_IMAGE:?XRAG_API_IMAGE is required}"
-: "${XRAG_WORKER_IMAGE:?XRAG_WORKER_IMAGE is required}"
-: "${XRAG_WEB_IMAGE:?XRAG_WEB_IMAGE is required}"
-: "${XRAG_IMAGE_TAG:?XRAG_IMAGE_TAG is required}"
+: "${API_IMAGE:?API_IMAGE is required}"
+: "${WORKER_IMAGE:?WORKER_IMAGE is required}"
+: "${WEB_IMAGE:?WEB_IMAGE is required}"
+: "${IMAGE_TAG:?IMAGE_TAG is required}"
 
 ssh_port="${SSH_PORT:-22}"
 remote_tmp_dir="${DEPLOY_PATH}/shared/tmp"
-bundle_path="${remote_tmp_dir}/xrag-${DEPLOY_ENVIRONMENT}-${XRAG_IMAGE_TAG}.tar.gz"
-bundle_file="$(mktemp /tmp/xrag-deploy-XXXXXX.tar.gz)"
-key_file="$(mktemp /tmp/xrag-ssh-key-XXXXXX)"
+bundle_path="${remote_tmp_dir}/app-${DEPLOY_ENVIRONMENT}-${IMAGE_TAG}.tar.gz"
+bundle_file="$(mktemp /tmp/app-deploy-XXXXXX.tar.gz)"
+key_file="$(mktemp /tmp/app-ssh-key-XXXXXX)"
 deployed_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 previous_api_image=""
 previous_worker_image=""
@@ -65,7 +65,7 @@ scp_base_args=(
   -o StrictHostKeyChecking=no
 )
 
-if ! ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "echo xrag-ssh-ok" >/dev/null 2>&1; then
+if ! ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "echo app-ssh-ok" >/dev/null 2>&1; then
   cat >&2 <<EOF
 Remote SSH authentication failed.
 Check these values and server state:
@@ -79,7 +79,7 @@ EOF
   exit 1
 fi
 
-project_name="xrag-${DEPLOY_ENVIRONMENT}"
+project_name="app-${DEPLOY_ENVIRONMENT}"
 printf -v project_name_q '%q' "${project_name}"
 previous_images="$(
   ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "bash -s -- ${project_name_q}" 2>/dev/null <<'EOF' || true
@@ -129,7 +129,7 @@ fi
 
 printf -v deploy_path_q '%q' "${DEPLOY_PATH}"
 ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" \
-  "XRAG_KEEP_RELEASES='${XRAG_KEEP_RELEASES:-5}' XRAG_DISK_WARN_PERCENT='${XRAG_DISK_WARN_PERCENT:-70}' XRAG_DISK_PRUNE_PERCENT='${XRAG_DISK_PRUNE_PERCENT:-80}' XRAG_DISK_FAIL_PERCENT='${XRAG_DISK_FAIL_PERCENT:-95}' XRAG_DOCKER_LOG_TRUNCATE_MB='${XRAG_DOCKER_LOG_TRUNCATE_MB:-200}' XRAG_PROTECTED_RELEASES='${XRAG_IMAGE_TAG}' bash -s -- ${deploy_path_q}" \
+  "APP_KEEP_RELEASES='${APP_KEEP_RELEASES:-5}' APP_DISK_WARN_PERCENT='${APP_DISK_WARN_PERCENT:-70}' APP_DISK_PRUNE_PERCENT='${APP_DISK_PRUNE_PERCENT:-80}' APP_DISK_FAIL_PERCENT='${APP_DISK_FAIL_PERCENT:-95}' APP_DOCKER_LOG_TRUNCATE_MB='${APP_DOCKER_LOG_TRUNCATE_MB:-200}' APP_PROTECTED_RELEASES='${IMAGE_TAG}' bash -s -- ${deploy_path_q}" \
   < "${repo_root}/deploy/scripts/disk-guard.sh"
 
 ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" "mkdir -p '${remote_tmp_dir}' && rm -f '${bundle_path}'"
@@ -142,13 +142,13 @@ printf -v env_file_b64_q '%q' "${env_file_b64}"
 printf -v registry_host_q '%q' "${REGISTRY_HOST}"
 printf -v registry_user_q '%q' "${REGISTRY_USERNAME}"
 printf -v registry_password_q '%q' "${REGISTRY_PASSWORD}"
-printf -v api_image_q '%q' "${XRAG_API_IMAGE}"
-printf -v worker_image_q '%q' "${XRAG_WORKER_IMAGE}"
-printf -v web_image_q '%q' "${XRAG_WEB_IMAGE}"
+printf -v api_image_q '%q' "${API_IMAGE}"
+printf -v worker_image_q '%q' "${WORKER_IMAGE}"
+printf -v web_image_q '%q' "${WEB_IMAGE}"
 printf -v deploy_env_q '%q' "${DEPLOY_ENVIRONMENT}"
-printf -v image_tag_q '%q' "${XRAG_IMAGE_TAG}"
+printf -v image_tag_q '%q' "${IMAGE_TAG}"
 printf -v bundle_path_q '%q' "${bundle_path}"
 
 ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" \
-  "XRAG_ENV_FILE_B64=${env_file_b64_q} REGISTRY_HOST=${registry_host_q} REGISTRY_USERNAME=${registry_user_q} REGISTRY_PASSWORD=${registry_password_q} XRAG_API_IMAGE=${api_image_q} XRAG_WORKER_IMAGE=${worker_image_q} XRAG_WEB_IMAGE=${web_image_q} bash -s -- ${deploy_path_q} ${deploy_env_q} ${image_tag_q} ${bundle_path_q}" \
+  "DEPLOY_ENV_FILE_B64=${env_file_b64_q} REGISTRY_HOST=${registry_host_q} REGISTRY_USERNAME=${registry_user_q} REGISTRY_PASSWORD=${registry_password_q} API_IMAGE=${api_image_q} WORKER_IMAGE=${worker_image_q} WEB_IMAGE=${web_image_q} bash -s -- ${deploy_path_q} ${deploy_env_q} ${image_tag_q} ${bundle_path_q}" \
   < "${repo_root}/deploy/scripts/remote-deploy.sh"

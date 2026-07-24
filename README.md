@@ -1,92 +1,48 @@
-# xRag
+# App
 
-`xRag` 是一个面向个人知识沉淀场景的知识收件箱原型项目，当前重点是验证 `采集 -> 存储 -> 检索 -> 找回` 的 MVP 闭环。
+前后端分离的空白工程 scaffold：React 前端 + Java (Spring Boot) 后端，业务逻辑待从 0 开发。
 
 ## Repository Layout
 
-项目目录按 `产品文档 / 设计方案 / 技术方案 / 原型交付` 四层拆分，便于后续回顾、协作和版本迭代。
-
 ```text
-xRag/
-├── docs/                    # 全程积累的产品与过程文档
-│   ├── prd/                 # 产品需求文档
-│   ├── meeting/             # 会议纪要与过程讨论记录
-│   ├── retro/               # 阶段复盘
-│   ├── decisions/           # 关键决策记录，便于后续追溯
-│   ├── process/             # 版本迭代 SOP 与交付流程
-│   ├── handoff/             # 给 coder / implementer 的固定阅读入口
-│   └── status/              # 每个版本当前进度、阻塞项、验证结果
-├── design/                  # 设计方案与设计资产
-│   ├── ui/                  # 线框图、界面稿、视觉探索
-│   └── spec/                # 设计规范、交互说明
-├── tech/                    # 技术方案沉淀
-│   ├── architecture/        # 架构设计与模块分层
-│   ├── api/                 # API 设计与接口约定
-│   └── data-model/          # 业务模型、索引模型、字段说明
-├── prototype/               # 可直接打开的 HTML 原型交付物
-│   ├── README.md            # 原型层说明、运行方式、版本说明
-│   ├── v1/                  # Phase 1A 当前版本原型
-│   │   ├── index.html       # 导入页 / Inbox
-│   │   ├── search.html      # 搜索页 / Search
-│   │   ├── detail.html      # 详情页 / Detail
-│   │   ├── assets/
-│   │   │   ├── css/         # 当前版本样式
-│   │   │   ├── js/          # 当前版本交互逻辑
-│   │   │   └── images/      # 当前版本图片资源
-│   │   └── mock-data/
-│   │       ├── documents.json
-│   │       ├── search-results.json
-│   │       └── states.json
-│   └── shared/
-│       └── assets/          # 多个原型版本可复用的资源
-├── .gitignore
-└── README.md
+.
+├── frontend/           # React + Vite + TypeScript, pnpm 管理，最小占位页面
+├── backend/            # Spring Boot + Maven，health 接口 + DB/Redis/对象存储连接骨架
+├── deploy/             # Docker/Caddy/Nginx/systemd 部署骨架，占位域名与命名待替换
+├── docs/               # 文档目录骨架（含通用模板），内容待积累
+├── .agents/skills/      # 可复用的 agent 技能包（mattpocock/skills）
+├── scripts/             # CI、基础设施起停、部署运维脚本
+└── .github/workflows/   # CI（validate/infra）与自动部署流水线
 ```
 
-## Directory Notes
+## Tech Stack
 
-- `docs/`
-  项目推进过程中的原始文档沉淀区。PRD、会议纪要、复盘、关键决策、版本状态和流程规范都放在这里，适合做回顾和对齐。
-- `design/`
-  产品和交互设计输出区。`ui/` 放视觉稿和线框图，`spec/` 放界面结构、交互规则、组件说明。
-- `tech/`
-  面向研发实现的技术沉淀区。架构、接口、数据模型分开保存，避免技术方案混杂在 PRD 或设计稿里。
-- `prototype/`
-  当前阶段的实际交付物。采用版本化管理，`v1/` 对应本次 Phase 1A 闭环原型；后续迭代新增 `v2/`、`v3/` 即可，不覆盖旧版本。
-- `prototype/shared/`
-  放多个版本都可能复用的资源，比如通用图标、基础样式、通用脚本或设计 token。
+- Backend：Spring Boot + Maven（Java 17），JDBC 直连 Postgres，Redis、S3 兼容对象存储连接骨架
+- Frontend：React + Vite + TypeScript，pnpm 管理
+- Storage：S3 兼容对象存储（本地用 MinIO）
+- Deploy：Docker Compose + Caddy（TLS）+ Nginx（前端静态资源）+ systemd（磁盘守护）
 
-## When Each Area Is Produced
+## Getting Started
 
-| Directory | Main Content | Typical Timing |
-| --- | --- | --- |
-| `docs/` | PRD、纪要、复盘、决策记录 | 全程持续积累 |
-| `design/ui/` | 线框图、界面稿、视觉方案 | 设计阶段 |
-| `design/spec/` | 交互规则、页面说明、组件规范 | 设计阶段 |
-| `tech/architecture/` | 架构设计、模块边界 | 技术方案阶段 |
-| `tech/api/` | 接口设计、请求响应约定 | 技术方案阶段 |
-| `tech/data-model/` | 数据模型、索引模型、字段定义 | 技术方案阶段 |
-| `prototype/` | HTML 原型与演示资源 | 原型阶段与迭代阶段 |
+```bash
+docker compose up -d          # postgres + redis + minio
 
-## Prototype Versioning Rules
+cd backend && mvn spring-boot:run    # 后端，默认监听 :3001
 
-- 每个原型版本都放在 `prototype/vN/` 下，避免覆盖历史版本。
-- 每个版本内部继续保持 `页面 / assets / mock-data` 的固定结构，便于快速对比。
-- 公共资源优先沉淀到 `prototype/shared/`，减少跨版本复制。
-- 如果后续进入正式前端工程阶段，可新增独立的应用目录，但保留 `prototype/` 作为产品验证资产。
+cd frontend && pnpm install && pnpm dev   # 前端，默认监听 :5173
+```
 
-## Recommended Workflow
+前端通过 `VITE_API_BASE_URL` 环境变量指向后端地址（本地开发默认同源代理需自行配置，或直接设为 `http://localhost:3001`）。
 
-每个版本迭代建议统一遵循这条主线：
+## Validation
 
-`PRD -> Scope Decision -> Prototype -> Interaction Spec -> Tech Plan -> Coding Handoff -> Verification -> Retro`
+```bash
+scripts/ci-validate.sh   # docker compose config 检查 + 文档链接检查 + frontend build + backend mvn verify
+```
 
-当前仓库的推荐入口文档：
+## Notes
 
-- [产品交付 SOP](/Users/coderlauu/xRag/docs/process/product-delivery-sop.md)
-- [当前版本 Handoff](/Users/coderlauu/xRag/docs/handoff/current.md)
-- [当前版本 Status](/Users/coderlauu/xRag/docs/status/v2-phase-1b.md)
-- [Deployment Baseline](/Users/coderlauu/xRag/deploy/README.md)
-- [Phase 1B PRD](/Users/coderlauu/xRag/docs/prd/2026-04-02-xrag-phase-1b-prd.md)
-- [v1 Scope 与取舍](/Users/coderlauu/xRag/docs/decisions/2026-03-31-v1-scope-and-tradeoffs.md)
-- [v1 交互说明](/Users/coderlauu/xRag/design/spec/2026-03-31-v1-interaction-spec.md)
+- `backend/` 目前只有健康检查接口（`GET /api/v1/health`、`GET /api/v1/health/ready`），业务模块、数据库表待添加。
+- `frontend/` 目前只有一个调用后端健康检查接口的占位页面。
+- `deploy/` 与 `docker-compose.yml` 中的域名、账号密码均为占位值（`app` / `example.com`），上线前需替换为真实配置。
+- Java 包名当前为 `com.app`，Maven `groupId`/`artifactId` 为 `com.app:backend`；如需改成正式项目名，替换 `backend/pom.xml` 与 Java 包路径即可。

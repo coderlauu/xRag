@@ -3,13 +3,13 @@ set -euo pipefail
 
 deploy_root="${1:?deploy root is required}"
 
-warn_percent="${XRAG_DISK_WARN_PERCENT:-70}"
-prune_percent="${XRAG_DISK_PRUNE_PERCENT:-80}"
-fail_percent="${XRAG_DISK_FAIL_PERCENT:-95}"
-keep_releases="${XRAG_KEEP_RELEASES:-5}"
-log_truncate_mb="${XRAG_DOCKER_LOG_TRUNCATE_MB:-200}"
-docker_prune_enabled="${XRAG_DOCKER_PRUNE_ENABLED:-1}"
-protected_releases_csv="${XRAG_PROTECTED_RELEASES:-}"
+warn_percent="${APP_DISK_WARN_PERCENT:-70}"
+prune_percent="${APP_DISK_PRUNE_PERCENT:-80}"
+fail_percent="${APP_DISK_FAIL_PERCENT:-95}"
+keep_releases="${APP_KEEP_RELEASES:-5}"
+log_truncate_mb="${APP_DOCKER_LOG_TRUNCATE_MB:-200}"
+docker_prune_enabled="${APP_DOCKER_PRUNE_ENABLED:-1}"
+protected_releases_csv="${APP_PROTECTED_RELEASES:-}"
 shared_tmp_dir="${deploy_root}/shared/tmp"
 releases_dir="${deploy_root}/releases"
 
@@ -21,7 +21,7 @@ timestamp() {
 }
 
 log() {
-  printf '[xrag-disk-guard] %s %s\n' "$(timestamp)" "$*"
+  printf '[app-disk-guard] %s %s\n' "$(timestamp)" "$*"
 }
 
 usage_percent() {
@@ -156,17 +156,17 @@ prune_docker_artifacts() {
 
 validate_thresholds() {
   if [[ "${keep_releases}" -lt 1 ]]; then
-    echo "XRAG_KEEP_RELEASES must be >= 1" >&2
+    echo "APP_KEEP_RELEASES must be >= 1" >&2
     exit 1
   fi
 
   if [[ "${warn_percent}" -ge "${fail_percent}" ]]; then
-    echo "XRAG_DISK_WARN_PERCENT must be < XRAG_DISK_FAIL_PERCENT" >&2
+    echo "APP_DISK_WARN_PERCENT must be < APP_DISK_FAIL_PERCENT" >&2
     exit 1
   fi
 
   if [[ "${prune_percent}" -gt "${fail_percent}" ]]; then
-    echo "XRAG_DISK_PRUNE_PERCENT must be <= XRAG_DISK_FAIL_PERCENT" >&2
+    echo "APP_DISK_PRUNE_PERCENT must be <= APP_DISK_FAIL_PERCENT" >&2
     exit 1
   fi
 }
