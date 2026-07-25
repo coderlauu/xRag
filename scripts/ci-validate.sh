@@ -11,6 +11,7 @@ else
 fi
 
 node "$repo_root/scripts/check-doc-links.mjs"
+node "$repo_root/scripts/check-deploy-contract.mjs"
 
 (cd frontend && corepack pnpm install --frozen-lockfile && corepack pnpm run build)
 

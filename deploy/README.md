@@ -2,7 +2,7 @@
 
 本目录提供一套最小可执行 CD 基线：
 
-- GitHub Actions 构建并推送 `api / worker / web` 镜像到 `GHCR` 或其他镜像仓库
+- GitHub Actions 构建并推送 `api / web` 镜像到 `GHCR` 或其他镜像仓库
 - 通过 `SSH + docker compose` 在远端主机部署 `staging / production`
 - 部署后执行 HTTP smoke 验证
 
@@ -269,7 +269,7 @@ journalctl -u app-disk-guard.service -n 100 --no-pager
 
 本地可通过以下方式验证部署基线：
 
-- `api / worker / web / postgres / redis / rustfs` 可通过 `deploy/compose/stack.compose.yml` 拉起
+- `api / web / postgres / redis / rustfs` 可通过 `deploy/compose/stack.compose.yml` 拉起
 - `/api/v1/health` 返回 `{"status":"ok"}`
 
 ## Deploy Flow

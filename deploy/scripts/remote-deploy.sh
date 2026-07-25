@@ -205,13 +205,10 @@ compose_run exec -T postgres sh -lc '
   psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d template1 -tAc "select 1 from pg_database where datname='\''$POSTGRES_DB'\''" | grep -q 1 \
     || psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d template1 -c "create database \"$POSTGRES_DB\" owner \"$POSTGRES_USER\""
 ' </dev/null
-compose_run run --rm -T api-migrate </dev/null
-compose_run up -d --force-recreate api worker web caddy
+compose_run up -d --force-recreate api web caddy
 wait_for_service_stable api 20
-wait_for_service_stable worker 20
 wait_for_service_stable web 20
 verify_service_image api "${API_IMAGE}"
-verify_service_image worker "${WORKER_IMAGE}"
 verify_service_image web "${WEB_IMAGE}"
 compose_run ps
 

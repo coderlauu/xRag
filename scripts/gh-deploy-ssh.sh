@@ -14,7 +14,6 @@ cd "${repo_root}"
 : "${SSH_PRIVATE_KEY:?SSH_PRIVATE_KEY is required}"
 : "${SSH_USER:?SSH_USER is required}"
 : "${API_IMAGE:?API_IMAGE is required}"
-: "${WORKER_IMAGE:?WORKER_IMAGE is required}"
 : "${WEB_IMAGE:?WEB_IMAGE is required}"
 : "${IMAGE_TAG:?IMAGE_TAG is required}"
 
@@ -25,7 +24,6 @@ bundle_file="$(mktemp /tmp/app-deploy-XXXXXX.tar.gz)"
 key_file="$(mktemp /tmp/app-ssh-key-XXXXXX)"
 deployed_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 previous_api_image=""
-previous_worker_image=""
 previous_web_image=""
 
 cleanup() {
@@ -90,7 +88,7 @@ if ! docker info >/dev/null 2>&1; then
   docker_bin="sudo -n docker"
 fi
 
-for service in api worker web; do
+for service in api web; do
   container_id="$($docker_bin ps \
     --filter "label=com.docker.compose.project=${project_name}" \
     --filter "label=com.docker.compose.service=${service}" \
@@ -109,9 +107,6 @@ while IFS='=' read -r service image; do
     api)
       previous_api_image="${image}"
       ;;
-    worker)
-      previous_worker_image="${image}"
-      ;;
     web)
       previous_web_image="${image}"
       ;;
@@ -122,7 +117,6 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {
     echo "deployed_at=${deployed_at}"
     echo "previous_api_image=${previous_api_image}"
-    echo "previous_worker_image=${previous_worker_image}"
     echo "previous_web_image=${previous_web_image}"
   } >>"${GITHUB_OUTPUT}"
 fi
@@ -143,12 +137,11 @@ printf -v registry_host_q '%q' "${REGISTRY_HOST}"
 printf -v registry_user_q '%q' "${REGISTRY_USERNAME}"
 printf -v registry_password_q '%q' "${REGISTRY_PASSWORD}"
 printf -v api_image_q '%q' "${API_IMAGE}"
-printf -v worker_image_q '%q' "${WORKER_IMAGE}"
 printf -v web_image_q '%q' "${WEB_IMAGE}"
 printf -v deploy_env_q '%q' "${DEPLOY_ENVIRONMENT}"
 printf -v image_tag_q '%q' "${IMAGE_TAG}"
 printf -v bundle_path_q '%q' "${bundle_path}"
 
 ssh "${ssh_base_args[@]}" "${SSH_USER}@${SSH_HOST}" \
-  "DEPLOY_ENV_FILE_B64=${env_file_b64_q} REGISTRY_HOST=${registry_host_q} REGISTRY_USERNAME=${registry_user_q} REGISTRY_PASSWORD=${registry_password_q} API_IMAGE=${api_image_q} WORKER_IMAGE=${worker_image_q} WEB_IMAGE=${web_image_q} bash -s -- ${deploy_path_q} ${deploy_env_q} ${image_tag_q} ${bundle_path_q}" \
+  "DEPLOY_ENV_FILE_B64=${env_file_b64_q} REGISTRY_HOST=${registry_host_q} REGISTRY_USERNAME=${registry_user_q} REGISTRY_PASSWORD=${registry_password_q} API_IMAGE=${api_image_q} WEB_IMAGE=${web_image_q} bash -s -- ${deploy_path_q} ${deploy_env_q} ${image_tag_q} ${bundle_path_q}" \
   < "${repo_root}/deploy/scripts/remote-deploy.sh"
