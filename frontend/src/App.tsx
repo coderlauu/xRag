@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { AppLayout } from "./components/AppLayout";
+import { ChunksPage } from "./pages/ChunksPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { KnowledgeBasesPage } from "./pages/KnowledgeBasesPage";
@@ -14,7 +15,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
  *        └─ /knowledge-bases/{kbId}/documents/{docId}/chunks   分块管理
  * ```
  *
- * 后两条由工单 12 / 13 加入。文档详情不占路由——原型把它做成了文档列表上的右侧抽屉，
+ * 分块页由工单 13 加入。文档详情不占路由——原型把它做成了文档列表上的右侧抽屉，
  * 这样能保留列表上下文。
  */
 export default function App() {
@@ -25,6 +26,10 @@ export default function App() {
           <Route index element={<Navigate to="/knowledge-bases" replace />} />
           <Route path="/knowledge-bases" element={<KnowledgeBasesPage />} />
           <Route path="/knowledge-bases/:kbId" element={<DocumentsPage />} />
+          <Route
+            path="/knowledge-bases/:kbId/documents/:docId/chunks"
+            element={<ChunksPage />}
+          />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

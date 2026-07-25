@@ -2,11 +2,7 @@ package com.app.knowledge.ingestion;
 
 import com.app.knowledge.model.ChunkConfig;
 import com.app.knowledge.model.TextChunk;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -35,7 +31,7 @@ public class TextChunker {
         List<TextChunk> chunks = new ArrayList<>(pieces.size());
         for (String piece : pieces) {
             chunks.add(new TextChunk(chunks.size(), piece, piece.length(),
-                    TokenEstimator.estimate(piece), sha256(piece)));
+                    TokenEstimator.estimate(piece), ContentHash.sha256(piece)));
         }
         return chunks;
     }
@@ -164,15 +160,6 @@ public class TextChunker {
         String trimmed = content.strip();
         if (!trimmed.isEmpty()) {
             chunks.add(trimmed);
-        }
-    }
-
-    private String sha256(String content) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(content.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("JVM 未提供 SHA-256", impossible);
         }
     }
 }

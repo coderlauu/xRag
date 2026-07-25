@@ -198,6 +198,9 @@ export function DocumentsPage() {
                       >
                         {TRIGGER_LABEL[doc.status]}
                       </button>
+                      <Link className="button-link" to={`/knowledge-bases/${kbId}/documents/${doc.id}/chunks`}>
+                        分块
+                      </Link>
                       <button
                         type="button"
                         onClick={() => setExpanded(expanded === doc.id ? null : doc.id)}

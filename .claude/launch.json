@@ -8,6 +8,15 @@
       "port": 5173
     },
     {
+      "name": "backend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd backend && JAVA_HOME=$(/usr/libexec/java_home -v 17) exec ./mvnw spring-boot:run"
+      ],
+      "port": 3001
+    },
+    {
       "name": "prototype",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8123", "--directory", "prototype"],

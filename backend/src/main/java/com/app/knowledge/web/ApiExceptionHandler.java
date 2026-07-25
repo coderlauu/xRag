@@ -1,5 +1,6 @@
 package com.app.knowledge.web;
 
+import com.app.knowledge.embedding.EmbeddingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -40,5 +41,21 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleTooLarge(MaxUploadSizeExceededException exception) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(new ErrorResponse("FILE_TOO_LARGE", "文件超过 50MB 上限，无法上传。请压缩或拆分后重试。"));
+    }
+
+    /**
+     * api.md §1 的 {@code 502 EMBEDDING_FAILED}，标注为"同步接口路径上才会出现"。
+     *
+     * <p>入库是异步的，那条路径上的 Embedding 失败由 {@code IngestionExecutor} 捕获后写进
+     * 任务记录，永远不会走到这里。**手工编辑分块是第一条同步调用 Embedding 的路径**，
+     * 不映射的话供应商故障会返回 500，前端只能显示"操作失败"，而这恰恰是用户看一眼提示
+     * 就知道该去查模型服务配置的情况。
+     */
+    @ExceptionHandler(EmbeddingException.class)
+    public ResponseEntity<ErrorResponse> handleEmbeddingFailure(EmbeddingException exception) {
+        LOGGER.warn("Embedding 调用失败：{}", exception.toString());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new ErrorResponse("EMBEDDING_FAILED",
+                        "向量计算服务暂时不可用。请稍后重试；若持续失败请检查模型服务配置。"));
     }
 }

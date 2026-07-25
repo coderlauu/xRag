@@ -5,9 +5,11 @@ import com.app.knowledge.embedding.EmbeddingClient;
 import com.app.knowledge.embedding.EmbeddingException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 全部集成测试共用的假 Embedding 实现。
@@ -27,6 +29,24 @@ public class FakeEmbeddingConfig {
     /** 让下一次 embed 调用抛异常，用于验证失败路径的事务回滚。 */
     public static final AtomicBoolean SHOULD_FAIL = new AtomicBoolean(false);
 
+    /**
+     * 累计调用次数。这是"没有触发向量重算"唯一可靠的断言手段——CHK-21 要验的是
+     * **一次 Embedding 调用都没发生**，而不是"结果看起来没变"。观察向量表本身做不到：
+     * 确定性假实现对同样的内容会算出同样的向量，删旧插新之后表里的值与之前一模一样。
+     */
+    public static final AtomicInteger CALLS = new AtomicInteger();
+
+    /**
+     * 最近一次 embed 调用发生时，当前线程上**是否正处在一个数据库事务中**。
+     *
+     * <p>这是"Embedding 必须在事务外算完再开事务"这条纪律唯一的确定性断言手段。测试矩阵
+     * 原本把它列为手工项（跑 psql 盯 `pg_stat_activity` 里有没有长事务），那个办法能覆盖
+     * 异步入库那条链路，但对同步接口来说太贵也太容易漏——而这条纪律最容易被破坏的方式
+     * 恰恰是**给方法加一个 {@code @Transactional}**，加了之后内部的编程式事务会静默地
+     * 加入外层事务，什么报错都不会有。这里一行断言就能守住。
+     */
+    public static final AtomicBoolean IN_TRANSACTION_AT_CALL = new AtomicBoolean(false);
+
     @Bean
     @Primary
     EmbeddingClient fakeEmbeddingClient() {
@@ -34,6 +54,8 @@ public class FakeEmbeddingConfig {
         return new EmbeddingClient() {
             @Override
             public List<float[]> embed(List<String> texts) {
+                CALLS.incrementAndGet();
+                IN_TRANSACTION_AT_CALL.set(TransactionSynchronizationManager.isActualTransactionActive());
                 if (SHOULD_FAIL.get()) {
                     throw new EmbeddingException("模拟的 Embedding 调用失败");
                 }

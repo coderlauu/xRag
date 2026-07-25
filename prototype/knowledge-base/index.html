@@ -873,7 +873,13 @@ function saveChunk() {
   const next = document.getElementById('chunkText').value;
   S.modal = null;
   if (next === c.content) toast('ok', '内容未变化，未重新计算向量。', '');
-  else { c.content = next; c.charCount = next.length; toast('ok', '已保存，向量已更新。', ''); }
+  else {
+    c.content = next; c.charCount = next.length;
+    // 禁用的分块没有向量，编辑也不写向量。这里说"向量已更新"会让用户以为这段内容
+    // 已经能被检索到了，而它恰恰不能（ui-spec §6 第三种情况）。
+    if (c.enabled) toast('ok', '已保存，向量已更新。', '');
+    else toast('ok', '已保存。', '该分块已禁用、不参与检索，因此没有计算向量。');
+  }
   render();
 }
 
@@ -930,9 +936,18 @@ function modalHTML() {
     ft = `<button onclick="closeAll()">取消</button><button class="pri" onclick="saveChunk()">保存</button>`;
   } else if (m.kind === 'add') {
     hd = '新增分块';
+    // 序号输入框是 2026-07-25 实现工单 14 时补的：ui-spec §6 写了"手动新增分块时可指定
+    // 已存在的序号"、api.md §4 的请求体也有 chunkIndex，但原型只有正文一个输入框，
+    // 用户没有任何途径指定位置。
     bd = `<textarea id="chunkText" placeholder="输入分块内容……"></textarea>
+          <label style="display:block;margin-top:10px;font-size:12.5px;color:var(--ink-3)">插入位置（可选）
+            <input id="chunkIdx" type="number" min="0" placeholder="留空则追加到末尾"
+                   style="display:block;margin-top:4px;width:180px;padding:6px 8px;
+                          border:1px solid var(--line);border-radius:6px;
+                          background:var(--surface);color:var(--ink)"></label>
           <p style="margin:10px 0 0;font-size:12.5px;color:var(--ink-3)">
-            不指定序号时追加到末尾（当前最大序号 + 1）。新增后立即计算向量并参与检索。</p>`;
+            留空则追加到末尾（当前最大序号 + 1，已删除分块的序号也算在内）。填写已存在的序号
+            不会重排其他分块，两条同号分块会相邻展示。新增后立即计算向量并参与检索。</p>`;
     ft = `<button onclick="closeAll()">取消</button>
           <button class="pri" onclick="closeAll();toast('ok','分块已新增。','向量已写入，可立即被检索。')">新增</button>`;
   } else {

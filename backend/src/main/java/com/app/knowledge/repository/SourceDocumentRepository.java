@@ -129,6 +129,30 @@ public class SourceDocumentRepository {
                         : errorMessage.substring(0, 2045) + "...", docId);
     }
 
+    /** 手动新增分块后递增冗余计数。 */
+    public void incrementChunkCount(long docId) {
+        jdbc.update("""
+                update source_document set chunk_count = chunk_count + 1, update_time = now()
+                 where id = ?
+                """, docId);
+    }
+
+    /**
+     * 删除单个分块后递减冗余计数（data-model §4）。
+     *
+     * <p>{@code case when chunk_count > 0} 这层防护成本是几个字符，收益是这个字段永远不会
+     * 出现负数。它正常不该为 0，但冗余计数与实际行数不严格一致这种事，早期 bug、手工改库、
+     * 并发回滚都可能造成。
+     */
+    public void decrementChunkCount(long docId) {
+        jdbc.update("""
+                update source_document
+                   set chunk_count = case when chunk_count > 0 then chunk_count - 1 else 0 end,
+                       update_time = now()
+                 where id = ?
+                """, docId);
+    }
+
     /** 启动回收用：单实例下进程刚起来时不可能有真正在跑的任务，所以这个判断完全准确。 */
     public List<Long> findRunningIds() {
         return jdbc.queryForList(

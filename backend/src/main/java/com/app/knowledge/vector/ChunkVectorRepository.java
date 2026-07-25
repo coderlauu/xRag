@@ -1,5 +1,7 @@
 package com.app.knowledge.vector;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -43,6 +45,23 @@ public class ChunkVectorRepository {
 
     public int deleteByDocId(long docId) {
         return jdbc.update("delete from document_chunk_embedding where doc_id = ?", docId);
+    }
+
+    /**
+     * 单个分块的向量删除。分块内容更新时的"删旧插新"用它——{@code chunk_id} 是主键，
+     * 删完再插同一个 id 不会产生重复行（本类注释的不变量 3）。
+     */
+    public int deleteByChunkId(long chunkId) {
+        return jdbc.update("delete from document_chunk_embedding where chunk_id = ?", chunkId);
+    }
+
+    public int deleteByChunkIds(Collection<Long> chunkIds) {
+        if (chunkIds.isEmpty()) {
+            return 0;
+        }
+        String placeholders = String.join(",", Collections.nCopies(chunkIds.size(), "?"));
+        return jdbc.update("delete from document_chunk_embedding where chunk_id in ("
+                + placeholders + ")", chunkIds.toArray());
     }
 
     public long countByDocId(long docId) {
