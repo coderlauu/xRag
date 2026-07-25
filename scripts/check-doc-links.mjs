@@ -9,6 +9,7 @@ const markdownRoots = [
   path.join(repoRoot, "learning"),
   path.join(repoRoot, "docs"),
   path.join(repoRoot, "tech"),
+  path.join(repoRoot, "prototype"),
   path.join(repoRoot, "deploy")
 ];
 const errors = [];

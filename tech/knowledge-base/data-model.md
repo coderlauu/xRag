@@ -1,7 +1,7 @@
 # 数据模型：AI 知识库建设模块
 
 - `status`: approved（`2026-07-25`）
-- `related_docs`: [架构方案](architecture.md)、[API 契约](api.md)、[PRD](../../docs/prd/2026-07-25-knowledge-base-prd.md)、[CONTEXT.md](../../CONTEXT.md)
+- `related_docs`: [架构方案](architecture.md)、[API 契约](api.md)、[界面规格](ui-spec.md)、[测试矩阵](test-matrix.md)、[PRD](../../docs/prd/2026-07-25-knowledge-base-prd.md)、[CONTEXT.md](../../CONTEXT.md)
 
 本文件的 DDL 就是 Flyway migration `V2__knowledge_base_schema.sql` 的内容，两者必须保持一致。已存在的 `V1__enable_pgvector.sql` 只启用扩展，不含业务表。
 
@@ -73,6 +73,10 @@ create table source_document (
     sync_cron           varchar(64),
     next_sync_time      timestamptz,
     last_sync_time      timestamptz,
+    -- 分块配置（每文档可配，V3 补入）
+    chunk_strategy      varchar(16)   not null default 'RECURSIVE',
+    chunk_size          integer       not null default 1000,
+    chunk_overlap       integer       not null default 100,
     -- 处理状态
     status              varchar(16)   not null default 'PENDING',
     revision            integer       not null default 0,
@@ -90,7 +94,11 @@ create table source_document (
     constraint ck_source_document_url_fields
         check (source_type <> 'URL' or source_uri is not null),
     constraint ck_source_document_sync_fields
-        check (sync_enabled = false or (source_type = 'URL' and sync_cron is not null))
+        check (sync_enabled = false or (source_type = 'URL' and sync_cron is not null)),
+    constraint ck_source_document_chunk_strategy
+        check (chunk_strategy in ('FIXED_SIZE', 'RECURSIVE')),
+    constraint ck_source_document_chunk_params
+        check (chunk_size > 0 and chunk_overlap >= 0 and chunk_overlap < chunk_size)
 );
 
 create index idx_source_document_kb on source_document (kb_id, deleted, id desc);
@@ -103,6 +111,7 @@ create index idx_source_document_sync on source_document (next_sync_time)
 - `revision` 从 0 开始，每次成功分块 +1。`revision = 0` 表示"上传后还没成功分块过"。
 - `idx_source_document_sync` 是部分索引：定时扫描只关心开了同步的 URL 文档，索引只覆盖这部分记录，比全表索引小得多。注意 `status <> 'RUNNING'` **没有**放进索引条件——`status` 是高频更新列，放进部分索引条件会导致每次状态变更都触发索引项的增删。
 - `file_key` 对 URL 来源同样有值：URL 文档抓取后也会存进对象存储（有了本地副本才能在不重新下载的情况下重新分块）。
+- **分块配置三列是每文档独立的**，不是全局配置：定时同步重新分块时必须沿用该文档原本的策略，否则用户为某份文档特意调小的 `chunkSize` 会在下一次自动同步时被悄悄改回默认值。列名用 `chunk_overlap` 而非 `overlap`，避免与 SQL 的 `overlaps` 谓词形近读错。这三列由 `V3__source_document_chunk_config.sql` 补入——`V2` 建表时漏了，而 `V2` 已实际执行过，改它会破坏 Flyway 的校验和。
 
 **状态机**：
 

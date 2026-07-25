@@ -1,0 +1,1007 @@
+<meta charset="utf-8">
+<title>知识库管理 · 界面原型</title>
+
+<style>
+* { box-sizing: border-box; }
+
+:root {
+  --ground: #f6f7f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f3;
+  --line: #dfe4e8;
+  --line-strong: #c6ced5;
+  --ink: #1a1e22;
+  --ink-2: #59626b;
+  --ink-3: #8a939c;
+  --accent: #0d7a72;
+  --accent-hover: #0a655e;
+  --accent-on: #ffffff;
+  --accent-soft: #e0efed;
+  --s-pending: #6b7480;
+  --s-running: #1e6fbf;
+  --s-success: #1f7a45;
+  --s-failed: #b3261e;
+  --s-pending-bg: #eceef0;
+  --s-running-bg: #e4eef9;
+  --s-success-bg: #e5f2ea;
+  --s-failed-bg: #fbe9e7;
+  --shadow: 0 1px 2px rgba(20,26,32,.06), 0 6px 20px rgba(20,26,32,.07);
+
+  --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #15181b; --surface: #1c2024; --surface-2: #23282d;
+    --line: #2f363c; --line-strong: #3d454c;
+    --ink: #e4e8eb; --ink-2: #a4aeb7; --ink-3: #737d86;
+    --accent: #46b3a9; --accent-hover: #5cc2b8; --accent-on: #10201f; --accent-soft: #16302d;
+    --s-pending: #8a939c; --s-running: #5fa3e8; --s-success: #4cb377; --s-failed: #e8756b;
+    --s-pending-bg: #24292e; --s-running-bg: #16283a; --s-success-bg: #162c20; --s-failed-bg: #331f1d;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #15181b; --surface: #1c2024; --surface-2: #23282d;
+  --line: #2f363c; --line-strong: #3d454c;
+  --ink: #e4e8eb; --ink-2: #a4aeb7; --ink-3: #737d86;
+  --accent: #46b3a9; --accent-hover: #5cc2b8; --accent-on: #10201f; --accent-soft: #16302d;
+  --s-pending: #8a939c; --s-running: #5fa3e8; --s-success: #4cb377; --s-failed: #e8756b;
+  --s-pending-bg: #24292e; --s-running-bg: #16283a; --s-success-bg: #162c20; --s-failed-bg: #331f1d;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+}
+:root[data-theme="light"] {
+  --ground: #f6f7f8; --surface: #ffffff; --surface-2: #eef1f3;
+  --line: #dfe4e8; --line-strong: #c6ced5;
+  --ink: #1a1e22; --ink-2: #59626b; --ink-3: #8a939c;
+  --accent: #0d7a72; --accent-hover: #0a655e; --accent-on: #ffffff; --accent-soft: #e0efed;
+  --s-pending: #6b7480; --s-running: #1e6fbf; --s-success: #1f7a45; --s-failed: #b3261e;
+  --s-pending-bg: #eceef0; --s-running-bg: #e4eef9; --s-success-bg: #e5f2ea; --s-failed-bg: #fbe9e7;
+  --shadow: 0 1px 2px rgba(20,26,32,.06), 0 6px 20px rgba(20,26,32,.07);
+}
+
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 400 14px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 60px;
+}
+/* 抽屉展开时把正文垫高，否则它会盖住页面底部的内容 */
+body.scaffold-open { padding-bottom: 400px; }
+
+/* ─── 外壳 ─────────────────────────────────────────── */
+.shell { display: flex; min-height: 100vh; }
+
+.rail {
+  width: 208px; flex: 0 0 208px; border-right: 1px solid var(--line);
+  background: var(--surface); padding: 20px 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.brand { display: flex; align-items: baseline; gap: 7px; padding: 0 10px 20px; }
+.brand b { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.brand span { font: 500 10px var(--mono); color: var(--ink-3); letter-spacing: .06em; }
+.rail a {
+  display: block; padding: 8px 10px; border-radius: 6px; color: var(--ink-2);
+  text-decoration: none; font-size: 13.5px; cursor: pointer;
+}
+.rail a:hover { background: var(--surface-2); color: var(--ink); }
+.rail a.on { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+/* 范围外的导航项：仍然可点，点了会说明为什么不在这份原型里 */
+.rail a.off { color: var(--ink-3); }
+.rail a.off::after { content: "范围外"; float: right; font: 500 10px var(--mono); color: var(--ink-3); opacity: .8; }
+.rail .grp { font: 500 10px var(--mono); letter-spacing: .08em; color: var(--ink-3); padding: 18px 10px 6px; }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  height: 52px; border-bottom: 1px solid var(--line); background: var(--surface);
+  display: flex; align-items: center; padding: 0 28px; gap: 8px;
+  position: sticky; top: 0; z-index: 20;
+}
+.crumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); min-width: 0; }
+.crumb b { color: var(--ink); font-weight: 500; }
+.crumb a { color: var(--ink-2); text-decoration: none; cursor: pointer; }
+.crumb a:hover { color: var(--accent); }
+.crumb i { color: var(--line-strong); font-style: normal; }
+.content { padding: 28px; max-width: 1180px; width: 100%; }
+
+/* ─── 页头 ─────────────────────────────────────────── */
+.phead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.phead h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.015em; text-wrap: balance; }
+.phead .sub { color: var(--ink-3); font-size: 13px; margin-top: 4px; }
+.phead .n { font: 500 13px var(--mono); color: var(--ink-3); }
+
+/* ─── 按钮 ─────────────────────────────────────────── */
+button {
+  font: inherit; font-size: 13px; border-radius: 6px; padding: 6px 13px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+button:hover:not(:disabled) { border-color: var(--ink-3); }
+button.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-on); font-weight: 500; }
+button.pri:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+button.danger:hover:not(:disabled) { border-color: var(--s-failed); color: var(--s-failed); }
+button.mini { padding: 3px 9px; font-size: 12.5px; }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; }
+button.link:hover { text-decoration: underline; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ─── 表格 ─────────────────────────────────────────── */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.tw { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th {
+  text-align: left; font: 500 11px var(--mono); letter-spacing: .05em; color: var(--ink-3);
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); white-space: nowrap;
+}
+td { padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; }
+td.act { text-align: right; white-space: nowrap; }
+td.act > * + * { margin-left: 6px; }
+.tname { font-weight: 500; color: var(--ink); cursor: pointer; }
+.tname:hover { color: var(--accent); text-decoration: underline; }
+.tsub { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
+.mono { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+/* ─── 状态药丸 ─────────────────────────────────────── */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: 20px;
+  font-size: 12.5px; font-weight: 500; white-space: nowrap;
+}
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.pill.PENDING { color: var(--s-pending); background: var(--s-pending-bg); }
+.pill.RUNNING { color: var(--s-running); background: var(--s-running-bg); }
+.pill.SUCCESS { color: var(--s-success); background: var(--s-success-bg); }
+.pill.FAILED  { color: var(--s-failed);  background: var(--s-failed-bg); }
+.pill.SKIPPED, .pill.QUEUED { color: var(--s-pending); background: var(--s-pending-bg); }
+.pill.RUNNING::before { animation: spin 1s linear infinite; border-radius: 1px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pill.RUNNING::before { animation: none; } }
+
+.tag { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 12px; border: 1px solid var(--line-strong); color: var(--ink-2); }
+.tag.on { color: var(--s-success); border-color: color-mix(in srgb, var(--s-success) 40%, transparent); background: var(--s-success-bg); }
+.tag.off { color: var(--ink-3); background: var(--surface-2); }
+
+/* ─── 提示条 ───────────────────────────────────────── */
+.banner {
+  display: flex; gap: 10px; align-items: flex-start; padding: 11px 15px; border-radius: 8px;
+  font-size: 13.5px; margin-bottom: 16px; border: 1px solid var(--line);
+  background: var(--surface); line-height: 1.55;
+}
+.banner .ic { flex: none; font: 600 12px var(--mono); margin-top: 1px; }
+.banner.info { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
+.banner.info .ic { color: var(--accent); }
+.banner.warn { background: var(--s-running-bg); border-color: color-mix(in srgb, var(--s-running) 28%, transparent); }
+.banner.warn .ic { color: var(--s-running); }
+.banner.stop { background: var(--s-pending-bg); border-color: var(--line-strong); }
+.banner.stop .ic { color: var(--ink-2); }
+.banner b { font-weight: 600; }
+.banner .act { margin-left: auto; flex: none; }
+
+/* ─── 空态 ─────────────────────────────────────────── */
+.empty { text-align: center; padding: 68px 32px; }
+.empty h3 { margin: 0 0 8px; font-size: 15.5px; font-weight: 600; }
+.empty p { margin: 0 auto 20px; color: var(--ink-2); max-width: 46ch; font-size: 13.5px; }
+.empty .btns { display: flex; gap: 8px; justify-content: center; }
+
+/* ─── 分块 ─────────────────────────────────────────── */
+.ctool {
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); background: var(--surface-2); flex-wrap: wrap;
+}
+.ctool .sel { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ctool .sp { margin-left: auto; }
+select, input[type=text] {
+  font: inherit; font-size: 13px; padding: 5px 9px; border-radius: 6px;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+}
+.chunk { display: flex; gap: 13px; padding: 13px 16px; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.chunk:last-child { border-bottom: 0; }
+.chunk:hover { background: var(--surface-2); }
+.chunk.picked { background: var(--accent-soft); }
+.chunk input[type=checkbox] { margin: 3px 0 0; accent-color: var(--accent); width: 15px; height: 15px; }
+.chunk .body { flex: 1; min-width: 0; }
+.chunk .meta { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+.chunk .idx { font: 600 12.5px var(--mono); color: var(--accent); }
+.chunk .dims { font: 12px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.chunk .txt { color: var(--ink-2); font-size: 13.5px; }
+.chunk .txt.clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.chunk .more { font-size: 12.5px; margin-top: 3px; }
+.chunk .ops { flex: none; display: flex; gap: 6px; }
+
+/* ─── 定时同步块 ───────────────────────────────────── */
+.sync { border: 1px solid var(--line); border-radius: 9px; background: var(--surface); overflow: hidden; }
+.sync .hd { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.sync .hd h4 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.kv { display: grid; grid-template-columns: 88px 1fr; gap: 9px 16px; padding: 14px 16px; font-size: 13.5px; }
+.kv dt { color: var(--ink-3); font-size: 13px; }
+.kv dd { margin: 0; }
+.kv dd .cron { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); margin-left: 7px; }
+
+/* ─── 抽屉（文档详情） ─────────────────────────────── */
+.scrim { position: fixed; inset: 0; background: rgba(10,14,18,.42); z-index: 40; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 94vw); z-index: 41;
+  background: var(--surface); border-left: 1px solid var(--line); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.drawer .hd { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: flex-start; gap: 12px; }
+.drawer .hd h3 { margin: 0 0 5px; font-size: 15.5px; font-weight: 600; }
+/* 详情抽屉的操作条：ui-spec §3 要求列表和详情两处都能操作，且 RUNNING 时同样禁用 */
+.drawer .dops { display: flex; gap: 7px; flex-wrap: wrap; padding: 11px 20px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.drawer .bd { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+.drawer section > h4 { margin: 0 0 10px; font: 500 10.5px var(--mono); letter-spacing: .07em; color: var(--ink-3); }
+.runrow { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.runrow:last-child { border-bottom: 0; }
+.runrow .when { font: 12px var(--mono); color: var(--ink-3); flex: none; width: 108px; font-variant-numeric: tabular-nums; }
+.runrow .what { flex: 1; min-width: 0; }
+.runrow .src { color: var(--ink-3); font-size: 12.5px; margin-top: 3px; }
+.fail { margin-top: 7px; }
+.fail summary { cursor: pointer; font-size: 12.5px; color: var(--accent); }
+.fail pre {
+  margin: 7px 0 0; padding: 9px 11px; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 6px; font: 12px/1.5 var(--mono); color: var(--ink-2); overflow-x: auto; white-space: pre-wrap;
+}
+
+/* ─── 弹层 ─────────────────────────────────────────── */
+.modal {
+  position: fixed; z-index: 51; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: min(480px, 92vw); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 11px; box-shadow: var(--shadow); overflow: hidden;
+}
+.modal .hd { padding: 16px 20px 0; }
+.modal .hd h3 { margin: 0; font-size: 15.5px; font-weight: 600; }
+.modal .bd { padding: 12px 20px 18px; font-size: 13.5px; color: var(--ink-2); line-height: 1.65; }
+.modal .bd b { color: var(--ink); }
+.modal .bd textarea {
+  width: 100%; min-height: 128px; font: 13px/1.65 var(--sans); color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 7px; padding: 10px 12px; resize: vertical;
+}
+.modal .ft { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); }
+
+/* ─── Toast ────────────────────────────────────────── */
+.toasts { position: fixed; bottom: 72px; right: 20px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.toast {
+  background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--ink-3);
+  border-radius: 7px; box-shadow: var(--shadow); padding: 11px 15px; max-width: 400px; font-size: 13.5px; line-height: 1.55;
+}
+.toast b { display: block; font-weight: 600; margin-bottom: 2px; }
+.toast.ok { border-left-color: var(--s-success); }
+.toast.err { border-left-color: var(--s-failed); }
+.toast.warn { border-left-color: var(--s-running); }
+.toast .code { font: 11px var(--mono); color: var(--ink-3); letter-spacing: .04em; }
+
+/* ─── 脚手架抽屉（刻意与产品区分）────────────────── */
+.scaffold {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+  background: #101418; color: #c8d0d8; border-top: 2px solid #2b6f68;
+  font: 12.5px var(--mono);
+}
+.scaffold .bar { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 40px; cursor: pointer; }
+.scaffold .bar .dot { width: 7px; height: 7px; border-radius: 50%; background: #46b3a9; flex: none; }
+.scaffold .bar b { color: #f0f4f7; font-weight: 600; letter-spacing: .03em; }
+.scaffold .bar .hint { color: #6b7883; margin-left: auto; }
+.scaffold .panel { display: none; padding: 4px 16px 18px; border-top: 1px solid #232a30; }
+.scaffold.open .panel { display: block; }
+.scaffold .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(216px, 1fr)); gap: 16px; padding-top: 14px; }
+.scaffold .grp > label { display: block; color: #6b7883; letter-spacing: .07em; font-size: 10.5px; margin-bottom: 7px; }
+.scaffold .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.scaffold .chips button {
+  font: 12px var(--mono); background: #1a2026; border: 1px solid #2b333a; color: #a8b3bd;
+  padding: 4px 9px; border-radius: 5px;
+}
+.scaffold .chips button:hover { border-color: #46b3a9; color: #dce4ea; }
+.scaffold .chips button.on { background: #16302d; border-color: #46b3a9; color: #7fd6cc; }
+.scaffold .note { color: #5d6a74; padding-top: 14px; line-height: 1.7; font-size: 11.5px; max-width: 88ch; }
+.scaffold .note a { color: #7fd6cc; }
+
+@media (max-width: 720px) {
+  .rail { display: none; }
+  .content, .topbar { padding-left: 16px; padding-right: 16px; }
+  .kv { grid-template-columns: 1fr; gap: 3px 0; }
+  .runrow { flex-direction: column; gap: 4px; }
+  .runrow .when { width: auto; }
+}
+</style>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="brand"><b>xrag</b><span>控制台</span></div>
+    <a class="on" onclick="go('kb')">知识库</a>
+    <a class="off" onclick="outOfScope('知识问答','Phase 3')">知识问答</a>
+    <a class="off" onclick="outOfScope('评测','Phase 4')">评测</a>
+    <div class="grp">系统</div>
+    <a class="off" onclick="outOfScope('模型配置','模型调度模块')">模型配置</a>
+  </aside>
+  <div class="main">
+    <header class="topbar"><nav class="crumb" id="crumb"></nav></header>
+    <div class="content" id="view"></div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div id="overlay"></div>
+
+<div class="scaffold" id="scaffold">
+  <div class="bar" onclick="toggleScaffold()">
+    <span class="dot"></span><b>原型演示控制台</b>
+    <span style="color:#6b7883">切换状态以核对文案与按钮规则</span>
+    <span class="hint" id="scaffoldHint">展开 ▲</span>
+  </div>
+  <div class="panel">
+    <div class="grid">
+      <div class="grp">
+        <label>文档状态 · 产品手册.pdf</label>
+        <div class="chips" id="c-status"></div>
+      </div>
+      <div class="grp">
+        <label>处理阶段 PHASE</label>
+        <div class="chips" id="c-phase"></div>
+      </div>
+      <div class="grp">
+        <label>文档启用状态</label>
+        <div class="chips" id="c-enabled"></div>
+      </div>
+      <div class="grp">
+        <label>空态 / 筛选</label>
+        <div class="chips" id="c-empty"></div>
+      </div>
+      <div class="grp">
+        <label>错误提示（点击触发 toast）</label>
+        <div class="chips" id="c-err"></div>
+      </div>
+      <div class="grp">
+        <label>最近一次同步结果</label>
+        <div class="chips" id="c-run"></div>
+      </div>
+    </div>
+    <div class="note">
+      这一栏是<b>脚手架，不是产品的一部分</b>——真实系统里这些状态由后端数据决定。它存在的唯一理由是让评审者在 React 代码写出来之前就能核对
+      ui-spec.md 里那些光读文档很难判断的东西：四种状态的按钮文案是否合理、<code>RUNNING</code> 时该灰的是否都灰了、
+      <code>SKIPPED</code> 的措辞会不会让人误以为出错、四种错误提示是否真的告诉了用户下一步做什么。
+      <br><br>
+      「开始处理」可以直接点，会依次走完五个 <code>phase</code> 再进 <code>SUCCESS</code>，用来核对 §4 的阶段文案与 §3 的禁用规则。
+      <b>创建/编辑知识库、编辑文档、添加链接</b>这几个表单点了只会提示"规格未定"——ui-spec.md 目前没有规定它们的字段与校验，
+      原型不替规格做决定。
+    </div>
+  </div>
+</div>
+
+<script>
+/* ───────────────────────────────────────────────────────────
+   假数据。字段名与 tech/knowledge-base/api.md 的响应体一致，
+   方便照着原型对接口。
+   ─────────────────────────────────────────────────────────── */
+const S = {
+  view: 'kb',
+  empty: 'none',           // none | kb | docs | chunks0 | chunksN | filtered
+  detail: null,
+  modal: null,
+  picked: new Set(),
+  expanded: new Set(),
+  lastRun: 'SKIPPED',
+  filter: 'all',           // all | on | off —— 分块页的启用状态筛选
+  runsOpen: false,         // 详情抽屉是否展开了完整处理记录
+};
+
+const KBS = [
+  { id:1, name:'产品文档库', description:'内部产品说明与 FAQ', documentCount:12, chunkCount:1483, createTime:'2026-07-02' },
+  { id:2, name:'人事制度库', description:'员工手册、考勤与报销制度', documentCount:5, chunkCount:392, createTime:'2026-07-11' },
+  { id:3, name:'技术方案归档', description:'历年架构评审记录', documentCount:28, chunkCount:5104, createTime:'2026-07-18' },
+];
+
+const DOCS = [
+  { id:11, name:'产品手册.pdf', sourceType:'FILE', fileSize:2451234, status:'PENDING', phase:null,
+    revision:0, chunkCount:0, enabled:true, syncEnabled:false, chunkStrategy:'RECURSIVE',
+    chunkConfig:{chunkSize:1000, overlap:100}, createTime:'2026-07-25 10:05' },
+  { id:12, name:'员工手册', sourceType:'URL', sourceUri:'https://example.com/handbook.md', status:'SUCCESS', phase:null,
+    revision:3, chunkCount:142, enabled:true, syncEnabled:true, syncCron:'0 0 3 * * ?',
+    nextSyncTime:'2026-07-26 03:00', lastSyncTime:'2026-07-25 03:00',
+    chunkStrategy:'RECURSIVE', chunkConfig:{chunkSize:1000, overlap:100}, createTime:'2026-07-20 09:12' },
+  { id:13, name:'报销制度_2026.docx', sourceType:'FILE', fileSize:184320, status:'FAILED', phase:'EMBED',
+    errorMessage:'Embedding API 返回 429：rate limit exceeded（Requests per minute 上限 60，当前 73）',
+    revision:1, chunkCount:38, enabled:true, syncEnabled:false, chunkStrategy:'FIXED_SIZE',
+    chunkConfig:{chunkSize:800, overlap:80}, createTime:'2026-07-24 16:40' },
+  { id:14, name:'考勤规则.md', sourceType:'FILE', fileSize:9216, status:'SUCCESS', phase:null,
+    revision:2, chunkCount:17, enabled:false, syncEnabled:false, chunkStrategy:'RECURSIVE',
+    chunkConfig:{chunkSize:1000, overlap:100}, createTime:'2026-07-22 11:30' },
+  { id:15, name:'扫描版合同.pdf', sourceType:'FILE', fileSize:8912896, status:'SUCCESS', phase:null,
+    revision:1, chunkCount:0, enabled:true, syncEnabled:false, chunkStrategy:'RECURSIVE',
+    chunkConfig:{chunkSize:1000, overlap:100}, createTime:'2026-07-23 14:02' },
+];
+
+const CHUNKS = [
+  { id:901, chunkIndex:0, charCount:987, tokenCount:640, enabled:true,
+    content:'第一章　总则。第 1.1 条　为规范公司内部管理、明确员工权利与义务，依据《劳动合同法》及相关法律法规，结合公司实际情况，制定本手册。第 1.2 条　本手册适用于与公司签订劳动合同的全体正式员工；实习生、劳务派遣人员及外部顾问另行约定。第 1.3 条　本手册自发布之日起生效，此前发布的与本手册相冲突的规定同时废止。' },
+  { id:902, chunkIndex:1, charCount:1012, tokenCount:660, enabled:false,
+    content:'第 1.4 条　公司保留根据经营需要修订本手册的权利。修订内容将通过内部公告及邮件通知全体员工，自公告指定日期起生效。员工对修订内容有异议的，可在公告后十个工作日内向人力资源部提出书面意见。' },
+  { id:903, chunkIndex:2, charCount:864, tokenCount:562, enabled:true,
+    content:'第二章　工作时间与考勤。第 2.1 条　公司实行标准工时制，每周工作五天，每日工作八小时，具体上下班时间为 09:00 至 18:00，其中 12:00 至 13:00 为午休时间。部分岗位经批准可实行弹性工作制。' },
+  { id:904, chunkIndex:3, charCount:1145, tokenCount:744, enabled:true,
+    content:'第 2.2 条　员工应通过公司指定的考勤系统进行上下班打卡。因公外出、系统故障等原因无法打卡的，应在三个工作日内提交补卡申请并经直接上级审批。每自然月补卡次数不得超过三次。' },
+  { id:905, chunkIndex:4, charCount:672, tokenCount:437, enabled:true,
+    content:'第 2.3 条　迟到、早退累计时长的处理：单月累计不满 30 分钟的不予处理；30 分钟以上不满 2 小时的，按事假处理；2 小时以上的，按半日事假处理。' },
+  { id:906, chunkIndex:5, charCount:1198, tokenCount:779, enabled:false,
+    content:'第三章　休假管理。第 3.1 条　员工依法享有带薪年休假。年休假天数按员工累计工作年限确定：累计工作已满 1 年不满 10 年的，年休假 5 天；已满 10 年不满 20 年的，年休假 10 天；已满 20 年的，年休假 15 天。' },
+  { id:907, chunkIndex:42, charCount:418, tokenCount:272, enabled:true,
+    content:'第 7.3 条　加班补偿按下列标准执行：工作日延长工作时间的，支付不低于工资的百分之一百五十的报酬；休息日安排工作而不能安排补休的，支付不低于百分之二百的报酬；法定休假日安排工作的，支付不低于百分之三百的报酬。' },
+  { id:908, chunkIndex:42, charCount:503, tokenCount:327, enabled:true,
+    content:'（补充说明，2026-07 人事部手工添加）加班申请须在加班发生前提交，事后补报的加班原则上不予认定，特殊情况经部门负责人及人力资源部共同批准后可例外处理。' },
+];
+
+const RUNS = [
+  { id:57, triggerSource:'SCHEDULED', status:'SKIPPED', phase:null, finishedTime:'07-25 03:00:12' },
+  { id:56, triggerSource:'SCHEDULED', status:'SKIPPED', phase:null, finishedTime:'07-24 03:00:09' },
+  { id:55, triggerSource:'SCHEDULED', status:'FAILED', phase:'DOWNLOAD',
+    errorMessage:'java.net.SocketTimeoutException: Read timed out（example.com，超时 30s）', finishedTime:'07-23 03:00:31' },
+  { id:54, triggerSource:'MANUAL', status:'SUCCESS', phase:null, revision:3, chunkCount:142, finishedTime:'07-22 15:41:02' },
+  { id:53, triggerSource:'SCHEDULED', status:'FAILED', phase:'EMBED',
+    errorMessage:'Embedding API 返回 429：rate limit exceeded', finishedTime:'07-21 03:00:37' },
+];
+
+/* ─── ui-spec.md 的文案映射表，全部集中在这里 ────────── */
+const STATUS_CN = { PENDING:'待处理', RUNNING:'处理中', SUCCESS:'已完成', FAILED:'处理失败' };
+const RUN_CN    = { QUEUED:'排队中', RUNNING:'处理中', SUCCESS:'成功', FAILED:'失败', SKIPPED:'内容未变化，已跳过' };
+const TRIGGER_CN= { MANUAL:'手动触发', SCHEDULED:'定时同步' };
+const PHASE_ING = { DOWNLOAD:'正在读取文件', EXTRACT:'正在提取文本', CHUNK:'正在切分内容', EMBED:'正在计算向量', PERSIST:'正在写入' };
+const PHASE_ERR = { DOWNLOAD:'读取文件失败', EXTRACT:'文本提取失败', CHUNK:'内容切分失败', EMBED:'向量计算失败', PERSIST:'写入失败' };
+const TRIGGER_LABEL = { PENDING:'开始处理', SUCCESS:'重新处理', FAILED:'重试', RUNNING:'处理中' };
+const RUNNING_TIP = '文档正在处理中，请等待处理完成后再操作。';
+
+const ERRORS = {
+  FILE_TOO_LARGE:      ['413', '文件超过 50MB 上限，无法上传。', '请压缩或拆分后重试。'],
+  UNSUPPORTED_FILE_TYPE:['415', '不支持这种文件格式。', '目前支持 .txt、.md、.pdf、.docx。'],
+  UPLOAD_BUSY:         ['429', '当前上传任务较多，请稍后重试。', '系统同时最多处理 3 个上传。'],
+  DOCUMENT_PROCESSING: ['409', RUNNING_TIP, ''],
+  INVALID_STATE:       ['409', '文档已禁用，无法新增分块。', '请先启用文档。'],
+  NOT_FOUND:           ['404', '内容不存在或已被删除。', '请返回列表刷新后重试。'],
+  EMBEDDING_FAILED:    ['502', '向量计算服务暂时不可用。', '请稍后重试；若持续失败请检查模型服务配置。'],
+};
+
+/* ─── 工具 ─────────────────────────────────────────── */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const kb  = n => n >= 1048576 ? (n/1048576).toFixed(1)+' MB' : Math.round(n/1024)+' KB';
+const el  = h => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstElementChild; };
+const doc11 = () => DOCS[0];
+
+function toast(kind, title, body, code) {
+  const t = el(`<div class="toast ${kind}">
+    ${code ? `<span class="code">${code}</span>` : ''}
+    <b>${esc(title)}</b>${body ? esc(body) : ''}
+  </div>`);
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 6000);
+}
+function fireError(key) {
+  const [code, title, body] = ERRORS[key];
+  toast(code === '409' || code === '429' ? 'warn' : 'err', title, body, `${code} ${key}`);
+}
+function go(v, arg) { S.view = v; S.picked.clear(); if (v === 'chunks') S.docId = arg || 12; render(); }
+
+/* 范围外的导航项。真实系统里这些是别的模块的页面，这份原型只覆盖知识库。 */
+function outOfScope(name, where) {
+  toast('', `${name}不在这份原型的范围内。`,
+    `它属于${where}，本原型只覆盖 tech/knowledge-base/ui-spec.md 规定的三个页面。`);
+}
+
+/* ui-spec.md 还没有规定的表单。点了要说明"规格未定"，而不是静默无反应——
+   静默会被读成原型坏了，说清楚才能让评审者知道这里缺的是规格不是实现。 */
+function notSpecced(what) {
+  toast('warn', `${what}的界面规格尚未确定。`,
+    'ui-spec.md 没有规定这个表单的字段与校验，原型暂不覆盖；规格补齐后再补进来。');
+}
+
+/* ─── 面包屑 ───────────────────────────────────────── */
+function crumb() {
+  const d = DOCS.find(x => x.id === S.docId) || DOCS[1];
+  const p = [`<a onclick="go('kb')">知识库</a>`];
+  if (S.view !== 'kb') p.push(`<i>/</i>`, S.view === 'docs' ? `<b>产品文档库</b>` : `<a onclick="go('docs')">产品文档库</a>`);
+  if (S.view === 'chunks') p.push(`<i>/</i>`, `<a onclick="go('docs')">${esc(d.name)}</a>`, `<i>/</i>`, `<b>分块</b>`);
+  document.getElementById('crumb').innerHTML = p.join('');
+}
+
+/* ═══ 视图 1：知识库列表 ══════════════════════════════ */
+function viewKB() {
+  if (S.empty === 'kb') return `
+    <div class="phead"><div><h1>知识库</h1></div>
+      <button class="pri" onclick="notSpecced('创建知识库')">创建知识库</button></div>
+    <div class="card"><div class="empty">
+      <h3>还没有知识库。</h3>
+      <p>知识库是文档的归属边界，同一业务范围的资料放在一个知识库里。</p>
+      <div class="btns"><button class="pri" onclick="notSpecced('创建知识库')">创建知识库</button></div>
+    </div></div>`;
+
+  return `
+  <div class="phead">
+    <div><h1>知识库</h1><div class="sub">共 ${KBS.length} 个知识库，向量模型 <span class="mono">text-embedding-v3 · 1024 维</span></div></div>
+    <button class="pri" onclick="notSpecced('创建知识库')">创建知识库</button>
+  </div>
+  <div class="card"><div class="tw"><table>
+    <thead><tr>
+      <th>名称</th><th class="num">文档</th><th class="num">分块</th><th>向量配置</th><th>创建时间</th><th></th>
+    </tr></thead>
+    <tbody>${KBS.map(k => `<tr>
+      <td><div class="tname" onclick="go('docs')">${esc(k.name)}</div><div class="tsub">${esc(k.description)}</div></td>
+      <td class="num">${k.documentCount}</td>
+      <td class="num">${k.chunkCount.toLocaleString()}</td>
+      <td><span class="mono">text-embedding-v3</span> <span class="tsub" style="display:inline">1024 维</span></td>
+      <td class="mono">${k.createTime}</td>
+      <td class="act">
+        <button class="mini" onclick="notSpecced('编辑知识库')">编辑</button>
+        <button class="mini danger" onclick="confirmDeleteKB(${k.id})">删除</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table></div></div>`;
+}
+
+/* ═══ 视图 2：文档列表 ════════════════════════════════ */
+function viewDocs() {
+  if (S.empty === 'docs') return `
+    <div class="phead"><div><h1>产品文档库</h1></div>
+      <div style="display:flex;gap:8px">
+        <button class="pri" onclick="uploadDemo()">上传文件</button>
+        <button onclick="notSpecced('添加链接')">添加链接</button></div></div>
+    <div class="card"><div class="empty">
+      <h3>这个知识库还没有文档。</h3>
+      <p>上传本地文件，或添加一个可定时同步的文件链接。</p>
+      <div class="btns"><button class="pri" onclick="uploadDemo()">上传文件</button>
+        <button onclick="notSpecced('添加链接')">添加链接</button></div>
+    </div></div>`;
+
+  const pending = DOCS.filter(d => d.status === 'PENDING').length;
+
+  const rows = DOCS.map(d => {
+    const busy = d.status === 'RUNNING';
+    const tip  = busy ? ` title="${RUNNING_TIP}"` : '';
+    const dis  = busy ? ' disabled' : '';
+    const stateCell = busy && d.phase
+      ? `<span class="pill RUNNING">处理中</span><div class="tsub">${PHASE_ING[d.phase]}</div>`
+      : d.status === 'FAILED' && d.phase
+        ? `<span class="pill FAILED">处理失败</span><div class="tsub">${PHASE_ERR[d.phase]}</div>`
+        : `<span class="pill ${d.status}">${STATUS_CN[d.status]}</span>`;
+
+    return `<tr>
+      <td>
+        <div class="tname" onclick="openDetail(${d.id})">${esc(d.name)}</div>
+        <div class="tsub">
+          ${d.sourceType === 'URL' ? '链接来源' : kb(d.fileSize)} ·
+          ${d.chunkStrategy === 'RECURSIVE' ? '递归分隔符' : '固定长度'}
+          <span class="mono">${d.chunkConfig.chunkSize}/${d.chunkConfig.overlap}</span>
+        </div>
+      </td>
+      <td>${stateCell}</td>
+      <td class="num">${d.revision === 0 ? '—' : 'v' + d.revision}</td>
+      <td class="num">${d.chunkCount || '—'}</td>
+      <td><span class="tag ${d.enabled ? 'on' : 'off'}">${d.enabled ? '已启用' : '已禁用'}</span></td>
+      <td>${d.syncEnabled
+        ? `<span class="mono" title="${d.syncCron}">每天 03:00</span>`
+        : `<span style="color:var(--ink-3)">—</span>`}</td>
+      <td class="act">
+        <button class="mini ${d.status === 'PENDING' ? 'pri' : ''}"${dis}${tip}
+                onclick="trigger(${d.id})">${TRIGGER_LABEL[d.status]}</button>
+        <button class="mini"${dis}${tip} onclick="go('chunks',${d.id})">分块</button>
+        <button class="mini"${dis}${tip} onclick="notSpecced('编辑文档')">编辑</button>
+        <button class="mini"${dis}${tip} onclick="${d.enabled ? `confirmDisableDoc(${d.id})` : `enableDoc(${d.id})`}">${d.enabled ? '禁用' : '启用'}</button>
+        <button class="mini danger"${dis}${tip} onclick="confirmDeleteDoc(${d.id})">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="phead">
+    <div><h1>产品文档库</h1><div class="sub">内部产品说明与 FAQ</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="pri" onclick="uploadDemo()">上传文件</button>
+      <button onclick="notSpecced('添加链接')">添加链接</button>
+    </div>
+  </div>
+  ${pending ? `<div class="banner info"><span class="ic">!</span>
+    <div>有 <b>${pending}</b> 篇文档待处理，处理后内容才能被检索。</div></div>` : ''}
+  <div class="card"><div class="tw"><table>
+    <thead><tr>
+      <th>文档</th><th>处理状态</th><th class="num">版本</th><th class="num">分块</th>
+      <th>检索</th><th>定时同步</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+
+/* ═══ 视图 3：分块管理 ════════════════════════════════ */
+/* 当前筛选条件下可见的分块。全选与计数都以它为准，否则会选中屏幕上看不见的行。 */
+function visibleChunks() {
+  return CHUNKS.filter(c => S.filter === 'all' || (S.filter === 'on') === c.enabled);
+}
+
+function viewChunks() {
+  const d = DOCS.find(x => x.id === S.docId) || DOCS[1];
+  const busy = d.status === 'RUNNING';
+
+  if (S.empty === 'chunks0') return chunkShell(d, `<div class="empty">
+      <h3>文档还没有处理。</h3>
+      <p>处理后会切分成分块并写入向量库，届时可在此查看和编辑。</p>
+      <div class="btns"><button class="pri" onclick="trigger(${d.id})">开始处理</button></div></div>`, true);
+
+  if (S.empty === 'chunksN') return chunkShell(d, `<div class="empty">
+      <h3>这份文档没有切出任何分块。</h3>
+      <p>可能是文件内容为空或无法提取出文本。</p>
+      <div class="btns"><button onclick="trigger(${d.id})">重新处理</button></div></div>`, true);
+
+  const list = visibleChunks();
+
+  if (S.empty === 'filtered' || (S.filter !== 'all' && !list.length)) return chunkShell(d, `<div class="empty">
+      <h3>当前筛选条件下没有内容。</h3>
+      <p>试着放宽筛选条件，或查看全部分块。</p>
+      <div class="btns"><button class="link" onclick="clearFilter()">清除筛选</button></div></div>`);
+
+  const rows = list.map(c => {
+    const open = S.expanded.has(c.id);
+    const tip = busy ? ` title="${RUNNING_TIP}"` : '';
+    const dis = busy ? ' disabled' : '';
+    return `<div class="chunk ${S.picked.has(c.id) ? 'picked' : ''}">
+      <input type="checkbox" ${S.picked.has(c.id) ? 'checked' : ''} ${dis}
+             onchange="pick(${c.id})" aria-label="选择分块 ${c.chunkIndex}">
+      <div class="body">
+        <div class="meta">
+          <span class="idx">#${c.chunkIndex}</span>
+          <span class="dims">${c.charCount} 字符 · 约 ${c.tokenCount} token</span>
+          <span class="tag ${c.enabled ? 'on' : 'off'}"
+                title="${c.enabled ? '参与检索' : '不参与检索，向量已清理'}">${c.enabled ? '已启用' : '已禁用'}</span>
+        </div>
+        <div class="txt ${open ? '' : 'clip'}">${esc(c.content)}</div>
+        <div class="more"><button class="link" onclick="expand(${c.id})">${open ? '收起' : '展开全文'}</button></div>
+      </div>
+      <div class="ops">
+        <button class="mini"${dis}${tip} onclick="editChunk(${c.id})">编辑</button>
+        ${c.enabled
+          ? `<button class="mini"${dis}${tip} onclick="toggleChunk(${c.id},false)">禁用</button>`
+          : `<button class="mini"${dis || (!d.enabled ? ' disabled' : '')}
+               ${!d.enabled ? ' title="文档已禁用，无法单独启用其中的分块。请先启用文档。"' : tip}
+               onclick="toggleChunk(${c.id},true)">启用</button>`}
+        <button class="mini danger"${dis}${tip} onclick="delChunk(${c.id})">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return chunkShell(d, rows);
+}
+
+function chunkShell(d, inner, noToolbar) {
+  const busy = d.status === 'RUNNING';
+  const n = S.picked.size;
+  const willChange = [...S.picked].filter(id => CHUNKS.find(c => c.id === id)?.enabled).length;
+
+  const banners =
+    (busy ? `<div class="banner warn"><span class="ic">◐</span>
+       <div><b>文档正在重新处理，当前分块即将被替换。</b>处理完成后请刷新。</div></div>` : '') +
+    (!d.enabled ? `<div class="banner stop"><span class="ic">⊘</span>
+       <div>文档已禁用，其中所有分块都不参与检索。<b>请先启用文档</b>，再单独调整分块。</div>
+       <div class="act"><button class="mini" onclick="enableDoc(${d.id})">启用文档</button></div></div>` : '');
+
+  const toolbar = noToolbar ? '' : `<div class="ctool">
+    <input type="checkbox" ${busy ? 'disabled' : ''} onchange="pickAll(this.checked)" aria-label="全选">
+    <span class="sel">${n ? `已选 ${n} 项` : '全选'}</span>
+    <button class="mini" ${!n || busy || !d.enabled ? 'disabled' : ''}
+      ${!d.enabled ? 'title="文档已禁用，无法单独启用其中的分块。请先启用文档。"' : ''}
+      onclick="batch(true)">批量启用</button>
+    <button class="mini" ${!n || busy ? 'disabled' : ''} onclick="batch(false)">批量禁用</button>
+    ${n > 500 ? `<span style="color:var(--s-failed);font-size:12.5px">单次最多操作 500 个分块，请分批处理。</span>` : ''}
+    <span class="sp"></span>
+    <select onchange="setFilter(this.value)" aria-label="按启用状态筛选">
+      <option value="all"${S.filter === 'all' ? ' selected' : ''}>全部</option>
+      <option value="on"${S.filter === 'on' ? ' selected' : ''}>仅已启用</option>
+      <option value="off"${S.filter === 'off' ? ' selected' : ''}>仅已禁用</option>
+    </select>
+  </div>`;
+
+  return `
+  <div class="phead">
+    <div><h1>${esc(d.name)} · 分块</h1>
+      <div class="sub">按原文顺序排列，序号是分块在原文中的位置</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="n">${noToolbar ? 0 : visibleChunks().length} 个分块</span>
+      <button class="pri" ${busy || !d.enabled ? 'disabled' : ''}
+        ${!d.enabled ? 'title="文档已禁用，无法新增分块。请先启用文档。"' : busy ? `title="${RUNNING_TIP}"` : ''}
+        onclick="addChunk()">新增分块</button>
+    </div>
+  </div>
+  ${banners}
+  <div class="card">${toolbar}${inner}</div>`;
+}
+
+/* ═══ 文档详情抽屉 ════════════════════════════════════ */
+function openDetail(id) { S.detail = id; S.runsOpen = false; render(); }
+function closeAll() { S.detail = null; S.modal = null; S.runsOpen = false; render(); }
+function openRuns() { S.runsOpen = true; render(); }
+
+function detailHTML() {
+  const d = DOCS.find(x => x.id === S.detail);
+  if (!d) return '';
+  const busy = d.status === 'RUNNING';
+  const dis = busy ? ' disabled' : '';
+  const tip = busy ? ` title="${RUNNING_TIP}"` : '';
+  const runs = [...RUNS];
+  runs[0] = { ...runs[0], status: S.lastRun,
+    phase: S.lastRun === 'FAILED' ? 'EMBED' : null,
+    errorMessage: S.lastRun === 'FAILED' ? 'Embedding API 返回 429：rate limit exceeded' : undefined };
+  const failCount = runs.filter(r => r.status === 'FAILED').length;
+
+  return `<div class="scrim" onclick="closeAll()"></div>
+  <div class="drawer" role="dialog" aria-label="文档详情">
+    <div class="hd">
+      <div style="flex:1;min-width:0">
+        <h3>${esc(d.name)}</h3>
+        <span class="pill ${d.status}">${STATUS_CN[d.status]}</span>
+        <span class="mono" style="color:var(--ink-3);margin-left:8px">v${d.revision} · ${d.chunkCount} 分块</span>
+      </div>
+      <button class="mini" onclick="closeAll()">关闭</button>
+    </div>
+    <div class="dops">
+      <button class="${d.status === 'PENDING' ? 'pri' : ''}"${dis}${tip}
+              onclick="trigger(${d.id})">${TRIGGER_LABEL[d.status]}</button>
+      <button${dis}${tip} onclick="notSpecced('编辑文档')">编辑</button>
+      <button${dis}${tip} onclick="${d.enabled ? `confirmDisableDoc(${d.id})` : `enableDoc(${d.id})`}">${d.enabled ? '禁用文档' : '启用文档'}</button>
+      <button class="danger"${dis}${tip} onclick="confirmDeleteDoc(${d.id})">删除</button>
+    </div>
+    <div class="bd">
+      ${d.status === 'FAILED' && d.phase ? `<div class="banner" style="margin:0;background:var(--s-failed-bg);border-color:color-mix(in srgb,var(--s-failed) 30%,transparent)">
+        <span class="ic" style="color:var(--s-failed)">✕</span>
+        <div style="flex:1"><b>${PHASE_ERR[d.phase]}</b>
+          <details class="fail"><summary>查看详情</summary><pre>${esc(d.errorMessage)}</pre></details>
+        </div></div>` : ''}
+
+      ${d.sourceType === 'URL' ? `<section>
+        <div class="sync">
+          <div class="hd"><h4>定时同步</h4>
+            <span class="tag ${d.syncEnabled ? 'on' : 'off'}">${d.syncEnabled ? '已开启' : '已关闭'}</span></div>
+          <dl class="kv">
+            <dt>同步规则</dt><dd>每天 03:00<span class="cron">${d.syncCron}</span></dd>
+            <dt>下次执行</dt><dd class="mono">${d.nextSyncTime}</dd>
+            <dt>上次执行</dt><dd class="mono">${d.lastSyncTime}　<span class="pill ${S.lastRun}">${RUN_CN[S.lastRun]}</span></dd>
+          </dl>
+          ${failCount ? `<div class="banner warn" style="margin:0 16px 14px">
+            <span class="ic">!</span><div>最近 ${runs.length} 次记录中有 <b>${failCount}</b> 次失败</div>
+            <div class="act"><button class="link" onclick="openRuns()">查看全部记录</button></div></div>` : ''}
+        </div>
+      </section>` : ''}
+
+      <section>
+        <h4>${S.runsOpen ? '处理记录' : '最近一次处理'}</h4>
+        ${(S.runsOpen ? runs : runs.slice(0, 1)).map(r => `<div class="runrow">
+          <div class="when">${r.finishedTime}</div>
+          <div class="what">
+            <span class="pill ${r.status}">${RUN_CN[r.status]}</span>
+            <div class="src">${TRIGGER_CN[r.triggerSource]}${r.status === 'SUCCESS' ? ` · 切出 ${r.chunkCount} 个分块（v${r.revision}）` : ''}${r.phase ? ` · ${PHASE_ERR[r.phase]}` : ''}</div>
+            ${r.errorMessage ? `<details class="fail"><summary>查看详情</summary><pre>${esc(r.errorMessage)}</pre></details>` : ''}
+          </div>
+        </div>`).join('')}
+        ${S.runsOpen ? '' : `<div style="padding-top:11px">
+          <button class="link" onclick="openRuns()">查看全部处理记录（${runs.length} 次）</button></div>`}
+      </section>
+
+      <section>
+        <h4>分块配置</h4>
+        <dl class="kv">
+          <dt>策略</dt><dd>${d.chunkStrategy === 'RECURSIVE' ? '递归分隔符' : '固定长度'}</dd>
+          <dt>分块大小</dt><dd class="mono">${d.chunkConfig.chunkSize} 字符</dd>
+          <dt>重叠</dt><dd class="mono">${d.chunkConfig.overlap} 字符</dd>
+        </dl>
+      </section>
+    </div>
+  </div>`;
+}
+
+/* ═══ 交互 ════════════════════════════════════════════ */
+function pick(id) { S.picked.has(id) ? S.picked.delete(id) : S.picked.add(id); render(); }
+function pickAll(on) { S.picked = on ? new Set(visibleChunks().map(c => c.id)) : new Set(); render(); }
+function expand(id) { S.expanded.has(id) ? S.expanded.delete(id) : S.expanded.add(id); render(); }
+
+function uploadDemo() {
+  toast('ok', '上传成功，文档尚未处理。', '点击「开始处理」后才会切分并写入向量库。');
+}
+
+/* 触发处理（开始处理 / 重新处理 / 重试都走这里，与 api.md 的单一接口一致）。
+   走完五个 phase 再进 SUCCESS，是为了让 §4 那五句"处理中文案"和 §3 的禁用规则
+   在真实流转里被看到——靠演示控制台逐个点，看不出它们是同一条链路上的相邻状态。 */
+const PHASES = ['DOWNLOAD','EXTRACT','CHUNK','EMBED','PERSIST'];
+
+function trigger(id) {
+  const d = DOCS.find(x => x.id === id);
+  if (!d.enabled) {                       // ui-spec §7：409 INVALID_STATE 的第一种情况
+    toast('warn', '文档已禁用，无法处理。', '请先启用文档。', '409 INVALID_STATE');
+    return;
+  }
+  if (S.empty === 'chunks0' || S.empty === 'chunksN') S.empty = 'none';
+  d.status = 'RUNNING';
+  d.phase = PHASES[0];
+  render();
+  advance(d, 1);
+}
+
+function advance(d, i) {
+  setTimeout(() => {
+    if (d.status !== 'RUNNING') return;   // 期间被演示控制台改过状态，放手不管
+    if (i < PHASES.length) { d.phase = PHASES[i]; render(); advance(d, i + 1); return; }
+    if (d.revision === 0 && !d.chunkCount) d.chunkCount = 142;
+    d.revision += 1;
+    d.status = 'SUCCESS';
+    d.phase = null;
+    render();
+  }, 800);
+}
+
+/* 禁用文档要二次确认（ui-spec §9），启用不需要 */
+function confirmDisableDoc(id) {
+  const d = DOCS.find(x => x.id === id);
+  S.modal = { kind: 'confirm', title: '禁用文档',
+    body: `确认禁用<b>「${esc(d.name)}」</b>？该文档全部内容将不参与检索。重新启用时需要重新计算向量。`,
+    ok: '确认禁用', run: () => { d.enabled = false; } };
+  render();
+}
+function enableDoc(id) { DOCS.find(x => x.id === id).enabled = true; render(); }
+
+function batch(target) {
+  const ids = [...S.picked];
+  const change = ids.filter(id => CHUNKS.find(c => c.id === id).enabled !== target).length;
+  const same = ids.length - change;
+  S.modal = { kind: 'batch', target, total: ids.length, change, same };
+  render();
+}
+
+function doBatch() {
+  const m = S.modal;
+  S.modal = null;
+  [...S.picked].forEach(id => { CHUNKS.find(c => c.id === id).enabled = m.target; });
+  S.picked.clear();
+  toast('ok', `已处理 ${m.total} 个分块，`, `其中 ${m.change} 个状态已变更，${m.same} 个原本就是该状态。`);
+  render();
+}
+
+function toggleChunk(id, on) {
+  const c = CHUNKS.find(x => x.id === id);
+  c.enabled = on;
+  toast('ok', on ? '已启用，向量已写入。' : '已禁用，向量已清理。', '');
+  render();
+}
+
+function editChunk(id) { S.modal = { kind: 'edit', id, text: CHUNKS.find(c => c.id === id).content }; render(); }
+function addChunk() { S.modal = { kind: 'add' }; render(); }
+
+function saveChunk() {
+  const m = S.modal, c = CHUNKS.find(x => x.id === m.id);
+  const next = document.getElementById('chunkText').value;
+  S.modal = null;
+  if (next === c.content) toast('ok', '内容未变化，未重新计算向量。', '');
+  else { c.content = next; c.charCount = next.length; toast('ok', '已保存，向量已更新。', ''); }
+  render();
+}
+
+function delChunk(id) {
+  const c = CHUNKS.find(x => x.id === id);
+  CHUNKS.splice(CHUNKS.indexOf(c), 1);
+  toast('ok', '分块已删除。', '向量已清理，文档分块数已更新。');
+  render();
+}
+
+function confirmDeleteKB(id) {
+  const k = KBS.find(x => x.id === id);
+  S.modal = { kind: 'confirm', title: '删除知识库',
+    body: `确认删除知识库<b>「${esc(k.name)}」</b>？将同时删除其中 <b>${k.documentCount}</b> 篇文档和 <b>${k.chunkCount.toLocaleString()}</b> 个分块，且无法在界面上恢复。`,
+    ok: '确认删除', done: '已删除。' };
+  render();
+}
+function confirmDeleteDoc(id) {
+  const d = DOCS.find(x => x.id === id);
+  S.modal = { kind: 'confirm', title: '删除文档',
+    body: `确认删除<b>「${esc(d.name)}」</b>？将同时删除该文档的 <b>${d.chunkCount}</b> 个分块，且无法在界面上恢复。`,
+    ok: '确认删除', done: '已删除。' };
+  render();
+}
+
+function doConfirm() {
+  const m = S.modal;
+  S.modal = null;
+  if (m.run) m.run();
+  if (m.done) toast('ok', m.done, '');
+  render();
+}
+
+function modalHTML() {
+  const m = S.modal;
+  if (!m) return '';
+  let hd, bd, ft;
+
+  if (m.kind === 'batch') {
+    hd = m.target ? '批量启用分块' : '批量禁用分块';
+    bd = `已选中 <b>${m.total}</b> 个分块，其中 <b>${m.change}</b> 个将从
+          「${m.target ? '已禁用' : '已启用'}」变为「${m.target ? '已启用' : '已禁用'}」，
+          <b>${m.same}</b> 个已是目标状态、不会变化。
+          <p style="margin:12px 0 0">${m.target
+            ? '启用后会为这些分块重新计算向量，会产生一次模型调用费用。'
+            : '禁用后这些分块的向量会被清理，不再参与检索。'}</p>`;
+    ft = `<button onclick="closeAll()">取消</button>
+          <button class="pri" onclick="doBatch()">确认${m.target ? '启用' : '禁用'}</button>`;
+  } else if (m.kind === 'edit') {
+    hd = '编辑分块内容';
+    bd = `<textarea id="chunkText">${esc(m.text)}</textarea>
+          <p style="margin:10px 0 0;font-size:12.5px;color:var(--ink-3)">
+            内容变化后会重新计算向量；未变化则不触发任何向量操作。</p>`;
+    ft = `<button onclick="closeAll()">取消</button><button class="pri" onclick="saveChunk()">保存</button>`;
+  } else if (m.kind === 'add') {
+    hd = '新增分块';
+    bd = `<textarea id="chunkText" placeholder="输入分块内容……"></textarea>
+          <p style="margin:10px 0 0;font-size:12.5px;color:var(--ink-3)">
+            不指定序号时追加到末尾（当前最大序号 + 1）。新增后立即计算向量并参与检索。</p>`;
+    ft = `<button onclick="closeAll()">取消</button>
+          <button class="pri" onclick="closeAll();toast('ok','分块已新增。','向量已写入，可立即被检索。')">新增</button>`;
+  } else {
+    hd = m.title; bd = m.body;
+    ft = `<button onclick="closeAll()">取消</button>
+          <button class="pri" onclick="doConfirm()">${m.ok}</button>`;
+  }
+
+  return `<div class="scrim" onclick="closeAll()"></div>
+  <div class="modal" role="dialog" aria-label="${esc(hd)}">
+    <div class="hd"><h3>${hd}</h3></div>
+    <div class="bd">${bd}</div>
+    <div class="ft">${ft}</div>
+  </div>`;
+}
+
+/* ═══ 脚手架控制台 ════════════════════════════════════ */
+const CTRL = [
+  ['c-status', ['PENDING','RUNNING','SUCCESS','FAILED'], v => STATUS_CN[v],
+    v => { doc11().status = v; if (v === 'RUNNING' && !doc11().phase) doc11().phase = 'EMBED';
+           if (v === 'PENDING' || v === 'SUCCESS') doc11().phase = null; },
+    () => doc11().status],
+  ['c-phase', ['DOWNLOAD','EXTRACT','CHUNK','EMBED','PERSIST'], v => v,
+    v => { doc11().phase = v; }, () => doc11().phase],
+  ['c-enabled', [true, false], v => v ? '已启用' : '已禁用',
+    v => { DOCS[1].enabled = v; }, () => DOCS[1].enabled],
+  ['c-empty', ['none','kb','docs','chunks0','chunksN','filtered'],
+    v => ({none:'关闭', kb:'知识库为空', docs:'文档为空', chunks0:'分块为空 v0', chunksN:'分块为空 v>0', filtered:'筛选无结果'})[v],
+    v => { S.empty = v; }, () => S.empty],
+  ['c-err', Object.keys(ERRORS), k => `${ERRORS[k][0]} ${k.split('_')[0]}`, k => fireError(k), () => null],
+  ['c-run', ['SKIPPED','SUCCESS','FAILED'],
+    v => ({SKIPPED:'未变化，已跳过', SUCCESS:'成功', FAILED:'失败'})[v],
+    v => { S.lastRun = v; }, () => S.lastRun],
+];
+
+function toggleScaffold() {
+  const open = document.getElementById('scaffold').classList.toggle('open');
+  document.body.classList.toggle('scaffold-open', open);
+  renderCtrl();
+}
+
+function setEmpty(v) { S.empty = v; render(); }
+function setFilter(v) { S.filter = v; S.picked.clear(); render(); }
+function clearFilter() { S.filter = 'all'; S.empty = 'none'; S.picked.clear(); render(); }
+
+function renderCtrl() {
+  CTRL.forEach(([id, opts, label, apply, current]) => {
+    const box = document.getElementById(id);
+    box.innerHTML = '';
+    opts.forEach(o => {
+      const b = el(`<button class="${current() === o ? 'on' : ''}">${esc(label(o))}</button>`);
+      b.onclick = e => { e.stopPropagation(); apply(o); render(); };
+      box.appendChild(b);
+    });
+  });
+  document.getElementById('scaffoldHint').textContent =
+    document.getElementById('scaffold').classList.contains('open') ? '收起 ▼' : '展开 ▲';
+}
+
+/* ═══ 渲染 ════════════════════════════════════════════ */
+function render() {
+  document.getElementById('view').innerHTML =
+    S.view === 'kb' ? viewKB() : S.view === 'docs' ? viewDocs() : viewChunks();
+  document.getElementById('overlay').innerHTML = S.modal ? modalHTML() : S.detail ? detailHTML() : '';
+  document.querySelectorAll('.rail a').forEach(a => a.classList.toggle('on', a.textContent === '知识库'));
+  crumb();
+  renderCtrl();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
+render();
+</script>

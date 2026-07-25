@@ -1,7 +1,7 @@
 # 技术方案：AI 知识库建设模块（xrag Phase 1）
 
 - `status`: approved（`2026-07-25` 用户确认 §4 两项技术性收敛，并选定 Embedding 供应商为阿里云百炼 DashScope）
-- `related_docs`: [PRD](../../docs/prd/2026-07-25-knowledge-base-prd.md)、[CONTEXT.md](../../CONTEXT.md)、[ADR 0001](../../docs/adr/0001-build-xrag-independently.md)、[ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)、[数据模型](data-model.md)、[API 契约](api.md)、[学习来源](../../learning/ragent-column/03-knowledge-base/)
+- `related_docs`: [PRD](../../docs/prd/2026-07-25-knowledge-base-prd.md)、[CONTEXT.md](../../CONTEXT.md)、[ADR 0001](../../docs/adr/0001-build-xrag-independently.md)、[ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)、[数据模型](data-model.md)、[API 契约](api.md)、[界面规格](ui-spec.md)、[测试矩阵](test-matrix.md)、[学习来源](../../learning/ragent-column/03-knowledge-base/)
 
 ## 1. 方案范围与阅读顺序
 
@@ -111,7 +111,7 @@ CAS 一条 SQL 同时完成了"检查状态"和"占位"，天然没有检查与�
 进程在第 1~4 步（事务外的耗时阶段）崩溃或被 kill，会留下 `status='RUNNING'` 的僵尸文档，如果不处理就会永久卡住——CAS 永远抢不到，用户无法重试。两层回收：
 
 - **启动时回收**：应用启动后把所有 `status='RUNNING'` 的 `ingestion_run` 与对应文档标记为 `FAILED(reason=进程重启)`。xrag 是单实例部署，进程刚启动时不可能存在真正在运行的任务，所以这个回收是**完全准确**的，没有误伤。
-- **心跳超时回收**：执行线程每 10s 更新 `ingestion_run.heartbeat_at`；一个 `@Scheduled` 任务把 `heartbeat_at` 超过 5 分钟没更新的 `RUNNING` 任务判定为卡死并标记 `FAILED`。这一层专门覆盖"进程活着但任务卡住"（下载 hang 死、Embedding API 不返回）的情况。
+- **心跳超时回收**：执行线程每 10s 更新 `ingestion_run.heartbeat_time`；一个 `@Scheduled` 任务把 `heartbeat_time` 超过 5 分钟没更新的 `RUNNING` 任务判定为卡死并标记 `FAILED`。这一层专门覆盖"进程活着但任务卡住"（下载 hang 死、Embedding API 不返回）的情况。
 
 > **单实例假设**：启动时回收的正确性完全依赖"同一时刻只有一个应用实例"。这个假设写进 [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)，如果将来要多实例部署，必须先改掉这一层，否则实例 A 启动会把实例 B 正在跑的任务误判为僵尸。
 
@@ -183,17 +183,25 @@ public interface EmbeddingClient {
 
 第一版单一实现走 **OpenAI 兼容的 `/v1/embeddings` 协议**。这不是绑定 OpenAI，而是绑定一个事实标准：阿里云百炼（DashScope）、智谱、硅基流动、本地 Ollama 都提供兼容该协议的端点，一份实现全部覆盖，供应商通过配置切换。
 
-**已确认的供应商（`2026-07-25`）：阿里云百炼 DashScope**，模型 `text-embedding-v3`，输出 1024 维——与 [data-model.md](data-model.md) 里 `vector(1024)` 直接对齐，无需改 migration；国内网络可直连。
+**已确认的供应商（`2026-07-25`）：火山方舟 Ark**，模型 `doubao-embedding-vision`，通过 `dimensions` 参数取 1024 维——与 [data-model.md](data-model.md) 里 `vector(1024)` 对齐，无需改 migration；国内网络可直连。
+
+> 选型是被 Key 的套餐决定的，不是偏好：手上这把是 **Coding Plan** 的 Key，实测 `doubao-embedding-large` / `doubao-embedding` / `doubao-embedding-text-240715` 都返回 *"The requested model does not support the agent plan feature"*，`doubao-embedding-vision` 是唯一可用的向量模型。它本身是多模态模型，但纯文本输入工作正常。
 
 ```properties
-app.embedding.base-url=${EMBEDDING_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+app.embedding.base-url=${EMBEDDING_BASE_URL:https://ark.cn-beijing.volces.com/api/plan/v3}
 app.embedding.api-key=${EMBEDDING_API_KEY:}
-app.embedding.model=${EMBEDDING_MODEL:text-embedding-v3}
+app.embedding.model=${EMBEDDING_MODEL:doubao-embedding-vision}
 app.embedding.dimensions=${EMBEDDING_DIMENSIONS:1024}
 app.embedding.batch-size=${EMBEDDING_BATCH_SIZE:10}
 ```
 
-`batch-size` 默认取一个偏保守的 10：各家对"单次请求最多几条文本"的限制差别很大（DashScope 对 embedding 系列的限制比多数供应商更严），而这个上限一旦超了，症状是**大文档在第一批请求就整体失败**、小文档却完全正常，很容易被误判成偶发问题。实现工单（06）要做的第一件事是**查一次 DashScope 官方文档确认 `text-embedding-v3` 的实际上限**，再把默认值调到正确的数字并在配置注释里写明来源。这个值随供应商变化，因此是配置项而不是硬编码。
+三处实测确认过、且都容易被"顺手改错"的点（`2026-07-25`）：
+
+- **`base-url` 是 `/api/plan/v3`，不是常见的 `/api/v3`。** Coding Plan 的 Key 打到标准路径直接 401。看起来像笔误，其实不是。
+- **模型原生输出 2048 维，1024 是靠请求里的 `dimensions` 参数降下来的。** 这正是"`dimensions` 始终显式发送"那条决定的用武之地——去掉它会拿到 2048 维向量，然后每次写 `vector(1024)` 都在运行时报错。启动时的维度校验拦的是配置与建表不一致，拦不住这种"配置对、请求少发了个参数"的情况。
+- **`batch-size` 的 10 是 Ark 的硬上限**，实测传 32 条被拒：`Embeddings API input limit exceeded: max 10, got 32`。超限的症状是**大文档在第一批请求就整体失败**、小文档却完全正常，很容易被误判成偶发问题——所以它是配置项而不是硬编码，换供应商时必须重新核实。
+
+若将来想用模型的完整 2048 维精度，代价是一次 migration：改 `document_chunk_embedding.embedding` 的列宽并重建 HNSW 索引，同时全量重算已有向量。第一版不做——1024 是模型原生支持的降维档位，不是截断。
 
 - HTTP 客户端用 Spring 6 自带的 `RestClient`，不引入第三方 HTTP 库。
 - **启动时不校验 API Key 可用性**（会产生真实费用），但校验 `dimensions` 与数据库向量列维度一致，不一致直接启动失败——维度不匹配会让所有向量写入在运行时才报错，越早暴露越好。

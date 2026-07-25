@@ -1,7 +1,7 @@
 # API 契约：AI 知识库建设模块
 
 - `status`: approved（`2026-07-25`）
-- `related_docs`: [架构方案](architecture.md)、[数据模型](data-model.md)、[PRD](../../docs/prd/2026-07-25-knowledge-base-prd.md)
+- `related_docs`: [架构方案](architecture.md)、[数据模型](data-model.md)、[界面规格](ui-spec.md)、[测试矩阵](test-matrix.md)、[PRD](../../docs/prd/2026-07-25-knowledge-base-prd.md)
 
 ## 1. 通用约定
 
@@ -47,6 +47,8 @@
 | 502 | `EMBEDDING_FAILED` | Embedding API 调用失败（同步接口路径上才会出现） |
 
 `404` 对"不存在"和"已逻辑删除"返回同一个结果，是逻辑删除的必然要求——否则调用方能通过状态码差异推断出记录曾经存在，逻辑删除就变成了半透明的。
+
+**`INVALID_STATE` 的 `message` 必须是可直接展示给用户的完整句子**，不能是 `"invalid state"` 这类开发者向的字符串。原因是这一个错误码对应至少三种情况（给禁用文档触发分块、给禁用文档新增分块、启用分块但父文档禁用），前端从错误码上无法区分，只能依赖 `message`。之所以不为每种情况拆独立错误码：三者的修复动作是同一个（先启用文档），前端不需要按码分支，拆码只会多一层映射表要维护。三处的成品文案见 [ui-spec.md §7](ui-spec.md)。
 
 ## 2. 知识库
 

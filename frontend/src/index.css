@@ -4,9 +4,12 @@
   --bg: #fff;
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
+  /* 与已确认的原型 prototype/knowledge-base/index.html 对齐，避免业务页面落地时
+     再改一次配色。 */
+  --accent: #0d7a72;
+  --accent-bg: rgba(13, 122, 114, 0.1);
+  --accent-border: rgba(13, 122, 114, 0.5);
+  --danger: #b4232a;
   --social-bg: rgba(244, 243, 236, 0.5);
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
@@ -37,9 +40,10 @@
     --bg: #16171d;
     --border: #2e303a;
     --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
+    --accent: #46b3a9;
+    --accent-bg: rgba(70, 179, 169, 0.15);
+    --accent-border: rgba(70, 179, 169, 0.5);
+    --danger: #f08b8b;
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
@@ -50,16 +54,12 @@
   }
 }
 
+/* 脚手架时期这里是一个 1126px、居中、带侧边框的展示容器。业务页面是列表和表格，
+   居中文本会让每一页都要自己覆盖它，所以改成普通的应用外壳。 */
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
 }
 
 body {
@@ -108,4 +108,431 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+/* ---- 应用外壳 ---- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-brand {
+  font-family: var(--heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.app-header nav {
+  display: flex;
+  gap: 16px;
+}
+
+.app-header nav a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 15px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.app-header nav a:hover {
+  background: var(--accent-bg);
+}
+
+.app-header nav a.active {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.app-main {
+  flex: 1;
+  padding: 24px;
+  max-width: 1100px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-main h1 {
+  font-size: 28px;
+  letter-spacing: -0.5px;
+  margin: 0 0 16px;
+}
+
+/* ---- 加载态 / 错误态 ---- */
+
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.state-error {
+  border-color: var(--danger);
+}
+
+.state-title {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.state-detail {
+  font-size: 14px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* ---- 页面通用 ---- */
+
+.page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.data-table th {
+  font-weight: 600;
+  color: var(--text-h);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* 数字列右对齐 + 等宽数字，扫一眼就能比大小 */
+.data-table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table td.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.data-table a {
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 40px 24px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+/* ---- 按钮 ---- */
+
+button {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent-border);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+/* ---- 弹层 ---- */
+
+.modal {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 20px;
+  min-width: min(440px, 90vw);
+  box-shadow: var(--shadow);
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modal h2 {
+  margin: 0 0 16px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-body label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.modal-body input,
+.modal-body textarea {
+  font: inherit;
+  font-size: 15px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  resize: vertical;
+}
+
+.modal-body input:focus-visible,
+.modal-body textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.inline-error {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+/* ---- 面包屑 / 筛选 / 状态徽标 ---- */
+
+.breadcrumb {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.breadcrumb a {
+  color: var(--accent);
+}
+
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+button.chip {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+button.chip.active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+button.link {
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 状态既有颜色也有文字，不靠颜色单独承载信息 */
+.status {
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.status-pending {
+  color: #8a6d1f;
+  border-color: rgba(180, 140, 40, 0.5);
+}
+
+.status-running {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.status-success {
+  color: #2c7a4b;
+  border-color: rgba(44, 122, 75, 0.5);
+}
+
+.status-failed {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .status-pending {
+    color: #d9b75f;
+  }
+  .status-success {
+    color: #6fc48f;
+  }
+}
+
+.hint {
+  margin-top: 16px;
+  font-size: 14px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+/* ---- 处理阶段与任务历史 ---- */
+
+.phase-hint {
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.detail-row > td {
+  background: var(--surface);
+  padding: 12px 16px;
+}
+
+.run-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.run-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.run-badge {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.run-success {
+  color: #2c7a4b;
+  border-color: rgba(44, 122, 75, 0.5);
+}
+
+.run-failed {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+/* SKIPPED 用中性灰：它不是失败，是"检查过、内容没变"。用警告色会让用户以为出了问题。 */
+.run-skipped,
+.run-queued {
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.run-running {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.run-meta {
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.run-error {
+  color: var(--danger);
+  flex-basis: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .run-success {
+    color: #6fc48f;
+  }
 }

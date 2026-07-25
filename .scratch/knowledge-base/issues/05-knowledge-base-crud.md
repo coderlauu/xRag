@@ -6,15 +6,38 @@
 
 **Blocked by:** 03（表结构与配置）、04（前端基础设施）
 
-**Status:** ready-for-agent
+**Status:** done（`2026-07-25`）
 
-- [ ] 后端实现 5 个接口：`POST`/`GET 列表`/`GET 详情`/`PUT`/`DELETE`，行为与 [api.md](../../../tech/knowledge-base/api.md) §2 一致
-- [ ] `embeddingModel`/`embeddingDimensions` 由服务端从全局配置写入，客户端传了忽略；`PUT` 只接受 `name`/`description`
-- [ ] 同名知识库返回 `400 INVALID_REQUEST` 并带友好提示（Service 层先查，部分唯一索引兜底）
-- [ ] `DELETE` 按 [data-model.md](../../../tech/knowledge-base/data-model.md) §4 的完整 SQL 执行级联逻辑删除 + 向量物理删除，一个事务内完成
-- [ ] `documentCount`/`chunkCount` 聚合查询带 `deleted = false`
-- [ ] 前端知识库列表页：列表分页、创建表单、改名、删除（二次确认弹层）
-- [ ] 空态展示：没有任何知识库时按 `ui-spec.md` 展示引导创建的提示
-- [ ] 集成测试：创建后能查到；逻辑删除后列表与详情接口都返回不到它（详情返回 `404`）；删除已删除的知识库返回 `404`
-- [ ] 浏览器中完整走通：创建 → 列表可见 → 改名 → 删除 → 列表不再可见
-- [ ] `./mvnw -q -B verify` 与 `pnpm build && pnpm lint` 通过
+- [x] 后端实现 5 个接口：`POST`/`GET 列表`/`GET 详情`/`PUT`/`DELETE`，行为与 [api.md](../../../tech/knowledge-base/api.md) §2 一致
+- [x] `embeddingModel`/`embeddingDimensions` 由服务端从全局配置写入，客户端传了忽略；`PUT` 只接受 `name`/`description`
+- [x] 同名知识库返回 `400 INVALID_REQUEST` 并带友好提示（Service 层先查，部分唯一索引兜底）
+- [x] `DELETE` 按 [data-model.md](../../../tech/knowledge-base/data-model.md) §4 的完整 SQL 执行级联逻辑删除 + 向量物理删除，一个事务内完成
+- [x] `documentCount`/`chunkCount` 聚合查询带 `deleted = false`
+- [x] 前端知识库列表页：列表分页、创建表单、改名、删除（二次确认弹层）
+- [x] 空态展示：没有任何知识库时按 `ui-spec.md` 展示引导创建的提示
+- [x] 集成测试：创建后能查到；逻辑删除后列表与详情接口都返回不到它（详情返回 `404`）；删除已删除的知识库返回 `404`
+- [x] 浏览器中完整走通：创建 → 列表可见 → 改名 → 删除 → 列表不再可见
+- [x] `./mvnw -q -B verify` 与 `pnpm build && pnpm lint` 通过
+
+## 完成记录
+
+第一条打通"数据库 → 接口 → 界面"的路径。后端 5 个接口 + 11 条集成测试（真实 Postgres），前端列表页含创建/改名/删除/空态，浏览器里完整走通 创建 → 列表可见 → 改名 → 删除 → 回到空态。
+
+**做了工单清单之外的两件事，都记在明处**
+
+1. **给 CI 的 `validate` job 加了 Postgres 服务。** 这是工单 19（运维 Lane）的写入范围，但不加的话本工单的集成测试推上去 CI 必红——`validate` 跑 `mvn verify` 而它没有任何数据库服务。加的是最小版本：只起 `pgvector/pgvector:pg16`（与 docker-compose 同镜像），不起 Redis / 对象存储，因为 `verify` 不碰那两个。**工单 19 接手时请把这段当作起点而不是终点**，它没有覆盖 19 清单里的假 `EmbeddingClient` 注入和 env example 登记。
+2. **加了 `/knowledge-bases/:kbId` 的占位页面。** 列表页的知识库名链到了这里，不占住这条路由就是一个 404——用户会以为知识库坏了，比"尚未实现"更糟。真正的文档列表是工单 07 / 12。
+
+**几处设计决定**
+
+- **不另建 web 层 DTO。** `KnowledgeBase` 这个读模型与 api.md 的响应体逐字段相同，再包一层只是多一处要同步修改的地方。请求体是另一回事（有各自的校验规则），放在 controller 里。
+- **重名检查做两道**：Service 层先查一次是为了给出可直接展示的中文提示；部分唯一索引兜底，捕获 `DuplicateKeyException` 后返回**同一句文案**——两个请求几乎同时创建同名知识库时会走到第二道。
+- **改名时的重名检查要排除自己**（`existsByNameExcluding`），否则"只改描述、名字不动"会被判成重名。这条有对应用例。
+- **分页参数越界规整而不报错**：`page=0` → 1，`size=9999` → 100。分页参数越界不值得让请求失败。
+- **级联删除一次写对**，虽然此时文档功能还没实现、前两步必然影响 0 行。等文档上线后再回来补，极容易漏掉其中一步。
+- **弹层内的错误留在弹层里**：重名是提交后才知道的，关掉弹层再提示，用户输的内容就没了。
+- 删除确认文案用 ui-spec §9 的"**无法在界面上恢复**"而不是"永久删除"——数据确实还在库里（逻辑删除），说永久删除是撒谎，说可以恢复会让用户以为界面上有恢复入口。
+
+**11 条集成测试**用类级 `@Transactional` 回滚做隔离。其中三条专门针对逻辑删除：删除后详情 404 且列表查不到（针对 `repository` 漏写 `deleted = false` 这个高风险点）、行仍在库里只是 `deleted = true`（否则就不是逻辑删除）、**删除后能重建同名知识库**（部分唯一索引的意义所在，普通唯一索引会让用户删掉后再也建不出同名的）。
+
+**一处待补**：参数校验目前是 Service 层手写的（只有 name 长度、description 长度两条规则）。到工单 07 会一次涌入大量参数（chunkSize 范围、批量 ≤ 500、cron 表达式等），届时应该评估引入 `spring-boot-starter-validation`，不要继续手写。

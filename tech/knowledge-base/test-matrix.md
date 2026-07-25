@@ -1,0 +1,366 @@
+# 测试用例矩阵：AI 知识库建设模块
+
+- `status`: approved（`2026-07-25`）
+- `related_docs`: [架构方案](architecture.md)、[数据模型](data-model.md)、[API 契约](api.md)、[界面规格](ui-spec.md)、[PRD](../../docs/prd/2026-07-25-knowledge-base-prd.md)
+
+本文件在后端实现开始之前写完。顺序不是形式问题：先写清"什么算对"，实现才有明确目标；反过来先实现再补测试，测试往往只会验证已经写出来的行为，而不是应该有的行为——那种测试全绿的时候最危险。
+
+## 1. 怎么读这份矩阵
+
+**编号**：`<域>-<序号>`，域前缀固定为 KB（知识库）/ DOC（文档）/ ING（入库任务）/ CHK（分块）/ SYNC（定时同步）/ DEL（逻辑删除一致性）/ LIM（上传安全与限流）/ EMB（Embedding）。编号一经分配不复用，删掉的用例留空号并注明原因，这样工单和提交信息里引用的编号永远指向同一件事。
+
+**层级**：
+
+| 标记 | 含义 | 依赖 |
+|---|---|---|
+| `单测` | 纯函数，无 Spring 上下文 | 无 |
+| `集成` | `@SpringBootTest` + 真实 Postgres，显式开启 Flyway，Embedding 用确定性假实现 | `docker compose up -d postgres` |
+| `手工` | 需要浏览器、真实 API Key，或需要观察进程级指标 | 见 §6 逐条说明 |
+
+`集成` 层为什么必须用真实 Postgres 而不是 H2：本模块的正确性有相当一部分**落在数据库里**——部分唯一索引 `where deleted = false`、check 约束、`vector(1024)` 类型、HNSW 索引、`insert ... on conflict`。H2 一条都不支持，用它跑出来的绿灯没有意义。
+
+**Embedding 假实现**：`集成` 层统一注入一个由文本内容确定性派生向量的假实现（同样文本必得同样向量，不同文本必得不同向量）。这让"向量是否被正确写入/删除/更新"可断言，同时不产生任何真实费用。真实 API 只在 §6 手工项里验一次。
+
+## 2. KB — 知识库管理
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| KB-01 | 空库 | `POST` 创建，name="产品库" | `201`，`embeddingModel`/`embeddingDimensions` 为服务端配置值，`documentCount`/`chunkCount` 均为 0 | 集成 |
+| KB-02 | 已有 name="产品库" | `POST` 同名 | `400 INVALID_REQUEST`，库中仍只有 1 条 | 集成 |
+| KB-03 | 已有 name="产品库" 且已逻辑删除 | `POST` 同名 | `201` 成功。表里两行同名，一行 `deleted=true` | 集成 |
+| KB-04 | — | `POST`，请求体带 `embeddingModel="伪造模型"` | `201`，落库值仍为配置值（客户端传入被忽略，不是报错） | 集成 |
+| KB-05 | — | `POST`，name 为空串 / 129 字符 | 两次都 `400` | 集成 |
+| KB-06 | 3 个知识库，其中 1 个已逻辑删除 | `GET` 列表 | `total=2`，已删除的不出现 | 集成 |
+| KB-07 | 知识库下 5 篇文档（1 篇已逻辑删除）、共 100 个分块（10 个已逻辑删除） | `GET` 列表 | `documentCount=4`，`chunkCount=90` | 集成 |
+| KB-08 | — | `GET` 不存在的 kbId | `404 NOT_FOUND` | 集成 |
+| KB-09 | 知识库已逻辑删除 | `GET` 它 | `404 NOT_FOUND`，响应体与 KB-08 **完全一致** | 集成 |
+| KB-10 | — | `PUT` 改 name + description | `200`，两个字段都更新，`updateTime` 变化 | 集成 |
+| KB-11 | — | `PUT` 传 `embeddingModel` | `200`，该字段未变（忽略而非报错，与 KB-04 一致） | 集成 |
+| KB-12 | 知识库下 2 篇文档、20 个分块、20 条向量 | `DELETE` | `204`；知识库/文档/分块全部 `deleted=true`，向量表该 kb_id 行数为 **0**（物理删除） | 集成 |
+| KB-13 | 同上，删除后 | `GET` 该 kb 的文档列表 | `404`（父资源已删，不是返回空列表——空列表会让调用方以为知识库还在） | 集成 |
+| KB-14 | 知识库下有文档 | `DELETE` | 不因"下面有文档"而拒绝，直接成功。逻辑删除下"防误删"没有必要性 | 集成 |
+
+## 3. DOC — 文档管理
+
+### 3.1 上传
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| DOC-01 | 空知识库 | 上传 1KB `.txt` | `201`，`status=PENDING`、`revision=0`、`chunkCount=0`；对象存储中存在该 `file_key`；**分块表为空**（上传绝不触发分块） | 集成 |
+| DOC-02 | — | 上传 `.exe` | `415 UNSUPPORTED_FILE_TYPE`，不落库、不写对象存储 | 集成 |
+| DOC-03 | — | 上传扩展名大写 `.TXT` | `201`（白名单大小写不敏感） | 集成 |
+| DOC-04 | — | 上传无扩展名文件 | `415`（不靠 Content-Type 猜，它可以撒谎） | 集成 |
+| DOC-05 | — | 上传 51MB 文件（超 `max-file-size`） | `413 FILE_TOO_LARGE`，不落库；见 LIM-03 的连接行为断言 | 集成 |
+| DOC-06 | — | 上传时不传 `name` | `201`，`name` 取原始文件名 | 集成 |
+| DOC-07 | — | 上传时 `overlap=1000`、`chunkSize=1000` | `400`（须 `overlap < chunkSize`，相等也不行——相等意味着每个分块与前一个完全重叠，切不出进展） | 集成 |
+| DOC-08 | — | 上传同一份文件两次 | 两次都 `201`，得到两个独立文档。**文档名不做唯一约束**是有意的（同一文件用不同分块参数各处理一份是合理场景） | 集成 |
+| DOC-09 | 对象存储不可达 | 上传 | `5xx`，且**数据库中不留记录**（先传存储后写库的顺序保证了这一点） | 手工 |
+
+### 3.2 URL 来源
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| DOC-10 | 本地 mock HTTP 服务返回一个 md 文件 | `POST .../documents/url`，`syncEnabled=false` | `201`，`sourceType=URL`；创建时已抓取并存入对象存储（`file_key` 非空） | 集成 |
+| DOC-11 | mock 服务返回 404 | 同上 | `400`，**不落库**（抓取失败不留半成品记录） | 集成 |
+| DOC-12 | — | `sourceUri` 为 `ftp://…` | `400`（只接受 http/https） | 集成 |
+| DOC-13 | — | `syncEnabled=true`、`syncCron` 缺省 | `400`（开同步必须给 cron，数据库 check 约束也会兜） | 集成 |
+| DOC-14 | — | `syncEnabled=true`、`syncCron="0 * * * * ?"`（每分钟） | `400`（间隔 1 分钟 < `min-interval` 10 分钟） | 集成 |
+| DOC-15 | — | `syncCron="0 0 3 * * ?"` | `201`，`nextSyncTime` 为下一个 03:00 | 集成 |
+| DOC-16 | — | `syncCron="不是cron"` | `400`（解析失败，与 DOC-14 的间隔超限区分开：两者都 400，但 message 不同） | 集成 |
+| DOC-17 | mock 返回 HTML 页面 | 创建 URL 文档 | `201` **不报错**。Tika 能从 HTML 提取正文，噪声多是用户输入质量问题，不是系统错误 | 集成 |
+
+### 3.3 查询与更新
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| DOC-18 | 5 篇文档，状态各异 | `GET` 列表带 `status=FAILED` | 只返回 FAILED 的 | 集成 |
+| DOC-19 | 同上 | `GET` 列表带 `enabled=false` | 只返回禁用的 | 集成 |
+| DOC-20 | 文档有 3 条入库任务历史 | `GET /documents/{id}` | 返回 `latestRun` 为 id 最大的那条 | 集成 |
+| DOC-21 | 文档从未触发过分块 | `GET /documents/{id}` | `latestRun` 为 `null`，不报错 | 集成 |
+| DOC-22 | FILE 来源文档 | `PUT` 传 `syncEnabled=true` | `400`（仅 URL 来源可改同步配置） | 集成 |
+| DOC-23 | 文档 `status=RUNNING` | `PUT` 改 name | `409 DOCUMENT_PROCESSING` | 集成 |
+| DOC-24 | 文档已成功分块（`revision=2`） | `PUT` 改 `chunkSize` | `200`，响应含 `needsRechunk=true`；**分块表内容未变**（不自动重新分块） | 集成 |
+| DOC-25 | — | `PUT` 只传 `name` | `200`，其他字段（含分块参数）保持原值 | 集成 |
+| DOC-26 | 文档 `status=RUNNING` | `DELETE` | `409 DOCUMENT_PROCESSING` | 集成 |
+| DOC-27 | 文档有 30 个分块 + 30 条向量、`syncEnabled=true` | `DELETE` | `204`；文档与 30 个分块 `deleted=true`，向量 0 条，`sync_enabled=false`；**对象存储文件仍存在** | 集成 |
+
+### 3.4 启用 / 禁用
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| DOC-28 | 文档启用，10 个分块（其中 3 个分块自身 `enabled=false`），向量 7 条 | 禁用文档 | `200`；向量 **0 条**；10 个分块的 `enabled` 字段**一个都没变**（保留用户此前的个别选择） | 集成 |
+| DOC-29 | 承接 DOC-28 | 重新启用文档 | `200`；向量恢复为 **7 条**（只为 `enabled=true` 的分块重算）。这就是 DOC-28 不动分块 `enabled` 的意义 | 集成 |
+| DOC-30 | 文档已禁用 | 再次禁用 | `200` 幂等返回，不报错，无向量操作 | 集成 |
+| DOC-31 | 文档 `revision=0`（从未成功分块） | 启用 | `200` 正常返回，无向量可写也不报错 | 集成 |
+
+## 4. ING — 触发分块与异步入库
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| ING-01 | 文档 `PENDING` | `POST .../ingestion-runs` | `202` 返回 `runId`，`ingestion_run.status=QUEUED`，文档 `status=RUNNING`（CAS 已抢占） | 集成 |
+| ING-02 | 文档 `RUNNING` | 再次触发 | `409 DOCUMENT_PROCESSING`，**不新增 run 记录** | 集成 |
+| ING-03 | 文档 `enabled=false` | 触发 | `409 INVALID_STATE`（给禁用文档分块会写向量，与"禁用即不参与检索"直接矛盾） | 集成 |
+| ING-04 | 文档 `SUCCESS`，已有 20 个分块 + 20 条向量，`revision=1` | 触发重新分块，等待完成 | `revision=2`；旧 20 个分块 `deleted=true`、其向量物理删除；新分块 `revision=2`、向量条数与新分块数相等；`chunk_count` 等于新分块数 | 集成 |
+| ING-05 | 文档 `FAILED` | 触发 | `202` 成功（`FAILED` 可直接重试，不必重新上传） | 集成 |
+| ING-06 | 首次分块（旧分块集合为空） | 触发 | 走的是与 ING-04 **完全相同的代码路径**，无 if 分支区分首次/重复 | 集成 |
+| ING-07 | 任务执行完成 | 查 run | `status=SUCCESS`，`revision`/`chunk_count` 已回填，`started_time`/`finished_time` 非空 | 集成 |
+| ING-08 | Embedding 假实现被配置为抛异常 | 触发并等待 | run `status=FAILED`、`phase=EMBED`、`error_message` 非空；文档 `status=FAILED`；**分块表与向量表都没有该文档的新数据**（失败前没有部分写入） | 集成 |
+| ING-09 | 承接 ING-08 | 检查 run 的失败信息 | 失败信息**确实落库了**（写在独立新事务里，没被外层回滚冲掉）。这条专门守住 architecture.md §3.2 那个"必须是新事务"的要求 | 集成 |
+| ING-10 | 对象存储里的文件被手工删除后触发 | 触发并等待 | run `phase=DOWNLOAD`、`status=FAILED` | 集成 |
+| ING-11 | 上传一个内容为 `.pdf` 但实际是乱码二进制的文件后触发 | 触发并等待 | run `phase=EXTRACT`、`status=FAILED`，错误信息可读 | 集成 |
+| ING-12 | 队列中 5 条 `QUEUED` | 等待轮询 | 5 条都被执行；**没有任何一条被执行两次**（逐条 CAS `where status='QUEUED'` 保证） | 集成 |
+| ING-13 | 手工插入 `RUNNING` 且 `heartbeat_time` 为 6 分钟前的 run | 触发超时回收 | run 与其文档都变 `FAILED`，`error_message` 说明是超时回收 | 集成 |
+| ING-14 | 手工插入 `RUNNING` 的 run 后重启应用 | 启动回收 | run 与其文档都变 `FAILED`，原因写明"进程重启"。**单实例假设下这个回收完全准确**（ADR 0002） | 集成 |
+| ING-15 | 任务执行中 | 观察 `heartbeat_time` | 执行期间该字段持续被刷新（间隔约 10s） | 集成 |
+| ING-16 | 大量分块的文档 | 触发并观察数据库连接 | 事务持续时间只覆盖 PERSIST 阶段；Embedding 调用发生在事务**外**。观察手段见 §6 | 手工 |
+
+## 5. CHK — 分块管理
+
+### 5.1 分块算法（纯函数，无外部依赖）
+
+| 编号 | 输入 | 预期结果 | 层级 |
+|---|---|---|---|
+| CHK-01 | `FIXED_SIZE`，空字符串 | 返回空列表，不抛异常，不产生 1 个空分块 | 单测 |
+| CHK-02 | `FIXED_SIZE`，1 个字符，`chunkSize=1000` | 1 个分块，内容为该字符 | 单测 |
+| CHK-03 | `FIXED_SIZE`，文本长度**恰好等于** `chunkSize` | **1 个分块**，不是 2 个（不产生尾部空分块） | 单测 |
+| CHK-04 | `FIXED_SIZE`，长度 = `chunkSize + 1`，`overlap=100` | 2 个分块，第 2 个长度为 `101`（含重叠） | 单测 |
+| CHK-05 | `FIXED_SIZE`，`overlap=0` | 分块无重叠，拼接后与原文逐字符相等 | 单测 |
+| CHK-06 | `FIXED_SIZE`，`chunkSize=1000`、`overlap=999` | 能终止（每次至少前进 1 个字符），不死循环 | 单测 |
+| CHK-07 | `RECURSIVE`，含 `\n\n` 段落且每段都短于 `chunkSize` | 按段落切，不在段落中间断开 | 单测 |
+| CHK-08 | `RECURSIVE`，单个段落远超 `chunkSize` 且无任何分隔符 | 最终硬切，每块不超过 `chunkSize` | 单测 |
+| CHK-09 | `RECURSIVE`，中文文本以 `。` 分句 | 在句号处切分 | 单测 |
+| CHK-10 | 任意策略 | 每个分块的 `charCount` 等于其内容实际长度 | 单测 |
+| CHK-11 | 纯中文 / 纯英文 / 混合文本 | `tokenCount` 按 1:1 / 4:1 / 2:1 规则估算。**它只用于界面展示，不参与任何逻辑判断** | 单测 |
+| CHK-12 | 相同内容切两次 | `contentHash` 相同；内容差 1 个字符则不同 | 单测 |
+
+### 5.2 分块的增删改
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| CHK-13 | 文档有 142 个分块，`chunk_index` 0~141 | `GET` 分块列表第 1 页 | 按 `chunk_index` **升序**，不是按 id | 集成 |
+| CHK-14 | 分块 5 已逻辑删除 | `GET` 列表 | `total` 少 1，该分块不出现 | 集成 |
+| CHK-15 | 文档启用、不在 RUNNING | `POST` 新增分块，不传 `chunkIndex` | `201`，`chunkIndex` 为 `max+1` | 集成 |
+| CHK-16 | 文档最大 `chunk_index=10`，其中 index=10 的分块**已被逻辑删除** | `POST` 新增分块 | `chunkIndex=11`。若实现误用 `count(*)` 会算出 10，与已删除分块的序号撞车——这条就是为守住 `max+1` 而存在的 | 集成 |
+| CHK-17 | 文档 `enabled=false` | `POST` 新增分块 | `409 INVALID_STATE`。这条最容易漏：否则会出现"文档整体不参与检索、但新加的这段能被检索到"的矛盾 | 集成 |
+| CHK-18 | 文档 `RUNNING` | `POST` 新增分块 | `409 DOCUMENT_PROCESSING` | 集成 |
+| CHK-19 | — | `POST` 新增分块，指定已存在的 `chunkIndex=42` | `201`，两条 index=42 的分块共存，**其他分块序号不被重排** | 集成 |
+| CHK-20 | 分块已启用有向量 | `PUT` 改成不同内容 | `200`；`charCount`/`tokenCount`/`contentHash` 已重算；向量表该 `chunk_id` 仍只有 **1 行**（delete+insert 同一主键），且向量值已变化 | 集成 |
+| CHK-21 | 同上 | `PUT` 传**与库中完全相同**的内容 | `200`；**未发生任何向量操作**（省下按 token 计费的调用，也避免删旧插新期间的检索空窗）。断言手段：假 Embedding 实现记录调用次数，本次为 0 | 集成 |
+| CHK-22 | 分块 `enabled=false`（无向量） | `PUT` 改内容 | `200`，内容更新，**仍然没有向量**（禁用状态不因编辑而恢复） | 集成 |
+| CHK-23 | 文档 `chunk_count=10` | `DELETE` 一个分块 | `204`；该分块 `deleted=true`、其向量物理删除；文档 `chunk_count=9`；**同文档其他分块的向量不受影响** | 集成 |
+| CHK-24 | 手工把文档 `chunk_count` 改成 0，仍有分块存在 | `DELETE` 一个分块 | `chunk_count` 保持 0，**不变成 -1**（`case when chunk_count > 0` 防护） | 集成 |
+| CHK-25 | 分块禁用、父文档启用 | 启用该分块 | `200`，向量被写入 | 集成 |
+| CHK-26 | 分块禁用、**父文档禁用** | 启用该分块 | `409 INVALID_STATE` | 集成 |
+| CHK-27 | 分块启用、**父文档禁用** | 禁用该分块 | `200` 成功。**禁用时不校验父文档**——禁用不需要父文档处于任何特定状态 | 集成 |
+| CHK-28 | 分块已是目标状态 | 再次设为同一状态 | `200` 幂等，无向量操作 | 集成 |
+
+### 5.3 批量启用/禁用
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| CHK-29 | 3 个分块，其中 1 个已是目标状态 | 批量设置 | `200`，`{requested:3, changed:2, alreadyInTargetState:1}` | 集成 |
+| CHK-30 | — | `chunkIds` 为空数组 | `400`（不支持"全部"语义，那个需求该用文档级接口） | 集成 |
+| CHK-31 | 501 个合法分块 | 批量设置 501 个 | `400`（超单次上限 500） | 集成 |
+| CHK-32 | **恰好 500** 个合法分块 | 批量设置 | `200`，全部处理成功（边界包含） | 集成 |
+| CHK-33 | 500 个合法 id + 1 个属于**其他文档**的 id | 批量设置 | `400` **整批失败**，一个都没改。不静默跳过——否则调用方以为 501 个都处理了、实际 500 个，比直接报错难排查得多 | 集成 |
+| CHK-34 | 含 1 个已逻辑删除的分块 id | 批量设置 | `400` 整批失败（已删除等同不存在） | 集成 |
+| CHK-35 | 全部分块都已是目标状态 | 批量设置 | `200`，`changed:0`，**不报错**（"部分已达目标"是批量操作常态） | 集成 |
+| CHK-36 | 500 个分块批量**启用** | 观察事务行为 | Embedding 调用发生在事务外；该方法上**没有** `@Transactional` 注解（否则内层编程式事务会加入外层，精确控制事务范围的意图落空）。断言手段见 §6 | 手工 |
+
+## 6. SYNC — 定时同步
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| SYNC-01 | URL 文档已成功分块，mock 服务返回**相同 ETag** | 触发扫描 | 新增 run `status=SKIPPED`；`next_sync_time` 推进；**分块与向量完全未变**；`revision` 未变 | 集成 |
+| SYNC-02 | mock 服务**不返回 ETag/Last-Modified**，但内容与 `content_hash` 一致 | 触发扫描 | 同样 `SKIPPED`。第二级（内容哈希）兜住了第一级不可用的情况 | 集成 |
+| SYNC-03 | mock 服务返回**新 ETag 且内容确实变了** | 触发扫描 | 走完整入库链路，`revision+1`，旧分块逻辑删除、新分块与新向量写入 | 集成 |
+| SYNC-04 | mock 服务返回**新 ETag 但内容没变** | 触发扫描 | `SKIPPED`（ETag 变了但哈希相同，第二级拦住了误更新） | 集成 |
+| SYNC-05 | `sync_enabled=false` 的 URL 文档 | 触发扫描 | 不被扫到 | 集成 |
+| SYNC-06 | 已逻辑删除的 URL 文档，`sync_enabled` 仍为 true | 触发扫描 | 不被扫到（扫描 SQL 带 `deleted=false`） | 集成 |
+| SYNC-07 | 文档 `status=RUNNING` | 触发扫描 | 跳过，不产生 run（与手动触发抢的是同一行同一个状态字段，先到先得） | 集成 |
+| SYNC-08 | `next_sync_time` 在未来 | 触发扫描 | 不被扫到 | 集成 |
+| SYNC-09 | mock 服务超时 | 触发扫描 | run `phase=DOWNLOAD`、`status=FAILED`；`next_sync_time` 仍然推进（否则每次扫描都重试同一个坏 URL） | 集成 |
+| SYNC-10 | FILE 来源文档 | 触发扫描 | 不被扫到（部分索引与 SQL 都限定 `source_type='URL'`） | 集成 |
+| SYNC-11 | 同一文档同时被手动触发和定时扫描命中 | 并发执行 | 只有一个成功抢占，另一个跳过；**不产生两条 RUNNING 的 run** | 集成 |
+
+## 7. DEL — 逻辑删除一致性
+
+这一组是横向的，**故意违反"按垂直切片组织用例"的原则**。理由：`repository` 层每个查询方法都必须带 `deleted = false`，这是一条靠约定维持的纪律，漏写不会有任何编译或运行时报错，只会让已删除数据静默地重新出现在某一个接口里。散在各功能域里的用例只覆盖各自的主路径，没有任何一处会系统性地检查"每个查询方法都过滤了吗"。
+
+**方法**：建一个夹具，往每张表插入成对的数据（一条正常、一条 `deleted=true`），然后逐个调用所有查询入口，断言已删除的那条一处都不出现。
+
+| 编号 | 查询入口 | 预期结果 | 层级 |
+|---|---|---|---|
+| DEL-01 | 知识库列表 | 已删除知识库不出现 | 集成 |
+| DEL-02 | 知识库详情 | `404` | 集成 |
+| DEL-03 | 知识库的 `documentCount` 聚合 | 不计入已删除文档 | 集成 |
+| DEL-04 | 知识库的 `chunkCount` 聚合 | 不计入已删除分块 | 集成 |
+| DEL-05 | 文档列表（含带 `status`/`enabled` 过滤的分支） | 已删除文档不出现。**过滤分支要单独验**——`deleted=false` 很容易只加在无过滤的那条 SQL 上 | 集成 |
+| DEL-06 | 文档详情 | `404` | 集成 |
+| DEL-07 | 分块列表（含带 `enabled` 过滤的分支） | 已删除分块不出现 | 集成 |
+| DEL-08 | `max(chunk_index)` 查询 | 见 CHK-16。这里**恰恰相反**：必须**包含**已删除分块，否则新分块序号会与已删除分块撞车 | 集成 |
+| DEL-09 | 批量分块归属校验 | 已删除分块 id 视为无效 → `400`（同 CHK-34） | 集成 |
+| DEL-10 | 定时同步扫描 | 已删除文档不被扫到（同 SYNC-06） | 集成 |
+| DEL-11 | 入库任务历史列表 | 文档删除后其 run 历史**仍可查**（run 表本身不做逻辑删除，它是执行记录；但要确认这不会成为一条读取已删除文档内容的旁路——run 表不含文档内容） | 集成 |
+| DEL-12 | 向量表 | 全表扫描断言：**每一行都对应一个未删除、已启用、且所属文档也未删除已启用的分块**。这是 Phase 3 检索侧直接依赖的不变量，必须由本模块保证 | 集成 |
+
+DEL-08 是这一组里最值得注意的一条：它说明 `deleted = false` **不是**可以机械套用到每条 SQL 上的模板。查询"下一个可用序号"时必须看见已删除的行，否则就会分配出撞车的序号。把纪律当模板套，恰好会在这里出错。
+
+DEL-12 应该作为**每个集成测试类的通用收尾断言**，而不只是一条独立用例——任何一个操作破坏了这条不变量，都应该在那个测试里立刻暴露，而不是等跑到 DEL-12 才发现。
+
+## 8. LIM — 上传安全与限流
+
+| 编号 | 前置状态 | 操作 | 预期结果 | 层级 |
+|---|---|---|---|---|
+| LIM-01 | `max-concurrent=1` | 两个上传请求并发 | 一个成功，另一个 `429 UPLOAD_BUSY`（等待超时后） | 集成 |
+| LIM-02 | `max-concurrent=1`，第一个上传完成后 | 再发一个上传 | 成功（许可已释放）。**这条验的是 finally 释放**——漏了 finally 的信号量会在第一次异常后永久耗尽 | 集成 |
+| LIM-03 | 上传中途抛异常 | 观察后续请求 | 许可仍被正确释放，后续上传不受影响 | 集成 |
+| LIM-04 | — | 限流触发时观察请求体是否被读取 | 请求体**未被读取**。许可在 `Filter` 里获取，multipart 由 `DispatcherServlet` 解析（时机在 Filter 之后），所以拒绝发生在读盘之前。观察手段见 §9 | 手工 |
+| LIM-05 | 上传 51MB 文件 | 观察连接行为 | 服务端不读完整个 51MB 就断开（`max-swallow-size=2MB` 的效果）。观察手段见 §9 | 手工 |
+
+## 9. 手工验证项
+
+手工不等于"有空再做"，这些是正式验收清单的一部分。每条都写清了用什么命令看、什么数值算通过——没有明确判定标准的手工项等于没做。
+
+### M-01 上传 30MB 文件的堆内存 —— 最高优先级
+
+**这是唯一一条可能推翻技术方案的用例。** [architecture.md §7](architecture.md) 赌的是 `RequestBody.fromFile` 不会把整个文件读进堆（与学习笔记 03-03 里 `fromBytes`/`fromInputStream` 的堆放大问题不同）。如果赌错，上传链路必须退到预签名 URL 方案，前端也要跟着改。
+
+判定标准做成**二元**的，而不是让人对着堆曲线目测：
+
+```bash
+cd backend && JAVA_HOME=$(/usr/libexec/java_home -v 17) ./mvnw -q -B package
+```
+
+```bash
+java -Xmx256m -XX:+HeapDumpOnOutOfMemoryError \
+  -XX:StartFlightRecording=filename=/tmp/upload.jfr,settings=profile \
+  -jar backend/target/backend-0.0.1-SNAPSHOT.jar
+```
+
+```bash
+head -c 31457280 /dev/urandom | base64 > /tmp/big.txt && ls -lh /tmp/big.txt
+```
+
+```bash
+curl -i -F "file=@/tmp/big.txt" http://localhost:3001/api/v1/knowledge-bases/1/documents/file
+```
+
+- **通过**：`201`，进程没有 OOM。堆上限 256MB 远小于"文件 30MB + SigV4 摘要放大"所需，能在这个上限下跑完，就说明请求体确实没有被整体读进堆。
+- **不通过**：`OutOfMemoryError`（会自动落 heap dump）→ 按 architecture.md §7 记录的退路改用预签名 URL 方案，并回头更新技术方案与 PRD。
+
+峰值数据留档备查：
+
+```bash
+jfr print --events jdk.GCHeapSummary /tmp/upload.jfr | grep -A3 heapUsed | tail -40
+```
+
+注意 `-Xmx256m` 只是把判定变尖锐的手段，不是生产配置建议。
+
+> #### 实测结果（`2026-07-25`）：**通过。技术方案不需要退回预签名 URL 方案。**
+>
+> 执行时把文件从 30MB **加到 48MB**（`max-file-size` 上限 50MB 以内的最大值），因为 30MB 按学习笔记 03-03 记录的约 3.3 倍放大也只有 ~100MB，仍然装得进 256MB 堆——那样的话"没 OOM"证明不了什么。48MB 若被整体缓冲，加上 SigV4 摘要放大会逼近甚至超过堆上限，判定才真正尖锐。
+>
+> | 观测点 | 数值 |
+> |---|---|
+> | 上传前堆 used | 38.7 MB |
+> | 单次 48MB 上传后堆 used | 34.8 MB |
+> | 连续 4 次 48MB 上传，堆 used 峰值 | 51.4 MB |
+> | **堆 total（committed）全程** | **61.4 MB，一次都没扩张** |
+> | HTTP / 耗时 | `201`，0.72s |
+> | OOM / heap dump | 无 |
+> | 对象存储实际落盘 | `part.1` 50,333,184 字节（源文件 50,331,648 + RustFS 分片对齐），内容完整 |
+>
+> 最有说服力的不是"没 OOM"，而是**堆 committed 全程停在 61MB 没有扩张过**：JVM 连要更多堆的必要都没有，说明 48MB 的请求体压根没进过堆。`RequestBody.fromFile` 的行为与 [architecture.md §7](architecture.md) 的预期一致。
+>
+> 顺带验掉了超限路径：55MB 文件返回 `413`，响应体是契约里的 `{"error":"FILE_TOO_LARGE","message":"文件超过 50MB 上限，无法上传。请压缩或拆分后重试。"}`，**不是容器默认错误页**——这需要显式处理 `MaxUploadSizeExceededException`，因为它在控制器方法之前由 multipart 解析器抛出。
+
+### M-02 URL 来源下载 30MB 文件的堆内存
+
+同 M-01 的进程与堆上限，改为创建一个指向 30MB 文件的 URL 文档。这条路径的风险点不同：下载走的是自己写的流式落盘代码，而不是 SDK。**通过标准同样是不 OOM**。
+
+### M-03 事务范围不含外部 IO
+
+守 [architecture.md](architecture.md) 那条被学习笔记反复强调五次的纪律。触发一个能切出 200+ 分块的文档，然后：
+
+```bash
+docker compose exec -T postgres psql -U app -d app -c "select pid, state, now() - xact_start as xact_age, left(query, 60) from pg_stat_activity where datname='app' and xact_start is not null order by xact_age desc;"
+```
+
+在 Embedding 阶段（日志显示正在批量调用）反复执行上面这条命令。
+
+- **通过**：Embedding 期间**没有**任何 `xact_age` 持续增长的连接；只在 PERSIST 阶段出现一个短命事务。
+- **不通过**：存在一个横跨整个 Embedding 阶段的长事务 → 事务边界画错了，把外部 IO 圈进去了。
+
+同一手段用于 CHK-36（500 个分块批量启用）。
+
+### M-04 限流拦截发生在读请求体之前（LIM-04）
+
+把 `max-concurrent` 设为 1，先发一个慢上传占住许可，再发第二个 30MB 上传，同时观察磁盘临时目录：
+
+```bash
+ls -l $TMPDIR | grep -i tomcat
+```
+
+- **通过**：第二个请求返回 `429`，且临时目录里**没有**为它产生新的临时文件。
+- **不通过**：出现了第二个临时文件 → 限流拦得太晚（多半是错放在了 `HandlerInterceptor` 里），保护磁盘和 IO 的目的已经落空。
+
+### M-05 超限请求不被读完（LIM-05）
+
+```bash
+curl -i --limit-rate 2M -F "file=@/tmp/big51.txt" http://localhost:3001/api/v1/knowledge-bases/1/documents/file
+```
+
+- **通过**：远早于 51MB 传完就收到 `413` 或连接被断开。
+- **不通过**：服务端老老实实读完 51MB 才回 `413` → `server.tomcat.max-swallow-size` 没生效。
+
+### M-06 真实 Embedding API 连通性
+
+**外部阻塞项：需要一个可用的 `EMBEDDING_API_KEY`。** 集成测试全程用假实现，因此这是唯一一次验证真实供应商契约的机会。
+
+- 配好 Key 启动，上传一个小 txt 并触发分块。
+- **通过**：向量成功写入，且 `select vector_dims(embedding) from document_chunk_embedding limit 1` 返回 **1024**，与 `vector(1024)` 一致。
+- 顺带核实 `app.embedding.batch-size` 默认值：构造一个能切出明显多于 batch-size 的分块数的文档，确认分批串行请求全部成功。**超上限的症状是"大文档第一批就整体失败、小文档完全正常"**，很容易被误判成偶发网络问题。
+
+### M-07 未配置 API Key 时应用仍能启动
+
+```bash
+EMBEDDING_API_KEY= JAVA_HOME=$(/usr/libexec/java_home -v 17) ./mvnw -q -B spring-boot:run
+```
+
+- **通过**：应用正常启动，`GET /api/v1/health` 返回 200；触发分块时得到一个**明确说明"未配置 API Key"**的错误，而不是 NPE 或超时。
+- 这是在守 `FlywayConfig` / `ensureStorageBucket` 已经建立的既有模式：依赖不可用不阻塞启动，能力不可用时给出明确错误。
+
+### M-08 维度不一致时启动失败
+
+```bash
+EMBEDDING_DIMENSIONS=512 JAVA_HOME=$(/usr/libexec/java_home -v 17) ./mvnw -q -B spring-boot:run
+```
+
+- **通过**：应用**启动失败**，错误信息明确指出配置维度与数据库向量列维度不一致。
+- 这一条与 M-07 有意相反：维度不匹配会让所有向量写入在运行时才报错，越早暴露越好，所以这里选择"启动就失败"。
+
+### M-09 三个页面的浏览器实测
+
+按 [ui-spec.md](ui-spec.md) 逐项核对：四种文档状态的展示与 `RUNNING` 时的按钮禁用、`SKIPPED` 的措辞、`phase` 的中文映射、四种错误码的用户提示、三处空态。**不是只看接口通不通，是看用户能不能理解界面在说什么。**
+
+## 10. PRD §8 验收标准追溯
+
+| PRD 验收标准 | 覆盖用例 |
+|---|---|
+| 能创建知识库、上传文件、触发分块，内容在数据库和向量库中可查 | KB-01、DOC-01、ING-01、ING-06、ING-07、M-06 |
+| URL 定时同步：未变化不重新分块，变化后正确刷新 | SYNC-01 ~ SYNC-04 |
+| 超限文件被正确拒绝，且不导致内存/磁盘异常增长 | DOC-05、LIM-05、M-01、M-05 |
+| 删除文档后各接口不再可见、向量物理删除、定时同步不再执行 | DOC-27、SYNC-06、DEL-05 ~ DEL-07、DEL-10、DEL-12 |
+| 禁用文档后内容不出现在检索结果中（本模块只保证向量被清理） | DOC-28、DOC-29、DEL-12 |
+| 手工编辑/新增/删除分块后向量库与数据库保持一致 | CHK-20 ~ CHK-24、DEL-12 |
+| 处理中的文档拒绝并发的删除/更新/重复触发 | DOC-23、DOC-26、ING-02、SYNC-07、SYNC-11、CHK-18 |
+
+`DEL-12`（向量表不变量）出现在其中三条里。它不是凑数——"向量数据被正确清理"这件事在 PRD 里被表述成了三个不同角度的要求，而它们在实现上收敛到同一条不变量。
+
+## 11. 这份矩阵没有覆盖什么
+
+- **检索效果**：向量是否"检索得准"不属于本模块，需要 Phase 3 检索链路和 Phase 4 评测体系才能衡量。本模块只保证向量**存在且一致**。
+- **多实例并发**：启动回收在多实例下会误伤其他实例正在跑的任务（[ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md) 明确记录了这个失效点）。既然当前是单实例部署，就不为一个已知不成立的前提写用例。
+- **性能压测**：没有明确的性能目标（PRD 未提出），压测数字无从判定通过与否。写一个没有判定标准的压测用例，只会产生一份没人看的数字报告。
+- **权限与多用户**：PRD 非目标。

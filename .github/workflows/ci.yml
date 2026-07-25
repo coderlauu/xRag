@@ -21,6 +21,24 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # 后端集成测试需要真实 Postgres：部分唯一索引、check 约束、vector(1024) 和 HNSW
+    # 在 H2 上都跑不了（tech/knowledge-base/test-matrix.md §2）。镜像与 docker-compose.yml
+    # 保持一致，pgvector 扩展由 Flyway 的 V1 迁移启用。
+    # 只起 Postgres：verify 不触碰 Redis / 对象存储，那两个由 infra job 覆盖。
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: app
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5

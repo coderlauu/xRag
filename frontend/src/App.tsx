@@ -1,32 +1,34 @@
-import { useEffect, useState } from "react";
-import "./App.css";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { AppLayout } from "./components/AppLayout";
+import { DiagnosticsPage } from "./pages/DiagnosticsPage";
+import { DocumentsPage } from "./pages/DocumentsPage";
+import { KnowledgeBasesPage } from "./pages/KnowledgeBasesPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-
-interface HealthResponse {
-  status: string;
-}
-
-function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/v1/health`)
-      .then((response) => response.json())
-      .then(setHealth)
-      .catch(() => setError("Unable to reach the backend."));
-  }, []);
-
+/**
+ * 路由表。路径结构对应 tech/knowledge-base/ui-spec.md §1：
+ *
+ * ```
+ * /knowledge-bases                                        知识库列表
+ *   └─ /knowledge-bases/{kbId}                            文档列表
+ *        └─ /knowledge-bases/{kbId}/documents/{docId}/chunks   分块管理
+ * ```
+ *
+ * 后两条由工单 12 / 13 加入。文档详情不占路由——原型把它做成了文档列表上的右侧抽屉，
+ * 这样能保留列表上下文。
+ */
+export default function App() {
   return (
-    <main>
-      <h1>App</h1>
-      <p>
-        Backend status:{" "}
-        {error ? error : (health?.status ?? "checking...")}
-      </p>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<Navigate to="/knowledge-bases" replace />} />
+          <Route path="/knowledge-bases" element={<KnowledgeBasesPage />} />
+          <Route path="/knowledge-bases/:kbId" element={<DocumentsPage />} />
+          <Route path="/diagnostics" element={<DiagnosticsPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;

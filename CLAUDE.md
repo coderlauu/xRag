@@ -71,8 +71,20 @@ scripts/ci-validate.sh
 - `docs/exec-plans/active/*.md`：在建计划，固定包含 Metadata/Objective/Scope/Risks/Plan/Validation/Rollback/Decision Log 章节；了解当前阶段状态先看这里，`completed/` 是归档。
 - `docs/adr/`：已接受的架构决策。0001 独立建设（见上文约束）；0002 知识库入库的异步机制与并发控制——**不引入 RocketMQ/Redisson，用数据库任务表 + 状态字段 CAS + 启动回收/心跳超时替代事务消息、分布式锁、租约锁续期、分布式信号量**，每项都给了等价性论证，同时明确记录该决策依赖"单实例部署"假设及多实例下的失效点。模型 Provider、检索策略等尚未形成 ADR，遇到相关问题不要假设已有定论。
 - `docs/prd/`：各模块产品需求文档。`2026-07-25-knowledge-base-prd.md` 已 approved，其 §7.6 是一条**全系统级**约束：所有业务数据的删除都是逻辑删除，两项例外是向量数据物理删除、对象存储原始文件保留。写任何模块的删除逻辑前先读这一节。
-- `tech/<module>/`：各模块技术方案，固定三件套 `architecture.md` / `data-model.md` / `api.md`，必须同步维护。知识库模块的方案已完成，但**代码尚未开始实现**——`tech/knowledge-base/` 描述的是目标状态，不是当前状态。
+- `tech/<module>/`：各模块技术方案，固定三件套 `architecture.md` / `data-model.md` / `api.md`，必须同步维护。有界面的模块另加 `ui-spec.md`（界面规格，唯一权威）与 `test-matrix.md`（测试用例矩阵）。知识库模块的方案已完成，但**代码尚未开始实现**——`tech/knowledge-base/` 描述的是目标状态，不是当前状态。
+- `prototype/<module>/index.html`：可点击交互原型，自包含单文件（无构建步骤、无外部依赖）。底部深色抽屉是演示控制台，用来切换那些"只在特定状态下才出现"的界面规则（处理中禁用、四种空态、错误提示）。规格冲突时以 `ui-spec.md` 为准并把原型改回来，见 [prototype/README.md](prototype/README.md)。
 - `.scratch/<module>/issues/`：原子工单，按垂直切片组织并标注依赖边，附依赖图。`docs/exec-plans/active/*-implementation-lanes.md` 的 Lane 是职责视角（谁负责什么、完成定义是什么），工单是执行视角（实际推进顺序），同一批工作的两个切法，都要维护。
 - [CONTEXT.md](CONTEXT.md)：项目根统一语言表，定义了知识库/源文档/文档版本/入库任务/文档分块/分块策略/向量配置版本/用户问题/检索表达/意图/检索通道/召回结果/回答/引用/对话/工具/工具调用/评测用例/链路记录等术语。设计模块、写 PRD 或代码注释时优先复用这套术语，不要自造同义词。
 - `learning/ragent-column/`：知识星球专栏的重整理笔记，按目标系统模块分组（`00-overview`、`01-rag-fundamentals`、`02-bootstrap-and-deployment`、`03-knowledge-base`、`04-model-scheduling`、`05-qa-pipeline`、`06-evaluation`、`07-interview`），与原专栏教学顺序不同。`INDEX.md` 是唯一进度基线，`PHASE-0-CHECKPOINT.md` 记录了已验证的技术结论和进入 Phase 1 前识别出的脚手架缺口（上面“已知不一致”就来自这里）。
 - `.agents/skills/` 与 `.claude/skills/`：同一份 mattpocock/skills 技能包的两份拷贝，`SKILLS_GUIDE.md` 说明了选择哪个 Skill 的判断流程（需求不清先 grill，需要跑代码验证设计用 prototype，跨会话任务先拆 spec/tickets，单会话直接实现用 tdd，改完用 code-review 收尾）。
+
+## 产出物闸门（不可自行降级）
+
+每个模块的 Step B 有两项产出物，**缺一不可，且都要在写前端代码之前交给用户确认**：
+
+1. `tech/<module>/ui-spec.md`——界面规格（文字权威）。
+2. `prototype/<module>/index.html`——可点击原型（交互确认载体）。
+
+**只要模块有用户界面，原型就是必出项，不是可选项。** 计划文本里出现"若需要 / 可选 / 视情况"这类措辞时，判断权在用户手上——把选项和取舍摊开来问，不要替用户决定，也不要用"ASCII 线框已经说清了"来顶替原型。此前知识库模块就是这样把原型静默跳过的（原因见 [任务书 Decision Log](docs/exec-plans/active/2026-07-25-knowledge-base-implementation-lanes.md) `2026-07-25` 条目），修复是把原型写进了 Lane 产品的写入范围与完成定义。
+
+理由：界面规则里最容易出错的部分（处理中该灰哪些按钮、`SKIPPED` 的措辞会不会被误读成失败、两种"分块为空"的区别）在 400 行文档里评审成本极高，看一眼页面却是秒判。原型改起来最便宜的时刻是 React 代码还不存在的时候。

@@ -32,7 +32,9 @@ cd backend && ./mvnw spring-boot:run    # 后端，默认监听 :3001（本机�
 cd frontend && pnpm install && pnpm dev   # 前端，默认监听 :5173
 ```
 
-前端通过 `VITE_API_BASE_URL` 环境变量指向后端地址（本地开发默认同源代理需自行配置，或直接设为 `http://localhost:3001`）。
+本地开发不需要配 `VITE_API_BASE_URL`：`vite.config.ts` 已经把 `/api` 同源代理到后端（默认 `http://localhost:3001`，用 `BACKEND_ORIGIN` 覆盖）。没有这个代理时 `:5173` 直连 `:3001` 是跨源请求，后端未配 CORS 会被浏览器拦掉，界面上表现为"无法连接到服务器"，很容易误判成后端没起来。
+
+`VITE_API_BASE_URL` 留给"前端产物直连另一个域名的后端"这种部署形态，本地留空即可。
 
 ## Validation
 
