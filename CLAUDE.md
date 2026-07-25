@@ -56,7 +56,7 @@ scripts/ci-validate.sh
 # 依次执行：docker compose config 检查 → node scripts/check-doc-links.mjs → frontend build → backend mvn verify
 ```
 
-`scripts/check-doc-links.mjs` 会校验 `AGENTS.md` / `CLAUDE.md` / `README.md` / `learning/` / `docs/` / `deploy/` 下所有 Markdown 的内部链接是否有效，新增或挪动文档后务必跑一次。
+`scripts/check-doc-links.mjs` 会校验 `AGENTS.md` / `CLAUDE.md` / `README.md` / `learning/` / `docs/` / `tech/` / `deploy/` 下所有 Markdown 的内部链接是否有效，新增或挪动文档后务必跑一次。注意 `.scratch/` 不在扫描范围内（工单是临时执行载体，不做链接保证）。
 
 ## 架构要点
 
@@ -69,7 +69,10 @@ scripts/ci-validate.sh
 ## 文档体系（理解全局需要跨文件阅读）
 
 - `docs/exec-plans/active/*.md`：在建计划，固定包含 Metadata/Objective/Scope/Risks/Plan/Validation/Rollback/Decision Log 章节；了解当前阶段状态先看这里，`completed/` 是归档。
-- `docs/adr/`：已接受的架构决策，目前只有 0001（独立建设，见上文约束）；数据库 Schema、向量模型、分块策略、模型 Provider 等尚未形成 ADR，遇到相关问题不要假设已有定论。
+- `docs/adr/`：已接受的架构决策。0001 独立建设（见上文约束）；0002 知识库入库的异步机制与并发控制——**不引入 RocketMQ/Redisson，用数据库任务表 + 状态字段 CAS + 启动回收/心跳超时替代事务消息、分布式锁、租约锁续期、分布式信号量**，每项都给了等价性论证，同时明确记录该决策依赖"单实例部署"假设及多实例下的失效点。模型 Provider、检索策略等尚未形成 ADR，遇到相关问题不要假设已有定论。
+- `docs/prd/`：各模块产品需求文档。`2026-07-25-knowledge-base-prd.md` 已 approved，其 §7.6 是一条**全系统级**约束：所有业务数据的删除都是逻辑删除，两项例外是向量数据物理删除、对象存储原始文件保留。写任何模块的删除逻辑前先读这一节。
+- `tech/<module>/`：各模块技术方案，固定三件套 `architecture.md` / `data-model.md` / `api.md`，必须同步维护。知识库模块的方案已完成，但**代码尚未开始实现**——`tech/knowledge-base/` 描述的是目标状态，不是当前状态。
+- `.scratch/<module>/issues/`：原子工单，按垂直切片组织并标注依赖边，附依赖图。`docs/exec-plans/active/*-implementation-lanes.md` 的 Lane 是职责视角（谁负责什么、完成定义是什么），工单是执行视角（实际推进顺序），同一批工作的两个切法，都要维护。
 - [CONTEXT.md](CONTEXT.md)：项目根统一语言表，定义了知识库/源文档/文档版本/入库任务/文档分块/分块策略/向量配置版本/用户问题/检索表达/意图/检索通道/召回结果/回答/引用/对话/工具/工具调用/评测用例/链路记录等术语。设计模块、写 PRD 或代码注释时优先复用这套术语，不要自造同义词。
 - `learning/ragent-column/`：知识星球专栏的重整理笔记，按目标系统模块分组（`00-overview`、`01-rag-fundamentals`、`02-bootstrap-and-deployment`、`03-knowledge-base`、`04-model-scheduling`、`05-qa-pipeline`、`06-evaluation`、`07-interview`），与原专栏教学顺序不同。`INDEX.md` 是唯一进度基线，`PHASE-0-CHECKPOINT.md` 记录了已验证的技术结论和进入 Phase 1 前识别出的脚手架缺口（上面“已知不一致”就来自这里）。
 - `.agents/skills/` 与 `.claude/skills/`：同一份 mattpocock/skills 技能包的两份拷贝，`SKILLS_GUIDE.md` 说明了选择哪个 Skill 的判断流程（需求不清先 grill，需要跑代码验证设计用 prototype，跨会话任务先拆 spec/tickets，单会话直接实现用 tdd，改完用 code-review 收尾）。
