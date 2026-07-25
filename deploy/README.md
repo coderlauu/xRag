@@ -112,7 +112,7 @@ ssh -i ~/.ssh/app_github_actions deploy@YOUR_SERVER_IP
 - `80/443` 由 `Caddy` 监听
 - `Caddy` 自动为 `APP_DOMAIN` 申请和续期证书
 - `Caddy` 同时为 `STORAGE_PUBLIC_HOST` 代理对象存储上传 API
-- `Caddy` 为 `CONSOLE_PUBLIC_HOST` 代理 MinIO Console
+- `Caddy` 为 `CONSOLE_PUBLIC_HOST` 代理 RustFS Console
 - `Caddy` 为 `DB_CONSOLE_PUBLIC_HOST` 代理数据库 Web 管理台
 - `web` 仅在内网暴露 `8080`
 
@@ -219,7 +219,7 @@ ssh -N -L 5432:127.0.0.1:5432 root@YOUR_SERVER_IP
 它不会触碰：
 
 - PostgreSQL 数据卷
-- MinIO 数据卷
+- RustFS 数据卷
 - 任何 `docker volume prune`
 
 默认阈值可写入 `DEPLOY_ENV_FILE`：
@@ -269,7 +269,7 @@ journalctl -u app-disk-guard.service -n 100 --no-pager
 
 本地可通过以下方式验证部署基线：
 
-- `api / worker / web / postgres / redis / minio` 可通过 `deploy/compose/stack.compose.yml` 拉起
+- `api / worker / web / postgres / redis / rustfs` 可通过 `deploy/compose/stack.compose.yml` 拉起
 - `/api/v1/health` 返回 `{"status":"ok"}`
 
 ## Deploy Flow

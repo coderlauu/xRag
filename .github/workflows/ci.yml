@@ -58,7 +58,7 @@ jobs:
       - name: Start infra stack
         run: |
           docker compose up -d --wait postgres redis
-          docker compose up -d minio
+          docker compose up -d rustfs
 
       - name: Check infra readiness
         run: scripts/infra-check.sh

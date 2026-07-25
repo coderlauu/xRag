@@ -65,11 +65,11 @@ mTLS：双向 TLS，客户端和服务端互相验证证书，是 JSON-RPC 传�
 
 ## 与 xrag 项目的关系
 
-- 这篇是 01-13《MCP协议入门与实践》、01-15《MCP之官方Java-SDK深度解析》两篇里"JSON-RPC 是 MCP 的底层消息格式"这句话的字段级展开——01-15 提到 `McpSchema` 里的 `CallToolRequest`/`CallToolResult` 最终会被包进标准 JSON-RPC 结构（如 `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{...}}`），本篇把这个"包法"背后的强制规则（result/error 互斥、id 匹配规则、Notification 不回包）讲清楚了。xrag 走的是 Spring AI + 官方 Java SDK 路径，SDK 的 Schema 层和 Session 层已经把这些规则实现好了，日常开发基本不需要手写 JSON-RPC 校验代码，但**排查协议层异常时**（比如工具调用没收到响应、或者响应结构看起来不对）需要对照本篇的字段规则去判断是 SDK 用法错了还是对端（尤其是自建/第三方 MCP Server）实现不合规。
+- 这篇是 01-13《MCP协议入门与实践》、01-15《MCP之官方Java-SDK深度解析》两篇里"JSON-RPC 是 MCP 的底层消息格式"这句话的字段级展开——01-15 提到 `McpSchema` 里的 `CallToolRequest`/`CallToolResult` 最终会被包进标准 JSON-RPC 结构（如 `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{...}}`），本篇把这个"包法"背后的强制规则（result/error 互斥、id 匹配规则、Notification 不回包）讲清楚了。xrag 当前尚未选定或接入 Spring AI/MCP；未来若采用 Spring AI + 官方 Java SDK，SDK 的 Schema 层和 Session 层会负责这些规则，业务代码不应重复手写 JSON-RPC 校验，但排查第三方或自建 MCP Server 的协议异常时仍需要本篇的字段知识。
 - 本篇"规范之外必须自己补的 7 块工程能力"里，**幂等去重**和**超时重试**两块直接对应 01-13 提到的 `MCPToolExecutor`（工具执行器）在真实生产场景下需要补的逻辑：工具调用失败重试时要按请求 id 去重、非幂等工具（比如触发下单、发送通知类的 MCP 工具）不能无脑重试，这是 xrag 设计工具调用重试策略时必须提前想清楚的边界，而不是简单包一层 retry 装饰器就完事。
 - **错误码分层**（协议层 -32768~-32000 / 基础设施层 -32000~-32099 / 业务层自定义正数）这条规则应该直接作为 xrag 定义自己 MCP 工具错误码规范的依据——工具执行失败时的错误应该用业务正数码（比如"知识库不存在""检索超时"各给一个固定编号），不能像文章里的反例那样偷懒复用 -32603 之类的协议保留码，否则客户端没法区分"是协议出问题"还是"是业务逻辑判定失败"。
 - **鉴权部分**明确指出 JSON-RPC/MCP 协议本身不管鉴权，且不推荐把鉴权字段塞进业务请求体里——这直接呼应 01-13 提出的"MCP 远程 Server 认证方式还没有统一标准，需要自己定"这个局限性，本篇给出的具体落地选项（HTTPS+API Key、HTTPS+JWT、mTLS）可以作为 xrag 给 Streamable HTTP 方式暴露的 MCP Server 选鉴权方案时的候选清单，优先在传输层（网关/Header）解决，不要往 JSON-RPC 请求体里加自定义鉴权字段。
-- 日志与链路追踪那部分要求的字段清单（请求 id、method、脱敏后的 params、耗时、Trace ID）可以直接对照 xrag 现有的可观测性设计（Trace ID 贯穿多服务调用）来补齐 MCP 工具调用这一段的埋点，避免出现"业务链路有 Trace，工具调用这一跳单独丢失可观测性"的断层。
+- 日志与链路追踪那部分要求的字段清单（请求 id、method、脱敏后的 params、耗时、Trace ID）可以作为 xrag 未来设计可观测性和 MCP 工具调用埋点时的统一输入；当前脚手架尚无业务 Trace 实现，因此应在主链路设计阶段一起规划，而不是假设已有链路追踪可直接复用。
 
 ## 值得注意的设计取舍/坑
 

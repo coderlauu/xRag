@@ -4,16 +4,23 @@
 
 原作者按"教学讲解顺序"分了 9 组，这里按"系统模块归属"重新组织成 8 组（含 1 个前言组），方便每组学习内容和 `xrag` 项目里对应要设计/实现的系统模块直接挂钩。具体缘由见 [docs/exec-plans/active/2026-07-24-ragent-column-learning-and-system-build.md](../../docs/exec-plans/active/2026-07-24-ragent-column-learning-and-system-build.md)。
 
-全专栏共 92 个链接（1 个加群链接 + 91 篇正文），下表逐条登记原文标题、原文短链接、新分组、处理状态与本地整理稿路径。**状态**：`done` = 已整理，`pending` = 待处理。
+全专栏共 92 个链接（1 个加群链接 + 91 篇正文），下表逐条登记原文标题、原文短链接、新分组与本地整理稿路径。**状态**：`done` = 已整理，`pending` = 待处理。
+
+截至 2026-07-25，全部正文完成 **51/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成。
+
+- `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`
+- `pending`：`04-model-scheduling`（8篇）、`05-qa-pipeline`（18篇）、`06-evaluation`（11篇）、`07-interview`（3篇+持续更新）
+
+Phase 0 的覆盖率、技术结论、环境验证与进入下一阶段前的待决策事项见 [Phase 0 对齐检查点](PHASE-0-CHECKPOINT.md)。
 
 ## 处理进度总览
 
 | 分组 | 篇数 | 状态 | 对应系统模块 |
 |---|---|---|---|
-| 00-overview 项目概览与学习指南 | 5 | Phase 0 处理中 | 无，背景/元信息 |
-| 01-rag-fundamentals RAG与大模型基础概念 | 25 | Phase 0 处理中 | 全系统知识底座 |
-| 02-bootstrap-and-deployment 本地开发与模型部署环境 | 10 | Phase 0 处理中 | 项目 Bootstrap/基础设施 |
-| 03-knowledge-base AI知识库建设 | 11 | pending（Phase 1） | 知识库/文档管理模块 |
+| 00-overview 项目概览与学习指南 | 5 | done（5/5） | 无，背景/元信息 |
+| 01-rag-fundamentals RAG与大模型基础概念 | 25 | done（25/25） | 全系统知识底座 |
+| 02-bootstrap-and-deployment 本地开发与模型部署环境 | 10 | done（10/10） | 项目 Bootstrap/基础设施 |
+| 03-knowledge-base AI知识库建设 | 11 | done（11/11） | 知识库/文档管理模块 |
 | 04-model-scheduling 大模型调度引擎 | 8 | pending（Phase 2） | AI基础设施层/模型路由网关模块 |
 | 05-qa-pipeline AI知识问答核心链路 | 18 | pending（Phase 3） | 检索增强问答（核心业务）模块 |
 | 06-evaluation RAG评测体系 | 11 | pending（Phase 4） | 评测/质量保障模块 |
@@ -76,21 +83,21 @@
 | 9 | Ollama核心概念与架构 | https://t.zsxq.com/d4HI2 | `02-bootstrap-and-deployment/02-09-Ollama核心概念与架构.md` |
 | 10 | Ollama安装与模型调用实战 | https://t.zsxq.com/frBrF | `02-bootstrap-and-deployment/02-10-Ollama安装与模型调用实战.md` |
 
-## 03-knowledge-base AI知识库建设（11篇，pending）
+## 03-knowledge-base AI知识库建设（11篇，done）
 
-| # | 原文标题 | 原文链接 |
-|---|---|---|
-| 1 | RAG知识库管理宏观设计 | https://t.zsxq.com/tqP4O |
-| 2 | 知识库文件上传大小限制原理 | https://t.zsxq.com/pFmQ6 |
-| 3 | 为什么上传30MB文件占了100MB内存？ | https://t.zsxq.com/QFETM |
-| 4 | 文件上传分布式限流如何做？ | https://t.zsxq.com/K3M23 |
-| 5 | 分布式限流选业务层还是网关层？ | https://t.zsxq.com/kJVbI |
-| 6 | 知识库文档上传接口 | https://t.zsxq.com/NaoUi |
-| 7 | 知识库文档开始分块接口 | https://t.zsxq.com/FtWRt |
-| 8 | 深度解析知识库定时同步的架构设计 | https://t.zsxq.com/YMhqa |
-| 9 | 定时同步的调度引擎与故障恢复 | https://t.zsxq.com/e9kKG |
-| 10 | 知识库文档管理接口 | https://t.zsxq.com/eGdy4 |
-| 11 | 知识库数据分块管理接口 | https://t.zsxq.com/fn2gz |
+| # | 原文标题 | 原文链接 | 本地文件 |
+|---|---|---|---|
+| 1 | RAG知识库管理宏观设计 | https://t.zsxq.com/tqP4O | `03-knowledge-base/03-01-RAG知识库管理宏观设计.md` |
+| 2 | 知识库文件上传大小限制原理 | https://t.zsxq.com/pFmQ6 | `03-knowledge-base/03-02-知识库文件上传大小限制原理.md` |
+| 3 | 为什么上传30MB文件占了100MB内存？ | https://t.zsxq.com/QFETM | `03-knowledge-base/03-03-为什么上传30MB文件占了100MB内存.md` |
+| 4 | 文件上传分布式限流如何做？ | https://t.zsxq.com/K3M23 | `03-knowledge-base/03-04-文件上传分布式限流如何做.md` |
+| 5 | 分布式限流选业务层还是网关层？ | https://t.zsxq.com/kJVbI | `03-knowledge-base/03-05-分布式限流选业务层还是网关层.md` |
+| 6 | 知识库文档上传接口 | https://t.zsxq.com/NaoUi | `03-knowledge-base/03-06-知识库文档上传接口.md` |
+| 7 | 知识库文档开始分块接口 | https://t.zsxq.com/FtWRt | `03-knowledge-base/03-07-知识库文档开始分块接口.md` |
+| 8 | 深度解析知识库定时同步的架构设计 | https://t.zsxq.com/YMhqa | `03-knowledge-base/03-08-深度解析知识库定时同步的架构设计.md` |
+| 9 | 定时同步的调度引擎与故障恢复 | https://t.zsxq.com/e9kKG | `03-knowledge-base/03-09-定时同步的调度引擎与故障恢复.md` |
+| 10 | 知识库文档管理接口 | https://t.zsxq.com/eGdy4 | `03-knowledge-base/03-10-知识库文档管理接口.md` |
+| 11 | 知识库数据分块管理接口 | https://t.zsxq.com/fn2gz | `03-knowledge-base/03-11-知识库数据分块管理接口.md` |
 
 ## 04-model-scheduling 大模型调度引擎（8篇，pending）
 

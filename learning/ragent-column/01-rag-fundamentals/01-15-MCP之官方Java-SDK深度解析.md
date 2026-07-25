@@ -47,7 +47,7 @@ Elicitation：MCP 2.0 方向的新特性，允许 Server 主动向 Client 发起
 
 ## 与 xrag 项目的关系
 
-- xrag 后端目前走 Spring AI 注解方式接入 MCP（对应专栏 01-13/01-14 两篇尚待整理的前置文章），本篇的价值主要是**排障与深度定制的知识储备**，不是当前必须落地的代码改动：理解了 `@McpTool` 背后其实是"反射读注解 → 生成 McpSchema.Tool → 注册进 Builder"这条链路后，未来如果遇到工具没被正确发现、参数映射错误、或 Schema 生成不符合预期这类问题，可以直接对照 SDK 的 Schema 层和 Client/Server 层源码定位，而不是停留在"注解不生效但不知道为什么"的黑盒调试。
+- xrag 当前仍是 Java/Spring Boot 空白脚手架，尚未引入 Spring AI 或 MCP；本篇的价值主要是**未来接入时的排障与深度定制知识储备**，不是当前已经存在的实现说明。理解 `@McpTool` 背后"反射读注解 → 生成 McpSchema.Tool → 注册进 Builder"这条链路后，未来若选择 Spring AI 并遇到工具发现、参数映射或 Schema 生成问题，可以直接对照 SDK 的 Schema 层和 Client/Server 层源码定位，而不是停留在黑盒调试。
 - 文章明确给出的三种 Transport 选型建议（本地开发用 Stdio、生产远程部署用 Streamable HTTP、SSE 是过渡方案）直接对应 xrag 后续如果要把内部 MCP Server 开放给远程 Client（而不只是同进程内的 Spring AI 自动装配）时的传输层选型依据——如果要支持外部系统或跨网络调用 xrag 的 MCP 工具，应优先规划 Streamable HTTP 而不是继续用 Stdio 或选偏过渡性质的 SSE。
 - 文章里"Stdio Transport 下日志必须走 stderr、不能走 stdout"和"必须手动阻塞主线程保活否则守护线程被 JVM 提前回收"这两个细节，是 xrag 若未来需要脱离 Spring Boot 独立起一个轻量 MCP Server/Client 进程（比如给某个边缘服务或脚本工具单独打包一个不依赖完整 Spring 容器的 MCP 接入点）时必须提前规避的两个坑，属于可以直接复用的工程经验。
 - `toolsChangeConsumer` 依赖 Server 端主动发送变更通知才会触发这一点，提示 xrag 在设计工具动态上下线能力（如管理后台增删工具）时，如果希望已连接的 Client 感知到变化，Server 端实现必须主动调用 SDK 提供的通知发送机制，不能假设"改了工具列表 Client 就会自动重新拉取"。

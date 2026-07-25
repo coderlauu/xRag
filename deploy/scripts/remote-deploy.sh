@@ -198,7 +198,7 @@ docker_login_with_retry
 export CADDYFILE_PATH="${caddyfile_path}"
 compose_run down --remove-orphans || true
 compose_run pull
-compose_run up -d postgres redis minio
+compose_run up -d postgres redis rustfs
 wait_for_postgres
 # remote-deploy.sh is streamed over SSH stdin; compose exec/run must not consume the rest of the script.
 compose_run exec -T postgres sh -lc '

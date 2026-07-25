@@ -30,4 +30,4 @@ wait_for "postgres" 15 docker compose exec -T postgres pg_isready -U app -d app
 wait_for "postgres host port" 15 bash -lc ">/dev/tcp/127.0.0.1/5432"
 wait_for "redis" 15 docker compose exec -T redis redis-cli ping
 wait_for "redis host port" 15 bash -lc ">/dev/tcp/127.0.0.1/6379"
-wait_for "minio" 15 curl -fsS http://localhost:9000/minio/health/ready >/dev/null
+wait_for "rustfs" 15 curl -fsS http://localhost:9000/health >/dev/null

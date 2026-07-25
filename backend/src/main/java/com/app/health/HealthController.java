@@ -4,11 +4,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
@@ -38,25 +38,31 @@ public class HealthController {
     }
 
     @GetMapping("/ready")
-    public Map<String, Object> getReadiness() {
+    public ResponseEntity<Map<String, Object>> getReadiness() {
         Map<String, String> checks = new LinkedHashMap<>();
+        boolean allHealthy = true;
 
-        try {
-            jdbcTemplate.queryForObject("select 1", Integer.class);
-            checks.put("postgres", "ok");
-
-            redisTemplate.getConnectionFactory().getConnection().ping();
-            checks.put("redis", "ok");
-
-            s3Client.headBucket(HeadBucketRequest.builder().bucket(storageBucket).build());
-            checks.put("objectStorage", "ok");
-        } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Dependencies are unavailable");
-        }
+        allHealthy &= checkDependency(checks, "postgres", () -> jdbcTemplate.queryForObject("select 1", Integer.class));
+        allHealthy &= checkDependency(checks, "redis", () -> redisTemplate.getConnectionFactory().getConnection().ping());
+        allHealthy &= checkDependency(checks, "objectStorage",
+                () -> s3Client.headBucket(HeadBucketRequest.builder().bucket(storageBucket).build()));
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("status", "ready");
+        response.put("status", allHealthy ? "ready" : "not_ready");
         response.put("checks", checks);
-        return response;
+
+        HttpStatus status = allHealthy ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+        return ResponseEntity.status(status).body(response);
+    }
+
+    private boolean checkDependency(Map<String, String> checks, String name, Runnable check) {
+        try {
+            check.run();
+            checks.put(name, "ok");
+            return true;
+        } catch (Exception exception) {
+            checks.put(name, "fail: " + exception.getClass().getSimpleName());
+            return false;
+        }
     }
 }

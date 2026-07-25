@@ -7,5 +7,5 @@ cd "$repo_root"
 source "$repo_root/scripts/require-docker-daemon.sh"
 
 docker compose up -d --wait postgres redis
-docker compose up -d minio
+docker compose up -d rustfs
 "$repo_root/scripts/infra-check.sh"

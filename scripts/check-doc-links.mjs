@@ -6,6 +6,7 @@ const markdownRoots = [
   path.join(repoRoot, "AGENTS.md"),
   path.join(repoRoot, "CLAUDE.md"),
   path.join(repoRoot, "README.md"),
+  path.join(repoRoot, "learning"),
   path.join(repoRoot, "docs"),
   path.join(repoRoot, "deploy")
 ];
