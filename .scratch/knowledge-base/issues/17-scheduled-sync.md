@@ -6,18 +6,39 @@
 
 **Blocked by:** 16（URL 来源文档）、11（卡死回收——定时同步必须有超时恢复兜底）
 
-**Status:** ready-for-agent
+**Status:** blocked-on-review `2026-07-26`——**后端完成；同步配置表单随工单 12/16 一起卡在原型确认闸门上**
 
-- [ ] `@Scheduled` 每 60s 扫描：`source_type='URL' and sync_enabled and deleted=false and status<>'RUNNING' and next_sync_time <= now()`
-- [ ] **两级变更检测**：先 HEAD 比对 `ETag`/`Last-Modified`；未变则跳过；变了或 HEAD 不可用则下载并比对 SHA-256 内容哈希；哈希相同仍然跳过
-- [ ] 两级都跳过时记录 `ingestion_run(status='SKIPPED')` 并推进 `next_sync_time`。**`SKIPPED` 必须记录**——否则用户看到"同步开着但从来没有执行记录"，无法区分"检查过没变化"和"调度根本没跑"
-- [ ] 确认变化后走工单 10 的同一条执行链路（CAS 抢占 + 插入 `run(trigger_source='SCHEDULED')`），**不写第二套处理逻辑**
-- [ ] 定时同步与手动触发的互斥完全由工单 10 的同一个 CAS 保证，**不加任何额外锁**（理由见 [ADR 0002](../../../docs/adr/0002-knowledge-base-async-and-concurrency.md)）
-- [ ] cron 最短间隔校验：解析出的相邻两次执行间隔小于 `app.knowledge.sync.min-interval`（默认 10 分钟）时返回 `400`，防的是 `* * * * * ?` 这种把 Embedding 费用打穿的表达式
-- [ ] 每次检查（含跳过）都推进 `next_sync_time` 与 `last_sync_time`
-- [ ] 前端：定时同步配置表单 + 状态展示（下次执行时间、上次执行结果、失败历史），`SKIPPED` 按 `ui-spec.md` 显示为"内容未变化"而不是失败
-- [ ] 集成测试：cron 间隔小于下限时返回 `400`
-- [ ] 集成测试：内容哈希与库中一致时产生一条 `SKIPPED` 记录，且 `document_chunk` 无任何变化
-- [ ] **手工验证（成对做，两次行为必须不同）**：① 源文件不变，等一次同步触发，确认产生 `SKIPPED` 且分块未被重建；② 修改源文件内容，再等一次触发，确认真的重新分块且 `revision` 递增
-- [ ] 手工验证：给同一份文档同时手动触发和等定时触发，确认只有一个真正执行、另一个被 CAS 挡住
-- [ ] `./mvnw -q -B verify` 与 `pnpm build && pnpm lint` 通过
+- [x] `@Scheduled` 每 60s 扫描：`source_type='URL' and sync_enabled and deleted=false and status<>'RUNNING' and next_sync_time <= now()`
+- [x] **两级变更检测**：先 HEAD 比对 `ETag`/`Last-Modified`；未变则跳过；变了或 HEAD 不可用则下载并比对 SHA-256 内容哈希；哈希相同仍然跳过
+- [x] 两级都跳过时记录 `ingestion_run(status='SKIPPED')` 并推进 `next_sync_time`
+- [x] 确认变化后走工单 10 的同一条执行链路（CAS 抢占 + 插入 `run(trigger_source='SCHEDULED')`），**不写第二套处理逻辑**
+- [x] 定时同步与手动触发的互斥完全由工单 10 的同一个 CAS 保证，**不加任何额外锁**
+- [x] cron 最短间隔校验（在工单 16 实现，创建接口就接受 `syncCron`，不校验就能存进一个 `* * * * * ?`）
+- [x] 每次检查（含跳过）都推进 `next_sync_time` 与 `last_sync_time`
+- [ ] 前端：定时同步配置表单 + 状态展示 —— **等原型确认**（表单随「添加链接」/「编辑文档」一起，状态展示 ui-spec §5 已规定）
+- [x] 集成测试：cron 间隔小于下限时返回 `400`
+- [x] 集成测试：内容哈希与库中一致时产生一条 `SKIPPED` 记录，且 `document_chunk` 无任何变化
+- [x] ~~手工验证（成对做）~~ —— **已自动化**，见完成记录
+- [x] ~~手工验证~~：手动触发与定时触发的互斥 —— **已自动化**（处理中的文档不会被扫描选中）
+- [x] `./mvnw -B verify` 通过（前端待表单落地后再核）
+
+## 完成记录
+
+`ScheduledSyncScanner` + 6 条集成测试，后端合计 **152 条**。
+
+### 那对"必须行为不同"的手工验证，自动化掉了
+
+工单要求成对手工做：改一次源文件、观察两次行为必须不同。本地源站的响应内容做成一个 `AtomicReference`，测试直接改它就等于"修改了源文件"——比手工改文件再等一分钟调度可靠得多，也快得多，而且**两条用例是并排的，行为差异一眼可见**（一条断言 `SKIPPED` 且分块行 id 不变，一条断言 `revision` 递增且分块数 = 向量数）。
+
+### 一条容易写得没有区分力的测试
+
+"ETag 未变时跳过"如果只断言 `SKIPPED`，是**测不出第一级有没有生效的**——第二级（下载后比哈希）同样会得出 `SKIPPED`。两者的区别恰恰在于**有没有付那次完整下载的代价**。所以判据取的是源站的 GET 计数没有增加。
+
+### 几处实现判断
+
+- **第一级的判定条件是"库里存过的头 + 这次拿到的头，两边都非空且相等"**。任一侧为空都说明这一级没有可比依据，必须退到内容哈希——写成"不相等就算变了"会让第一次同步（库里还没存头）永远误判。
+- **哈希相同时顺手把这次拿到的头存下来**：下次 HEAD 就可能在第一级命中，省掉一次完整下载。第一次同步必然走完整路径，之后才可能变便宜。
+- **`advanceSchedule` 在跳过、失败、成功三条路径上都调用**。漏掉任何一条，那篇文档会在每一轮扫描里被反复命中。
+- **cron 变得不合法时把 `next_sync_time` 置空**（比如配置写入后 `min-interval` 被调大），让它退出扫描范围，而不是每 60s 重试一次注定失败的解析。
+- **单篇失败不中断整轮扫描**，否则一个坏链接会把所有文档的同步都卡住。
+- **`PUT /documents/{docId}` 改了同步规则时会重算 `next_sync_time`**（工单清单没列）。不重算的话新表达式要等到下一次触发才生效，而 `next_sync_time` 还停在按旧表达式算出来的时刻。

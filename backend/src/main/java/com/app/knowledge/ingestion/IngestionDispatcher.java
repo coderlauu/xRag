@@ -1,7 +1,9 @@
 package com.app.knowledge.ingestion;
 
+import com.app.knowledge.model.IngestionRun;
 import com.app.knowledge.repository.IngestionRunRepository;
 import com.app.knowledge.repository.SourceDocumentRepository;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,6 +14,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.ApplicationRunner;
@@ -44,15 +47,18 @@ public class IngestionDispatcher implements ApplicationRunner {
     private final IngestionRunRepository runs;
     private final SourceDocumentRepository documents;
     private final IngestionExecutor executor;
+    private final Duration heartbeatTimeout;
     private final ExecutorService workers = Executors.newFixedThreadPool(WORKERS);
     private final ScheduledExecutorService heartbeats = Executors.newSingleThreadScheduledExecutor();
     private final Map<Long, ScheduledFuture<?>> running = new ConcurrentHashMap<>();
 
     public IngestionDispatcher(IngestionRunRepository runs, SourceDocumentRepository documents,
-            IngestionExecutor executor) {
+            IngestionExecutor executor,
+            @Value("${app.knowledge.ingestion.heartbeat-timeout:5m}") Duration heartbeatTimeout) {
         this.runs = runs;
         this.documents = documents;
         this.executor = executor;
+        this.heartbeatTimeout = heartbeatTimeout;
     }
 
     /**
@@ -77,6 +83,35 @@ public class IngestionDispatcher implements ApplicationRunner {
         } catch (Exception exception) {
             // 数据库此刻不可达是正常情况，沿用既有的"不阻塞启动"模式
             LOGGER.warn("启动回收未能执行：{}", exception.toString());
+        }
+    }
+
+    /**
+     * 第二层回收：心跳超时。
+     *
+     * <p>启动回收只覆盖"进程重启"这一种中断方式，**任务在进程还活着的时候卡死**（执行线程
+     * 挂在一个没有超时的网络调用上、或者被死锁住）它管不着。没有这一层，那份文档会永久停在
+     * `RUNNING`：CAS 永远抢不到、删除和更新也都被 409 挡住，用户什么都做不了。
+     *
+     * <p>**与启动回收不同，这一层不依赖单实例假设**：判据是这条任务自己的心跳停了，而不是
+     * "进程刚起来所以不可能有任务在跑"。多实例下它依然成立。
+     *
+     * <p>心跳由 {@link #submit} 里独立的调度线程每 10s 更新一次，独立于执行线程——执行线程
+     * 正卡在下载或 Embedding 上时心跳也得继续跳，否则这里会把还活着的任务误判成卡死。
+     */
+    @Scheduled(fixedDelayString = "${app.knowledge.ingestion.recovery-interval:60s}")
+    public void recoverStale() {
+        try {
+            for (IngestionRun stale : runs.findStale(heartbeatTimeout)) {
+                String reason = "处理超过 %s 没有任何进展，已判定为卡死并中止，请重新触发。"
+                        .formatted(heartbeatTimeout);
+                // 两张表都要改：只改 run 会让文档永久卡在 RUNNING，用户既看不到原因也重试不了
+                runs.markFailed(stale.id(), reason);
+                documents.markFailed(stale.docId(), reason);
+                LOGGER.warn("心跳超时回收：任务 {}（文档 {}）标记为 FAILED", stale.id(), stale.docId());
+            }
+        } catch (Exception exception) {
+            LOGGER.warn("心跳超时回收失败：{}", exception.toString());
         }
     }
 

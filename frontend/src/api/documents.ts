@@ -36,7 +36,19 @@ export const documents = {
     form.append("file", file);
     return api.upload<SourceDocument>(`/knowledge-bases/${kbId}/documents/file`, form);
   },
+
+  setEnabled: (docId: number, enabled: boolean) =>
+    api.patch<SourceDocument>(`/documents/${docId}/enabled`, { enabled }),
+
+  remove: (docId: number) => api.delete<void>(`/documents/${docId}`),
 };
+
+/** 文档级启禁用的反馈。禁用要说清代价，因为重新启用会再花一次模型调用的钱。 */
+export const DOC_TOGGLED_MESSAGE = {
+  true: "文档已启用，向量已重新计算。",
+  false: "文档已禁用，其全部向量已清理。",
+} as const;
+export const DOC_DELETED_MESSAGE = "文档已删除，向量已清理。";
 
 export type RunStatus = "QUEUED" | "RUNNING" | "SUCCESS" | "FAILED" | "SKIPPED";
 export type Phase = "DOWNLOAD" | "EXTRACT" | "CHUNK" | "EMBED" | "PERSIST";

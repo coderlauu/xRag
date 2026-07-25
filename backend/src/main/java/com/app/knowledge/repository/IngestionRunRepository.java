@@ -4,6 +4,7 @@ import com.app.knowledge.model.IngestionPhase;
 import com.app.knowledge.model.IngestionRun;
 import com.app.knowledge.model.IngestionRunStatus;
 import com.app.knowledge.model.IngestionTriggerSource;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -90,6 +91,21 @@ public class IngestionRunRepository {
                 """, revision, chunkCount, runId);
     }
 
+    /**
+     * 定时同步检查过、内容没变。
+     *
+     * <p>**它不是失败**，界面上的措辞必须是"内容未变化，已跳过"而不是任何带警告色的说法
+     * （ui-spec §5）——这是定时同步正常工作时最常见的结果，标成橙色会让用户每天早上都以为
+     * 同步出了问题。{@code error_message} 借用来存跳过原因，是这张表唯一一处它不表示错误的地方。
+     */
+    public void markSkipped(long runId, String reason) {
+        jdbc.update("""
+                update ingestion_run
+                   set status = 'SKIPPED', error_message = ?, finished_time = now()
+                 where id = ? and status = 'QUEUED'
+                """, truncate(reason), runId);
+    }
+
     /** {@code phase} 保留失败发生时所处的步骤，不清空——它是这条记录最有价值的诊断信息。 */
     public void markFailed(long runId, String errorMessage) {
         jdbc.update("""
@@ -97,6 +113,24 @@ public class IngestionRunRepository {
                    set status = 'FAILED', error_message = ?, finished_time = now()
                  where id = ? and status not in ('SUCCESS', 'FAILED')
                 """, truncate(errorMessage), runId);
+    }
+
+    /**
+     * 心跳超时的僵尸任务：{@code RUNNING} 且心跳停更超过阈值。
+     *
+     * <p>与启动回收的区别是**它不依赖单实例假设**——判据是这条任务自己的心跳停了，而不是
+     * "进程刚起来所以不可能有任务在跑"。所以多实例下这一层仍然成立，失效的只有启动回收
+     * （ADR 0002）。
+     *
+     * <p>{@code heartbeat_time is null} 也算：CAS 抢占时就会写入心跳，为 null 说明这条记录
+     * 处在一个不该出现的状态，放着不管它会永远卡住对应文档。
+     */
+    public List<IngestionRun> findStale(Duration timeout) {
+        return jdbc.query("select " + COLUMNS + """
+                 from ingestion_run
+                 where status = 'RUNNING'
+                   and (heartbeat_time is null or heartbeat_time < now() - make_interval(secs => ?))
+                """, MAPPER, (double) timeout.toMillis() / 1000);
     }
 
     public Optional<IngestionRun> findById(long runId) {

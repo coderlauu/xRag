@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.app.knowledge.ingestion.IngestionDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -47,6 +48,9 @@ class IngestionIntegrationTests {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private IngestionDispatcher dispatcher;
 
     private long kbId;
     private long docId;
@@ -210,6 +214,73 @@ class IngestionIntegrationTests {
                 .andExpect(jsonPath("$.latestRun.status").value("SUCCESS"))
                 .andExpect(jsonPath("$.latestRun.triggerSource").value("MANUAL"))
                 .andExpect(jsonPath("$.latestRun.chunkCount").isNumber());
+    }
+
+    /**
+     * 心跳超时回收（工单 11）。**两张表都要改**：只改 `ingestion_run` 会让文档永久停在
+     * `RUNNING`——CAS 抢不到、删除和更新也都被 409 挡住，用户什么都做不了。
+     *
+     * <p>直接调 {@code recoverStale()} 而不是等 60s 的调度：这里验的是回收逻辑本身，
+     * 等调度只会让测试慢一分钟，还引入一个与逻辑无关的时间依赖。
+     */
+    @Test
+    void 心跳超时的任务与其文档都被标记为失败() {
+        long runId = jdbc.queryForObject("""
+                insert into ingestion_run (kb_id, doc_id, trigger_source, status, phase, heartbeat_time)
+                values ((select kb_id from source_document where id = ?), ?, 'MANUAL', 'RUNNING', 'EMBED',
+                        now() - interval '6 minutes')
+                returning id
+                """, Long.class, docId, docId);
+        jdbc.update("update source_document set status = 'RUNNING' where id = ?", docId);
+
+        dispatcher.recoverStale();
+
+        assertThat(jdbc.queryForObject("select status from ingestion_run where id = ?", String.class, runId))
+                .isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject("select status from source_document where id = ?", String.class, docId))
+                .as("只改 run 不改文档，文档就永久卡在 RUNNING").isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject(
+                "select error_message from source_document where id = ?", String.class, docId))
+                .contains("卡死");
+        // phase 保留，它是这条记录最有价值的诊断信息——说明卡在哪一步
+        assertThat(jdbc.queryForObject("select phase from ingestion_run where id = ?", String.class, runId))
+                .isEqualTo("EMBED");
+    }
+
+    /** 回收的意义就在这里：文档能被重新触发，CAS 不再被挡住。 */
+    @Test
+    void 回收后文档可以被重新触发分块() throws Exception {
+        jdbc.update("""
+                insert into ingestion_run (kb_id, doc_id, trigger_source, status, heartbeat_time)
+                values ((select kb_id from source_document where id = ?), ?, 'MANUAL', 'RUNNING',
+                        now() - interval '6 minutes')
+                """, docId, docId);
+        jdbc.update("update source_document set status = 'RUNNING' where id = ?", docId);
+
+        // 回收前：被 409 挡住
+        mvc.perform(post("/api/v1/documents/{docId}/ingestion-runs", docId))
+                .andExpect(status().isConflict());
+
+        dispatcher.recoverStale();
+
+        mvc.perform(post("/api/v1/documents/{docId}/ingestion-runs", docId))
+                .andExpect(status().isAccepted());
+        awaitStatus("SUCCESS");
+    }
+
+    /** 心跳还在跳的任务不能被误杀——否则长耗时的正常任务会被回收打断。 */
+    @Test
+    void 心跳正常的任务不会被回收() {
+        long runId = jdbc.queryForObject("""
+                insert into ingestion_run (kb_id, doc_id, trigger_source, status, heartbeat_time)
+                values ((select kb_id from source_document where id = ?), ?, 'MANUAL', 'RUNNING', now())
+                returning id
+                """, Long.class, docId, docId);
+
+        dispatcher.recoverStale();
+
+        assertThat(jdbc.queryForObject("select status from ingestion_run where id = ?", String.class, runId))
+                .isEqualTo("RUNNING");
     }
 
     @Test

@@ -265,6 +265,26 @@ sudo systemctl status app-disk-guard.timer
 journalctl -u app-disk-guard.service -n 100 --no-pager
 ```
 
+## Embedding API Key
+
+`EMBEDDING_API_KEY` 是本项目**第一个真实的密钥类配置**，规则与其他配置项不同：
+
+- **绝不写进仓库任何文件。** 两份 `deploy/env/*.env.example` 里它的值是占位的 `replace-me`，部署时由环境注入（GitHub Environment Secrets → 部署脚本 → 容器环境变量），与 `POSTGRES_PASSWORD` / `RUSTFS_SECRET_KEY` 同一条路径。
+- **未配置时应用照常启动**，只是向量化能力不可用：`EmbeddingConfig` 在 Key 为空时注入一个抛明确异常的实现，并打一条警告日志。这与"数据库不可达"的处理方式一致——环境状态不阻塞启动，由 readiness 反映。
+- **维度不一致则相反，直接拦停启动**。`EMBEDDING_DIMENSIONS` 与数据库 `vector(1024)` 列不匹配是确定性的配置错误，越早暴露越好；放行的话每次写向量都会在运行时报错。
+
+供应商当前是火山方舟 Ark，两处容易"顺手改错"的地方写在 env example 的注释里：`base-url` 是 `/api/plan/v3` 而非 `/api/v3`（Plan 类 Key 打标准路径直接 401）；`dimensions` 参数必须始终显式发送（模型原生输出 2048 维，1024 是靠这个参数降维得到的）。
+
+### CI 不调用真实 Embedding API —— 这一点必须知道
+
+**CI 里跑的集成测试全部使用确定性的假 `EmbeddingClient`**（`FakeEmbeddingConfig`，由测试类 `@Import` 显式导入，不依赖"环境变量恰好没配"这种隐式行为），它按文本内容派生伪向量：同样文本必得同样向量，不同文本必得不同向量。
+
+这么做的理由是真实调用按次计费，让每次 CI 都产生费用、还得把密钥放进仓库 Secrets，而收益只是验证一个第三方 HTTP 接口还活着。
+
+**代价要说清楚：CI 的绿灯不代表真实 API 链路是通的。** 真实调用只由 `RealEmbeddingApiTests` 覆盖，它用 `@EnabledIfEnvironmentVariable` 守门——**没有 Key 时它会自动跳过，而跳过在 CI 日志里看起来和通过很像**。供应商换了、Key 过期了、模型下线了，这些都要靠本地带 Key 跑一次才能发现。
+
+> 顺带一提，那组真实 API 测试断言的是**余弦相似度**而不是向量相等：实测同一段文本两次调用的向量有 1e-3 量级抖动（大概率是低精度推理），拿"向量相等"做断言必然 flaky。
+
 ## Local Validation
 
 本地可通过以下方式验证部署基线：

@@ -67,6 +67,21 @@ public class DocumentChunkRepository {
                 """, docId, newRevision);
     }
 
+    /** 删除文档时用：一条 SQL 把该文档现存的分块全部逻辑删除。 */
+    public int softDeleteByDocId(long docId) {
+        return jdbc.update("""
+                update document_chunk set deleted = true, delete_time = now(), update_time = now()
+                 where doc_id = ? and deleted = false
+                """, docId);
+    }
+
+    /** 启用文档时用：只取**已启用且未删除**的分块重算向量，这正是禁用时不动分块 enabled 的意义。 */
+    public List<DocumentChunk> findEnabledByDocId(long docId) {
+        return jdbc.query("select " + COLUMNS + " from document_chunk"
+                + " where doc_id = ? and deleted = false and enabled = true"
+                + " order by chunk_index asc, id asc", MAPPER, docId);
+    }
+
     public long countByDocId(long docId) {
         Long total = jdbc.queryForObject(
                 "select count(*) from document_chunk where doc_id = ? and deleted = false", Long.class, docId);

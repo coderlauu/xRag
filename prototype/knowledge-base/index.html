@@ -260,6 +260,18 @@ select, input[type=text] {
   background: var(--surface); border: 1px solid var(--line-strong); border-radius: 7px; padding: 10px 12px; resize: vertical;
 }
 .modal .ft { padding: 12px 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); }
+/* 编辑文档表单（ui-spec §11） */
+.modal .fld { display: block; margin-bottom: 12px; font-size: 12.5px; color: var(--ink-3); }
+.modal .fld input[type=text], .modal .fld input:not([type]), .modal .fld input[type=number], .modal .fld select {
+  display: block; width: 100%; margin-top: 4px; box-sizing: border-box;
+  font: 13.5px var(--sans); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 10px;
+}
+.modal .fld input[type=checkbox] { width: auto; display: inline-block; margin: 0 4px 0 0; accent-color: var(--accent); }
+.modal .fld .hint { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-3); }
+.modal .fld-row { display: flex; gap: 12px; }
+.modal .fld-row .fld { flex: 1; }
+.inline-err { margin: 0; color: var(--s-failed); font-size: 12.5px; }
 
 /* ─── Toast ────────────────────────────────────────── */
 .toasts { position: fixed; bottom: 72px; right: 20px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
@@ -363,8 +375,10 @@ select, input[type=text] {
       <code>SKIPPED</code> 的措辞会不会让人误以为出错、四种错误提示是否真的告诉了用户下一步做什么。
       <br><br>
       「开始处理」可以直接点，会依次走完五个 <code>phase</code> 再进 <code>SUCCESS</code>，用来核对 §4 的阶段文案与 §3 的禁用规则。
-      <b>创建/编辑知识库、编辑文档、添加链接</b>这几个表单点了只会提示"规格未定"——ui-spec.md 目前没有规定它们的字段与校验，
-      原型不替规格做决定。
+      <b>创建/编辑知识库</b>这个表单点了只会提示"规格未定"——ui-spec.md 目前没有规定它的字段与校验，
+      原型不替规格做决定。<b>「编辑文档」与「添加链接」原本也在这一列，`2026-07-26` 补了 ui-spec §11 / §12
+      之后已经实现出来</b>：前者可核对字段、三条校验、以及改了分块参数后那个"要不要立即重新处理"的后续弹层；
+      后者可核对直链提示、定时同步开关的显隐、以及最短间隔那条与钱挂钩的校验。
     </div>
   </div>
 </div>
@@ -542,12 +556,12 @@ function viewDocs() {
     <div class="phead"><div><h1>产品文档库</h1></div>
       <div style="display:flex;gap:8px">
         <button class="pri" onclick="uploadDemo()">上传文件</button>
-        <button onclick="notSpecced('添加链接')">添加链接</button></div></div>
+        <button onclick="addLink()">添加链接</button></div></div>
     <div class="card"><div class="empty">
       <h3>这个知识库还没有文档。</h3>
       <p>上传本地文件，或添加一个可定时同步的文件链接。</p>
       <div class="btns"><button class="pri" onclick="uploadDemo()">上传文件</button>
-        <button onclick="notSpecced('添加链接')">添加链接</button></div>
+        <button onclick="addLink()">添加链接</button></div>
     </div></div>`;
 
   const pending = DOCS.filter(d => d.status === 'PENDING').length;
@@ -582,7 +596,7 @@ function viewDocs() {
         <button class="mini ${d.status === 'PENDING' ? 'pri' : ''}"${dis}${tip}
                 onclick="trigger(${d.id})">${TRIGGER_LABEL[d.status]}</button>
         <button class="mini"${dis}${tip} onclick="go('chunks',${d.id})">分块</button>
-        <button class="mini"${dis}${tip} onclick="notSpecced('编辑文档')">编辑</button>
+        <button class="mini"${dis}${tip} onclick="editDoc(${d.id})">编辑</button>
         <button class="mini"${dis}${tip} onclick="${d.enabled ? `confirmDisableDoc(${d.id})` : `enableDoc(${d.id})`}">${d.enabled ? '禁用' : '启用'}</button>
         <button class="mini danger"${dis}${tip} onclick="confirmDeleteDoc(${d.id})">删除</button>
       </td>
@@ -594,7 +608,7 @@ function viewDocs() {
     <div><h1>产品文档库</h1><div class="sub">内部产品说明与 FAQ</div></div>
     <div style="display:flex;gap:8px">
       <button class="pri" onclick="uploadDemo()">上传文件</button>
-      <button onclick="notSpecced('添加链接')">添加链接</button>
+      <button onclick="addLink()">添加链接</button>
     </div>
   </div>
   ${pending ? `<div class="banner info"><span class="ic">!</span>
@@ -740,7 +754,7 @@ function detailHTML() {
     <div class="dops">
       <button class="${d.status === 'PENDING' ? 'pri' : ''}"${dis}${tip}
               onclick="trigger(${d.id})">${TRIGGER_LABEL[d.status]}</button>
-      <button${dis}${tip} onclick="notSpecced('编辑文档')">编辑</button>
+      <button${dis}${tip} onclick="editDoc(${d.id})">编辑</button>
       <button${dis}${tip} onclick="${d.enabled ? `confirmDisableDoc(${d.id})` : `enableDoc(${d.id})`}">${d.enabled ? '禁用文档' : '启用文档'}</button>
       <button class="danger"${dis}${tip} onclick="confirmDeleteDoc(${d.id})">删除</button>
     </div>
@@ -865,6 +879,76 @@ function toggleChunk(id, on) {
   render();
 }
 
+function addLink() { S.modal = { kind: 'addLink' }; render(); }
+
+/** 开关关闭时**隐藏**同步规则而不是灰掉——同 ui-spec §11 的理由。 */
+function toggleSyncField(on) {
+  document.getElementById('linkCronField').style.display = on ? 'block' : 'none';
+}
+
+/**
+ * ui-spec §12 的五条校验，文案与后端逐字一致。
+ *
+ * 最短间隔那条是**唯一一处直接与钱挂钩的限制**：每次同步在内容变化时会为每个分块调一次
+ * Embedding，`* * * * * ?` 能在无人察觉时把费用打穿。所以下限要在输入框下方常驻写出来，
+ * 而不是等被拒了才说。
+ */
+function saveLink() {
+  const uri = document.getElementById('linkUri').value.trim();
+  const sync = document.getElementById('linkSync').checked;
+  const cron = document.getElementById('linkCron').value.trim();
+  const fail = (msg) => {
+    const el = document.getElementById('linkErr');
+    el.textContent = msg; el.style.display = 'block';
+  };
+  if (!uri) return fail('来源地址不能为空。');
+  if (!/^https?:\/\//i.test(uri)) return fail('来源地址必须以 http:// 或 https:// 开头。');
+  if (sync && !cron) return fail('开启定时同步时必须填写同步规则。');
+  if (sync && /^\S+ \* \* \* \* \?$/.test(cron)) {
+    return fail('两次同步的间隔不能小于 10 分钟，请调整同步规则。');
+  }
+  closeAll();
+  // 抓取是同步发生的（创建时就下载一次存进对象存储），真实界面上这里会有"抓取中…"的加载态
+  toast('ok', '添加成功，文档尚未处理。', '点击「开始处理」后才会切分并写入向量库。');
+}
+
+function editDoc(id) { S.modal = { kind: 'editDoc', id }; render(); }
+
+/**
+ * ui-spec §11。三条校验里第三条不是形式校验：overlap >= chunkSize 会让切分步进 <= 0，
+ * 固定长度策略原地打转停不下来——是不终止而不是"效果不好"，所以前后端都挡。
+ */
+function saveDoc(id) {
+  const d = DOCS.find(x => x.id === id);
+  const name = document.getElementById('docName').value.trim();
+  const size = Number(document.getElementById('docSize').value);
+  const overlap = Number(document.getElementById('docOverlap').value);
+  const strategy = document.getElementById('docStrategy').value;
+
+  const fail = (msg) => {
+    const el = document.getElementById('docErr');
+    el.textContent = msg; el.style.display = 'block';
+  };
+  if (!name) return fail('文档名称不能为空。');
+  if (!(size > 0)) return fail('每块字符数必须大于 0。');
+  if (overlap >= size) return fail('重叠字符数必须小于每块字符数。');
+
+  const chunkingChanged = strategy !== d.chunkStrategy
+    || size !== d.chunkConfig.chunkSize || overlap !== d.chunkConfig.overlap;
+  d.name = name; d.chunkStrategy = strategy;
+  d.chunkConfig = { chunkSize: size, overlap };
+
+  // revision = 0 的文档没有旧分块，此时说"现有分块仍是按旧参数切出来的"是句假话。
+  if (chunkingChanged && d.revision > 0) {
+    S.modal = { kind: 'rechunk', id, chunkCount: d.chunkCount };
+    render();
+    return;
+  }
+  S.modal = null;
+  toast('ok', '已保存。', '');
+  render();
+}
+
 function editChunk(id) { S.modal = { kind: 'edit', id, text: CHUNKS.find(c => c.id === id).content }; render(); }
 function addChunk() { S.modal = { kind: 'add' }; render(); }
 
@@ -928,6 +1012,68 @@ function modalHTML() {
             : '禁用后这些分块的向量会被清理，不再参与检索。'}</p>`;
     ft = `<button onclick="closeAll()">取消</button>
           <button class="pri" onclick="doBatch()">确认${m.target ? '启用' : '禁用'}</button>`;
+  } else if (m.kind === 'editDoc') {
+    // ui-spec §11。此前这里是 notSpecced('编辑文档')——规格空白时原型不替规格做决定，
+    // 规格补齐了才把表单实现出来。
+    const d = DOCS.find(x => x.id === m.id);
+    const url = d.sourceType === 'URL';
+    hd = '编辑文档';
+    bd = `<label class="fld">名称
+            <input id="docName" value="${esc(d.name)}"></label>
+          <label class="fld">分块策略
+            <select id="docStrategy">
+              <option value="RECURSIVE"${d.chunkStrategy === 'RECURSIVE' ? ' selected' : ''}>递归分隔符</option>
+              <option value="FIXED_SIZE"${d.chunkStrategy === 'FIXED_SIZE' ? ' selected' : ''}>固定长度</option>
+            </select>
+            <span class="hint" id="strategyHint">${d.chunkStrategy === 'RECURSIVE'
+              ? '优先在段落、句子边界切分，尽量不切断完整意思。'
+              : '严格按字符数切，行为完全可预测，但可能从句子中间断开。'}</span></label>
+          <div class="fld-row">
+            <label class="fld">每块字符数
+              <input id="docSize" type="number" min="1" value="${d.chunkConfig.chunkSize}"></label>
+            <label class="fld">重叠字符数
+              <input id="docOverlap" type="number" min="0" value="${d.chunkConfig.overlap}"></label>
+          </div>
+          ${url ? `<label class="fld">来源地址
+            <input id="docUri" value="${esc(d.sourceUri || '')}"></label>
+          <label class="fld">定时同步
+            <input id="docSync" type="checkbox"${d.syncEnabled ? ' checked' : ''}> 开启
+            <input id="docCron" placeholder="0 0 3 * * ?" value="${esc(d.syncCron || '')}"></label>`
+            /* 本地上传的文档不显示这两组，而不是灰着摆在那里——它们对 FILE 来源根本
+               不存在（后端传了会 400），灰着只会让用户以为"有个开关我打不开"。 */
+            : ''}
+          <p id="docErr" class="inline-err" style="display:none"></p>`;
+    ft = `<button onclick="closeAll()">取消</button>
+          <button class="pri" onclick="saveDoc(${d.id})">保存</button>`;
+  } else if (m.kind === 'addLink') {
+    // ui-spec §12
+    hd = '添加链接';
+    bd = `<label class="fld">文件直链
+            <input id="linkUri" placeholder="https://example.com/handbook.md">
+            <span class="hint">请填写<b>文件的直接下载地址</b>（以 .txt / .md / .pdf / .docx 结尾），
+              不是网页地址。网页地址抓下来的是整个页面的 HTML。</span></label>
+          <label class="fld">名称（可选）
+            <input id="linkName" placeholder="留空则取地址最后一段">
+          </label>
+          <div class="fld-row">
+            <label class="fld">每块字符数<input id="linkSize" type="number" min="1" value="1000"></label>
+            <label class="fld">重叠字符数<input id="linkOverlap" type="number" min="0" value="100"></label>
+          </div>
+          <label class="fld">定时同步
+            <input id="linkSync" type="checkbox" onchange="toggleSyncField(this.checked)"> 开启</label>
+          <label class="fld" id="linkCronField" style="display:none">同步规则
+            <input id="linkCron" placeholder="0 0 3 * * ?">
+            <span class="hint">用 cron 表达式，例如 <code>0 0 3 * * ?</code> 表示每天凌晨 3 点。
+              <b>两次同步的间隔不能小于 10 分钟。</b></span></label>
+          <p id="linkErr" class="inline-err" style="display:none"></p>`;
+    ft = `<button onclick="closeAll()">取消</button>
+          <button class="pri" onclick="saveLink()">添加</button>`;
+  } else if (m.kind === 'rechunk') {
+    hd = '分块参数已保存';
+    bd = `现有的 <b>${m.chunkCount}</b> 个分块仍然是按旧参数切出来的。要立即用新参数重新处理吗？
+          <p style="margin:12px 0 0">重新处理会为每个分块重新计算向量。</p>`;
+    ft = `<button onclick="closeAll()">稍后再说</button>
+          <button class="pri" onclick="closeAll();trigger(${m.id})">立即重新处理</button>`;
   } else if (m.kind === 'edit') {
     hd = '编辑分块内容';
     bd = `<textarea id="chunkText">${esc(m.text)}</textarea>

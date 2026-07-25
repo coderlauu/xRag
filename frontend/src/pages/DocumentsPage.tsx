@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import {
+  DOC_DELETED_MESSAGE,
+  DOC_TOGGLED_MESSAGE,
   documents,
   ingestion,
   PHASE_RUNNING_LABEL,
@@ -13,8 +15,21 @@ import {
 import { useDocumentPolling } from "../hooks/useDocumentPolling";
 import { RunHistory } from "../components/RunHistory";
 import { knowledgeBases, type KnowledgeBase } from "../api/knowledgeBases";
+import { toUserMessage } from "../api/errors";
 import { ErrorState } from "../components/ErrorState";
 import { Loading } from "../components/Loading";
+import { Modal } from "../components/Modal";
+import { Toast } from "../components/Toast";
+
+/**
+ * 只有「禁用」和「删除」需要二次确认（ui-spec §9）：两者都点明代价，前者是"重新启用要
+ * 重算向量"，后者是"连带删掉 N 个分块且界面上无法恢复"。**启用不需要确认**——它把内容放
+ * 回检索，是恢复性动作。
+ */
+type Dialog =
+  | { kind: "disable"; target: SourceDocument }
+  | { kind: "delete"; target: SourceDocument }
+  | null;
 
 const FILTERS: Array<{ value: DocumentStatus | ""; label: string }> = [
   { value: "", label: "全部" },
@@ -34,6 +49,8 @@ export function DocumentsPage() {
   const [uploading, setUploading] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
@@ -54,6 +71,8 @@ export function DocumentsPage() {
 
   useEffect(load, [load]);
 
+  const dismissToast = useCallback(() => setToast(null), []);
+
   const runningIds = (items ?? []).filter((d) => d.status === "RUNNING").map((d) => d.id);
   const progress = useDocumentPolling(runningIds, load);
 
@@ -66,6 +85,24 @@ export function DocumentsPage() {
         load();
       })
       .catch((cause: unknown) => setUploadError(cause));
+  };
+
+  // 启用是恢复性动作，不做二次确认，直接调（ui-spec §9 的确认清单里只有禁用和删除）
+  const onEnable = (doc: SourceDocument) => {
+    setUploadError(null);
+    documents
+      .setEnabled(doc.id, true)
+      .then(() => {
+        setToast(DOC_TOGGLED_MESSAGE.true);
+        load();
+      })
+      .catch((cause: unknown) => setUploadError(cause));
+  };
+
+  const closeDialogAndReload = (message: string) => {
+    setDialog(null);
+    setToast(message);
+    load();
   };
 
   const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,6 +201,7 @@ export function DocumentsPage() {
             <tr>
               <th>名称</th>
               <th>状态</th>
+              <th>检索</th>
               <th className="numeric">大小</th>
               <th className="numeric">分块</th>
               <th>操作</th>
@@ -186,6 +224,16 @@ export function DocumentsPage() {
                         <span className="phase-hint">{PHASE_RUNNING_LABEL[phase]}</span>
                       ) : null}
                     </td>
+                    <td>
+                      {/* 启用状态与处理状态是两个正交的维度，混在一列里会让"已完成但不参与
+                          检索"这种组合说不清楚 */}
+                      <span
+                        className={doc.enabled ? "tag tag-on" : "tag tag-off"}
+                        title={doc.enabled ? "参与检索" : "不参与检索，向量已清理"}
+                      >
+                        {doc.enabled ? "已启用" : "已禁用"}
+                      </span>
+                    </td>
                     <td className="numeric">{formatSize(doc.fileSize)}</td>
                     <td className="numeric">{doc.chunkCount}</td>
                     <td className="actions">
@@ -203,6 +251,25 @@ export function DocumentsPage() {
                       </Link>
                       <button
                         type="button"
+                        disabled={isRunning}
+                        title={isRunning ? RUNNING_TOOLTIP : undefined}
+                        onClick={() =>
+                          doc.enabled ? setDialog({ kind: "disable", target: doc }) : onEnable(doc)
+                        }
+                      >
+                        {doc.enabled ? "禁用" : "启用"}
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        disabled={isRunning}
+                        title={isRunning ? RUNNING_TOOLTIP : undefined}
+                        onClick={() => setDialog({ kind: "delete", target: doc })}
+                      >
+                        删除
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setExpanded(expanded === doc.id ? null : doc.id)}
                       >
                         {expanded === doc.id ? "收起记录" : "处理记录"}
@@ -211,7 +278,7 @@ export function DocumentsPage() {
                   </tr>
                   {expanded === doc.id ? (
                     <tr className="detail-row">
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <RunHistory docId={doc.id} refreshKey={refreshKey} />
                       </td>
                     </tr>
@@ -223,6 +290,40 @@ export function DocumentsPage() {
         </table>
       ) : null}
 
+      {dialog?.kind === "disable" ? (
+        <ConfirmDialog
+          title={`禁用「${dialog.target.name}」`}
+          confirmLabel="确认禁用"
+          action={() => documents.setEnabled(dialog.target.id, false)}
+          onCancel={() => setDialog(null)}
+          onDone={() => closeDialogAndReload(DOC_TOGGLED_MESSAGE.false)}
+        >
+          {/* ui-spec §9：点明代价——重新启用要重算向量，也就是会再花一次模型调用的钱 */}
+          <p>该文档全部内容将不参与检索。重新启用时需要重新计算向量。</p>
+        </ConfirmDialog>
+      ) : null}
+
+      {dialog?.kind === "delete" ? (
+        <ConfirmDialog
+          title={`删除「${dialog.target.name}」`}
+          confirmLabel="确认删除"
+          danger
+          action={() => documents.remove(dialog.target.id)}
+          onCancel={() => setDialog(null)}
+          onDone={() => closeDialogAndReload(DOC_DELETED_MESSAGE)}
+        >
+          {/*
+            "无法在界面上恢复"这个措辞是准确的：数据确实还在库里（逻辑删除），写"永久删除"
+            是撒谎，写"可以恢复"会让用户以为界面上有恢复入口（ui-spec §9）。
+          */}
+          <p>
+            将同时删除该文档的 <strong>{dialog.target.chunkCount}</strong> 个分块，且无法在界面上恢复。
+          </p>
+        </ConfirmDialog>
+      ) : null}
+
+      {toast ? <Toast message={toast} onDismiss={dismissToast} /> : null}
+
       {items?.some((doc) => doc.status === "PENDING") ? (
         // ui-spec 把 PENDING 当重点：上传接口返回后文档并没有被分块，只显示一个灰标签
         // 用户会以为系统在后台自动处理，然后一直等下去。
@@ -231,6 +332,66 @@ export function DocumentsPage() {
         </p>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * 二次确认弹层。文案由调用方以 children 传入——ui-spec §9 要求每种操作点明**自己的**代价，
+ * 抽成一句通用的"确定要继续吗"就把这份规格作废了。
+ */
+function ConfirmDialog({
+  title,
+  confirmLabel,
+  danger,
+  action,
+  onCancel,
+  onDone,
+  children,
+}: {
+  title: string;
+  confirmLabel: string;
+  danger?: boolean;
+  action: () => Promise<unknown>;
+  onCancel: () => void;
+  onDone: () => void;
+  children: React.ReactNode;
+}) {
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+
+  const onConfirm = () => {
+    setBusy(true);
+    setError(null);
+    action()
+      .then(onDone)
+      .catch((cause: unknown) => setError(cause))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <Modal
+      title={title}
+      onClose={onCancel}
+      footer={
+        <>
+          <button type="button" onClick={onCancel} disabled={busy}>
+            取消
+          </button>
+          <button
+            type="button"
+            className={danger ? "danger" : "primary"}
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? "处理中…" : confirmLabel}
+          </button>
+        </>
+      }
+    >
+      {children}
+      {/* 409 这类错误提交后才知道，提示要留在弹层里 */}
+      {error ? <p className="inline-error">{toUserMessage(error).title}</p> : null}
+    </Modal>
   );
 }
 

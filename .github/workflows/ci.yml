@@ -21,10 +21,17 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # 后端集成测试需要真实 Postgres：部分唯一索引、check 约束、vector(1024) 和 HNSW
-    # 在 H2 上都跑不了（tech/knowledge-base/test-matrix.md §2）。镜像与 docker-compose.yml
-    # 保持一致，pgvector 扩展由 Flyway 的 V1 迁移启用。
-    # 只起 Postgres：verify 不触碰 Redis / 对象存储，那两个由 infra job 覆盖。
+    # 后端集成测试需要两个真实依赖：
+    #
+    # 1. Postgres——部分唯一索引、check 约束、vector(1024) 和 HNSW 在 H2 上一条都跑不了
+    #    （tech/knowledge-base/test-matrix.md §2）。pgvector 扩展由 Flyway 的 V1 迁移启用。
+    # 2. 对象存储——上传、URL 抓取、异步入库这几组用例会真的 putObject / getObject。
+    #    `2026-07-26` 补上：此前这里的注释写着"verify 不触碰对象存储"，那在工单 07 上传接口
+    #    落地之后就已经不成立了，只是本地开发机上 RustFS 一直开着，CI 里这条缺口没被触发过。
+    #
+    # 唯独 Redis 仍然不需要：verify 不碰它，由 infra job 覆盖。
+    # Embedding 不在这里——集成测试用的是 FakeEmbeddingConfig 里的确定性假实现，
+    # CI 从不调用真实 API，理由与代价见 deploy/README.md。
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -39,6 +46,9 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      # 对象存储不放在这里：service container 不支持覆盖 command，而 rustfs 镜像需要
+      # `/data` 作为启动参数。改用下面的步骤经 docker compose 拉起，顺带保证镜像、
+      # 凭据、启动参数与本地开发环境逐字一致。
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -60,8 +70,26 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
 
+      - name: Start object storage
+        run: |
+          docker compose up -d rustfs
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:9000/health >/dev/null 2>&1; then
+              echo "RustFS is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "RustFS did not become ready in time." >&2
+          docker compose logs rustfs
+          exit 1
+
       - name: Validate
         run: scripts/ci-validate.sh
+
+      - name: Tear down object storage
+        if: always()
+        run: docker compose down -v --remove-orphans
 
   infra:
     runs-on: ubuntu-latest
