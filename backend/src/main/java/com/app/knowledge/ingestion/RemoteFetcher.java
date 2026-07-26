@@ -114,8 +114,27 @@ public class RemoteFetcher {
             throw new FetchException("抓取被中断。", interrupted);
         } catch (Exception exception) {
             deleteQuietly(temp);
-            throw new FetchException("无法访问该地址：" + exception.getMessage(), exception);
+            throw new FetchException("无法访问该地址：" + describe(exception), exception);
         }
+    }
+
+    /**
+     * 网络类异常的 {@code getMessage()} 经常是 null（{@code ConnectException} 尤其如此），
+     * 直接拼进去用户会看到"无法访问该地址：null"——那既不是完整句子，也没告诉他下一步做什么。
+     * 退回到异常类型名，至少能区分"连不上"和"超时"。
+     */
+    private String describe(Exception exception) {
+        String message = exception.getMessage();
+        if (message != null && !message.isBlank()) {
+            return message;
+        }
+        if (exception instanceof java.net.ConnectException) {
+            return "无法建立连接，请确认地址可从本机访问。";
+        }
+        if (exception instanceof java.net.http.HttpTimeoutException) {
+            return "请求超时，对方响应太慢或网络不通。";
+        }
+        return exception.getClass().getSimpleName();
     }
 
     /** 只校验协议。**能不能提取出文本要等抓完让 Tika 说了算**，Content-Type 是会撒谎的。 */

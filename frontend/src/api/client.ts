@@ -13,6 +13,16 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * 拼一个可以直接交给浏览器的绝对/相对 URL（`window.open`、`<a href>`、`<img src>`）。
+ *
+ * 存在的理由是**有些响应不该经过 fetch**：源文件可能有几十 MB，用 fetch 拉成 blob 再交给
+ * 浏览器，等于先把它整个读进内存，而浏览器自己打开一个 URL 是流式的、还自带下载进度。
+ */
+export function apiUrl(path: string): string {
+  return `${BASE_URL}/api/v1${path}`;
+}
+
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const url = `${BASE_URL}/api/v1${path}`;
   if (!query) {

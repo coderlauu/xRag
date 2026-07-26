@@ -16,7 +16,7 @@ import {
   type BatchToggleResult,
   type DocumentChunk,
 } from "../api/chunks";
-import { ingestion, RUNNING_TOOLTIP, type DocumentDetail } from "../api/documents";
+import { documents, ingestion, RUNNING_TOOLTIP, type DocumentDetail } from "../api/documents";
 import { toUserMessage } from "../api/errors";
 import { ErrorState } from "../components/ErrorState";
 import { Loading } from "../components/Loading";
@@ -155,6 +155,36 @@ export function ChunksPage() {
         <span>/</span>
         <span>{doc?.name ?? "…"}</span>
       </nav>
+
+      {/*
+        ui-spec §13：这里才是「查看源文件」的主战场——§6 的手动干预要求用户判断"原文到底
+        怎么写的"，看到一段被切坏的内容却没有原文可对照时，他只能凭记忆改。
+        新标签打开，不在当前页跳走：用户正在编辑分块，带走他会丢掉滚动位置和展开状态。
+      */}
+      {doc ? (
+        <p className="source-links">
+          <a href={documents.fileUrl(doc.id)} target="_blank" rel="noreferrer">
+            查看源文件
+          </a>
+          {doc.sourceType === "URL" ? (
+            <>
+              {/* URL 来源看到的是**上次抓取到、真正被切分过的那一份**，不说清楚会让用户
+                  困惑"原文明明是这样，分块怎么是那样" */}
+              <span className="muted">
+                （{doc.lastSyncTime ? `${formatTime(doc.lastSyncTime)} 抓取的快照` : "抓取时的快照"}）
+              </span>
+              {doc.sourceUri ? (
+                <>
+                  <span className="muted"> · </span>
+                  <a href={doc.sourceUri} target="_blank" rel="noreferrer">
+                    打开原始链接 ↗
+                  </a>
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </p>
+      ) : null}
 
       <header className="page-header">
         <h1>分块{doc ? `（${doc.chunkCount}）` : ""}</h1>
@@ -408,6 +438,19 @@ export function ChunksPage() {
       {toast ? <Toast message={toast} onDismiss={dismissToast} /> : null}
     </section>
   );
+}
+
+/**
+ * 后端返回的是 ISO 时间串。这里只要"哪一刻抓的"，精确到分钟足够，秒和时区反而是噪声。
+ * 解析失败时原样返回——宁可显示一个丑一点的字符串，也不要让整页崩掉。
+ */
+function formatTime(iso: string): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) {
+    return iso;
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
 function BatchToggleDialog({

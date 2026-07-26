@@ -255,7 +255,23 @@ code {
 
 .data-table td.actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+}
+
+/*
+  操作列现在有六个动作（触发/分块/源文件/编辑/启禁用/删除）。默认按钮尺寸下它们会被挤到
+  断词换行——"源文 / 件"、"重新处 / 理"，那不是风格问题而是缺陷。这里把操作列的按钮统一
+  收小并禁止换行，与原型的 .mini 一致；表格整体在窄屏下横向滚动，而不是把内容压碎。
+*/
+.data-table td.actions button,
+.data-table td.actions .button-link {
+  font-size: 13px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.table-scroll {
+  overflow-x: auto;
 }
 
 .data-table a {
@@ -372,6 +388,62 @@ button.danger {
 .inline-error {
   color: var(--danger);
   font-size: 14px;
+}
+
+/* 表单里跟在输入框下方的说明。它承载的是"用户在输入之前就该知道的事"（直链要求、
+   cron 最短间隔、两种分块策略的差别），不是错误提示，所以用中性色。 */
+.field-hint {
+  font-size: 13px;
+  font-weight: normal;
+  color: var(--text);
+  opacity: 0.85;
+  line-height: 145%;
+}
+
+.field-hint code {
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.field-row label {
+  flex: 1;
+}
+
+/* 复选框要与文字同行，不能沿用 .modal-body label 的纵向排列 */
+.modal-body label.checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-body label.checkbox-field input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}
+
+.modal-body select {
+  font: inherit;
+  font-size: 15px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.source-links {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.source-links a {
+  color: var(--accent);
 }
 
 /* ---- 面包屑 / 筛选 / 状态徽标 ---- */

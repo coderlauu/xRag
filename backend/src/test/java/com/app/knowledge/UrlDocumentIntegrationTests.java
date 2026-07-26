@@ -172,6 +172,26 @@ class UrlDocumentIntegrationTests {
                 "select count(*) from source_document where kb_id = ?", Long.class, kbId)).isZero();
     }
 
+    /**
+     * 网络类异常的 `getMessage()` 经常是 null（`ConnectException` 尤其如此），直接拼进提示里
+     * 用户会看到"无法访问该地址：null"——既不是完整句子，也没告诉他下一步做什么。
+     * 这条是浏览器实测撞出来的。
+     */
+    @Test
+    void 连不上的地址提示里不出现null() throws Exception {
+        // 端口 9（discard）在本机上通常直接拒绝连接
+        String body = mvc.perform(post("/api/v1/knowledge-bases/{kbId}/documents/url", kbId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"sourceUri": "http://127.0.0.1:9/a.md"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        String message = json.readTree(body).get("message").asText();
+        assertThat(message).doesNotContain("null").startsWith("无法访问该地址：");
+    }
+
     @Test
     void 空内容返回400且不落库() throws Exception {
         mvc.perform(post("/api/v1/knowledge-bases/{kbId}/documents/url", kbId)

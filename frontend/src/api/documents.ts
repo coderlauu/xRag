@@ -1,6 +1,8 @@
-import { api } from "./client";
+import { api, apiUrl } from "./client";
 
 export type DocumentStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
+
+export type ChunkStrategy = "FIXED_SIZE" | "RECURSIVE";
 
 export interface SourceDocument {
   id: number;
@@ -9,15 +11,33 @@ export interface SourceDocument {
   sourceType: "FILE" | "URL";
   fileSize: number | null;
   contentType: string | null;
+  /** 仅 URL 来源。 */
+  sourceUri: string | null;
   status: DocumentStatus;
   revision: number;
   chunkCount: number;
   errorMessage: string | null;
   enabled: boolean;
-  chunkStrategy: "FIXED_SIZE" | "RECURSIVE";
+  chunkStrategy: ChunkStrategy;
   chunkConfig: { chunkSize: number; overlap: number };
+  syncEnabled: boolean;
+  syncCron: string | null;
+  nextSyncTime: string | null;
+  /** 上次检查时间。URL 来源打开源文件时用它标明"这是哪一刻的快照"（ui-spec §13）。 */
+  lastSyncTime: string | null;
   createTime: string;
 }
+
+/** 分块策略的中文表述与一句话说明（ui-spec §11），**不在组件里临时决定**。 */
+export const STRATEGY_LABEL: Record<ChunkStrategy, string> = {
+  RECURSIVE: "递归分隔符",
+  FIXED_SIZE: "固定长度",
+};
+
+export const STRATEGY_HINT: Record<ChunkStrategy, string> = {
+  RECURSIVE: "优先在段落、句子边界切分，尽量不切断完整意思。",
+  FIXED_SIZE: "严格按字符数切，行为完全可预测，但可能从句子中间断开。",
+};
 
 /** 状态的中文表述来自 ui-spec.md §2，**不在组件里临时决定**。 */
 export const STATUS_LABEL: Record<DocumentStatus, string> = {
@@ -37,11 +57,58 @@ export const documents = {
     return api.upload<SourceDocument>(`/knowledge-bases/${kbId}/documents/file`, form);
   },
 
+  addUrl: (kbId: number, body: AddUrlBody) =>
+    api.post<SourceDocument>(`/knowledge-bases/${kbId}/documents/url`, body),
+
+  update: (docId: number, body: UpdateDocumentBody) =>
+    api.put<SourceDocument & { needsRechunk: boolean }>(`/documents/${docId}`, body),
+
   setEnabled: (docId: number, enabled: boolean) =>
     api.patch<SourceDocument>(`/documents/${docId}/enabled`, { enabled }),
 
   remove: (docId: number) => api.delete<void>(`/documents/${docId}`),
+
+  /**
+   * 源文件地址（ui-spec §13）。**返回 URL 而不是发请求**——文件可能几十 MB，
+   * 用 fetch 拉成 blob 等于先整个读进内存；交给浏览器打开是流式的、还自带下载进度。
+   */
+  fileUrl: (docId: number) => apiUrl(`/documents/${docId}/file`),
 };
+
+export interface AddUrlBody {
+  sourceUri: string;
+  name?: string;
+  chunkStrategy?: ChunkStrategy;
+  chunkSize?: number;
+  overlap?: number;
+  syncEnabled?: boolean;
+  syncCron?: string;
+}
+
+/** 全字段可选，只提交改动过的（api.md §3）。 */
+export interface UpdateDocumentBody {
+  name?: string;
+  chunkStrategy?: ChunkStrategy;
+  chunkSize?: number;
+  overlap?: number;
+  sourceUri?: string;
+  syncEnabled?: boolean;
+  syncCron?: string;
+}
+
+/** ui-spec §11 / §12 的表单校验文案，与后端逐字一致。 */
+export const FORM_ERRORS = {
+  nameRequired: "文档名称不能为空。",
+  chunkSizePositive: "每块字符数必须大于 0。",
+  overlapLessThanSize: "重叠字符数必须小于每块字符数。",
+  uriRequired: "来源地址不能为空。",
+  uriProtocol: "来源地址必须以 http:// 或 https:// 开头。",
+  cronRequired: "开启定时同步时必须填写同步规则。",
+} as const;
+
+export const SAVED_MESSAGE = "已保存。";
+export const URL_ADDED_MESSAGE =
+  "添加成功，文档尚未处理。点击「开始处理」后才会切分并写入向量库。";
 
 /** 文档级启禁用的反馈。禁用要说清代价，因为重新启用会再花一次模型调用的钱。 */
 export const DOC_TOGGLED_MESSAGE = {
