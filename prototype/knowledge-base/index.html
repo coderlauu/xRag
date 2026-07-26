@@ -529,7 +529,7 @@ function viewKB() {
 
   return `
   <div class="phead">
-    <div><h1>知识库</h1><div class="sub">共 ${KBS.length} 个知识库，向量模型 <span class="mono">text-embedding-v3 · 1024 维</span></div></div>
+    <div><h1>知识库</h1><div class="sub">共 ${KBS.length} 个知识库，向量模型 <span class="mono">doubao-embedding-vision · 1024 维</span></div></div>
     <button class="pri" onclick="notSpecced('创建知识库')">创建知识库</button>
   </div>
   <div class="card"><div class="tw"><table>
@@ -540,7 +540,7 @@ function viewKB() {
       <td><div class="tname" onclick="go('docs')">${esc(k.name)}</div><div class="tsub">${esc(k.description)}</div></td>
       <td class="num">${k.documentCount}</td>
       <td class="num">${k.chunkCount.toLocaleString()}</td>
-      <td><span class="mono">text-embedding-v3</span> <span class="tsub" style="display:inline">1024 维</span></td>
+      <td><span class="mono">doubao-embedding-vision</span> <span class="tsub" style="display:inline">1024 维</span></td>
       <td class="mono">${k.createTime}</td>
       <td class="act">
         <button class="mini" onclick="notSpecced('编辑知识库')">编辑</button>
@@ -596,6 +596,9 @@ function viewDocs() {
         <button class="mini ${d.status === 'PENDING' ? 'pri' : ''}"${dis}${tip}
                 onclick="trigger(${d.id})">${TRIGGER_LABEL[d.status]}</button>
         <button class="mini"${dis}${tip} onclick="go('chunks',${d.id})">分块</button>
+        <!-- 源文件是只读操作：RUNNING 与禁用都不拦（ui-spec §13）。文档正在重新处理时，
+             恰恰是用户最想看看原文的时候。 -->
+        <button class="mini" onclick="openSource(${d.id})">源文件</button>
         <button class="mini"${dis}${tip} onclick="editDoc(${d.id})">编辑</button>
         <button class="mini"${dis}${tip} onclick="${d.enabled ? `confirmDisableDoc(${d.id})` : `enableDoc(${d.id})`}">${d.enabled ? '禁用' : '启用'}</button>
         <button class="mini danger"${dis}${tip} onclick="confirmDeleteDoc(${d.id})">删除</button>
@@ -712,7 +715,21 @@ function chunkShell(d, inner, noToolbar) {
   return `
   <div class="phead">
     <div><h1>${esc(d.name)} · 分块</h1>
-      <div class="sub">按原文顺序排列，序号是分块在原文中的位置</div></div>
+      <div class="sub">按原文顺序排列，序号是分块在原文中的位置</div>
+      <!--
+        ui-spec §13：这里才是「查看源文件」的主战场——手动干预分块要求用户判断"原文到底
+        怎么写的"，看到一段被切坏的内容却没有原文可对照时，他只能凭记忆改。
+        URL 来源额外标明这是**上次抓取到的快照**（也就是真正被切分过的那一份），并另给一个
+        跳原始链接的入口：想核对分块点前者，想看源站更新了什么点后者。
+      -->
+      <div class="sub" style="margin-top:4px">
+        <button class="link" onclick="openSource(${d.id})">查看源文件</button>
+        ${d.sourceType === 'URL'
+          ? `<span style="color:var(--ink-3)">（${d.lastSyncTime || '2026-07-25 03:00'} 抓取的快照）</span>
+             <span style="color:var(--line-strong);margin:0 6px">·</span>
+             <button class="link" onclick="openOrigin(${d.id})">打开原始链接 ↗</button>`
+          : ''}
+      </div></div>
     <div style="display:flex;gap:8px;align-items:center">
       <span class="n">${noToolbar ? 0 : visibleChunks().length} 个分块</span>
       <button class="pri" ${busy || !d.enabled ? 'disabled' : ''}
@@ -877,6 +894,24 @@ function toggleChunk(id, on) {
   c.enabled = on;
   toast('ok', on ? '已启用，向量已写入。' : '已禁用，向量已清理。', '');
   render();
+}
+
+/**
+ * ui-spec §13。真实实现是 `window.open('/api/v1/documents/{id}/file')`——**新标签打开**，
+ * 不在当前页跳走：用户正在编辑分块，把他带走会丢掉滚动位置和展开状态。
+ *
+ * PDF 与纯文本浏览器直接显示，.docx 会退化成下载，那是浏览器行为，界面不额外区分。
+ */
+function openSource(id) {
+  const d = DOCS.find(x => x.id === id);
+  toast('ok', '在新标签打开源文件。', d.sourceType === 'URL'
+    ? '打开的是上次抓取到的快照，也就是真正被切分过的那一份。'
+    : `${esc(d.name)}——PDF 与纯文本浏览器直接显示，.docx 会退化成下载。`);
+}
+
+function openOrigin(id) {
+  const d = DOCS.find(x => x.id === id);
+  toast('ok', '在新标签打开原始链接。', `${esc(d.sourceUri || '')}——这是源站此刻的内容，可能已经与现有分块不一致。`);
 }
 
 function addLink() { S.modal = { kind: 'addLink' }; render(); }

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -297,6 +298,61 @@ class DocumentManagementIntegrationTests {
         mvc.perform(post("/api/v1/documents/{docId}/ingestion-runs", docId))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("文档已禁用，无法处理。请先启用文档。"));
+    }
+
+    /** 查看源文档（PRD §4.2 增补）：返回的是文件本体，且内容与当初上传的逐字节一致。 */
+    @Test
+    void 下载源文件返回原始内容与文件名() throws Exception {
+        byte[] body = mvc.perform(get("/api/v1/documents/{docId}/file", docId))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("inline")))
+                // 文档名是中文，必须走 RFC 5987 的 filename* 编码，否则用户拿到一串乱码文件名
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("filename*=UTF-8''")))
+                .andReturn().getResponse().getContentAsByteArray();
+
+        assertThat(new String(body, StandardCharsets.UTF_8))
+                .as("内容要与上传的逐字节一致").isEqualTo("第一段。\n\n第二段。\n\n第三段。\n\n第四段。");
+    }
+
+    /**
+     * **禁用与处理中都不拦这个接口**。禁用针对的是"参与检索"，与"能不能看原件"无关——
+     * 禁用一份文档之后连原文都打不开，用户就没法判断该不该重新启用它。
+     */
+    @Test
+    void 禁用或处理中的文档源文件仍可打开() throws Exception {
+        mvc.perform(patchEnabled(false)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/documents/{docId}/file", docId)).andExpect(status().isOk());
+
+        jdbc.update("update source_document set status = 'RUNNING' where id = ?", docId);
+        mvc.perform(get("/api/v1/documents/{docId}/file", docId)).andExpect(status().isOk());
+    }
+
+    /** 已删除的文档拿不到源文件——尽管对象存储里那个文件确实还在（PRD §7.6 例外 2）。 */
+    @Test
+    void 已删除文档的源文件不可访问() throws Exception {
+        mvc.perform(delete("/api/v1/documents/{docId}", docId)).andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/v1/documents/{docId}/file", docId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("文档不存在或已被删除。"));
+    }
+
+    /**
+     * "文档在、但存储里找不到源文件"与"文档不存在"是两种不同的 404，`message` 必须区分开。
+     *
+     * <p>前者是运维动作（存储空间回收）留下的可能状态，只有它需要找运维；后者是用户自己删的。
+     */
+    @Test
+    void 源文件缺失时的404与文档不存在区分开() throws Exception {
+        jdbc.update("update source_document set file_key = 'knowledge-base/nonexistent.txt' where id = ?",
+                docId);
+
+        mvc.perform(get("/api/v1/documents/{docId}/file", docId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(
+                        "源文件已不可用。文档记录仍在，但存储中的原始文件缺失，可能已被清理。"));
     }
 
     @Test

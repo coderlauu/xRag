@@ -22,6 +22,7 @@ import com.app.knowledge.web.ApiException;
 import com.app.knowledge.web.PageResponse;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
@@ -41,6 +42,8 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 /** 文档上传与列表。 */
@@ -231,6 +234,37 @@ public class DocumentService {
         SourceDocument document = documents.findById(docId)
                 .orElseThrow(() -> ApiException.notFound("文档不存在或已被删除。"));
         return new DocumentDetail(document, runs.findLatestByDocId(docId).orElse(null));
+    }
+
+    /** 源文件本体 + 展示所需的元数据（api.md §3「查看源文档」）。 */
+    public record SourceFile(InputStream content, String fileName, String contentType, Long size) {}
+
+    /**
+     * 打开源文件（PRD §4.2）。
+     *
+     * <p>**不校验 {@code enabled}**：禁用针对的是"参与检索"，与"能不能看原件"无关——禁用一份
+     * 文档之后连原文都打不开，用户就没法判断该不该重新启用它。`RUNNING` 同理不拦，它是只读操作。
+     *
+     * <p>**后端流式转发而不是预签名 URL**：与上传方向保持同一套存储访问方式
+     * （[architecture.md §7](../../../../../../tech/knowledge-base/architecture.md) 有意避开了预签名）。
+     * 下载方向预签名的收益只是省一点后端带宽，代价却是引入第二套凭据路径与过期时间管理。
+     *
+     * <p>调用方负责关闭返回的流。
+     */
+    public SourceFile openSourceFile(long docId) {
+        SourceDocument document = requireDocument(docId);
+        if (document.fileKey() == null || document.fileKey().isBlank()) {
+            throw ApiException.notFound("源文件已不可用。文档记录仍在，但存储中的原始文件缺失，可能已被清理。");
+        }
+        try {
+            InputStream content = s3.getObject(GetObjectRequest.builder()
+                    .bucket(bucket).key(document.fileKey()).build());
+            return new SourceFile(content, document.name(), document.contentType(), document.fileSize());
+        } catch (NoSuchKeyException missing) {
+            // 与"文档不存在"分开：这两种 404 对用户的意义完全不同，前者是他删过，
+            // 后者是存储侧出了状况，只有后者需要找运维。
+            throw ApiException.notFound("源文件已不可用。文档记录仍在，但存储中的原始文件缺失，可能已被清理。");
+        }
     }
 
     /**
