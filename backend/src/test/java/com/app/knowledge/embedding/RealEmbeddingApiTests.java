@@ -24,6 +24,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 @EnabledIfEnvironmentVariable(named = "EMBEDDING_API_KEY", matches = ".+")
 class RealEmbeddingApiTests {
 
+    /** 同一段文本"算出来是不是同一个向量"的判据。取值依据见下方用例的表格。 */
+    private static final double SAME_TEXT_THRESHOLD = 0.95;
+
     @Autowired
     private EmbeddingClient client;
 
@@ -47,6 +50,18 @@ class RealEmbeddingApiTests {
      * （量级 1e-3 的抖动，大概率是低精度推理所致）。改用余弦相似度——单独算出来的向量
      * 与它在批次里的那一条必须几乎重合，而与相邻文本的向量明显不同。后者才是这条用例
      * 真正要防的：分批拼接时错位。
+     *
+     * <p>**阈值取 0.95，依据是 `2026-07-28` 实测的两端分布**，不是拍脑袋的"接近 1"：
+     *
+     * <table><tr><th>测量</th><th>实测值</th></tr>
+     * <tr><td>同一文本三次独立调用，两两余弦</td><td>0.9977 / 0.9979 / 0.9982</td></tr>
+     * <tr><td>相邻文本（只差一个数字，极相似）</td><td>0.886</td></tr>
+     * <tr><td>相邻文本（语义不同）</td><td>0.214</td></tr></table>
+     *
+     * <p>原先两条断言都用 0.999，两个问题：抖动下界 0.9977 就低于它，"重合"那条**随机变红**
+     * （本次就是 0.998986 差 1.4e-5 没过）；而"不重合"那条用 0.999 又几乎拦不住任何东西——
+     * 真错位到一段相似文本时余弦 0.886，照样满足 &lt; 0.999。**两个阈值挤在一起，一条 flaky
+     * 一条没区分力。** 现在用同一个 0.95 两边夹住，距离两端各留约 0.05 与 0.06 的余量。
      */
     @Test
     void 超过单批上限时自动分批且顺序正确() {
@@ -60,8 +75,12 @@ class RealEmbeddingApiTests {
         assertThat(vectors).allSatisfy(v -> assertThat(v).hasSize(properties.getDimensions()));
 
         float[] alone = client.embed(List.of(texts.get(17))).get(0);
-        assertThat(cosine(vectors.get(17), alone)).as("第 17 条应与单独计算的结果几乎重合").isGreaterThan(0.999);
-        assertThat(cosine(vectors.get(16), alone)).as("第 16 条不应与第 17 条的向量重合").isLessThan(0.999);
+        assertThat(cosine(vectors.get(17), alone))
+                .as("第 17 条应与单独计算的结果重合（只允许推理抖动，实测下界 0.9977）")
+                .isGreaterThan(SAME_TEXT_THRESHOLD);
+        assertThat(cosine(vectors.get(16), alone))
+                .as("第 16 条不应与第 17 条的向量重合（实测相邻文本 0.886，错位就会顶到这里）")
+                .isLessThan(SAME_TEXT_THRESHOLD);
     }
 
     private static double norm(float[] vector) {
