@@ -58,6 +58,7 @@ class IngestionIntegrationTests {
     @BeforeEach
     void setUp() throws Exception {
         FakeEmbeddingConfig.SHOULD_FAIL.set(false);
+        FakeEmbeddingConfig.SHOULD_THROW_ERROR.set(false);
         String kb = mvc.perform(post("/api/v1/knowledge-bases")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -242,9 +243,15 @@ class IngestionIntegrationTests {
         assertThat(jdbc.queryForObject(
                 "select error_message from source_document where id = ?", String.class, docId))
                 .contains("卡死");
-        // phase 保留，它是这条记录最有价值的诊断信息——说明卡在哪一步
+        // phase 清空：被回收的任务并不知道失败在哪一步，存着的只是心跳停前最后写下的步骤。
+        // 留着它，界面会把「最后到过 EMBED」渲染成「向量计算失败：」，指向一个未必出错的环节。
         assertThat(jdbc.queryForObject("select phase from ingestion_run where id = ?", String.class, runId))
-                .isEqualTo("EMBED");
+                .as("phase 的语义是「失败发生在这一步」，超时回收给不出这个信息，null 才是诚实的")
+                .isNull();
+        assertThat(jdbc.queryForObject(
+                "select error_message from ingestion_run where id = ?", String.class, runId))
+                .as("最后到过哪一步没有丢，只是改由消息用准确的措辞说明")
+                .contains("最后记录到的步骤是 EMBED");
     }
 
     /** 回收的意义就在这里：文档能被重新触发，CAS 不再被挡住。 */
@@ -266,6 +273,89 @@ class IngestionIntegrationTests {
         mvc.perform(post("/api/v1/documents/{docId}/ingestion-runs", docId))
                 .andExpect(status().isAccepted());
         awaitStatus("SUCCESS");
+    }
+
+    /**
+     * 执行过程中抛出的 {@link Error} 必须照样落进失败记录。
+     *
+     * <p>**这是本组测试里最有价值的一条**，因为它守的缺陷完全不可见：{@code execute} 若只
+     * {@code catch (Exception)}，Error 会直接穿过去——任务不是"失败"，而是**永远停在
+     * RUNNING**，直到五分钟后被心跳超时兜底改写成一句"卡死"。真实原因（这里是 OOM）
+     * 在库里、日志里、界面上全部消失，排查时只剩一条毫无信息量的超时消息。
+     *
+     * <p>断言"错误消息里能看到真实原因"而不只是"状态变成 FAILED"：兜底回收也会把状态改成
+     * FAILED，只断言状态的话，修复前后这条测试都是绿的。
+     */
+    @Test
+    void 执行中抛出Error时真实原因仍然写进失败记录() throws Exception {
+        FakeEmbeddingConfig.SHOULD_THROW_ERROR.set(true);
+        try {
+            trigger();
+            awaitStatus("FAILED");
+        } finally {
+            FakeEmbeddingConfig.SHOULD_THROW_ERROR.set(false);
+        }
+
+        assertThat(jdbc.queryForObject(
+                "select error_message from source_document where id = ?", String.class, docId))
+                .as("Error 被吞掉的话，这里要么是 null，要么是五分钟后那句无用的超时兜底")
+                .contains("堆内存耗尽");
+        assertThat(jdbc.queryForObject(
+                "select status from ingestion_run where doc_id = ? order by id desc limit 1",
+                String.class, docId)).isEqualTo("FAILED");
+    }
+
+    /**
+     * 心跳开始没多久就断掉 = 进程整个没了，消息必须这么说。
+     *
+     * <p>这正是真实故障的形态：任务开始 0.9 秒后心跳停止，五分钟后被回收，而当时给出的
+     * 消息是"处理超过 PT5M 没有任何进展"，把人引向"分块卡住了"——实际那份文档切分只要
+     * 3.5 毫秒。消息说错方向比不说更费时间。
+     */
+    @Test
+    void 心跳几乎没跳过就断掉时消息指向进程被停止() {
+        long runId = jdbc.queryForObject("""
+                insert into ingestion_run (kb_id, doc_id, trigger_source, status, phase,
+                                           started_time, heartbeat_time)
+                values ((select kb_id from source_document where id = ?), ?, 'MANUAL', 'RUNNING', 'CHUNK',
+                        now() - interval '6 minutes', now() - interval '6 minutes' + interval '1 second')
+                returning id
+                """, Long.class, docId, docId);
+        jdbc.update("update source_document set status = 'RUNNING' where id = ?", docId);
+
+        dispatcher.recoverStale();
+
+        String message = jdbc.queryForObject(
+                "select error_message from source_document where id = ?", String.class, docId);
+        assertThat(message).contains("1 秒后就完全失去响应").contains("被停止或重启");
+        assertThat(message)
+                .as("phase 只是最后记录到的步骤，不能说成「切分失败」——那一步其实跑完了")
+                .contains("最后记录到的步骤是 CHUNK");
+        assertThat(jdbc.queryForObject("select status from ingestion_run where id = ?", String.class, runId))
+                .isEqualTo("FAILED");
+        // 前端用 phase 拼「内容切分失败：」前缀（RunHistory.tsx），留着它就等于在界面上
+        // 断言切分出了问题——而这正是本次真实故障里把人带偏的那句话。
+        assertThat(jdbc.queryForObject("select phase from ingestion_run where id = ?", String.class, runId))
+                .isNull();
+    }
+
+    /** 反过来：心跳跳了很久才停，那才是真的卡在某一步，措辞应当不同。 */
+    @Test
+    void 心跳长时间正常后才停的仍然按卡死措辞() {
+        jdbc.update("""
+                insert into ingestion_run (kb_id, doc_id, trigger_source, status, phase,
+                                           started_time, heartbeat_time)
+                values ((select kb_id from source_document where id = ?), ?, 'MANUAL', 'RUNNING', 'EMBED',
+                        now() - interval '2 hours', now() - interval '6 minutes')
+                """, docId, docId);
+        jdbc.update("update source_document set status = 'RUNNING' where id = ?", docId);
+
+        dispatcher.recoverStale();
+
+        assertThat(jdbc.queryForObject(
+                "select error_message from source_document where id = ?", String.class, docId))
+                .contains("卡死")
+                .doesNotContain("被停止或重启");
     }
 
     /** 心跳还在跳的任务不能被误杀——否则长耗时的正常任务会被回收打断。 */

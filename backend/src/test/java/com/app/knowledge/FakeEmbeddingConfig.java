@@ -30,6 +30,15 @@ public class FakeEmbeddingConfig {
     public static final AtomicBoolean SHOULD_FAIL = new AtomicBoolean(false);
 
     /**
+     * 让下一次 embed 调用抛 {@link Error} 而不是 {@link EmbeddingException}。
+     *
+     * <p>造的是 {@code Error} 而不是随便一个 RuntimeException，因为要守的正是
+     * {@code catch (Exception)} 与 {@code catch (Throwable)} 的差别——用 RuntimeException
+     * 的话两种写法都能通过，测试就没有区分力了。
+     */
+    public static final AtomicBoolean SHOULD_THROW_ERROR = new AtomicBoolean(false);
+
+    /**
      * 累计调用次数。这是"没有触发向量重算"唯一可靠的断言手段——CHK-21 要验的是
      * **一次 Embedding 调用都没发生**，而不是"结果看起来没变"。观察向量表本身做不到：
      * 确定性假实现对同样的内容会算出同样的向量，删旧插新之后表里的值与之前一模一样。
@@ -56,6 +65,9 @@ public class FakeEmbeddingConfig {
             public List<float[]> embed(List<String> texts) {
                 CALLS.incrementAndGet();
                 IN_TRANSACTION_AT_CALL.set(TransactionSynchronizationManager.isActualTransactionActive());
+                if (SHOULD_THROW_ERROR.get()) {
+                    throw new OutOfMemoryError("模拟的 Error：向量化时堆内存耗尽");
+                }
                 if (SHOULD_FAIL.get()) {
                     throw new EmbeddingException("模拟的 Embedding 调用失败");
                 }

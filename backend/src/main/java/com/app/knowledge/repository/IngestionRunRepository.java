@@ -4,6 +4,7 @@ import com.app.knowledge.model.IngestionPhase;
 import com.app.knowledge.model.IngestionRun;
 import com.app.knowledge.model.IngestionRunStatus;
 import com.app.knowledge.model.IngestionTriggerSource;
+import com.app.knowledge.model.StaleRun;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -39,6 +40,12 @@ public class IngestionRunRepository {
             rs.getObject("started_time", OffsetDateTime.class),
             rs.getObject("finished_time", OffsetDateTime.class),
             rs.getObject("create_time", OffsetDateTime.class));
+
+    private static final RowMapper<StaleRun> STALE_MAPPER = (rs, rowNum) -> new StaleRun(
+            rs.getLong("id"),
+            rs.getLong("doc_id"),
+            rs.getString("phase") == null ? null : IngestionPhase.valueOf(rs.getString("phase")),
+            rs.getLong("alive_seconds"));
 
     private final JdbcTemplate jdbc;
 
@@ -116,6 +123,24 @@ public class IngestionRunRepository {
     }
 
     /**
+     * 心跳超时回收专用：与 {@link #markFailed} 的唯一区别是**把 {@code phase} 清空**。
+     *
+     * <p>{@code phase} 的语义是"失败发生在这一步"（见 {@link IngestionPhase}），界面据此
+     * 渲染成「内容切分失败：…」这样的前缀。但被回收的任务恰恰**不知道失败在哪一步**——
+     * 存着的只是心跳停止前最后写下的步骤，进程被杀时执行线程可能早已走过去了。真实案例：
+     * 一份文档切分只需 3.5 毫秒却停在 {@code CHUNK}，界面于是显示「内容切分失败」，把人
+     * 引去排查一个根本没出错的功能。这里留 {@code null}（"不知道"）才是诚实的，具体的
+     * 最后步骤改由错误消息用准确措辞说明。
+     */
+    public void markStaleFailed(long runId, String errorMessage) {
+        jdbc.update("""
+                update ingestion_run
+                   set status = 'FAILED', phase = null, error_message = ?, finished_time = now()
+                 where id = ? and status not in ('SUCCESS', 'FAILED')
+                """, truncate(errorMessage), runId);
+    }
+
+    /**
      * 心跳超时的僵尸任务：{@code RUNNING} 且心跳停更超过阈值。
      *
      * <p>与启动回收的区别是**它不依赖单实例假设**——判据是这条任务自己的心跳停了，而不是
@@ -125,12 +150,15 @@ public class IngestionRunRepository {
      * <p>{@code heartbeat_time is null} 也算：CAS 抢占时就会写入心跳，为 null 说明这条记录
      * 处在一个不该出现的状态，放着不管它会永远卡住对应文档。
      */
-    public List<IngestionRun> findStale(Duration timeout) {
-        return jdbc.query("select " + COLUMNS + """
-                 from ingestion_run
+    public List<StaleRun> findStale(Duration timeout) {
+        return jdbc.query("""
+                select id, doc_id, phase,
+                       coalesce(floor(extract(epoch from (heartbeat_time - started_time))), -1)::bigint
+                           as alive_seconds
+                  from ingestion_run
                  where status = 'RUNNING'
                    and (heartbeat_time is null or heartbeat_time < now() - make_interval(secs => ?))
-                """, MAPPER, (double) timeout.toMillis() / 1000);
+                """, STALE_MAPPER, (double) timeout.toMillis() / 1000);
     }
 
     public Optional<IngestionRun> findById(long runId) {

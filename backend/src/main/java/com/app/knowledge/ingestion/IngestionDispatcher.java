@@ -1,8 +1,9 @@
 package com.app.knowledge.ingestion;
 
-import com.app.knowledge.model.IngestionRun;
+import com.app.knowledge.model.StaleRun;
 import com.app.knowledge.repository.IngestionRunRepository;
 import com.app.knowledge.repository.SourceDocumentRepository;
+import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -102,16 +103,64 @@ public class IngestionDispatcher implements ApplicationRunner {
     @Scheduled(fixedDelayString = "${app.knowledge.ingestion.recovery-interval:60s}")
     public void recoverStale() {
         try {
-            for (IngestionRun stale : runs.findStale(heartbeatTimeout)) {
-                String reason = "处理超过 %s 没有任何进展，已判定为卡死并中止，请重新触发。"
-                        .formatted(heartbeatTimeout);
+            for (StaleRun stale : runs.findStale(heartbeatTimeout)) {
+                String reason = describe(stale);
                 // 两张表都要改：只改 run 会让文档永久卡在 RUNNING，用户既看不到原因也重试不了
-                runs.markFailed(stale.id(), reason);
+                runs.markStaleFailed(stale.id(), reason);
                 documents.markFailed(stale.docId(), reason);
-                LOGGER.warn("心跳超时回收：任务 {}（文档 {}）标记为 FAILED", stale.id(), stale.docId());
+                LOGGER.warn("心跳超时回收：任务 {}（文档 {}）标记为 FAILED，心跳存活 {}s，最后步骤 {}",
+                        stale.id(), stale.docId(), stale.aliveSeconds(), stale.phase());
             }
         } catch (Exception exception) {
             LOGGER.warn("心跳超时回收失败：{}", exception.toString());
+        }
+    }
+
+    /**
+     * 兜底回收是**唯一一种拿不到真实失败原因的失败**——它只知道"心跳没了"。所以这条消息
+     * 必须尽力把用户引向正确的排查方向，而不是丢下一句"卡死"。
+     *
+     * <p>判据是心跳存活了多久：心跳每 {@value #HEARTBEAT_SECONDS} 秒一跳，若任务开始后
+     * 连三跳都没跳满就断了，几乎必然是**进程整个消失了**（被停止、重启、或被 kill），
+     * 而不是某一步执行得慢。这两种原因的处置完全不同，混成一句话说等于什么都没说。
+     *
+     * <p>措辞上刻意用"最后记录到的步骤是 X"而不是"X 失败了"：进程被杀时执行线程可能早已
+     * 走到下一步，只是没来得及写库。说成"切分失败"会让用户去查一个根本没出错的功能。
+     */
+    private String describe(StaleRun stale) {
+        String step = stale.phase() == null
+                ? "当时尚未开始任何步骤"
+                : "最后记录到的步骤是 " + stale.phase();
+        if (stale.aliveSeconds() >= 0 && stale.aliveSeconds() < HEARTBEAT_SECONDS * 3) {
+            return ("处理开始 %d 秒后就完全失去响应（%s），超过 %s 无心跳，已中止。"
+                    + "这通常意味着应用进程在处理过程中被停止或重启，而不是某一步出错。请重新触发。")
+                    .formatted(stale.aliveSeconds(), step, heartbeatTimeout);
+        }
+        return "处理超过 %s 没有任何进展（%s），已判定为卡死并中止，请重新触发。"
+                .formatted(heartbeatTimeout, step);
+    }
+
+    /**
+     * 优雅停机时把本进程正在跑的任务标记掉。
+     *
+     * <p>没有这一层，正常的一次「停掉应用」会让任务在库里躺满 {@code heartbeatTimeout}
+     * 才被兜底回收，而那条兜底消息只能猜原因。这里在**关闭的当下**就知道确切原因，
+     * 写下来比五分钟后再猜准确得多，用户也不用干等。
+     *
+     * <p>只能覆盖收到关闭信号的情况；{@code kill -9} 仍然只能靠启动回收与心跳超时兜底。
+     */
+    @PreDestroy
+    public void shutdown() {
+        workers.shutdownNow();
+        heartbeats.shutdownNow();
+        for (Long runId : List.copyOf(running.keySet())) {
+            try {
+                String reason = "应用在处理过程中关闭，本次处理已中断，请重新触发。";
+                runs.markFailed(runId, reason);
+                runs.findById(runId).ifPresent(run -> documents.markFailed(run.docId(), reason));
+            } catch (Exception exception) {
+                LOGGER.warn("关闭时标记任务 {} 失败：{}", runId, exception.toString());
+            }
         }
     }
 

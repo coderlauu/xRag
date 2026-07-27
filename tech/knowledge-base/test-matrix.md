@@ -109,10 +109,13 @@
 | ING-10 | 对象存储里的文件被手工删除后触发 | 触发并等待 | run `phase=DOWNLOAD`、`status=FAILED` | 集成 |
 | ING-11 | 上传一个内容为 `.pdf` 但实际是乱码二进制的文件后触发 | 触发并等待 | run `phase=EXTRACT`、`status=FAILED`，错误信息可读 | 集成 |
 | ING-12 | 队列中 5 条 `QUEUED` | 等待轮询 | 5 条都被执行；**没有任何一条被执行两次**（逐条 CAS `where status='QUEUED'` 保证） | 集成 |
-| ING-13 | 手工插入 `RUNNING` 且 `heartbeat_time` 为 6 分钟前的 run | 触发超时回收 | run 与其文档都变 `FAILED`，`error_message` 说明是超时回收 | 集成 |
+| ING-13 | 手工插入 `RUNNING` 且 `heartbeat_time` 为 6 分钟前的 run | 触发超时回收 | run 与其文档都变 `FAILED`，`error_message` 说明是超时回收，且**不再声称失败发生在某一步**（`phase` 清空，见 ING-18） | 集成 |
 | ING-14 | 手工插入 `RUNNING` 的 run 后重启应用 | 启动回收 | run 与其文档都变 `FAILED`，原因写明"进程重启"。**单实例假设下这个回收完全准确**（ADR 0002） | 集成 |
 | ING-15 | 任务执行中 | 观察 `heartbeat_time` | 执行期间该字段持续被刷新（间隔约 10s） | 集成 |
 | ING-16 | 大量分块的文档 | 触发并观察数据库连接 | 事务持续时间只覆盖 PERSIST 阶段；Embedding 调用发生在事务**外**。观察手段见 §6 | 手工 |
+| ING-17 | 执行中抛出 `Error`（非 `Exception`）| 触发并等待 | 文档与 run 都变 `FAILED`，且 `error_message` 是**真实原因**。只 `catch (Exception)` 的话任务会永远停在 `RUNNING`，五分钟后被超时兜底改写成一句"卡死"，真实原因永久丢失 | 集成 |
+| ING-18 | `RUNNING` 的 run，心跳只存活了 1 秒就停 | 触发超时回收 | 消息指向"进程被停止或重启"而非"卡死"，并写明最后记录到的步骤；`phase` 被**清空** | 集成 |
+| ING-19 | `RUNNING` 的 run，心跳正常跳了 2 小时后才停 | 触发超时回收 | 消息仍用"卡死"措辞（这才是真的卡在某一步），与 ING-18 形成对照 | 集成 |
 
 ## 5. CHK — 分块管理
 

@@ -68,7 +68,17 @@ public class IngestionExecutor {
         this.newTransactions = requiresNew;
     }
 
-    /** 由派发器在线程池里调用。本方法自己**不能**抛异常出去——失败要落到记录里。 */
+    /**
+     * 由派发器在线程池里调用。本方法自己**不能**把失败悄悄带走——失败要落到记录里。
+     *
+     * <p>**捕获 {@code Throwable} 而不是 {@code Exception}**：只接 Exception 的话，
+     * {@code OutOfMemoryError}、{@code NoClassDefFoundError} 这类 {@code Error} 会直接穿过去，
+     * 于是 {@link #markFailed} 从不执行、任务永远停在 `RUNNING`，只能等心跳超时兜底——
+     * 而兜底消息说的是"超时卡死"，**真实原因就此永久丢失**，界面上再也查不到。
+     *
+     * <p>记录之后 Error 仍然重新抛出：它意味着 JVM 已处在不可信状态，吞掉它只会把问题
+     * 推迟到更难定位的地方。这里要的只是"先把原因写进记录"，不是"当作普通失败处理"。
+     */
     public void execute(long runId) {
         IngestionRun run = runs.findById(runId).orElse(null);
         if (run == null) {
@@ -77,9 +87,12 @@ public class IngestionExecutor {
         }
         try {
             executeSteps(run);
-        } catch (Exception exception) {
-            LOGGER.warn("入库任务 {} 失败：{}", runId, exception.toString());
-            markFailed(run, exception);
+        } catch (Throwable failure) {
+            LOGGER.warn("入库任务 {} 失败：{}", runId, failure.toString());
+            markFailed(run, failure);
+            if (failure instanceof Error error) {
+                throw error;
+            }
         }
     }
 
@@ -155,8 +168,8 @@ public class IngestionExecutor {
      * 失败标记必须在**独立事务**里：沿用外层事务的话，失败信息会被外层回滚一起冲掉，
      * 结果是文档卡在 RUNNING、用户既看不到原因也重试不了。
      */
-    void markFailed(IngestionRun run, Exception exception) {
-        String message = exception.getMessage() == null ? exception.toString() : exception.getMessage();
+    void markFailed(IngestionRun run, Throwable failure) {
+        String message = failure.getMessage() == null ? failure.toString() : failure.getMessage();
         newTransactions.executeWithoutResult(status -> {
             runs.markFailed(run.id(), message);
             documents.markFailed(run.docId(), message);
