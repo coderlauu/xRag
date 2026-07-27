@@ -187,6 +187,18 @@ public interface EmbeddingClient {
 
 > 选型是被 Key 的套餐决定的，不是偏好：手上这把是 **Coding Plan** 的 Key，实测 `doubao-embedding-large` / `doubao-embedding` / `doubao-embedding-text-240715` 都返回 *"The requested model does not support the agent plan feature"*，`doubao-embedding-vision` 是唯一可用的向量模型。它本身是多模态模型，但纯文本输入工作正常。
 
+> ### ⚠️ 这套配置违反 Coding Plan 的使用条款（`2026-07-28` 查证）
+>
+> 方舟官方文档写明：**「Coding Plan API Key 仅能在官方支持的 AI 编程工具中使用，不能用于直接 API 调用。违规使用会被系统判定为滥用，导致订阅停用或账号封禁。」** 官方支持的工具指 Claude Code、Cursor、Cline、Codex CLI 等；套餐额度也只在这些工具里才计入。
+>
+> **本模块拿它做知识库向量化，正属于被明令禁止的"直接 API 调用"。** 这是项目所有者在知情后的选择（个人学习项目、自担风险），**不是本文档推荐的用法**，后来者不要照抄。
+>
+> 顺带订正一处事实：官方现在给出的 Coding Plan base-url 是 `/api/coding/v3`（OpenAI 协议）与 `/api/coding`（Anthropic 协议），与本文档记录的 `/api/plan/v3` 并不一致——可能是产品迭代改过路径。`/api/plan/v3` 在 `2026-07-25` 和 `2026-07-28` 两次实测中确实可用，但这不改变上面那条结论。
+>
+> **合规路径**：换一把标准计费 Key，并在方舟控制台开通一个支持标准 `/embeddings` 接口的**纯文本** embedding 模型，届时 `base-url` 改回 `/api/v3`、`model` 换成对应模型名、`dimensions` 按新模型核实。已验证 `doubao-embedding-vision` **不能**走这条路——标准端点对它返回 `the requested model does not support this api`，它只吃 `/embeddings/multimodal`，而那个接口一次只返回一个融合向量、维度 2048，与本模块"N 个分块 → N 个向量"的需求不匹配。
+>
+> 来源：[Coding Plan API 配置与 API Key 管理](https://www.volcengine.com/article/38138)、[方舟 Coding Plan 使用限制全解析](https://www.volcengine.com/article/37156)。
+
 ```properties
 app.embedding.base-url=${EMBEDDING_BASE_URL:https://ark.cn-beijing.volces.com/api/plan/v3}
 app.embedding.api-key=${EMBEDDING_API_KEY:}

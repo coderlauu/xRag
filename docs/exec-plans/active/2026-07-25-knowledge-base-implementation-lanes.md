@@ -338,3 +338,8 @@ scripts/ci-validate.sh
   - **`needsRechunk` 由后端算、前端不重复判断**。前端手里没有"库中旧参数"和 `revision`，自己判会得出与后端不同的结论；后端已经在响应里给了确定答案，再算一遍就是制造两个真相源。
   - 实测确认的界面规则：FILE 来源的编辑表单**不显示**来源地址与定时同步两组字段（不是灰掉）；同步开关关闭时规则输入框**隐藏**；改分块参数 → 后续确认弹层「现有的 23 个分块仍然是按旧参数切出来的…」＋［稍后再说］［立即重新处理］；只改名称 → 仅 toast「已保存。」；三条表单校验文案与后端逐字一致。
   - 源文件端点实测：真实上传的 PDF 返回 `Content-Type: application/pdf`、`Content-Length` 与库中记录一致（1,806,742 字节）、落地文件 `file` 识别为合法 PDF、文件名走了 `filename*=UTF-8''` 编码。用 SQL 造的种子文档（`file_key` 指向从未上传的对象）返回的正是那条区分开的 404「源文件已不可用」——**两种 404 的差异在真实数据上现场印证了一次**。
+- `2026-07-28`: **查证发现当前 Embedding 配置违反火山方舟 Coding Plan 的使用条款，已在四处文档加上标注。** 起因是用户找不到"Coding Plan Key 的页面"，去官方文档核实时发现：该 Key「仅能在官方支持的 AI 编程工具中使用（Claude Code / Cursor / Cline / Codex CLI），**不能用于直接 API 调用**，违规会被判定为滥用，导致订阅停用或账号封禁」。本模块拿它做知识库向量化，正属于被禁止的用法。
+  - **`2026-07-25` 工单 06 的四点实测结论在技术上都成立**（`2026-07-28` 又复现了一次），问题不在结论本身，而在**当时没有查证条款就把它记成了推荐基线**，措辞还是"别顺手改回去"。照着做的人会直接撞上封号风险。
+  - 顺带订正一处事实：官方现在给出的 Coding Plan base-url 是 `/api/coding/v3`（OpenAI 协议）与 `/api/coding`（Anthropic 协议），与仓库记录的 `/api/plan/v3` 不一致，可能是产品迭代改过路径。`/api/plan/v3` 两次实测确实可用，但这不改变合规结论。
+  - 用户知情后选择继续使用（个人学习项目、自担风险），因此标注的内容不是"这条路不能走"，而是**把已知取舍显式化**：[application.properties](../../../backend/src/main/resources/application.properties)、[architecture.md §6](../../../tech/knowledge-base/architecture.md)、[deploy/README.md](../../../deploy/README.md)、[工单 06](../../../.scratch/knowledge-base/issues/06-embedding-client.md) 四处，其中 deploy/README 的措辞最重——**部署到任何共享或生产环境之前必须先换成合规配置**，否则风险不是本服务不可用，而是整个方舟账号被停。
+  - 合规路径已验证过一半：标准计费 Key 鉴权可通过，但 `doubao-embedding-vision` **不支持**标准 `/embeddings`（返回 `does not support this api`），只吃 `/embeddings/multimodal`，而该接口一次只返回一个融合向量、维度 2048，与"N 个分块 → N 个向量"不匹配。真正的合规做法是开通一个纯文本 embedding 模型。

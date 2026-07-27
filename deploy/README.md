@@ -277,6 +277,18 @@ journalctl -u app-disk-guard.service -n 100 --no-pager
 
 供应商当前是火山方舟 Ark，两处容易"顺手改错"的地方写在 env example 的注释里：`base-url` 是 `/api/plan/v3` 而非 `/api/v3`（Plan 类 Key 打标准路径直接 401）；`dimensions` 参数必须始终显式发送（模型原生输出 2048 维，1024 是靠这个参数降维得到的）。
 
+> ### ⚠️ 部署前必读：当前配置违反 Coding Plan 使用条款（`2026-07-28` 查证）
+>
+> 方舟官方文档明确规定：**「Coding Plan API Key 仅能在官方支持的 AI 编程工具中使用，不能用于直接 API 调用。违规使用会被系统判定为滥用，导致订阅停用或账号封禁。」**（支持的工具指 Claude Code、Cursor、Cline、Codex CLI 等）
+>
+> 本项目用它做知识库向量化，正属于被禁止的"直接 API 调用"。开发期这是项目所有者知情后的取舍；**但真要部署到任何共享或生产环境之前，必须先换成合规配置**——否则风险不只是本服务不可用，而是整个方舟账号被停。
+>
+> 合规做法：用标准计费 Key，在控制台开通一个支持标准 `/embeddings` 接口的**纯文本** embedding 模型，然后把 `EMBEDDING_BASE_URL` 改回 `https://ark.cn-beijing.volces.com/api/v3`、`EMBEDDING_MODEL` 换成该模型、按其原生维度核对 `EMBEDDING_DIMENSIONS`（不是 1024 的话还要一条 migration 改 `vector(n)` 并重建索引）。
+>
+> 注意 `doubao-embedding-vision` **不能**直接搬过去：标准端点对它返回 `does not support this api`，它只支持 `/embeddings/multimodal`，且该接口一次只返回一个融合向量、维度 2048。
+>
+> 来源：[Coding Plan API 配置与 API Key 管理](https://www.volcengine.com/article/38138)、[方舟 Coding Plan 使用限制全解析](https://www.volcengine.com/article/37156)。
+
 ### CI 不调用真实 Embedding API —— 这一点必须知道
 
 **CI 里跑的集成测试全部使用确定性的假 `EmbeddingClient`**（`FakeEmbeddingConfig`，由测试类 `@Import` 显式导入，不依赖"环境变量恰好没配"这种隐式行为），它按文本内容派生伪向量：同样文本必得同样向量，不同文本必得不同向量。
