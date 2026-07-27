@@ -1,5 +1,6 @@
 package com.app.knowledge.embedding;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -21,6 +22,15 @@ public class EmbeddingProperties {
 
     /** 单次请求的文本条数上限。 */
     private int batchSize;
+
+    /** 收到 429 后最多重试几次。设为 0 关闭重试。 */
+    private int maxRetries;
+
+    /** 第一次重试前等多久，之后每次翻倍。 */
+    private Duration retryBaseDelay;
+
+    /** 相邻两批之间的最小间隔，用来从源头降低触发 429 的概率。设为 0 关闭。 */
+    private Duration batchInterval;
 
     public String getBaseUrl() {
         return baseUrl;
@@ -60,6 +70,30 @@ public class EmbeddingProperties {
 
     public void setBatchSize(int batchSize) {
         this.batchSize = batchSize;
+    }
+
+    public int getMaxRetries() {
+        return maxRetries;
+    }
+
+    public void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
+    }
+
+    public Duration getRetryBaseDelay() {
+        return retryBaseDelay;
+    }
+
+    public void setRetryBaseDelay(Duration retryBaseDelay) {
+        this.retryBaseDelay = retryBaseDelay;
+    }
+
+    public Duration getBatchInterval() {
+        return batchInterval;
+    }
+
+    public void setBatchInterval(Duration batchInterval) {
+        this.batchInterval = batchInterval;
     }
 
     public boolean isConfigured() {

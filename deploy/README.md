@@ -270,6 +270,8 @@ journalctl -u app-disk-guard.service -n 100 --no-pager
 `EMBEDDING_API_KEY` 是本项目**第一个真实的密钥类配置**，规则与其他配置项不同：
 
 - **绝不写进仓库任何文件。** 两份 `deploy/env/*.env.example` 里它的值是占位的 `replace-me`，部署时由环境注入（GitHub Environment Secrets → 部署脚本 → 容器环境变量），与 `POSTGRES_PASSWORD` / `RUSTFS_SECRET_KEY` 同一条路径。
+  - **本地开发放 `backend/.env`**（`2026-07-28` 加）。该文件被 `.gitignore` 忽略，由 `application.properties` 的 `spring.config.import=optional:file:.env[.properties]` 加载，不存在时应用照常启动。模板见 `backend/.env.example`。**环境变量优先级高于它**，命令行临时覆盖依然有效。
+  - **`*.env.example` 是模板，`.env` 才是实际值，两者绝不能混。** 这条曾被写反：真实 Key 被填进 `production.env.example` 并把那行「绝不写进仓库」的警告一并删掉了，距离进入版本历史只差一次 `git add -A`。`.gitignore` 现在用 `*.env` + `!*.env.example` 从机制上挡住这种写法。
 - **未配置时应用照常启动**，只是向量化能力不可用：`EmbeddingConfig` 在 Key 为空时注入一个抛明确异常的实现，并打一条警告日志。这与"数据库不可达"的处理方式一致——环境状态不阻塞启动，由 readiness 反映。
 - **维度不一致则相反，直接拦停启动**。`EMBEDDING_DIMENSIONS` 与数据库 `vector(1024)` 列不匹配是确定性的配置错误，越早暴露越好；放行的话每次写向量都会在运行时报错。
 

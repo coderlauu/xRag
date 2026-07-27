@@ -9,3 +9,11 @@ build
 target
 coverage
 .pnpm-store
+
+# 本地真实密钥。deploy/env/*.env.example 是进仓库的模板，.env 是本机实际值，
+# 两者绝不能混。写反过一次：真实 Key 被写进 production.env.example 并删掉了
+# 那行「绝不写进仓库」的警告，差一次 git add -A 就进历史了。
+.env
+.env.local
+*.env
+!*.env.example
