@@ -251,11 +251,29 @@ app.embedding.retry-base-delay=${EMBEDDING_RETRY_BASE_DELAY:1s}
 
 ```properties
 spring.servlet.multipart.max-file-size=${UPLOAD_MAX_FILE_SIZE:50MB}
-spring.servlet.multipart.max-request-size=${UPLOAD_MAX_REQUEST_SIZE:60MB}
+spring.servlet.multipart.max-request-size=${UPLOAD_MAX_REQUEST_SIZE:51MB}
 server.tomcat.max-swallow-size=${UPLOAD_MAX_SWALLOW_SIZE:2MB}
 ```
 
 `max-swallow-size` 容易被漏掉但很关键：超限被拒绝后，Tomcat 默认还会继续读完并丢弃整个请求体，为的是让连接可以复用。设小之后 Tomcat 会直接断开连接，避免为一个已经确定要拒绝的 50MB 请求白白消耗带宽和时间。
+
+#### `max-request-size` 必须紧贴 `max-file-size`（`2026-07-28` 实测修正）
+
+这三个值原先是 50MB / **60MB** / 2MB，看起来"给 multipart 开销留了充足余量"，实际上让 `max-swallow-size` 的意图落了空。**两个上限的检查时机根本不同**：
+
+| 配置 | 检查时机 | 代价 |
+|---|---|---|
+| `max-request-size` | Tomcat 用 **`Content-Length` 头预判** | 超了立即拒绝，请求体一个字节都不读 |
+| `max-file-size` | 只能**流式**检查 | 必须真读满 50MB 才知道超限 |
+
+留 10MB 余量意味着 50~60MB 的文件 `Content-Length` 全部落在缝里，绕过头部预判、走进流式慢路径。`max-swallow-size` 这时只来得及省下最后 2MB。M-05 实测：
+
+```
+max-request-size=60MB → 51MB 文件上传 52,494,336 字节、耗时 25.1 秒后才 413
+max-request-size=51MB → 51MB 文件上传     65,536 字节、耗时  0.036 秒就 413
+```
+
+**相差 800 倍，而两种配置返回的状态码完全一样**——只断言 `413` 的测试永远发现不了。1MB 余量足以覆盖 multipart 边界与表单字段（实际开销不到 1KB），48MB 合法文件回归验证仍正常上传。
 
 ### 内存安全——先验证更简单的方案，不直接照抄课程
 
