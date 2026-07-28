@@ -5,6 +5,15 @@ on:
   push:
     branches:
       - main
+      # 特性分支也跑质量门禁。加它是因为工单 19 的"CI 实际跑绿一次"此前无解：
+      # 不开 PR 时，推特性分支不触发任何 workflow，只有合进 main 才知道结果——
+      # 而那正是最不该拿来试错的时机。
+      #
+      # 没有副作用：build-images 及其后所有部署 job 都带
+      # `if: github.ref == 'refs/heads/main'`，分支推送只会跑 validate 与 infra，
+      # 不建镜像、不推 registry、不部署。
+      - 'feat/**'
+      - 'fix/**'
 
 concurrency:
   group: ci-${{ github.ref }}
