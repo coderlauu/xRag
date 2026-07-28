@@ -6,12 +6,14 @@
 
 全专栏共 92 个链接（1 个加群链接 + 91 篇正文），下表逐条登记原文标题、原文短链接、新分组与本地整理稿路径。**状态**：`done` = 已整理，`pending` = 待处理。
 
-截至 2026-07-25，全部正文完成 **51/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成。
+截至 2026-07-28，全部正文完成 **59/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成；Phase 2 Step A（04-model-scheduling组）8/8 全部完成。
 
-- `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`
-- `pending`：`04-model-scheduling`（8篇）、`05-qa-pipeline`（18篇）、`06-evaluation`（11篇）、`07-interview`（3篇+持续更新）
+- `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`、`04-01`～`04-08`
+- `pending`：`05-qa-pipeline`（18篇）、`06-evaluation`（11篇）、`07-interview`（3篇+持续更新）
 
 Phase 0 的覆盖率、技术结论、环境验证与进入下一阶段前的待决策事项见 [Phase 0 对齐检查点](PHASE-0-CHECKPOINT.md)。
+
+Phase 2 Step A 的课程方案、xrag 当前实现对照、已收敛原则与后续待决策事项见 [Phase 2 Step A 对齐检查点](PHASE-2-STEP-A-CHECKPOINT.md)。
 
 ## 处理进度总览
 
@@ -21,7 +23,7 @@ Phase 0 的覆盖率、技术结论、环境验证与进入下一阶段前的待
 | 01-rag-fundamentals RAG与大模型基础概念 | 25 | done（25/25） | 全系统知识底座 |
 | 02-bootstrap-and-deployment 本地开发与模型部署环境 | 10 | done（10/10） | 项目 Bootstrap/基础设施 |
 | 03-knowledge-base AI知识库建设 | 11 | done（11/11） | 知识库/文档管理模块 |
-| 04-model-scheduling 大模型调度引擎 | 8 | pending（Phase 2） | AI基础设施层/模型路由网关模块 |
+| 04-model-scheduling 大模型调度引擎 | 8 | done（8/8，Phase 2 Step A） | AI基础设施层/模型路由网关模块 |
 | 05-qa-pipeline AI知识问答核心链路 | 18 | pending（Phase 3） | 检索增强问答（核心业务）模块 |
 | 06-evaluation RAG评测体系 | 11 | pending（Phase 4） | 评测/质量保障模块 |
 | 07-interview 面试高频考点 | 3+（持续更新） | pending（Phase 5） | 横向参考 |
@@ -99,18 +101,18 @@ Phase 0 的覆盖率、技术结论、环境验证与进入下一阶段前的待
 | 10 | 知识库文档管理接口 | https://t.zsxq.com/eGdy4 | `03-knowledge-base/03-10-知识库文档管理接口.md` |
 | 11 | 知识库数据分块管理接口 | https://t.zsxq.com/fn2gz | `03-knowledge-base/03-11-知识库数据分块管理接口.md` |
 
-## 04-model-scheduling 大模型调度引擎（8篇，pending）
+## 04-model-scheduling 大模型调度引擎（8篇，done）
 
-| # | 原文标题 | 原文链接 |
-|---|---|---|
-| 1 | AI基础设施层宏观设计 | https://t.zsxq.com/xmGYm |
-| 2 | 多模型路由与智能选择 | https://t.zsxq.com/yJRRN |
-| 3 | 三态熔断器与故障转移 | https://t.zsxq.com/C0btU |
-| 4 | Chat同步调用与模板方法 | https://t.zsxq.com/3bUOG |
-| 5 | SSE流式解析与异步执行 | https://t.zsxq.com/QHX9s |
-| 6 | 流式路由的首包探测机制 | https://t.zsxq.com/gYKNI |
-| 7 | Embedding向量化客户端 | https://t.zsxq.com/k0zXf |
-| 8 | Rerank重排序与辅助工具 | https://t.zsxq.com/xKwgo |
+| # | 原文标题 | 原文链接 | 本地文件 |
+|---|---|---|---|
+| 1 | AI基础设施层宏观设计 | https://t.zsxq.com/xmGYm | `04-model-scheduling/04-01-AI基础设施层宏观设计.md` |
+| 2 | 多模型路由与智能选择 | https://t.zsxq.com/yJRRN | `04-model-scheduling/04-02-多模型路由与智能选择.md` |
+| 3 | 三态熔断器与故障转移 | https://t.zsxq.com/C0btU | `04-model-scheduling/04-03-三态熔断器与故障转移.md` |
+| 4 | Chat同步调用与模板方法 | https://t.zsxq.com/3bUOG | `04-model-scheduling/04-04-Chat同步调用与模板方法.md` |
+| 5 | SSE流式解析与异步执行 | https://t.zsxq.com/QHX9s | `04-model-scheduling/04-05-SSE流式解析与异步执行.md` |
+| 6 | 流式路由的首包探测机制 | https://t.zsxq.com/gYKNI | `04-model-scheduling/04-06-流式路由的首包探测机制.md` |
+| 7 | Embedding向量化客户端 | https://t.zsxq.com/k0zXf | `04-model-scheduling/04-07-Embedding向量化客户端.md` |
+| 8 | Rerank重排序与辅助工具 | https://t.zsxq.com/xKwgo | `04-model-scheduling/04-08-Rerank重排序与辅助工具.md` |
 
 ## 05-qa-pipeline AI知识问答核心链路（18篇，pending）
 

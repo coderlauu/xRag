@@ -18,7 +18,7 @@
 
 **逻辑删除对唯一约束的影响**：普通唯一索引会让"删掉再建同名"失败。凡需要唯一性的列都用**部分唯一索引** `where deleted = false`，这样逻辑删除会释放该名字。
 
-**逻辑删除对查询的影响**：`repository` 层所有查询方法必须带 `deleted = false`。这是一条靠约定维持的纪律，容易漏——测试矩阵里为此专门安排了一组"删除后各查询接口都不再返回该记录"的用例（见 [任务书 Lane 测试](../../docs/exec-plans/active/2026-07-25-knowledge-base-implementation-lanes.md)）。
+**逻辑删除对查询的影响**：`repository` 层所有查询方法必须带 `deleted = false`。这是一条靠约定维持的纪律，容易漏——测试矩阵里为此专门安排了一组"删除后各查询接口都不再返回该记录"的用例（见 [任务书 Lane 测试](../../docs/exec-plans/completed/2026-07-25-knowledge-base-implementation-lanes.md)）。
 
 ## 2. 表清单与 CONTEXT.md 术语对应
 

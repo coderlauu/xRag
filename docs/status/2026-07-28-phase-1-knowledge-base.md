@@ -4,16 +4,17 @@
 
 - `version`: xrag Phase 1
 - `phase`: AI 知识库建设 / Step G
-- `status`: in-progress
+- `status`: completed
 - `owner`: liuqiang
 - `updated_at`: 2026-07-28
 - `step_g_confirmed_at`: 2026-07-28
-- `closure`: 等待 Step F 远端 CI 跑绿
+- `closed_at`: 2026-07-28
+- `closure`: 已归档；Step F 远端 CI 绿灯递延，不阻塞主计划
 - `retrospective`: [Phase 1 复盘](../retro/2026-07-28-phase-1-knowledge-base-retrospective.md)
 
 ## 2. 当前结论
 
-Phase 1 的学习、产品、设计、实现和测试验收已经完成；交付门禁尚未完成。当前可称为**功能完成**，不能称为**里程碑已关闭**。
+Phase 1 的学习、产品、设计、实现、测试验收和阶段对齐已经完成。项目所有者决定将 Step F 的远端 CI 红灯作为递延维护项，因此里程碑已关闭；该决定只改变主计划准入关系，不把失败记录改写成成功。
 
 ## 3. 里程碑进度
 
@@ -21,10 +22,10 @@ Phase 1 的学习、产品、设计、实现和测试验收已经完成；交付
 |---|---|---|---|
 | A | 知识库专题学习整理 | completed | [学习索引：03 组 11/11](../../learning/ragent-column/INDEX.md) |
 | B | PRD、界面规格、可点击原型 | completed | [PRD](../prd/2026-07-25-knowledge-base-prd.md)、[界面规格](../../tech/knowledge-base/ui-spec.md)、[原型](../../prototype/knowledge-base/index.html) |
-| C | 技术方案、ADR、任务书、工单、测试矩阵 | completed | [技术方案](../../tech/knowledge-base/architecture.md)、[任务书](../exec-plans/active/2026-07-25-knowledge-base-implementation-lanes.md)、[工单索引](../../.scratch/knowledge-base/README.md) |
+| C | 技术方案、ADR、任务书、工单、测试矩阵 | completed | [技术方案](../../tech/knowledge-base/architecture.md)、[任务书](../exec-plans/completed/2026-07-25-knowledge-base-implementation-lanes.md)、[工单索引](../../.scratch/knowledge-base/README.md) |
 | D | 前后端实现 | completed | 20 张工单全部完成；三个业务页面和完整知识库入库链路已落地 |
 | E | 自动化与手工验收 | completed | [测试矩阵 §9](../../tech/knowledge-base/test-matrix.md) |
-| F | CI/CD 与部署配置 | in-progress | 配置已落地；远端 `validate` 红灯由 Claude 并行修复 |
+| F | CI/CD 与部署配置 | deferred | 配置已落地；远端 `validate` 绿灯递延，不阻塞主计划 |
 | G | 复盘与里程碑状态 | completed | 本文及已确认的 [Phase 1 复盘](../retro/2026-07-28-phase-1-knowledge-base-retrospective.md) |
 
 ## 4. 已交付能力
@@ -58,26 +59,25 @@ Phase 1 的学习、产品、设计、实现和测试验收已经完成；交付
 - `validate`: failed
 - 镜像构建及后续部署: skipped
 
-本地与远端结果不一致是当前唯一直接阻止 Phase 1 关闭的交付门禁。
+本地与远端结果仍不一致。项目所有者已确认该问题不阻塞 Phase 1 归档；失败运行继续作为递延项的基线证据。
 
 ## 6. 当前工作节点
 
 - `now`:
-  - Claude 并行修复 Step F 的远端 CI 问题。
-  - Step G 文档已获项目所有者确认。
+  - Phase 1 已关闭并归档。
+  - Step F 远端 CI 问题转为递延维护项。
 - `next`:
-  1. Step F 提供一次 `validate` 绿灯及运行链接。
-  2. 将本文的 CI 状态与最终提交 SHA 更新为真实结果。
-  3. 更新总计划与分角色任务书状态，并把 Phase 1 执行计划归档。
-  4. 进入 Phase 2：大模型调度引擎。
+  1. 进入 Phase 2 Step A：大模型调度引擎专题学习。
+  2. Step A 检查点确认后进入 PRD 与界面范围决策。
+  3. Step F 后续修复时，把新的 CI 证据补回本文，但不回滚主计划。
 
-## 7. 阻塞项
+## 7. 递延项
 
 ### B-01 远端质量门禁失败
 
-- `status`: in-progress
-- `impact`: Phase 1 不能关闭，不能用远端流水线作为可重复交付证据
-- `owner`: Claude（并行处理）
+- `status`: deferred
+- `impact`: 不阻塞主计划；在修复前不能把远端流水线作为可重复交付证据
+- `owner`: unassigned
 - `exit`: GitHub `validate` 成功，并记录对应 commit SHA 与 run URL
 
 ## 8. 已知风险与保留项
@@ -93,16 +93,16 @@ Phase 1 的学习、产品、设计、实现和测试验收已经完成；交付
 
 ## 9. Phase 2 准入条件
 
-- [ ] Step F 远端 `validate` 绿灯。
+- [x] Step F 远端 `validate` 绿灯已由项目所有者决定递延，并登记为已知维护项。
 - [x] Step G 已于 2026-07-28 获项目所有者确认。
-- [ ] 总计划和 Phase 1 任务书更新为最终事实，不再保留“152 条测试、剩余 3 项手工验证”等过时状态。
+- [x] 总计划和 Phase 1 任务书更新为最终状态并归档。
 - [ ] 明确 Phase 2 是否有用户界面；若有，继续执行 PRD、界面规格和可点击原型闸门。
 - [ ] Phase 2 使用任何外部模型 API 前，先完成供应商条款与限额准入检查。
 
 ## 10. 关联资产
 
 - [总体执行计划](../exec-plans/active/2026-07-24-ragent-column-learning-and-system-build.md)
-- [Phase 1 分角色任务书](../exec-plans/active/2026-07-25-knowledge-base-implementation-lanes.md)
+- [Phase 1 分角色任务书](../exec-plans/completed/2026-07-25-knowledge-base-implementation-lanes.md)
 - [Phase 1 PRD](../prd/2026-07-25-knowledge-base-prd.md)
 - [架构方案](../../tech/knowledge-base/architecture.md)
 - [数据模型](../../tech/knowledge-base/data-model.md)

@@ -2,10 +2,12 @@
 
 ## 1. Metadata
 
-- `status`: active
+- `status`: completed
 - `created`: 2026-07-25
+- `completed`: 2026-07-28
 - `owner`: liuqiang
-- `parent`: [2026-07-24-ragent-column-learning-and-system-build.md](2026-07-24-ragent-column-learning-and-system-build.md)（本文件是其 Phase 1 的 Step C 产出、Step D~F 的执行依据）
+- `parent`: [2026-07-24-ragent-column-learning-and-system-build.md](../active/2026-07-24-ragent-column-learning-and-system-build.md)（本文件是其 Phase 1 的 Step C 产出、Step D~F 的执行依据）
+- `closure`: 20 张工单、实现与验收完成；远端 CI 绿灯由项目所有者决定递延，不阻塞主计划
 - `inputs`: [PRD](../../prd/2026-07-25-knowledge-base-prd.md)（approved）、[技术方案](../../../tech/knowledge-base/architecture.md)、[数据模型](../../../tech/knowledge-base/data-model.md)、[API 契约](../../../tech/knowledge-base/api.md)、[ADR 0002](../../adr/0002-knowledge-base-async-and-concurrency.md)
 - `tickets`: `.scratch/knowledge-base/issues/`（垂直切片工单，本文件的 Lane 是职责视角，工单是执行视角，两者是同一批工作的两个切法——见 §3）
 
@@ -48,7 +50,7 @@
 **写入范围**
 - `docs/prd/2026-07-25-knowledge-base-prd.md`（已 approved，仅在需求确实需要变更时修订，改动必须在本文件 Decision Log 留痕）
 - `tech/knowledge-base/ui-spec.md`（新建：页面结构、状态展示规则、空态/错误态/加载态文案）
-- `prototype/knowledge-base/index.html` + `prototype/README.md`（新建：可点击交互原型，自包含单文件。见[主计划 §6.1 产出物闸门](2026-07-24-ragent-column-learning-and-system-build.md)——**有界面的模块，原型是必出项**）
+- `prototype/knowledge-base/index.html` + `prototype/README.md`（新建：可点击交互原型，自包含单文件。见[主计划 §6.1 产出物闸门](../active/2026-07-24-ragent-column-learning-and-system-build.md)——**有界面的模块，原型是必出项**）
 
 **依赖**：无，可立即开始。前端 Lane 依赖本 Lane 的 `ui-spec.md`，且**必须等原型经用户确认后才动手写页面**。
 
@@ -166,10 +168,10 @@
    - 定时同步在源文件未变化时不触发重新分块（改一次源文件再观察一次，两次行为要不同）。
    - 并发上传超过 `max-concurrent` 时返回 429，且被拒绝的请求未产生临时文件。
 
-**完成定义**（状态截至 `2026-07-26`：**用例全部落地，手工项收敛到 3 项**）
+**完成定义**（最终状态截至 `2026-07-28`：**全部达成**）
 - [x] `test-matrix.md` 覆盖 [PRD §8](../../prd/2026-07-25-knowledge-base-prd.md) 全部 7 条验收标准，每条能追溯到具体用例。
-- [x] `cd backend && ./mvnw -B verify` 通过，含单元测试与集成测试（**152 条**）。
-- [ ] 全部手工验证项已执行并把**实际结果**记录进矩阵。**已执行**：M-01（上传堆内存，实测加码到 48MB，通过，最高优先级风险已关闭）、M-06（真实 Ark API 连通性）。**已由手工改为自动化 4 项**：CHK-36（事务边界）、LIM-01/02/03（限流时序）、LIM-04（拦截位置）、SYNC 的成对验证，理由各自记在矩阵与工单里。**剩余 3 项手工**：M-02（URL 下载堆内存）、M-09（三个页面的完整浏览器走查，**需要带 Key**）、工单 11 的 `kill -9` 启动回收验证（**同样需要 Key 才有处理窗口**）。
+- [x] `cd backend && ./mvnw -B verify` 通过，最终本地基线为 **176 条测试，0 失败、0 错误、2 条真实 API 用例在当前无 Key 环境跳过**。
+- [x] 全部手工验证项已执行并把实际结果记录进矩阵。10 条 M 系列用例及 `DOC-09` 全部完成；其中 M-05、M-06、M-09 各抓出一处真实缺陷并完成修复回归。
 
 用例已按功能域全部落地：文档管理（DOC-2x）、URL 与定时同步（SYNC-\*）、逻辑删除专项（DEL-\*）、限流（LIM-\*）各有对应测试类。
 
@@ -194,9 +196,9 @@
 3. **CI 中的 Embedding 调用问题**：集成测试若真的调用 Embedding API，会在每次 CI 中产生真实费用，且需要把密钥放进仓库 Secrets。决策：**CI 中注入一个确定性的假 `EmbeddingClient`**（返回固定维度的伪向量），真实 API 调用只在本地手工验证。这个决定要在 `deploy/README.md` 里写清楚，否则后来者会以为 CI 覆盖了真实链路。
 4. 确认 `scripts/ci-validate.sh` 仍然全绿（它会跑文档链接检查，本轮新增的 `tech/` 目录需要纳入扫描范围）。
 
-**完成定义**（状态截至 `2026-07-26`：**除"CI 实跑一次"外全部达成**）
+**完成定义**（最终状态截至 `2026-07-28`：配置与本地验证达成，远端绿灯递延）
 - [x] `scripts/ci-validate.sh` 本地全绿。
-- [ ] CI 在 GitHub 上实际跑绿一次（包含新增的集成测试）。**需要推送才能验证，等用户确认**。工单 19 已把 `validate` job 补齐：工单 07 越界预支的 Postgres 服务保留，另加了对象存储——**那是一个一直存在却从没被触发过的缺口**（注释写着"verify 不触碰对象存储"，而上传接口落地后这句就不成立了，只是本地 RustFS 常开所以没人撞上）。缺口是本地 `docker compose stop rustfs` 复现后修的。
+- [ ] CI 在 GitHub 上实际跑绿一次（包含新增的集成测试）。远端已执行但 `validate` 失败；项目所有者于 `2026-07-28` 决定将其作为递延维护项，不阻塞 Phase 1 归档或 Phase 2 启动。失败证据保留在 [Phase 1 状态](../../status/2026-07-28-phase-1-knowledge-base.md)。
 - [x] 两份 env example 包含本模块全部新增配置项，无真实密钥。
 - [x] `deploy/README.md` 说明了 `EMBEDDING_API_KEY` 的管理方式，以及 CI 用假 Embedding 实现这一事实——**并写明了代价**：`RealEmbeddingApiTests` 用 `@EnabledIfEnvironmentVariable` 守门、无 Key 自动跳过，**而跳过在 CI 日志里看起来和通过很像**，所以 CI 绿不代表真实 API 链路是通的。
 
@@ -258,7 +260,7 @@ scripts/ci-validate.sh
   - 关键设计是底部的**演示控制台**：可切换文档四种状态、处理阶段、文档启用状态、四种空态、七种错误提示、三种同步结果。它刻意做成"脚手架"观感以区别于产品。存在理由是让那些"只在特定状态下才出现"的规则变得可评审——`RUNNING` 时该灰的按钮、父文档禁用时"批量启用"灰而"批量禁用"不灰的不对称、两种不同原因的"分块为空"。这些状态在真实系统里要构造数据才看得到，评审时没人会为看一眼文案去手工造五种状态。
   - 顺带补了一处 ui-spec 的结构缺口：§1 只列了三条路由，§5 却引用了一个"文档详情页"。原型把它实现为文档列表上的**右侧抽屉**（不新增路由，且保留列表上下文），承载 `latestRun` / 处理记录 / `phase` 中文映射 / 定时同步块。
   - `scripts/check-doc-links.mjs` 的扫描根新增 `prototype/`。
-- `2026-07-25`: **把原型从"补上的一次性动作"变成制度性闸门。** 用户要求"如果 Step 需要原型输出的场景务必不能跳过，需要输出原型让我确认交互"，并要求回头审计已完成的 Step。审计结论见[主计划 Decision Log](2026-07-24-ragent-column-learning-and-system-build.md) 同日条目——只有原型一项被真正静默跳过，其余产出物或已完成或尚未到期。本文件对应改动：
+- `2026-07-25`: **把原型从"补上的一次性动作"变成制度性闸门。** 用户要求"如果 Step 需要原型输出的场景务必不能跳过，需要输出原型让我确认交互"，并要求回头审计已完成的 Step。审计结论见[主计划 Decision Log](../active/2026-07-24-ragent-column-learning-and-system-build.md) 同日条目——只有原型一项被真正静默跳过，其余产出物或已完成或尚未到期。本文件对应改动：
   - Lane 产品的**写入范围**加入 `prototype/knowledge-base/`，**完成定义**新增"原型经用户确认交互"一条；Lane 前端的依赖从"依赖 ui-spec"改为"必须等原型经用户确认后才动手写页面"。
   - 根因不在"忘了"，而在于原型从未进入本文件的写入范围：主计划只在一句话概述里提过它，下游的工单清单、Lane 完成定义因此全都自洽地不含它，任何自查都发现不了。修复的落点必须是**写入范围与完成定义**，只补一次产出物防不住 04~06 模块重犯。
   - 工单 01 状态从 `done` 退回"待用户确认原型"，工单 04 改为 `blocked-on-review`——真实状态就是这样，不能因为文件已经写出来了就记成完成。
@@ -343,3 +345,4 @@ scripts/ci-validate.sh
   - 顺带订正一处事实：官方现在给出的 Coding Plan base-url 是 `/api/coding/v3`（OpenAI 协议）与 `/api/coding`（Anthropic 协议），与仓库记录的 `/api/plan/v3` 不一致，可能是产品迭代改过路径。`/api/plan/v3` 两次实测确实可用，但这不改变合规结论。
   - 用户知情后选择继续使用（个人学习项目、自担风险），因此标注的内容不是"这条路不能走"，而是**把已知取舍显式化**：[application.properties](../../../backend/src/main/resources/application.properties)、[architecture.md §6](../../../tech/knowledge-base/architecture.md)、[deploy/README.md](../../../deploy/README.md)、[工单 06](../../../.scratch/knowledge-base/issues/06-embedding-client.md) 四处，其中 deploy/README 的措辞最重——**部署到任何共享或生产环境之前必须先换成合规配置**，否则风险不是本服务不可用，而是整个方舟账号被停。
   - 合规路径已验证过一半：标准计费 Key 鉴权可通过，但 `doubao-embedding-vision` **不支持**标准 `/embeddings`（返回 `does not support this api`），只吃 `/embeddings/multimodal`，而该接口一次只返回一个融合向量、维度 2048，与"N 个分块 → N 个向量"不匹配。真正的合规做法是开通一个纯文本 embedding 模型。
+- `2026-07-28`: **Phase 1 归档。** 20 张工单、前后端实现、176 条本地测试基线、全部手工验收、复盘与里程碑状态均已完成并经项目所有者确认。GitHub `validate` 仍为红灯，失败事实保留；项目所有者明确决定先放置 Step F，不让它阻塞主计划，因此本任务书以一个已登记的递延项归档。

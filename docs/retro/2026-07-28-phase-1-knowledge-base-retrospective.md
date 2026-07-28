@@ -3,16 +3,17 @@
 ## 1. Metadata
 
 - `phase`: Phase 1 / AI 知识库建设
-- `status`: approved
+- `status`: completed
 - `date`: 2026-07-28
 - `owner`: liuqiang
 - `approved_at`: 2026-07-28
-- `scope`: Step A～G；Step F 的远端 CI 修复仍在并行进行
+- `closed_at`: 2026-07-28
+- `scope`: Step A～G；Step F 的远端 CI 绿灯由项目所有者决定递延，不阻塞主计划
 - `related_status`: [Phase 1 里程碑状态](../status/2026-07-28-phase-1-knowledge-base.md)
 
 ## 2. 一句话结论
 
-Phase 1 已把空白脚手架推进成一个可在浏览器完成“建库 → 导入 → 分块 → 向量化 → 人工干预”的知识库系统；功能、测试与手工验收已经闭环，本复盘也已获项目所有者确认，但远端 CI `validate` 尚未跑绿，因此本阶段处于**功能与阶段对齐完成、等待交付门禁后关闭**的状态。
+Phase 1 已把空白脚手架推进成一个可在浏览器完成“建库 → 导入 → 分块 → 向量化 → 人工干预”的知识库系统；功能、测试、手工验收与阶段对齐均已闭环。项目所有者决定将远端 CI `validate` 红灯作为递延维护项，不再阻塞主计划，因此 Phase 1 于 2026-07-28 正式关闭并归档。
 
 ## 3. 本阶段交付
 
@@ -83,7 +84,7 @@ IDE 中遗留的后端实例会和测试上下文争抢同一张任务表，表�
 
 ### 5.6 远端 CI 与本地基线出现分歧
 
-当前本地完整门禁为绿，但 GitHub Actions 的 `validate` 为红；`infra` 已通过。Step F 未跑绿之前不能把“本地通过”等价成“交付链路完成”。
+当前本地完整门禁为绿，但 GitHub Actions 的 `validate` 为红；`infra` 已通过。两者不能被写成同一个结果。项目所有者于 2026-07-28 决定先放置该问题：保留失败证据并递延修复，但不再让它阻塞 Phase 1 归档或 Phase 2 启动。
 
 ## 6. 手工验收带来的直接收益
 
@@ -115,8 +116,8 @@ IDE 中遗留的后端实例会和测试上下文争抢同一张任务表，表�
 ## 9. 阶段关闭条件
 
 - [x] Step A～E 的产出、实现和验收证据齐全。
-- [ ] Step F 的 GitHub `validate` 跑绿并记录运行链接。
+- [x] Step F 的 CI/CD 配置与部署登记已交付；远端 `validate` 绿灯由项目所有者决定递延。
 - [x] Step G 复盘与里程碑状态文档已产出。
 - [x] 项目所有者已于 2026-07-28 确认本复盘、遗留风险及 Phase 1 里程碑状态。
 
-Step F 远端 `validate` 跑绿后，Phase 1 才从 `in-progress` 转为 `completed`，随后进入 Phase 2 的大模型调度引擎学习与设计。
+Phase 1 状态为 `completed`。远端 CI 失败继续作为已知递延项存在，不随归档而被描述成已解决。
