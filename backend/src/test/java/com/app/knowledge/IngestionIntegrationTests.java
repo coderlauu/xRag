@@ -1,6 +1,7 @@
 package com.app.knowledge;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -9,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.app.knowledge.ingestion.IngestionDispatcher;
+import com.app.knowledge.model.IngestionInput;
+import com.app.knowledge.service.IngestionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -51,6 +54,9 @@ class IngestionIntegrationTests {
 
     @Autowired
     private IngestionDispatcher dispatcher;
+
+    @Autowired
+    private IngestionService ingestionService;
 
     private long kbId;
     private long docId;
@@ -174,6 +180,19 @@ class IngestionIntegrationTests {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATE"))
                 .andExpect(jsonPath("$.message").value("文档已禁用，无法处理。请先启用文档。"));
+    }
+
+    @Test
+    void 定时入库任务创建失败时文档抢占也回滚() throws Exception {
+        IngestionInput invalid = new IngestionInput(0, "x".repeat(513),
+                null, null, null, null, null);
+
+        assertThatThrownBy(() -> ingestionService.tryTriggerScheduled(kbId, docId, invalid))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        mvc.perform(get("/api/v1/documents/{docId}", docId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
     }
 
     /**

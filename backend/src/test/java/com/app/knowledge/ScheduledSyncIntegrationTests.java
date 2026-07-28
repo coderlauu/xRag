@@ -9,6 +9,7 @@ import com.app.knowledge.ingestion.ScheduledSyncScanner;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -23,10 +24,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 /**
  * 定时同步的两级变更检测（test-matrix SYNC-01 ~ SYNC-04）。
@@ -60,6 +64,12 @@ class ScheduledSyncIntegrationTests {
 
     @Autowired
     private ScheduledSyncScanner scanner;
+
+    @Autowired
+    private S3Client s3;
+
+    @Value("${app.storage.bucket}")
+    private String bucket;
 
     private long kbId;
     private long docId;
@@ -200,6 +210,26 @@ class ScheduledSyncIntegrationTests {
         assertThat(chunks).isPositive().isEqualTo(vectors);
     }
 
+    @Test
+    void 新版本入库失败时当前原文和分块仍保持上一成功版本() throws Exception {
+        int revisionBefore = revision();
+        String activeFileKey = jdbc.queryForObject(
+                "select file_key from source_document where id = ?", String.class, docId);
+        String activeContentBefore = objectContent(activeFileKey);
+        BODY.set("第二版内容，但这次向量化会失败，不能替换当前成功版本。");
+        FakeEmbeddingConfig.SHOULD_FAIL.set(true);
+
+        scanner.scan();
+
+        awaitStatus("FAILED");
+        assertThat(revision()).isEqualTo(revisionBefore);
+        assertThat(jdbc.queryForObject(
+                "select file_key from source_document where id = ?", String.class, docId))
+                .isEqualTo(activeFileKey);
+        assertThat(objectContent(activeFileKey)).isEqualTo(activeContentBefore);
+        FakeEmbeddingConfig.SHOULD_FAIL.set(false);
+    }
+
     /**
      * 第一级检测的价值所在：ETag 没变时**连下载都不发生**。
      *
@@ -273,5 +303,12 @@ class ScheduledSyncIntegrationTests {
                 select id from document_chunk where doc_id = ? and deleted = false
                  order by chunk_index asc, id asc limit 1
                 """, Long.class, docId);
+    }
+
+    private String objectContent(String key) throws IOException {
+        try (InputStream input = s3.getObject(
+                GetObjectRequest.builder().bucket(bucket).key(key).build())) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }

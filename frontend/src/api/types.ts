@@ -23,6 +23,8 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "DOCUMENT_PROCESSING"
   | "INVALID_STATE"
+  | "KB_NOT_EMPTY"
+  | "KB_HAS_ACTIVE_RUNS"
   | "FILE_TOO_LARGE"
   | "UNSUPPORTED_FILE_TYPE"
   | "UPLOAD_BUSY"

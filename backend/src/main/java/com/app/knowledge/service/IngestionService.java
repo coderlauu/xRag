@@ -1,6 +1,7 @@
 package com.app.knowledge.service;
 
 import com.app.knowledge.model.IngestionRun;
+import com.app.knowledge.model.IngestionInput;
 import com.app.knowledge.model.IngestionTriggerSource;
 import com.app.knowledge.model.SourceDocument;
 import com.app.knowledge.repository.IngestionRunRepository;
@@ -9,6 +10,7 @@ import com.app.knowledge.web.ApiException;
 import com.app.knowledge.web.PageResponse;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,7 +50,25 @@ public class IngestionService {
             throw new ApiException(HttpStatus.CONFLICT, "DOCUMENT_PROCESSING",
                     "文档正在处理中，请等待处理完成后再操作。");
         }
-        return runs.insertQueued(document.kbId(), docId, triggerSource);
+        return runs.insertQueued(document.kbId(), docId, triggerSource,
+                IngestionInput.current(document));
+    }
+
+    /**
+     * 定时同步专用的非阻塞抢占。抢占文档与创建任务必须在同一事务中，否则第二步失败会把
+     * 文档永久留在 RUNNING。
+     */
+    @Transactional
+    public OptionalLong tryTriggerScheduled(long kbId, long docId, IngestionInput input) {
+        SourceDocument document = documents.findById(docId).orElse(null);
+        if (document == null || document.kbId() != kbId || document.revision() != input.revision()) {
+            return OptionalLong.empty();
+        }
+        if (!documents.claimForProcessing(docId)) {
+            return OptionalLong.empty();
+        }
+        return OptionalLong.of(runs.insertQueued(kbId, docId,
+                IngestionTriggerSource.SCHEDULED, input));
     }
 
     @Transactional(readOnly = true)

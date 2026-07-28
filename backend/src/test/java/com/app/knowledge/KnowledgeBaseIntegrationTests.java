@@ -149,6 +149,42 @@ class KnowledgeBaseIntegrationTests {
         assertThat(listBody).doesNotContain("测试-删除");
     }
 
+    @Test
+    void 存在文档时拒绝删除知识库() throws Exception {
+        long id = createKnowledgeBase("测试-非空删除保护");
+        jdbc.update("""
+                insert into source_document (kb_id, name, source_type, storage_object_id)
+                values (?, '仍在使用的文档.txt', 'FILE', 'kb-not-empty-doc')
+                """, id);
+
+        mvc.perform(delete("/api/v1/knowledge-bases/{id}", id))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("KB_NOT_EMPTY"))
+                .andExpect(jsonPath("$.message")
+                        .value("知识库下仍有文档，请先删除文档后再删除知识库。"));
+    }
+
+    @Test
+    void 存在活动入库任务时优先拒绝删除知识库() throws Exception {
+        long id = createKnowledgeBase("测试-任务删除保护");
+        long docId = jdbc.queryForObject("""
+                insert into source_document
+                    (kb_id, name, source_type, status, storage_object_id)
+                values (?, '正在处理的文档.txt', 'FILE', 'RUNNING', 'kb-active-run-doc')
+                returning id
+                """, Long.class, id);
+        jdbc.update("""
+                insert into ingestion_run (kb_id, doc_id, trigger_source, status)
+                values (?, ?, 'MANUAL', 'RUNNING')
+                """, id, docId);
+
+        mvc.perform(delete("/api/v1/knowledge-bases/{id}", id))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("KB_HAS_ACTIVE_RUNS"))
+                .andExpect(jsonPath("$.message")
+                        .value("知识库仍有正在排队或处理中的任务，请等待任务结束后再删除。"));
+    }
+
     /** 行还在库里，只是 deleted = true——否则就不是逻辑删除了。 */
     @Test
     void 逻辑删除保留数据行() throws Exception {

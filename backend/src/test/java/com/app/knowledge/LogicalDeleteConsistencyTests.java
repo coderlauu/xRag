@@ -121,9 +121,10 @@ class LogicalDeleteConsistencyTests {
         jdbc.update("delete from knowledge_base where id = ?", kbId);
     }
 
-    /** DEL-01~04：删除知识库后，它与其下全部数据在每一条读路径上都要消失。 */
+    /** DEL-01~04：先删除文档再删除知识库后，它们在每一条读路径上都要消失。 */
     @Test
     void 删除知识库后它在所有读路径上都消失() throws Exception {
+        mvc.perform(delete("/api/v1/documents/{docId}", docId)).andExpect(status().isNoContent());
         mvc.perform(delete("/api/v1/knowledge-bases/{kbId}", kbId)).andExpect(status().isNoContent());
 
         mvc.perform(get("/api/v1/knowledge-bases/{kbId}", kbId)).andExpect(status().isNotFound());
@@ -277,9 +278,11 @@ class LogicalDeleteConsistencyTests {
     void 已删除的URL文档不会被定时同步扫到() {
         long urlDoc = jdbc.queryForObject("""
                 insert into source_document
-                    (kb_id, name, source_type, source_uri, file_key, status, chunk_strategy,
+                    (kb_id, name, source_type, source_uri, file_key, storage_object_id,
+                     status, chunk_strategy,
                      chunk_size, chunk_overlap, sync_enabled, sync_cron, next_sync_time)
-                values (?, '远程.md', 'URL', 'https://example.com/a.md', 'k', 'SUCCESS', 'RECURSIVE',
+                values (?, '远程.md', 'URL', 'https://example.com/a.md', 'k', 'deleted-url-doc',
+                        'SUCCESS', 'RECURSIVE',
                         1000, 100, true, '0 0 3 * * ?', now() - interval '1 minute')
                 returning id
                 """, Long.class, kbId);
@@ -355,10 +358,10 @@ class LogicalDeleteConsistencyTests {
     }
 
     /**
-     * PRD §7.6 例外 2：**对象存储里的原始文件保留不删**。
+     * PRD §7.6 例外 2：**删除请求不立即删除对象存储里的原始文件**。
      *
-     * <p>逻辑删除意味着可恢复，删了源文件就恢复不回来了。这是有意的，不是遗漏——所以要有
-     * 一条用例把它钉住，免得后来者"顺手补上"删除逻辑。
+     * <p>逻辑删除先保留一个可恢复窗口，后台审计到宽限期后才允许清理。这条用例把请求侧
+     * 的边界钉住，免得后来者把对象删除塞进数据库事务路径。
      */
     @Test
     void 删除后对象存储中的原始文件仍然保留() throws Exception {

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@code document_chunk_embedding} 的唯一入口。
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public class ChunkVectorRepository {
+
+    public record SearchHit(long chunkId, long docId, double distance) {}
 
     private final JdbcTemplate jdbc;
 
@@ -68,6 +71,29 @@ public class ChunkVectorRepository {
         Long total = jdbc.queryForObject(
                 "select count(*) from document_chunk_embedding where doc_id = ?", Long.class, docId);
         return total == null ? 0 : total;
+    }
+
+    /**
+     * 共享向量表的检索入口。知识库 ID 是必填参数，调用方不存在“不小心忘记过滤”的接口。
+     */
+    @Transactional(readOnly = true)
+    public List<SearchHit> search(long kbId, float[] queryVector, int limit) {
+        if (limit <= 0 || limit > 100) {
+            throw new IllegalArgumentException("向量检索条数必须在 1 到 100 之间");
+        }
+        jdbc.execute("set local hnsw.iterative_scan = strict_order");
+        String literal = toVectorLiteral(queryVector);
+        return jdbc.query("""
+                select chunk_id, doc_id, embedding <=> ?::vector as distance
+                  from document_chunk_embedding
+                 where kb_id = ?
+                 order by embedding <=> ?::vector
+                 limit ?
+                """, (rs, rowNum) -> new SearchHit(
+                        rs.getLong("chunk_id"),
+                        rs.getLong("doc_id"),
+                        rs.getDouble("distance")),
+                literal, kbId, literal, limit);
     }
 
     private String toVectorLiteral(float[] vector) {

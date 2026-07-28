@@ -4,6 +4,12 @@
 - `owner`: liuqiang（产品侧决策）+ AI（起草/迭代）
 - `related_docs`: [CONTEXT.md](../../CONTEXT.md)、[docs/adr/0001-build-xrag-independently.md](../adr/0001-build-xrag-independently.md)、[learning/ragent-column/03-knowledge-base/](../../learning/ragent-column/03-knowledge-base/)（本 PRD 的知识来源）、[docs/exec-plans/active/2026-07-24-ragent-column-learning-and-system-build.md](../exec-plans/active/2026-07-24-ragent-column-learning-and-system-build.md)
 
+> **`2026-07-28` 实施调整（用户确认）**：知识库删除改为保护式删除——仍有文档时拒绝，
+> 有活动入库任务时优先拒绝；不再自动级联删除其下内容。原文件在逻辑删除后保留可配置宽限期，
+> 到期后才允许后台永久清理，且永久清理默认关闭。当前契约以
+> [API 文档](../../tech/knowledge-base/api.md) 和
+> [数据模型](../../tech/knowledge-base/data-model.md) 为准。
+
 ## 1. 背景与动机
 
 xrag 目前只有健康检查接口和存储/数据库连接骨架，知识库能力完全空白。知识库是整个 Agentic RAG 系统的地基——没有"把文档变成可检索内容"的能力，后续的大模型调度、知识问答、评测体系都无从谈起。
@@ -46,7 +52,7 @@ xrag 是单用户项目，"用户"就是 liuqiang 本人，但产品设计上仍
 | 创建知识库 | 指定名称、Embedding 模型（当前只支持云端 API，见 §6 非功能需求） |
 | 查看知识库列表/详情 | 展示知识库基本信息，后续可扩展文档数/分块数等统计 |
 | 修改知识库 | 可改名称、描述；Embedding 模型不可改（见下） |
-| 删除知识库 | 逻辑删除，级联逻辑删除其下全部文档与分块（见 §7.6） |
+| 删除知识库 | 仅允许删除空知识库；仍有文档或活动入库任务时拒绝 |
 
 - 每个知识库对应向量库里一个独立的 collection（用于按知识库隔离向量数据、支持不同知识库使用不同 Embedding 模型）。
 - Embedding 模型一经选定，不支持事后修改（模型变更会导致已有向量全部失效，是一个需要用户主动发起的"重建"操作，不属于本轮范围）。

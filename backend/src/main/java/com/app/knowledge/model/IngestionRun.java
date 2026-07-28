@@ -1,5 +1,6 @@
 package com.app.knowledge.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.OffsetDateTime;
 
 /**
@@ -11,6 +12,7 @@ public record IngestionRun(
         long id,
         long kbId,
         long docId,
+        @JsonIgnore IngestionInput input,
         IngestionTriggerSource triggerSource,
         IngestionRunStatus status,
         IngestionPhase phase,

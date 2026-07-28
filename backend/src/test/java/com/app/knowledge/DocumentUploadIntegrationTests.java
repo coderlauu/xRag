@@ -18,13 +18,16 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.services.s3.S3Client;
 
 /**
  * 文件上传的集成测试。需要真实 Postgres **和真实对象存储**（RustFS）——上传路径的
@@ -41,6 +44,15 @@ class DocumentUploadIntegrationTests {
 
     @Autowired
     private ObjectMapper json;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Autowired
+    private S3Client s3;
+
+    @Value("${app.storage.bucket}")
+    private String bucket;
 
     private long kbId;
 
@@ -62,6 +74,13 @@ class DocumentUploadIntegrationTests {
     }
 
     @Test
+    void 集成测试使用独立的对象和数据库空间() {
+        assertThat(bucket).isEqualTo("app-test");
+        assertThat(jdbc.queryForObject("select current_schema()", String.class))
+                .isEqualTo("xrag_test");
+    }
+
+    @Test
     void 上传成功后文档是待处理状态() throws Exception {
         mvc.perform(multipart("/api/v1/knowledge-bases/{kbId}/documents/file", kbId)
                         .file(textFile("手册.txt", "内容")))
@@ -74,6 +93,20 @@ class DocumentUploadIntegrationTests {
                 .andExpect(jsonPath("$.chunkCount").value(0))
                 .andExpect(jsonPath("$.enabled").value(true))
                 .andExpect(jsonPath("$.fileKey").isNotEmpty());
+    }
+
+    @Test
+    void 原始文件按知识库文档和版本分层存放() throws Exception {
+        String body = mvc.perform(multipart("/api/v1/knowledge-bases/{kbId}/documents/file", kbId)
+                        .file(textFile("员工手册.txt", "内容")))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String key = json.readTree(body).get("fileKey").asText();
+        assertThat(key)
+                .startsWith("knowledge-bases/%d-测试-上传用知识库/documents/".formatted(kbId))
+                .contains("/versions/")
+                .endsWith("/员工手册.txt");
     }
 
     @Test

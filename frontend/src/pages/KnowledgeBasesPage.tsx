@@ -195,6 +195,7 @@ function DeleteDialog({
 }) {
   const [error, setError] = useState<unknown>(null);
   const [deleting, setDeleting] = useState(false);
+  const hasDocuments = target.documentCount > 0;
 
   const onConfirm = () => {
     setDeleting(true);
@@ -215,20 +216,25 @@ function DeleteDialog({
           <button type="button" onClick={onCancel} disabled={deleting}>
             取消
           </button>
-          <button type="button" className="danger" onClick={onConfirm} disabled={deleting}>
+          <button
+            type="button"
+            className="danger"
+            onClick={onConfirm}
+            disabled={deleting || hasDocuments}
+          >
             {deleting ? "删除中…" : "确认删除"}
           </button>
         </>
       }
     >
-      {/*
-        ui-spec §9：必须点明连带影响和不可恢复。措辞是"无法在界面上恢复"而不是"永久删除"——
-        数据确实还在库里（逻辑删除），说"永久删除"是撒谎，说"可以恢复"会让用户以为界面上有恢复入口。
-      */}
-      <p>
-        将同时删除其中 <strong>{target.documentCount}</strong> 篇文档和{" "}
-        <strong>{target.chunkCount}</strong> 个分块，且无法在界面上恢复。
-      </p>
+      {hasDocuments ? (
+        <p>
+          知识库下仍有 <strong>{target.documentCount}</strong> 篇文档。请先进入知识库删除全部文档，
+          再回来删除知识库。
+        </p>
+      ) : (
+        <p>知识库删除后无法在界面上恢复，原始文件会按保留策略延迟清理。</p>
+      )}
       {error ? <p className="inline-error">{toUserMessage(error).title}</p> : null}
     </Modal>
   );

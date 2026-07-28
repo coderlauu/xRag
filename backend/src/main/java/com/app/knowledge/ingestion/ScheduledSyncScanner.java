@@ -1,9 +1,12 @@
 package com.app.knowledge.ingestion;
 
 import com.app.knowledge.model.IngestionTriggerSource;
+import com.app.knowledge.model.IngestionInput;
 import com.app.knowledge.model.SyncCandidate;
 import com.app.knowledge.repository.IngestionRunRepository;
 import com.app.knowledge.repository.SourceDocumentRepository;
+import com.app.knowledge.service.IngestionService;
+import com.app.knowledge.storage.ObjectKeyFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
@@ -11,6 +14,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,6 +56,7 @@ public class ScheduledSyncScanner {
 
     private final SourceDocumentRepository documents;
     private final IngestionRunRepository runs;
+    private final IngestionService ingestion;
     private final RemoteFetcher fetcher;
     private final SyncCronValidator cronValidator;
     private final S3Client s3;
@@ -59,11 +64,13 @@ public class ScheduledSyncScanner {
     private final DataSize maxFileSize;
 
     public ScheduledSyncScanner(SourceDocumentRepository documents, IngestionRunRepository runs,
+            IngestionService ingestion,
             RemoteFetcher fetcher, SyncCronValidator cronValidator, S3Client s3,
             @Value("${app.storage.bucket}") String bucket,
             @Value("${spring.servlet.multipart.max-file-size:50MB}") DataSize maxFileSize) {
         this.documents = documents;
         this.runs = runs;
+        this.ingestion = ingestion;
         this.fetcher = fetcher;
         this.cronValidator = cronValidator;
         this.s3 = s3;
@@ -109,19 +116,24 @@ public class ScheduledSyncScanner {
                 return;
             }
 
-            // 确认变化：新内容覆盖对象存储里的副本，之后走的就是与 FILE 来源完全相同的链路
+            // 确认变化：写入不可变的新对象。只有入库全部成功后，执行器才会把它切换成当前版本。
+            String newFileKey = nextVersionKey(document, hash);
             s3.putObject(PutObjectRequest.builder()
                     .bucket(bucket)
-                    .key(document.fileKey())
+                    .key(newFileKey)
                     .contentType(fetched.contentType())
                     .build(), RequestBody.fromFile(fetched.file()));
-            documents.updateSyncMeta(document.id(), fetched.etag(), fetched.lastModified(), hash);
 
-            // CAS 抢占。抢不到说明手动触发刚好先到一步——那就让它去做，本次同步什么都不用干。
-            if (documents.claimForProcessing(document.id())) {
-                runs.insertQueued(document.kbId(), document.id(), IngestionTriggerSource.SCHEDULED);
+            IngestionInput input = new IngestionInput(document.revision(), newFileKey, hash,
+                    fetched.size(), fetched.contentType(), fetched.etag(), fetched.lastModified());
+            // CAS 抢占与插入任务在同一个数据库事务里。
+            OptionalLong runId = ingestion.tryTriggerScheduled(
+                    document.kbId(), document.id(), input);
+            if (runId.isPresent()) {
                 LOGGER.info("文档 {} 内容已变化，定时同步触发重新处理", document.id());
             } else {
+                // 新 key 由本次同步唯一创建，抢占失败时没有任何任务会读取它，可以立即回收。
+                s3.deleteObject(request -> request.bucket(bucket).key(newFileKey));
                 LOGGER.info("文档 {} 已在处理中，本次定时同步跳过抢占", document.id());
             }
             advanceSchedule(document);
@@ -147,7 +159,10 @@ public class ScheduledSyncScanner {
      * 正常工作时最常见的结果。
      */
     private void recordSkippedOrFailed(SyncCandidate document, String message, boolean skipped) {
-        long runId = runs.insertQueued(document.kbId(), document.id(), IngestionTriggerSource.SCHEDULED);
+        long runId = runs.insertQueued(document.kbId(), document.id(), IngestionTriggerSource.SCHEDULED,
+                new IngestionInput(document.revision(), document.fileKey(), document.contentHash(),
+                        document.fileSize(), document.contentType(),
+                        document.httpEtag(), document.httpLastModified()));
         if (skipped) {
             runs.markSkipped(runId, message);
         } else {
@@ -176,5 +191,10 @@ public class ScheduledSyncScanner {
         } catch (Exception exception) {
             LOGGER.warn("临时文件删除失败，需要人工清理：{}", temp);
         }
+    }
+
+    private String nextVersionKey(SyncCandidate document, String contentHash) {
+        return ObjectKeyFactory.versionKey(document.kbId(), document.storageAlias(),
+                document.storageObjectId(), "sha256-" + contentHash, document.name());
     }
 }

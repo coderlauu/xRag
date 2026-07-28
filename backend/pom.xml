@@ -77,6 +77,20 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <app.storage.bucket>app-test</app.storage.bucket>
+            <app.storage.maintenance.grace-period>0s</app.storage.maintenance.grace-period>
+            <spring.datasource.url>jdbc:postgresql://127.0.0.1:5432/app?currentSchema=xrag_test,public</spring.datasource.url>
+            <spring.flyway.default-schema>xrag_test</spring.flyway.default-schema>
+            <spring.flyway.schemas>xrag_test</spring.flyway.schemas>
+            <spring.flyway.create-schemas>true</spring.flyway.create-schemas>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 </project>

@@ -2,6 +2,7 @@ package com.app.knowledge.repository;
 
 import com.app.knowledge.model.ChunkStrategy;
 import com.app.knowledge.model.DocumentStatus;
+import com.app.knowledge.model.IngestionInput;
 import com.app.knowledge.model.SourceDocument;
 import com.app.knowledge.model.SourceType;
 import com.app.knowledge.model.SyncCandidate;
@@ -22,7 +23,8 @@ import org.springframework.stereotype.Repository;
 public class SourceDocumentRepository {
 
     private static final String COLUMNS = """
-            id, kb_id, name, source_type, file_key, file_size, content_type, source_uri,
+            id, kb_id, name, source_type, file_key, storage_object_id,
+            file_size, content_type, source_uri,
             status, revision, chunk_count, error_message, enabled,
             chunk_strategy, chunk_size, chunk_overlap,
             sync_enabled, sync_cron, next_sync_time, last_sync_time, create_time
@@ -34,6 +36,7 @@ public class SourceDocumentRepository {
             rs.getString("name"),
             SourceType.valueOf(rs.getString("source_type")),
             rs.getString("file_key"),
+            rs.getString("storage_object_id"),
             rs.getObject("file_size", Long.class),
             rs.getString("content_type"),
             rs.getString("source_uri"),
@@ -56,32 +59,35 @@ public class SourceDocumentRepository {
         this.jdbc = jdbc;
     }
 
-    public long insertFile(long kbId, String name, String fileKey, long fileSize, String contentType,
-            ChunkStrategy strategy, int chunkSize, int overlap) {
+    public long insertFile(long kbId, String name, String fileKey, String storageObjectId,
+            long fileSize, String contentType, ChunkStrategy strategy, int chunkSize, int overlap) {
         return jdbc.queryForObject("""
                 insert into source_document
-                    (kb_id, name, source_type, file_key, file_size, content_type,
+                    (kb_id, name, source_type, file_key, storage_object_id, file_size, content_type,
                      chunk_strategy, chunk_size, chunk_overlap)
-                values (?, ?, 'FILE', ?, ?, ?, ?, ?, ?)
+                values (?, ?, 'FILE', ?, ?, ?, ?, ?, ?, ?)
                 returning id
-                """, Long.class, kbId, name, fileKey, fileSize, contentType,
+                """, Long.class, kbId, name, fileKey, storageObjectId, fileSize, contentType,
                 strategy.name(), chunkSize, overlap);
     }
 
     /** URL 来源。{@code http_etag} / {@code http_last_modified} 供工单 17 的两级变更检测使用。 */
-    public long insertUrl(long kbId, String name, String sourceUri, String fileKey, long fileSize,
-            String contentType, String contentHash, String etag, String lastModified,
+    public long insertUrl(long kbId, String name, String sourceUri, String fileKey,
+            String storageObjectId, long fileSize, String contentType,
+            String contentHash, String etag, String lastModified,
             ChunkStrategy strategy, int chunkSize, int overlap,
             boolean syncEnabled, String syncCron, OffsetDateTime nextSyncTime) {
         return jdbc.queryForObject("""
                 insert into source_document
-                    (kb_id, name, source_type, source_uri, file_key, file_size, content_type,
+                    (kb_id, name, source_type, source_uri, file_key, storage_object_id,
+                     file_size, content_type,
                      content_hash, http_etag, http_last_modified,
                      chunk_strategy, chunk_size, chunk_overlap,
                      sync_enabled, sync_cron, next_sync_time)
-                values (?, ?, 'URL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                values (?, ?, 'URL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 returning id
-                """, Long.class, kbId, name, sourceUri, fileKey, fileSize, contentType,
+                """, Long.class, kbId, name, sourceUri, fileKey, storageObjectId,
+                fileSize, contentType,
                 contentHash, etag, lastModified, strategy.name(), chunkSize, overlap,
                 syncEnabled, syncCron, nextSyncTime);
     }
@@ -131,13 +137,24 @@ public class SourceDocumentRepository {
                 """, docId) == 1;
     }
 
-    public void markSuccess(long docId, int revision, int chunkCount) {
-        jdbc.update("""
+    public void markSuccess(long docId, int revision, int chunkCount, IngestionInput input) {
+        int updated = jdbc.update("""
                 update source_document
                    set status = 'SUCCESS', revision = ?, chunk_count = ?, error_message = null,
+                       file_key = ?,
+                       content_hash = coalesce(?, content_hash),
+                       file_size = coalesce(?, file_size),
+                       content_type = coalesce(?, content_type),
+                       http_etag = coalesce(?, http_etag),
+                       http_last_modified = coalesce(?, http_last_modified),
                        update_time = now()
-                 where id = ?
-                """, revision, chunkCount, docId);
+                 where id = ? and deleted = false and status = 'RUNNING' and revision = ?
+                """, revision, chunkCount, input.fileKey(), input.contentHash(),
+                input.fileSize(), input.contentType(), input.httpEtag(), input.httpLastModified(),
+                docId, input.revision());
+        if (updated != 1) {
+            throw new IllegalStateException("文档版本已经变化或文档已被删除，拒绝写入过期的入库结果");
+        }
     }
 
     public void markFailed(long docId, String errorMessage) {
@@ -216,16 +233,22 @@ public class SourceDocumentRepository {
      */
     public List<SyncCandidate> findDueForSync(int limit) {
         return jdbc.query("""
-                select id, kb_id, source_uri, file_key, content_hash, http_etag,
-                       http_last_modified, sync_cron
-                  from source_document
-                 where source_type = 'URL' and sync_enabled = true and deleted = false
-                   and status <> 'RUNNING' and next_sync_time is not null and next_sync_time <= now()
-                 order by next_sync_time
+                select d.id, d.kb_id, kb.storage_alias, d.storage_object_id, d.name,
+                       d.source_uri, d.file_key, d.file_size, d.content_type,
+                       d.revision, d.content_hash, d.http_etag, d.http_last_modified, d.sync_cron
+                  from source_document d
+                  join knowledge_base kb on kb.id = d.kb_id and kb.deleted = false
+                 where d.source_type = 'URL' and d.sync_enabled = true and d.deleted = false
+                   and d.status <> 'RUNNING'
+                   and d.next_sync_time is not null and d.next_sync_time <= now()
+                 order by d.next_sync_time
                  limit ?
                 """, (rs, rowNum) -> new SyncCandidate(
-                        rs.getLong("id"), rs.getLong("kb_id"), rs.getString("source_uri"),
-                        rs.getString("file_key"), rs.getString("content_hash"),
+                        rs.getLong("id"), rs.getLong("kb_id"), rs.getString("storage_alias"),
+                        rs.getString("storage_object_id"), rs.getString("name"),
+                        rs.getString("source_uri"), rs.getString("file_key"),
+                        rs.getObject("file_size", Long.class), rs.getString("content_type"),
+                        rs.getInt("revision"), rs.getString("content_hash"),
                         rs.getString("http_etag"), rs.getString("http_last_modified"),
                         rs.getString("sync_cron")), limit);
     }

@@ -47,7 +47,12 @@ const MESSAGES: Record<string, UserFacingMessage> = {
 };
 
 /** 直接把后端 `message` 展示给用户的错误码。 */
-const SHOW_SERVER_MESSAGE = new Set(["INVALID_REQUEST", "INVALID_STATE"]);
+const SHOW_SERVER_MESSAGE = new Set([
+  "INVALID_REQUEST",
+  "INVALID_STATE",
+  "KB_NOT_EMPTY",
+  "KB_HAS_ACTIVE_RUNS",
+]);
 
 /**
  * 响应体不是契约里的 JSON 时，按状态码兜底推断错误码。

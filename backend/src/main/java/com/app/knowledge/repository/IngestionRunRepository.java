@@ -1,6 +1,7 @@
 package com.app.knowledge.repository;
 
 import com.app.knowledge.model.IngestionPhase;
+import com.app.knowledge.model.IngestionInput;
 import com.app.knowledge.model.IngestionRun;
 import com.app.knowledge.model.IngestionRunStatus;
 import com.app.knowledge.model.IngestionTriggerSource;
@@ -23,7 +24,9 @@ import org.springframework.stereotype.Repository;
 public class IngestionRunRepository {
 
     private static final String COLUMNS = """
-            id, kb_id, doc_id, trigger_source, status, phase, revision, chunk_count,
+            id, kb_id, doc_id, input_revision, input_file_key, input_content_hash,
+            input_file_size, input_content_type, input_http_etag, input_http_last_modified,
+            trigger_source, status, phase, revision, chunk_count,
             error_message, started_time, finished_time, create_time
             """;
 
@@ -31,6 +34,14 @@ public class IngestionRunRepository {
             rs.getLong("id"),
             rs.getLong("kb_id"),
             rs.getLong("doc_id"),
+            new IngestionInput(
+                    rs.getInt("input_revision"),
+                    rs.getString("input_file_key"),
+                    rs.getString("input_content_hash"),
+                    rs.getObject("input_file_size", Long.class),
+                    rs.getString("input_content_type"),
+                    rs.getString("input_http_etag"),
+                    rs.getString("input_http_last_modified")),
             IngestionTriggerSource.valueOf(rs.getString("trigger_source")),
             IngestionRunStatus.valueOf(rs.getString("status")),
             rs.getString("phase") == null ? null : IngestionPhase.valueOf(rs.getString("phase")),
@@ -53,12 +64,18 @@ public class IngestionRunRepository {
         this.jdbc = jdbc;
     }
 
-    public long insertQueued(long kbId, long docId, IngestionTriggerSource triggerSource) {
+    public long insertQueued(long kbId, long docId, IngestionTriggerSource triggerSource,
+            IngestionInput input) {
         return jdbc.queryForObject("""
-                insert into ingestion_run (kb_id, doc_id, trigger_source, status)
-                values (?, ?, ?, 'QUEUED')
+                insert into ingestion_run
+                    (kb_id, doc_id, trigger_source, status,
+                     input_revision, input_file_key, input_content_hash, input_file_size,
+                     input_content_type, input_http_etag, input_http_last_modified)
+                values (?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?, ?, ?)
                 returning id
-                """, Long.class, kbId, docId, triggerSource.name());
+                """, Long.class, kbId, docId, triggerSource.name(),
+                input.revision(), input.fileKey(), input.contentHash(), input.fileSize(),
+                input.contentType(), input.httpEtag(), input.httpLastModified());
     }
 
     public List<Long> findQueuedIds(int limit) {

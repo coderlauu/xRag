@@ -19,7 +19,8 @@ import org.springframework.stereotype.Repository;
 public class KnowledgeBaseRepository {
 
     private static final String SELECT_WITH_COUNTS = """
-            select kb.id, kb.name, kb.description, kb.embedding_model, kb.embedding_dimensions,
+            select kb.id, kb.name, kb.storage_alias, kb.description,
+                   kb.embedding_model, kb.embedding_dimensions,
                    kb.create_time,
                    (select count(*) from source_document d where d.kb_id = kb.id and d.deleted = false)
                        as document_count,
@@ -32,6 +33,7 @@ public class KnowledgeBaseRepository {
     private static final RowMapper<KnowledgeBase> MAPPER = (rs, rowNum) -> new KnowledgeBase(
             rs.getLong("id"),
             rs.getString("name"),
+            rs.getString("storage_alias"),
             rs.getString("description"),
             rs.getString("embedding_model"),
             rs.getInt("embedding_dimensions"),
@@ -45,12 +47,14 @@ public class KnowledgeBaseRepository {
         this.jdbc = jdbc;
     }
 
-    public long insert(String name, String description, String embeddingModel, int embeddingDimensions) {
+    public long insert(String name, String storageAlias, String description,
+            String embeddingModel, int embeddingDimensions) {
         Long id = jdbc.queryForObject("""
-                insert into knowledge_base (name, description, embedding_model, embedding_dimensions)
-                values (?, ?, ?, ?)
+                insert into knowledge_base
+                    (name, storage_alias, description, embedding_model, embedding_dimensions)
+                values (?, ?, ?, ?, ?)
                 returning id
-                """, Long.class, name, description, embeddingModel, embeddingDimensions);
+                """, Long.class, name, storageAlias, description, embeddingModel, embeddingDimensions);
         return id;
     }
 
@@ -81,6 +85,22 @@ public class KnowledgeBaseRepository {
         Long count = jdbc.queryForObject(
                 "select count(*) from knowledge_base where name = ? and id <> ? and deleted = false",
                 Long.class, name, excludeId);
+        return count != null && count > 0;
+    }
+
+    public boolean hasDocuments(long kbId) {
+        Long count = jdbc.queryForObject("""
+                select count(*) from source_document
+                 where kb_id = ? and deleted = false
+                """, Long.class, kbId);
+        return count != null && count > 0;
+    }
+
+    public boolean hasActiveIngestionRuns(long kbId) {
+        Long count = jdbc.queryForObject("""
+                select count(*) from ingestion_run
+                 where kb_id = ? and status in ('QUEUED', 'RUNNING')
+                """, Long.class, kbId);
         return count != null && count > 0;
     }
 

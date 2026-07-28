@@ -1,5 +1,6 @@
 package com.app.knowledge.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.OffsetDateTime;
 
 /**
@@ -13,6 +14,7 @@ import java.time.OffsetDateTime;
 public record KnowledgeBase(
         long id,
         String name,
+        @JsonIgnore String storageAlias,
         String description,
         String embeddingModel,
         int embeddingDimensions,

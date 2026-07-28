@@ -3,10 +3,12 @@ package com.app.knowledge.service;
 import com.app.knowledge.embedding.EmbeddingProperties;
 import com.app.knowledge.model.KnowledgeBase;
 import com.app.knowledge.repository.KnowledgeBaseRepository;
+import com.app.knowledge.storage.ObjectKeyFactory;
 import com.app.knowledge.web.ApiException;
 import com.app.knowledge.web.PageResponse;
 import java.util.List;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +43,7 @@ public class KnowledgeBaseService {
         }
         long id;
         try {
-            id = repository.insert(trimmedName, description,
+            id = repository.insert(trimmedName, ObjectKeyFactory.storageAlias(trimmedName), description,
                     embeddingProperties.getModel(), embeddingProperties.getDimensions());
         } catch (DuplicateKeyException raceLostToAnotherRequest) {
             // 上面的 existsByName 只是为了给出友好提示，真正的唯一性由部分唯一索引保证。
@@ -92,6 +94,14 @@ public class KnowledgeBaseService {
     public void delete(long id) {
         if (repository.findById(id).isEmpty()) {
             throw notFound();
+        }
+        if (repository.hasActiveIngestionRuns(id)) {
+            throw new ApiException(HttpStatus.CONFLICT, "KB_HAS_ACTIVE_RUNS",
+                    "知识库仍有正在排队或处理中的任务，请等待任务结束后再删除。");
+        }
+        if (repository.hasDocuments(id)) {
+            throw new ApiException(HttpStatus.CONFLICT, "KB_NOT_EMPTY",
+                    "知识库下仍有文档，请先删除文档后再删除知识库。");
         }
         repository.deleteEmbeddingsByKbId(id);
         repository.softDeleteChunksByKbId(id);

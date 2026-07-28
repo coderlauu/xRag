@@ -225,9 +225,11 @@ class DocumentManagementIntegrationTests {
     void 从未分块过的文档启用不报错() throws Exception {
         long pendingDoc = jdbc.queryForObject("""
                 insert into source_document
-                    (kb_id, name, source_type, file_key, status, revision, chunk_strategy,
+                    (kb_id, name, source_type, file_key, storage_object_id,
+                     status, revision, chunk_strategy,
                      chunk_size, chunk_overlap, enabled)
-                values (?, '没处理过.txt', 'FILE', 'never.txt', 'PENDING', 0, 'RECURSIVE', 1000, 100, false)
+                values (?, '没处理过.txt', 'FILE', 'never.txt', 'never-processed-document',
+                        'PENDING', 0, 'RECURSIVE', 1000, 100, false)
                 returning id
                 """, Long.class, kbId);
 

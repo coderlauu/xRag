@@ -41,6 +41,8 @@
 | 404 | `NOT_FOUND` | 资源不存在，**或已被逻辑删除**（对外表现完全一致，不泄露"曾经存在过"） |
 | 409 | `DOCUMENT_PROCESSING` | 目标文档处于 `RUNNING`，拒绝删除/更新/重复触发 |
 | 409 | `INVALID_STATE` | 其他状态冲突（如给已禁用文档新增分块） |
+| 409 | `KB_HAS_ACTIVE_RUNS` | 知识库仍有排队中或处理中的入库任务 |
+| 409 | `KB_NOT_EMPTY` | 知识库下仍有未删除文档 |
 | 413 | `FILE_TOO_LARGE` | 超出 `max-file-size` |
 | 415 | `UNSUPPORTED_FILE_TYPE` | 扩展名不在白名单 |
 | 429 | `UPLOAD_BUSY` | 并发上传许可耗尽 |
@@ -78,7 +80,7 @@
 ### `GET /api/v1/knowledge-bases/{kbId}` · `PUT` · `DELETE`
 
 - `PUT` 只接受 `name` / `description`。传 `embeddingModel` 一律忽略——[data-model.md §3.1](data-model.md) 说明了为什么它不可改。
-- `DELETE` → `204`，级联逻辑删除其下全部文档与分块、物理删除全部向量（具体 SQL 见 [data-model.md §4](data-model.md)）。知识库下有文档时**不阻止删除**：既然是逻辑删除，就没有"防止误删数据"的必要性，加确认反而增加交互成本（前端做二次确认弹层就够了）。
+- `DELETE` 只允许删除空知识库。活动任务优先返回 `409 KB_HAS_ACTIVE_RUNS`；没有活动任务但仍有文档时返回 `409 KB_NOT_EMPTY`；通过保护检查后返回 `204`。具体清理 SQL 见 [data-model.md §4](data-model.md)。
 
 ## 3. 文档
 
@@ -157,6 +159,7 @@
 - `Content-Disposition: inline; filename*=UTF-8''{文档名}`。**用 `inline` 而不是 `attachment`**：PDF 与纯文本让浏览器直接显示，`.docx` 这类浏览器无法渲染的格式它自己会退化成下载。写死 `attachment` 则连 PDF 都要先存到本地再打开，多一步且没有收益。
 - 文档不存在或已逻辑删除 → `404`（与其余接口一致，不泄露"曾经存在过"）。
 - `file_key` 为空或对象存储里已经找不到该对象 → `404`，`message` 说明是源文件缺失而不是文档不存在。这两种情况对用户的意义完全不同。
+- URL 定时同步期间始终返回上一个**成功入库版本**；新版本只有在分块和向量写入成功后才成为当前原文。
 - **不校验文档的 `enabled` 状态**。禁用针对的是"参与检索"，与"能不能看原件"无关；禁用一份文档之后连原文都打不开，会让用户没法判断该不该重新启用它。
 
 **为什么是后端流式转发而不是预签名 URL**：与上传方向保持同一套存储访问方式（[architecture.md §7](architecture.md) 有意避开了预签名）。下载方向预签名的收益只是省一点后端带宽，而代价是引入第二套凭据路径与过期时间管理。文件上限 50MB，转发的内存开销由固定大小的缓冲区决定，与文件大小无关。
@@ -208,6 +211,7 @@
 - 文档已在 `RUNNING` → `409 DOCUMENT_PROCESSING`（CAS 影响行数为 0，见 [architecture.md §3.2](architecture.md)）。
 - 文档 `enabled = false` → `409 INVALID_STATE`。给禁用文档分块会写入向量，与"禁用即不参与检索"直接矛盾。
 - 无论 `PENDING`（首次）、`SUCCESS`（重新分块）、`FAILED`（重试）都走同一条路径，服务端不区分。
+- 接受任务时会把当前原文版本写入 `ingestion_run.input_*`；执行器不会在稍后运行时重新读取一个可能已经变化的 `file_key`。
 
 ### `GET /api/v1/documents/{docId}/ingestion-runs?page=1&size=20`
 

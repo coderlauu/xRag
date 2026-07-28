@@ -108,7 +108,7 @@ public class IngestionExecutor {
             runs.updatePhase(run.id(), IngestionPhase.DOWNLOAD);
             temp = Files.createTempFile("xrag-ingest-", ".bin").toFile();
             try (InputStream source = s3.getObject(
-                    GetObjectRequest.builder().bucket(bucket).key(document.fileKey()).build())) {
+                    GetObjectRequest.builder().bucket(bucket).key(run.input().fileKey()).build())) {
                 Files.copy(source, temp.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
 
@@ -134,8 +134,8 @@ public class IngestionExecutor {
 
         // 步骤 5：一个短事务内完成删旧插新
         runs.updatePhase(run.id(), IngestionPhase.PERSIST);
-        int revision = document.revision() + 1;
-        persist(document, revision, textChunks, embeddings);
+        int revision = run.input().revision() + 1;
+        persist(document, run, revision, textChunks, embeddings);
 
         // 步骤 6：标记任务成功
         runs.markSuccess(run.id(), revision, textChunks.size());
@@ -153,14 +153,14 @@ public class IngestionExecutor {
      * 调用，自调用走不到 Spring 的代理，注解会**静默失效**——五步写入会各自独立提交，
      * 中途失败就留下"旧分块删了、新分块只插了一半"的残局，而且没有任何报错提示事务没生效。
      */
-    void persist(SourceDocument document, int revision, List<TextChunk> textChunks,
+    void persist(SourceDocument document, IngestionRun run, int revision, List<TextChunk> textChunks,
             List<float[]> embeddings) {
         transactions.executeWithoutResult(status -> {
             vectors.deleteByDocId(document.id());
             chunks.softDeleteOlderRevisions(document.id(), revision);
             List<Long> chunkIds = chunks.insertAll(document.kbId(), document.id(), revision, textChunks);
             vectors.insertAll(document.kbId(), document.id(), chunkIds, embeddings);
-            documents.markSuccess(document.id(), revision, textChunks.size());
+            documents.markSuccess(document.id(), revision, textChunks.size(), run.input());
         });
     }
 

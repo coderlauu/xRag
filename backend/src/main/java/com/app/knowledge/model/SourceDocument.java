@@ -1,5 +1,6 @@
 package com.app.knowledge.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.OffsetDateTime;
 
 /**
@@ -14,6 +15,7 @@ public record SourceDocument(
         String name,
         SourceType sourceType,
         String fileKey,
+        @JsonIgnore String storageObjectId,
         Long fileSize,
         String contentType,
         String sourceUri,

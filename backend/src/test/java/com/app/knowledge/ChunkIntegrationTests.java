@@ -651,9 +651,11 @@ class ChunkIntegrationTests {
     private long insertChunkInOtherDocument() {
         Long otherDocId = jdbc.queryForObject("""
                 insert into source_document
-                    (kb_id, name, source_type, file_key, status, revision, chunk_strategy,
+                    (kb_id, name, source_type, file_key, storage_object_id,
+                     status, revision, chunk_strategy,
                      chunk_size, chunk_overlap)
-                values (?, '另一份文档.txt', 'FILE', 'other.txt', 'SUCCESS', 1, 'RECURSIVE', 1000, 100)
+                values (?, '另一份文档.txt', 'FILE', 'other.txt', 'other-document',
+                        'SUCCESS', 1, 'RECURSIVE', 1000, 100)
                 returning id
                 """, Long.class, kbId);
         return jdbc.queryForObject("""

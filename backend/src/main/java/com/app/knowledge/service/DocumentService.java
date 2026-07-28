@@ -11,12 +11,14 @@ import com.app.knowledge.model.DocumentDetail;
 import com.app.knowledge.model.DocumentUpdateResult;
 import com.app.knowledge.model.ChunkStrategy;
 import com.app.knowledge.model.DocumentStatus;
+import com.app.knowledge.model.KnowledgeBase;
 import com.app.knowledge.model.SourceDocument;
 import com.app.knowledge.model.SourceType;
 import com.app.knowledge.repository.DocumentChunkRepository;
 import com.app.knowledge.repository.IngestionRunRepository;
 import com.app.knowledge.repository.KnowledgeBaseRepository;
 import com.app.knowledge.repository.SourceDocumentRepository;
+import com.app.knowledge.storage.ObjectKeyFactory;
 import com.app.knowledge.vector.ChunkVectorRepository;
 import com.app.knowledge.web.ApiException;
 import com.app.knowledge.web.PageResponse;
@@ -27,7 +29,6 @@ import java.nio.file.Files;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,7 @@ public class DocumentService {
      */
     public SourceDocument uploadFile(long kbId, MultipartFile file, String name,
             ChunkStrategy strategy, Integer chunkSize, Integer overlap) {
-        requireKnowledgeBase(kbId);
+        KnowledgeBase knowledgeBase = requireKnowledgeBase(kbId);
 
         String originalName = file.getOriginalFilename();
         if (originalName == null || originalName.isBlank()) {
@@ -111,11 +112,13 @@ public class DocumentService {
         }
         ChunkConfig config = resolveChunkConfig(strategy, chunkSize, overlap);
 
-        String extension = originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
-        String fileKey = "knowledge-base/%d/%s.%s".formatted(kbId, UUID.randomUUID(), extension);
+        String storageObjectId = UUID.randomUUID().toString();
+        String fileKey = ObjectKeyFactory.versionKey(kbId, knowledgeBase.storageAlias(),
+                storageObjectId, UUID.randomUUID().toString(), originalName);
 
         File temp = null;
         try {
+            String extension = originalName.substring(originalName.lastIndexOf('.') + 1);
             temp = Files.createTempFile("xrag-upload-", "." + extension).toFile();
             // 先落盘再上传：RequestBody.fromFile 能从文件长度直接得到 Content-Length、
             // 分块读取算 checksum，不需要把整个文件读进堆。fromBytes / fromInputStream
@@ -134,7 +137,7 @@ public class DocumentService {
         }
 
         long id = documents.insertFile(kbId, name == null || name.isBlank() ? originalName : name.trim(),
-                fileKey, file.getSize(), file.getContentType(),
+                fileKey, storageObjectId, file.getSize(), file.getContentType(),
                 config.strategy(), config.chunkSize(), config.overlap());
         return documents.findById(id).orElseThrow();
     }
@@ -151,7 +154,7 @@ public class DocumentService {
      */
     public SourceDocument addUrl(long kbId, String sourceUri, String name, ChunkStrategy strategy,
             Integer chunkSize, Integer overlap, Boolean syncEnabled, String syncCron) {
-        requireKnowledgeBase(kbId);
+        KnowledgeBase knowledgeBase = requireKnowledgeBase(kbId);
         ChunkConfig config = resolveChunkConfig(strategy, chunkSize, overlap);
 
         boolean sync = Boolean.TRUE.equals(syncEnabled);
@@ -180,10 +183,10 @@ public class DocumentService {
                 throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_FILE_TYPE",
                         "不支持这种文件格式。目前支持 .txt、.md、.pdf、.docx。");
             }
-            String extension = resolvedName.substring(resolvedName.lastIndexOf('.') + 1)
-                    .toLowerCase(Locale.ROOT);
-            String fileKey = "knowledge-base/%d/%s.%s".formatted(kbId, UUID.randomUUID(), extension);
             String contentHash = ContentHash.sha256OfFile(fetched.file());
+            String storageObjectId = UUID.randomUUID().toString();
+            String fileKey = ObjectKeyFactory.versionKey(kbId, knowledgeBase.storageAlias(),
+                    storageObjectId, "sha256-" + contentHash, resolvedName);
 
             s3.putObject(PutObjectRequest.builder()
                     .bucket(bucket)
@@ -192,6 +195,7 @@ public class DocumentService {
                     .build(), RequestBody.fromFile(fetched.file()));
 
             long id = documents.insertUrl(kbId, resolvedName, sourceUri.trim(), fileKey,
+                    storageObjectId,
                     fetched.size(), fetched.contentType(), contentHash, fetched.etag(),
                     fetched.lastModified(), config.strategy(), config.chunkSize(), config.overlap(),
                     sync, sync ? syncCron.trim() : null, nextSyncTime);
@@ -376,8 +380,8 @@ public class DocumentService {
     /**
      * 删除文档（data-model §4）。逻辑删除文档与其全部分块、物理删除向量、关闭定时同步。
      *
-     * <p>**对象存储里的原始文件保留不删**（PRD §7.6 例外 2）：逻辑删除意味着可恢复，
-     * 删了源文件就恢复不回来了。
+     * <p>删除请求本身**不删除对象存储里的原始文件**（PRD §7.6 例外 2）。后台维护先保留
+     * 可配置宽限期；只有宽限期到期且永久清理开关已显式开启时，原文件才会被清理。
      */
     @Transactional
     public void delete(long docId) {
@@ -413,10 +417,9 @@ public class DocumentService {
         }
     }
 
-    private void requireKnowledgeBase(long kbId) {
-        if (knowledgeBases.findById(kbId).isEmpty()) {
-            throw ApiException.notFound("知识库不存在或已被删除。");
-        }
+    private KnowledgeBase requireKnowledgeBase(long kbId) {
+        return knowledgeBases.findById(kbId)
+                .orElseThrow(() -> ApiException.notFound("知识库不存在或已被删除。"));
     }
 
     /**

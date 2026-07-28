@@ -21,7 +21,8 @@ com.app.knowledge
 ├── model/          领域对象与枚举（术语严格对齐 CONTEXT.md）
 ├── ingestion/      入库处理：文本提取、分块算法、任务派发与执行
 ├── embedding/      EmbeddingClient 接口及其实现
-└── vector/         pgvector 读写（向量表的唯一入口）
+├── vector/         pgvector 读写（向量表的唯一入口）
+└── storage/        对象 Key、孤儿审计与延迟清理
 ```
 
 一条纪律，来自学习笔记里反复出现五次的同一个坑：**事务边界只允许出现在 `service` 层，且事务内不得有任何外部 IO**（对象存储读写、Embedding HTTP 调用、远程文件下载）。`repository`、`vector` 层不自己开事务，只参与调用方的事务。
@@ -47,7 +48,7 @@ URL  来源：HTTP GET ──stream──> 本地临时文件 ──────
 
 **URL 来源为什么也必须先落临时文件**：远程响应的 `Content-Length` 不可信（可能缺失、可能是 chunked 编码、也可能撒谎），只有真正写完文件才知道实际大小，才能做大小校验和哈希计算。
 
-**为什么不加 `@Transactional`**：这个方法里唯一的数据库操作是最后一条 `INSERT`，本身就是原子的；而前面的文件落盘和对象存储上传是耗时 IO。加事务只会让连接在整个上传期间被占用。代价是可能产生孤儿文件（对象存储上传成功但 `INSERT` 失败），这是显式接受的——孤儿文件不影响任何功能正确性，未来可以用一个对账任务清理。
+**为什么不加 `@Transactional`**：这个方法里唯一的数据库操作是最后一条 `INSERT`，本身就是原子的；而前面的文件落盘和对象存储上传是耗时 IO。加事务只会让连接在整个上传期间被占用。代价是可能产生孤儿文件（对象存储上传成功但 `INSERT` 失败），这是显式接受的——孤儿文件不影响功能正确性，由 §3.6 的对账任务在宽限期后识别和清理。
 
 ### 3.2 触发分块（同步接口 + 异步执行）
 
@@ -57,10 +58,14 @@ URL  来源：HTTP GET ──stream──> 本地临时文件 ──────
 
 1. 校验文档存在、未删除、所属知识库存在。
 2. **CAS 抢占**：`UPDATE source_document SET status='RUNNING', ... WHERE id=? AND deleted=false AND status<>'RUNNING'`。影响行数为 0 → 说明正在处理中，直接返回 409，不做任何后续操作。
-3. 插入一条 `ingestion_run(status='QUEUED', trigger_source='MANUAL')`。
+3. 插入一条 `ingestion_run(status='QUEUED', trigger_source='MANUAL')`，同时快照
+   `input_revision` / `input_file_key` / `input_content_hash` 等输入字段。
 4. 提交，返回 `runId`。
 
 CAS 一条 SQL 同时完成了"检查状态"和"占位"，天然没有检查与占位之间的竞态窗口，因此**不需要任何锁**。这是本方案不引入 RocketMQ 事务消息也不引入分布式锁的根本原因——课程用事务消息解决的是"数据库状态更新"和"消息投递"两个异构系统之间的原子性问题；当任务本身就是同一个数据库里的一行时，这个问题根本不存在。详见 [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)。
+
+状态抢占和任务快照写入处在同一个事务里；任一步失败都会一起回滚。异步执行器只读
+`ingestion_run` 上的输入快照，不再临时读取可能已变化的 `source_document.file_key`。
 
 **执行侧（`@Scheduled` 轮询 + 固定线程池）**：
 
@@ -74,16 +79,16 @@ CAS 一条 SQL 同时完成了"检查状态"和"占位"，天然没有检查与�
 
 | 步骤 | 动作 | 事务 |
 |---|---|---|
-| 1 | 从对象存储下载文件到临时文件 | 无 |
+| 1 | 按任务的 `input_file_key` 从对象存储下载不可变输入到临时文件 | 无 |
 | 2 | 提取纯文本（Apache Tika） | 无 |
 | 3 | 按分块策略切分为分块列表，逐块算 `charCount`/`tokenCount`/`contentHash` | 无 |
 | 4 | 批量调用 Embedding API 得到全部向量 | **无（关键）** |
-| 5 | 逻辑删除该文档旧版本的分块 + 物理删除其向量 + 插入新分块 + 插入新向量 + 更新文档为 `SUCCESS`/`revision+1`/`chunkCount` | **一个短事务** |
+| 5 | 逻辑删除旧分块 + 物理删除旧向量 + 插入新分块/向量；仅当文档仍处于本任务预期状态时切换当前 `file_key` 并更新 `SUCCESS`/`revision`/`chunkCount` | **一个短事务** |
 | 6 | 标记 `ingestion_run` 为 `SUCCESS` | 独立事务 |
 
 第 4 步和第 5 步的顺序是整个流程的核心：**先把所有向量算完，再开事务写库**。Embedding 是按分块数量线性增长的网络调用（一份 100 页 PDF 可能切出几百个分块），放进事务会让数据库连接被占用几十秒。第 5 步事务内全是本地数据库写入，耗时可控。
 
-失败处理：捕获异常 → **在一个新事务里**把 `ingestion_run` 标记 `FAILED` 并记录 `errorMessage`、文档标记 `FAILED`。必须是新事务，否则失败信息会被外层事务的回滚一起冲掉。文档回到 `FAILED` 后用户可以直接重新触发分块，不用重新上传（PRD §4.2）。
+失败处理：捕获异常 → **在一个新事务里**把 `ingestion_run` 标记 `FAILED` 并记录 `errorMessage`、文档标记 `FAILED`。必须是新事务，否则失败信息会被外层事务的回滚一起冲掉。定时同步的新版本若失败，当前 `file_key`、分块和向量仍共同指向上一成功版本，不会出现“原文已新、索引仍旧”的混合状态。文档回到 `FAILED` 后用户可以直接重新触发分块，不用重新上传（PRD §4.2）。
 
 第 5 步的"删旧插新"是重新分块的通用语义——首次分块时旧分块集合为空，因此**首次分块和重新分块走完全同一段代码**，不需要区分。
 
@@ -97,7 +102,8 @@ CAS 一条 SQL 同时完成了"检查状态"和"占位"，天然没有检查与�
   └─ 对每个命中的文档：
        ① HEAD 请求比对 ETag / Last-Modified ──未变──> 记 run(status='SKIPPED')，只推进 next_sync_time
        ② 变了或 HEAD 不可用 → 下载到临时文件，算 SHA-256 ──与 content_hash 相同──> 同上 SKIPPED
-       ③ 确认变化 → CAS 抢占文档 + 插入 run(trigger_source='SCHEDULED') → 走 3.2 的执行链路
+       ③ 确认变化 → 写入新的不可变版本对象 → CAS 抢占文档
+          + 插入带输入快照的 run(trigger_source='SCHEDULED') → 走 3.2 的执行链路
 ```
 
 **两级变更检测**（先 HEAD 后内容哈希）的必要性：HEAD 便宜但不可靠（很多服务器不返回 `ETag`，或 `Last-Modified` 精度只到秒、甚至每次请求都变）；内容哈希绝对可靠但要付一次完整下载的代价。两级串联的效果是：服务器行为规范时省下整次下载，不规范时也不会漏更新或误更新。
@@ -105,6 +111,10 @@ CAS 一条 SQL 同时完成了"检查状态"和"占位"，天然没有检查与�
 `SKIPPED` 状态必须记进 `ingestion_run`，否则用户在界面上看到"定时同步开着但从来没有执行记录"，无法区分"检查过没变化"和"调度根本没跑"。
 
 定时同步和手动触发的互斥由 3.2 的同一个 CAS 保证——两条路径抢的是同一行的同一个状态字段，先到先得，后到的直接跳过。**不需要额外的锁机制。**
+
+定时同步不会覆盖当前版本的对象。新对象先以内容哈希作为版本段写入；只有入库第 5 步整体成功，
+`source_document.file_key` 才切换过去。若 CAS 被其他任务抢先，新写入且无人引用的对象立即删除；
+其余中途故障形成的孤儿交给 §3.6 的宽限期审计处理。
 
 ### 3.4 卡死任务的回收
 
@@ -131,6 +141,28 @@ CAS 一条 SQL 同时完成了"检查状态"和"占位"，天然没有检查与�
 
 一致性原则：**数据库是主数据，向量表是派生索引，永远先写数据库再操作向量**。xrag 用 pgvector，向量表和业务表在同一个 PostgreSQL 实例里，因此这两步天然在同一个数据库事务内——这是选 pgvector 相对独立向量库（Milvus/Qdrant）最实际的一个收益：**不存在跨系统最终一致性问题，学习笔记 03-11 里那个"向量库写失败留下脏数据、等下次操作修复"的风险在 xrag 不成立。**
 
+### 3.6 对象存储布局与生命周期
+
+所有新上传对象使用稳定、可读且不可变的 Key：
+
+```text
+knowledge-bases/{kbId}-{storageAlias}/
+  documents/{storageObjectId}/
+    versions/{contentVersion}/{safeFilename}
+```
+
+- `storageAlias` 在创建知识库时由名称生成，此后改名也不改变存储路径。
+- `storageObjectId` 是文档级 UUID，同一文档的所有版本自然聚在一起。
+- `contentVersion` 首次上传使用随机版本，定时同步使用内容 SHA-256；同一个 Key 永不覆盖成不同内容。
+- 迁移前对象不搬家，现有记录继续引用旧 Key；只有后续新上传/新版本采用新结构，避免一次高风险批量复制与切换。
+
+删除文档仍是逻辑删除，因此对象不会在请求事务里同步删除。`ObjectStorageAuditService`
+把未删除文档、仍处在恢复宽限期内的已删除文档，以及活动任务绑定的 Key 视为引用，
+只分页扫描本模块的历史 `knowledge-base/` 与当前 `knowledge-bases/` 前缀，并报告其余超过
+宽限期的孤儿对象；同一 Bucket 中其他模块的 Key 不在审计和清理范围。定时维护默认每天只做 dry-run、写日志；
+只有显式设置 `STORAGE_MAINTENANCE_CLEANUP_ENABLED=true` 才永久清理，默认宽限期 7 天。
+因此逻辑删除的可恢复性是有时限的；默认配置又不会自动永久删除，启用前必须先审阅审计日志。
+
 ## 4. 两项技术性收敛（已确认）
 
 这两项是对 PRD 描述的实现层调整，功能范围不变，但都放弃了一些能力。`2026-07-25` 已由用户确认采纳。
@@ -139,7 +171,9 @@ CAS 一条 SQL 同时完成了"检查状态"和"占位"，天然没有检查与�
 
 PRD §4.1 说"每个知识库对应向量库里一个独立的 collection"。这个说法来自课程使用独立向量数据库的语境。在 pgvector 下，"collection" 只能映射为"独立的表"，而独立表意味着**每建一个知识库就要动态执行一次 DDL**（建表 + 建 HNSW 索引），还要自己维护"知识库 → 表名"的映射、处理建表失败的回滚、以及 Flyway 管不到这些运行时表的问题。
 
-方案：**单张 `document_chunk_embedding` 表，用 `kb_id` 列做检索过滤**。pgvector 0.8 支持 HNSW 索引配合过滤条件（iterative index scan），检索性能在个人项目的数据量级下不成问题。
+方案：**单张 `document_chunk_embedding` 表，用 `kb_id` 列做检索过滤**。检索仓储的公开
+`search(kbId, vector, limit)` 接口强制调用方传 `kbId`，SQL 同样强制
+`where kb_id = ?`，并开启 pgvector HNSW iterative scan，避免共享表上的知识库串读。
 
 放弃的能力：**不同知识库不能使用不同维度的 Embedding 模型**——`vector(N)` 的维度是列级固定的。第一版全局单一 Embedding 配置（`vector(1024)`），知识库表上仍然保留 `embedding_model`/`embedding_dimensions` 字段并在创建时校验必须与全局配置一致，这样将来真要支持多维度时，可以按维度分表而不必重构数据模型。
 
