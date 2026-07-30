@@ -1,0 +1,55 @@
+{
+  "target": {
+    "type": "wiki",
+    "spaceId": "<我的文档库 space_id>",
+    "parentNodeToken": "<project 节点 token>",
+    "rootTitle": "xRag",
+    "rootNodeToken": "<xRag 节点 token>",
+    "rootObjToken": "<xRag 节点关联的 docx token>",
+    "rootUrl": "<xRag 知识库 URL>",
+    "baseUrl": "https://<tenant>.feishu.cn"
+  },
+  "repositoryUrl": "https://github.com/coderlauu/xRag",
+  "branch": "main",
+  "roots": [
+    "README.md",
+    "CONTEXT.md",
+    "docs",
+    "learning",
+    "tech"
+  ],
+  "folderNames": {
+    "docs": "01-项目文档",
+    "docs/adr": "01-架构决策（ADR）",
+    "docs/exec-plans": "02-执行计划",
+    "docs/exec-plans/active": "01-进行中",
+    "docs/exec-plans/completed": "02-已完成",
+    "docs/prd": "03-产品需求（PRD）",
+    "docs/research": "04-技术调研",
+    "docs/retro": "05-项目复盘",
+    "docs/status": "06-项目状态",
+    "learning": "02-RAG学习专栏",
+    "learning/ragent-column": "企业级RAG实战",
+    "learning/ragent-column/00-overview": "00-专栏导读",
+    "learning/ragent-column/01-rag-fundamentals": "01-RAG基础",
+    "learning/ragent-column/02-bootstrap-and-deployment": "02-环境搭建与部署",
+    "learning/ragent-column/03-knowledge-base": "03-知识库",
+    "learning/ragent-column/04-model-scheduling": "04-模型调度",
+    "tech": "03-技术设计",
+    "tech/knowledge-base": "01-知识库",
+    "tech/model-scheduling": "02-模型调度"
+  },
+  "documentTitles": {
+    "README.md": "xRag 项目说明",
+    "CONTEXT.md": "xRag 项目上下文"
+  },
+  "folders": {
+    ".": {
+      "name": "xRag",
+      "nodeToken": "<xRag 节点 token>",
+      "objToken": "<xRag 节点关联的 docx token>",
+      "url": "<xRag 知识库 URL>"
+    }
+  },
+  "documents": {}
+}

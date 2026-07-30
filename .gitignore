@@ -17,3 +17,6 @@ coverage
 .env.local
 *.env
 !*.env.example
+
+# 本机飞书发布目标和远端文档映射；CLI 凭证由系统密钥链管理。
+.feishu-docs.local.json

@@ -1,0 +1,4 @@
+interface:
+  display_name: "同步项目文档到飞书文档库"
+  short_description: "同步 xRag Markdown 到我的文档库/project/xRag"
+  default_prompt: "使用 $lark-sync-project-docs 预览并同步当前项目文档到我的文档库/project/xRag。"
