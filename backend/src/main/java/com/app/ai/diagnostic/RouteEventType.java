@@ -1,0 +1,11 @@
+package com.app.ai.diagnostic;
+
+public enum RouteEventType {
+    ROUTE_COMPLETED,
+    BREAKER_PERMISSION_REJECTED,
+    RETRY_SCHEDULED,
+    RETRY_WAIT_STARTED,
+    FAILOVER_SELECTED,
+    BUDGET_EXHAUSTED,
+    CALL_TERMINATED
+}

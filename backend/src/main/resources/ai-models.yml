@@ -1,0 +1,85 @@
+# 只读模型目录。这里只保存非敏感路由规则和密钥属性名；密钥值只能由环境注入。
+app:
+  ai:
+    policy-version: phase2-v1
+    providers:
+      aliyun-model-studio:
+        adapter: openai-compatible
+        display-name: 阿里云百炼
+        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+        secret-property: DASHSCOPE_API_KEY
+        data-region: CN_BEIJING
+        quota-domain: aliyun-cn-account
+      volcengine-ark-legacy:
+        adapter: openai-compatible
+        display-name: 火山方舟（Phase 1 遗留）
+        base-url: https://ark.cn-beijing.volces.com/api/plan/v3
+        secret-property: EMBEDDING_API_KEY
+        data-region: CN_BEIJING
+        quota-domain: volcengine-ark-account
+    deployments:
+      aliyun-qwen-plus-cn:
+        provider-id: aliyun-model-studio
+        upstream-model: qwen-plus-2025-12-01
+        model-identity: qwen-plus-2025-12-01
+        capabilities: [CHAT, STREAM_CHAT]
+        features: [TOOL_CALLING]
+        tiers: [BALANCED]
+        default-candidate: true
+        priority: 10
+        enabled: true
+      aliyun-text-embedding-v3-cn:
+        provider-id: aliyun-model-studio
+        upstream-model: text-embedding-v3
+        model-identity: text-embedding-v3
+        capabilities: [EMBEDDING]
+        priority: 10
+        enabled: true
+        embedding:
+          legacy-single-deployment: true
+          dimensions: 1024
+          max-batch-items: 10
+          max-input-tokens-per-item: 8192
+          preprocessing-fingerprint: RAW_UTF8_V1
+      volcengine-doubao-embedding-vision-cn:
+        provider-id: volcengine-ark-legacy
+        upstream-model: doubao-embedding-vision
+        model-identity: doubao-embedding-vision
+        capabilities: [EMBEDDING]
+        priority: 10
+        enabled: true
+        embedding:
+          legacy-single-deployment: true
+          dimensions: 1024
+          max-batch-items: 10
+          max-input-tokens-per-item: 8192
+          preprocessing-fingerprint: RAW_UTF8_V1
+    runtime:
+      chat:
+        total-timeout: 45s
+        max-attempts-per-work-unit: 3
+        max-same-deployment-attempts: 2
+      stream-chat:
+        total-timeout: 120s
+        max-attempts-per-work-unit: 3
+        max-same-deployment-attempts: 1
+      embedding:
+        total-timeout: 15m
+        max-attempts-per-work-unit: 3
+        max-same-deployment-attempts: 2
+      rerank:
+        total-timeout: 20s
+        max-attempts-per-work-unit: 3
+        max-same-deployment-attempts: 2
+      stream:
+        probe-max-events: 32
+        probe-max-bytes: 65536
+        sse-event-max-bytes: 65536
+      breaker:
+        sliding-window-size: 20
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        open-wait-duration: 30s
+        half-open-permits: 2
+        half-open-max-wait: 30s

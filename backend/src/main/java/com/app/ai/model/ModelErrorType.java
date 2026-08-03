@@ -1,0 +1,15 @@
+package com.app.ai.model;
+
+public enum ModelErrorType {
+    INVALID_REQUEST,
+    NO_ELIGIBLE_MODEL,
+    AUTHENTICATION,
+    PERMISSION,
+    RATE_LIMITED,
+    NETWORK,
+    SERVER_ERROR,
+    TIMEOUT,
+    PROTOCOL_CONTRACT,
+    CANCELED,
+    STREAM_INTERRUPTED
+}
