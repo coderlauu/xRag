@@ -1,7 +1,13 @@
 package com.app;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.web.reactive.context.ReactiveWebApplicationContext;
+import org.springframework.context.ApplicationContext;
+import org.springframework.web.context.WebApplicationContext;
 
 // Flyway 需要真实可连接的 Postgres 才能执行迁移；这里只验证 Spring 装配是否正确，
 // 不要求本机有活的数据库/Redis/对象存储（那是 docs/exec-plans 里 infra 相关脚本和
@@ -16,7 +22,17 @@ import org.springframework.boot.test.context.SpringBootTest;
 })
 class ApplicationTests {
 
+    @Autowired
+    private ApplicationContext applicationContext;
+
     @Test
     void contextLoads() {
+    }
+
+    @Test
+    void reactive客户端依赖不改变Servlet应用类型() {
+        assertThat(applicationContext)
+                .isInstanceOf(WebApplicationContext.class)
+                .isNotInstanceOf(ReactiveWebApplicationContext.class);
     }
 }
