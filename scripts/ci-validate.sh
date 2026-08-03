@@ -12,6 +12,8 @@ fi
 
 node "$repo_root/scripts/check-doc-links.mjs"
 node "$repo_root/scripts/check-deploy-contract.mjs"
+node --test "$repo_root/scripts/publish-feishu-docs.test.mjs"
+bash -n "$repo_root/.agents/skills/lark-sync-project-docs/scripts/sync.sh"
 
 (cd frontend && corepack pnpm install --frozen-lockfile && corepack pnpm run build)
 

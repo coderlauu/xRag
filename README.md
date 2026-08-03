@@ -55,6 +55,30 @@ cd backend && ./mvnw spring-boot:run
 scripts/ci-validate.sh   # docker compose config 检查 + 文档链接检查 + frontend build + backend mvn verify
 ```
 
+## Publish Markdown to Feishu
+
+飞书发布以仓库 Markdown 为唯一源，范围为 `README.md`、`CONTEXT.md`、`docs/**`、`learning/**`、`tech/**`。仓库路径会按配置映射成 `xRag` 下易读的中文飞书目录（`01-项目文档`、`02-RAG学习专栏`、`03-技术设计`）；本机目标文件夹、目录和文档映射保存在被 Git 忽略的 `.feishu-docs.local.json`，CLI 登录凭证由系统密钥链管理。
+
+```bash
+node scripts/publish-feishu-docs.mjs --list
+node scripts/publish-feishu-docs.mjs --file README.md
+node scripts/publish-feishu-docs.mjs --sync --dry-run
+node scripts/publish-feishu-docs.mjs --sync --yes --allow-overwrite
+```
+
+同步时，新增文件会创建飞书文档，内容未变化的文件会跳过，内容变化的文件只有在显式增加 `--allow-overwrite` 后才会全文替换。覆盖会清空并重建远端正文，因此不要在飞书副本中继续维护手工内容或评论。
+
+本地删除或改名的文件默认只显示为 `orphan`，不会自动删除飞书文档。先预览，再明确执行清理：
+
+```bash
+node scripts/publish-feishu-docs.mjs --sync --dry-run --prune
+node scripts/publish-feishu-docs.mjs --sync --yes --allow-overwrite --prune
+```
+
+`--prune` 会把对应飞书文档移入回收站；空的镜像文件夹会保留。批量同步和删除均串行执行。
+
+在 Codex 中也可以直接说“使用 `$lark-sync-project-docs` 预览并同步项目文档”。项目级 Skill 会先生成 dry-run 摘要，并在批量覆盖或删除前等待明确确认。
+
 ## Notes
 
 - `backend/` 除健康检查（`GET /api/v1/health`、`GET /api/v1/health/ready`）外，已实现知识库模块：知识库管理、文档上传与 URL 来源、异步入库、分块管理、定时同步。`/health/ready` 会分别检查 Postgres/Redis/对象存储并在响应体里逐项列出，而不是折叠成一个笼统的失败。
