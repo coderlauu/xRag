@@ -5,6 +5,12 @@ public interface AttemptLifecycle {
 
     void dispatched();
 
+    default void connected() {
+    }
+
+    default void responseHeadersReceived() {
+    }
+
     static AttemptLifecycle noop() {
         return () -> { };
     }

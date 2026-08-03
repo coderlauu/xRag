@@ -61,6 +61,8 @@ public final class ProgrammableFakeProvider
                     try {
                         rejectIfCancelled(context);
                         context.lifecycle().dispatched();
+                        context.lifecycle().connected();
+                        context.lifecycle().responseHeadersReceived();
                         return script.stream().stream(deployment, request, context)
                                 .onErrorMap(this::normalizedFailure);
                     } catch (RuntimeException failure) {

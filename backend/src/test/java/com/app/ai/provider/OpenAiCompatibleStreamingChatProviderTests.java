@@ -35,12 +35,30 @@ class OpenAiCompatibleStreamingChatProviderTests {
                 "data: {\"choices\":[{\"delta\":{\"content\":\"你\"},\"finish_reason\":\"stop\"}]}\n\n",
                 "data: [DONE]\n\n"), requests);
         var dispatches = new AtomicInteger();
+        var connects = new AtomicInteger();
+        var headers = new AtomicInteger();
+        AttemptLifecycle lifecycle = new AttemptLifecycle() {
+            @Override
+            public void dispatched() {
+                dispatches.incrementAndGet();
+            }
+
+            @Override
+            public void connected() {
+                connects.incrementAndGet();
+            }
+
+            @Override
+            public void responseHeadersReceived() {
+                headers.incrementAndGet();
+            }
+        };
 
         try (var provider = provider(server)) {
             Flux<ProviderChatEvent> events = provider.stream(
                     deployment(),
                     new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
-                    context(dispatches));
+                    context(lifecycle));
 
             assertThat(requests).hasValue(0);
             assertThat(events.collectList().block(Duration.ofSeconds(2)))
@@ -49,6 +67,8 @@ class OpenAiCompatibleStreamingChatProviderTests {
                             new ProviderChatEvent.Completed(ChatFinishReason.STOP, null));
             assertThat(requests).hasValue(1);
             assertThat(dispatches).hasValue(1);
+            assertThat(connects).hasValue(1);
+            assertThat(headers).hasValue(1);
         } finally {
             server.disposeNow();
         }
@@ -375,6 +395,30 @@ class OpenAiCompatibleStreamingChatProviderTests {
         }
     }
 
+    @Test
+    void 建连失败在Provider边界归一为ConnectFailed() throws Exception {
+        DisposableServer server = HttpServer.create()
+                .host("127.0.0.1")
+                .port(0)
+                .bindNow();
+        int closedPort = server.port();
+        server.disposeNow();
+
+        try (var provider = new OpenAiCompatibleChatProvider(
+                URI.create("http://127.0.0.1:" + closedPort + "/v1"),
+                "test-api-key")) {
+            Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
+                            deployment(),
+                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            context(new AtomicInteger()))
+                    .blockLast(Duration.ofSeconds(2)));
+
+            assertThat(failure).isInstanceOfSatisfying(ProviderFailureException.class,
+                    typed -> assertThat(typed.failureType())
+                            .isEqualTo(AttemptFailureType.CONNECT_FAILED));
+        }
+    }
+
     private static DisposableServer server(Flux<String> body, AtomicInteger requests) {
         return HttpServer.create()
                 .host("127.0.0.1")
@@ -394,12 +438,16 @@ class OpenAiCompatibleStreamingChatProviderTests {
     }
 
     private static ProviderAttemptContext context(AtomicInteger dispatches) {
+        return context(dispatches::incrementAndGet);
+    }
+
+    private static ProviderAttemptContext context(AttemptLifecycle lifecycle) {
         return new ProviderAttemptContext(
                 UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 1,
                 () -> Duration.ofSeconds(5),
                 CallOptions.defaults().cancellation(),
-                dispatches::incrementAndGet);
+                lifecycle);
     }
 
     private static ModelDeployment deployment() {

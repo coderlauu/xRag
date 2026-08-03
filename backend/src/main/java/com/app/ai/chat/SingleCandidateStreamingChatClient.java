@@ -41,14 +41,22 @@ import com.app.ai.runtime.FailureAction;
 import com.app.ai.runtime.FailureActionPolicy;
 import com.app.ai.runtime.MonotonicDeadline;
 import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeoutException;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Signal;
+import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 public final class SingleCandidateStreamingChatClient implements StreamingChatClient {
 
@@ -60,12 +68,30 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
     private final ModelProvider modelProvider;
     private final StreamingChatProvider provider;
     private final DiagnosticRecorder diagnostics;
+    private final StreamPhaseTimeouts timeouts;
+    private final Scheduler timerScheduler;
 
     public SingleCandidateStreamingChatClient(
             ModelCatalogSnapshot catalog,
             DeploymentId deploymentId,
             StreamingChatProvider provider,
             DiagnosticRecorder diagnostics) {
+        this(
+                catalog,
+                deploymentId,
+                provider,
+                diagnostics,
+                StreamPhaseTimeouts.defaults(),
+                Schedulers.parallel());
+    }
+
+    SingleCandidateStreamingChatClient(
+            ModelCatalogSnapshot catalog,
+            DeploymentId deploymentId,
+            StreamingChatProvider provider,
+            DiagnosticRecorder diagnostics,
+            StreamPhaseTimeouts timeouts,
+            Scheduler timerScheduler) {
         this.catalog = Objects.requireNonNull(catalog);
         this.deployment = Objects.requireNonNull(
                 catalog.deployments().get(Objects.requireNonNull(deploymentId)),
@@ -78,6 +104,8 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         }
         this.provider = Objects.requireNonNull(provider);
         this.diagnostics = Objects.requireNonNull(diagnostics);
+        this.timeouts = Objects.requireNonNull(timeouts);
+        this.timerScheduler = Objects.requireNonNull(timerScheduler);
     }
 
     @Override
@@ -103,6 +131,10 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         private final CallDiagnosticBuilder diagnostic;
         private final AtomicReference<State> state = new AtomicReference<>(State.PROBING);
         private final AtomicBoolean dispatched = new AtomicBoolean();
+        private final AtomicBoolean connected = new AtomicBoolean();
+        private final AtomicBoolean responseHeadersReceived = new AtomicBoolean();
+        private final Sinks.Empty<Void> connectedSignal = Sinks.empty();
+        private final Sinks.Empty<Void> responseHeadersSignal = Sinks.empty();
         private final AtomicBoolean diagnosticRecorded = new AtomicBoolean();
         private final AtomicBoolean emptyStream = new AtomicBoolean();
         private final AtomicInteger probeEventCount = new AtomicInteger();
@@ -144,7 +176,22 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
                     1,
                     deadline,
                     command.options().cancellation(),
-                    this::onDispatched);
+                    new com.app.ai.provider.AttemptLifecycle() {
+                        @Override
+                        public void dispatched() {
+                            onDispatched();
+                        }
+
+                        @Override
+                        public void connected() {
+                            onConnected();
+                        }
+
+                        @Override
+                        public void responseHeadersReceived() {
+                            onResponseHeadersReceived();
+                        }
+                    });
             Flux<ProviderChatEvent> upstream;
             try {
                 upstream = Objects.requireNonNull(provider.stream(
@@ -154,11 +201,81 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
             } catch (RuntimeException failure) {
                 upstream = Flux.error(normalizedFailure(failure));
             }
-            return upstream
+            Flux<ProviderChatEvent> firstEventBounded = withTimeouts(
+                    upstream,
+                    connectTimeout(),
+                    responseHeadersTimeout(),
+                    firstUpstreamEventTimeout());
+            Flux<ChatStreamEvent> publicStream = firstEventBounded
                     .concatMap(this::onProviderEvent, 1)
-                    .concatWith(Flux.defer(this::onUpstreamComplete))
+                    .concatWith(Flux.defer(this::onUpstreamComplete));
+            Flux<ChatStreamEvent> phaseBounded = withTimeouts(
+                            publicStream, firstMeaningfulChunkTimeout())
+                    .timeout(
+                            Mono.never(),
+                            event -> isTerminal(event)
+                                    ? Mono.never()
+                                    : Mono.delay(timeouts.idle(), timerScheduler))
+                    .onErrorMap(
+                            TimeoutException.class,
+                            ignored -> ProviderFailureException.of(
+                                    AttemptFailureType.STREAM_IDLE_TIMEOUT));
+            return withTimeouts(phaseBounded, totalTimeout(deadline.remaining()))
                     .onErrorResume(this::onFailure)
                     .doOnCancel(this::onCancel);
+        }
+
+        @SafeVarargs
+        private final <T> Flux<T> withTimeouts(Flux<T> source, Mono<Void>... timeoutSignals) {
+            var publishers = new ArrayList<Flux<Signal<T>>>(timeoutSignals.length + 1);
+            publishers.add(source.materialize());
+            for (Mono<Void> timeoutSignal : timeoutSignals) {
+                publishers.add(timeoutSignal.thenMany(Flux.never()));
+            }
+            return Flux.merge(publishers)
+                    .takeUntil(Signal::isOnComplete)
+                    .dematerialize();
+        }
+
+        private Mono<Void> totalTimeout(Duration remaining) {
+            return Mono.delay(remaining, timerScheduler)
+                    .then(Mono.error(ProviderFailureException.of(
+                            AttemptFailureType.TOTAL_DEADLINE_EXCEEDED)));
+        }
+
+        private Mono<Void> connectTimeout() {
+            return Mono.delay(timeouts.connect(), timerScheduler)
+                    .flatMap(ignored -> connected.get()
+                            ? Mono.never()
+                            : Mono.error(ProviderFailureException.of(
+                                    AttemptFailureType.CONNECT_TIMEOUT)));
+        }
+
+        private Mono<Void> responseHeadersTimeout() {
+            return connectedSignal.asMono()
+                    .then(Mono.delay(timeouts.responseHeaders(), timerScheduler))
+                    .flatMap(ignored -> responseHeadersReceived.get()
+                            ? Mono.never()
+                            : Mono.error(ProviderFailureException.of(
+                                    AttemptFailureType.RESPONSE_HEADERS_TIMEOUT)));
+        }
+
+        private Mono<Void> firstUpstreamEventTimeout() {
+            return responseHeadersSignal.asMono()
+                    .then(Mono.delay(timeouts.firstUpstreamEvent(), timerScheduler))
+                    .flatMap(ignored -> firstUpstreamEventMs.get() >= 0
+                            ? Mono.never()
+                            : Mono.error(ProviderFailureException.of(
+                                    AttemptFailureType.FIRST_UPSTREAM_EVENT_TIMEOUT)));
+        }
+
+        private Mono<Void> firstMeaningfulChunkTimeout() {
+            return responseHeadersSignal.asMono()
+                    .then(Mono.delay(timeouts.firstMeaningfulChunk(), timerScheduler))
+                    .flatMap(ignored -> firstMeaningfulChunkMs.get() >= 0
+                            ? Mono.never()
+                            : Mono.error(ProviderFailureException.of(
+                                    AttemptFailureType.FIRST_MEANINGFUL_CHUNK_TIMEOUT)));
         }
 
         private Flux<ChatStreamEvent> onProviderEvent(ProviderChatEvent event) {
@@ -247,7 +364,9 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
             return switch (state.get()) {
                 case COMPLETED, STREAM_FAILED, FAILED, CANCELED -> Flux.empty();
                 case PROBING -> Flux.error(ProviderFailureException.of(
-                        AttemptFailureType.UPSTREAM_RESET_BEFORE_FIRST_EVENT));
+                        firstUpstreamEventMs.get() < 0
+                                ? AttemptFailureType.UPSTREAM_RESET_BEFORE_FIRST_EVENT
+                                : AttemptFailureType.UPSTREAM_RESET_DURING_PROBE));
                 case COMMITTED -> Flux.error(ProviderFailureException.of(
                         AttemptFailureType.UPSTREAM_STREAM_INTERRUPTED));
             };
@@ -255,6 +374,13 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
 
         private Flux<ChatStreamEvent> onFailure(Throwable failure) {
             ProviderFailureException normalized = normalizedFailure(failure);
+            if (state.get() == State.PROBING
+                    && normalized.failureType()
+                            == AttemptFailureType.UPSTREAM_STREAM_INTERRUPTED) {
+                normalized = ProviderFailureException.of(firstUpstreamEventMs.get() < 0
+                        ? AttemptFailureType.UPSTREAM_RESET_BEFORE_FIRST_EVENT
+                        : AttemptFailureType.UPSTREAM_RESET_DURING_PROBE);
+            }
             if (state.compareAndSet(State.PROBING, State.FAILED)) {
                 recordFailure(normalized, false);
                 return Flux.error(publicFailure(normalized, false));
@@ -279,6 +405,18 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         private void onDispatched() {
             if (dispatched.compareAndSet(false, true)) {
                 attemptStartedOffsetMs.compareAndSet(-1, elapsedMillis(callStartedNanos));
+            }
+        }
+
+        private void onConnected() {
+            if (connected.compareAndSet(false, true)) {
+                connectedSignal.tryEmitEmpty();
+            }
+        }
+
+        private void onResponseHeadersReceived() {
+            if (responseHeadersReceived.compareAndSet(false, true)) {
+                responseHeadersSignal.tryEmitEmpty();
             }
         }
 
@@ -487,6 +625,11 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         throw new IllegalArgumentException("event must be a meaningful business event");
     }
 
+    private static boolean isTerminal(ChatStreamEvent event) {
+        return event instanceof ChatStreamEvent.Completed
+                || event instanceof ChatStreamEvent.StreamFailed;
+    }
+
     private static ProviderFailureException normalizedFailure(Throwable failure) {
         return failure instanceof ProviderFailureException providerFailure
                 ? providerFailure
@@ -573,5 +716,36 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         FAILED,
         STREAM_FAILED,
         CANCELED
+    }
+
+    record StreamPhaseTimeouts(
+            Duration connect,
+            Duration responseHeaders,
+            Duration firstUpstreamEvent,
+            Duration firstMeaningfulChunk,
+            Duration idle) {
+
+        StreamPhaseTimeouts {
+            requirePositive(connect, "connect");
+            requirePositive(responseHeaders, "responseHeaders");
+            requirePositive(firstUpstreamEvent, "firstUpstreamEvent");
+            requirePositive(firstMeaningfulChunk, "firstMeaningfulChunk");
+            requirePositive(idle, "idle");
+        }
+
+        static StreamPhaseTimeouts defaults() {
+            return new StreamPhaseTimeouts(
+                    Duration.ofSeconds(3),
+                    Duration.ofSeconds(10),
+                    Duration.ofSeconds(15),
+                    Duration.ofSeconds(20),
+                    Duration.ofSeconds(30));
+        }
+
+        private static void requirePositive(Duration value, String name) {
+            if (value == null || value.isZero() || value.isNegative()) {
+                throw new IllegalArgumentException(name + " must be positive");
+            }
+        }
     }
 }

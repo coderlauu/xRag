@@ -136,7 +136,11 @@ public final class OpenAiCompatibleChatProvider
                     .accept(MediaType.TEXT_EVENT_STREAM)
                     .header("Authorization", "Bearer " + apiKey)
                     .bodyValue(streamRequestBody(deployment, request))
-                    .exchangeToFlux(this::decodeStreamingResponse)
+                    .httpRequest(ignored -> context.lifecycle().connected())
+                    .exchangeToFlux(response -> {
+                        context.lifecycle().responseHeadersReceived();
+                        return decodeStreamingResponse(response);
+                    })
                     .concatMap(event -> Flux.fromIterable(state.decode(event)))
                     .concatWith(Flux.defer(state::endOfInput))
                     .takeUntil(ProviderChatEvent.Completed.class::isInstance)
@@ -291,6 +295,20 @@ public final class OpenAiCompatibleChatProvider
     private RuntimeException normalizedStreamFailure(Throwable failure) {
         if (failure instanceof ProviderFailureException providerFailure) {
             return providerFailure;
+        }
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof io.netty.channel.ConnectTimeoutException) {
+                return ProviderFailureException.of(AttemptFailureType.CONNECT_TIMEOUT);
+            }
+            if (current instanceof ConnectException) {
+                return ProviderFailureException.of(AttemptFailureType.CONNECT_FAILED);
+            }
+            if (current instanceof reactor.netty.http.client.PrematureCloseException) {
+                return ProviderFailureException.of(
+                        AttemptFailureType.UPSTREAM_STREAM_INTERRUPTED);
+            }
+            current = current.getCause();
         }
         return ProviderFailureException.of(AttemptFailureType.PROVIDER_RESPONSE_INVALID);
     }
