@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.app.ai.diagnostic.CompletedCallDiagnostic;
 import com.app.ai.diagnostic.DiagnosticRecorder;
+import com.app.ai.diagnostic.AttemptOutcome;
+import com.app.ai.diagnostic.CallOutcome;
 import com.app.ai.model.AiRuntimePolicy;
 import com.app.ai.model.CallOptions;
 import com.app.ai.model.Capability;
@@ -214,6 +216,73 @@ class SingleCandidateStreamingChatClientTests {
                 new ChatStreamEvent.ToolCallDelta("call-1", 0, "search", "{\"q\":"),
                 new ChatStreamEvent.ToolCallDelta("call-1", 0, "search", "\"x\"}"),
                 new ChatStreamEvent.Completed(ChatFinishReason.TOOL_CALLS, null));
+    }
+
+    @Test
+    void str20_成功流只结算一次完成态诊断并记录三个时间点() {
+        var fake = new ProgrammableFakeProvider(ProgrammableFakeProvider.Script.stream(
+                (deployment, request, context) -> Flux.just(
+                        new ProviderChatEvent.ProbeSignal(1),
+                        new ProviderChatEvent.TextDelta("完成"),
+                        new ProviderChatEvent.Completed(ChatFinishReason.STOP, null))));
+        var diagnostics = new CapturingDiagnosticRecorder();
+
+        client(fake, diagnostics).stream(command()).blockLast();
+
+        assertThat(diagnostics.calls).singleElement().satisfies(diagnostic -> {
+            assertThat(diagnostic.outcome()).isEqualTo(CallOutcome.SUCCEEDED);
+            assertThat(diagnostic.committed()).isTrue();
+            assertThat(diagnostic.attempts()).singleElement().satisfies(attempt -> {
+                assertThat(attempt.outcome()).isEqualTo(AttemptOutcome.SUCCEEDED);
+                assertThat(attempt.firstUpstreamEventMs()).isNotNull();
+                assertThat(attempt.firstMeaningfulChunkMs()).isNotNull();
+                assertThat(attempt.downstreamCommitMs()).isNotNull();
+                assertThat(attempt.streamEventCount()).isEqualTo(3);
+            });
+        });
+    }
+
+    @Test
+    void str30_提交后失败只结算一次StreamFailed诊断() {
+        var fake = new ProgrammableFakeProvider(ProgrammableFakeProvider.Script.stream(
+                (deployment, request, context) -> Flux.concat(
+                        Flux.just(new ProviderChatEvent.TextDelta("部分")),
+                        Flux.error(ProviderFailureException.of(
+                                AttemptFailureType.UPSTREAM_STREAM_INTERRUPTED)))));
+        var diagnostics = new CapturingDiagnosticRecorder();
+
+        client(fake, diagnostics).stream(command()).blockLast();
+
+        assertThat(diagnostics.calls).singleElement().satisfies(diagnostic -> {
+            assertThat(diagnostic.outcome()).isEqualTo(CallOutcome.STREAM_FAILED);
+            assertThat(diagnostic.committed()).isTrue();
+            assertThat(diagnostic.attempts()).singleElement().satisfies(attempt ->
+                    assertThat(attempt.outcome()).isEqualTo(AttemptOutcome.STREAM_FAILED));
+        });
+    }
+
+    @Test
+    void str22和35_取消传播且不伪造失败事件并只释放和结算一次() {
+        var fake = new ProgrammableFakeProvider(ProgrammableFakeProvider.Script.stream(
+                (deployment, request, context) -> Flux.concat(
+                        Flux.just(new ProviderChatEvent.TextDelta("部分")),
+                        Flux.never())));
+        var diagnostics = new CapturingDiagnosticRecorder();
+        var events = new ArrayList<ChatStreamEvent>();
+        var subscription = client(fake, diagnostics).stream(command()).subscribe(events::add);
+
+        subscription.dispose();
+
+        assertThat(events).hasSize(2);
+        assertThat(events).noneMatch(ChatStreamEvent.StreamFailed.class::isInstance);
+        assertThat(fake.cancelledCount()).isEqualTo(1);
+        assertThat(fake.releasedCount()).isEqualTo(1);
+        assertThat(diagnostics.calls).singleElement().satisfies(diagnostic -> {
+            assertThat(diagnostic.outcome()).isEqualTo(CallOutcome.CANCELED);
+            assertThat(diagnostic.committed()).isTrue();
+            assertThat(diagnostic.attempts()).singleElement().satisfies(attempt ->
+                    assertThat(attempt.outcome()).isEqualTo(AttemptOutcome.CANCELED));
+        });
     }
 
     private static final ProviderId PROVIDER_ID = new ProviderId("provider-a");

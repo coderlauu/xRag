@@ -1,9 +1,22 @@
 package com.app.ai.chat;
 
+import com.app.ai.diagnostic.AttemptDiagnostic;
+import com.app.ai.diagnostic.AttemptKind;
+import com.app.ai.diagnostic.AttemptOutcome;
+import com.app.ai.diagnostic.BreakerState;
+import com.app.ai.diagnostic.CallDiagnosticBuilder;
+import com.app.ai.diagnostic.CallOutcome;
 import com.app.ai.diagnostic.DiagnosticRecorder;
+import com.app.ai.diagnostic.RouteCandidateDiagnostic;
+import com.app.ai.diagnostic.RouteDecision;
+import com.app.ai.diagnostic.RouteEventDiagnostic;
+import com.app.ai.diagnostic.RouteEventType;
+import com.app.ai.diagnostic.TimingDiagnostic;
+import com.app.ai.diagnostic.UsageDiagnostic;
 import com.app.ai.model.CallOptions;
 import com.app.ai.model.Capability;
 import com.app.ai.model.ChatCommand;
+import com.app.ai.model.ChatFinishReason;
 import com.app.ai.model.ChatStreamEvent;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ExecutionInfo;
@@ -17,6 +30,7 @@ import com.app.ai.model.RequestId;
 import com.app.ai.model.StreamingChatClient;
 import com.app.ai.model.TerminalCause;
 import com.app.ai.model.TerminationReason;
+import com.app.ai.model.TokenUsage;
 import com.app.ai.provider.AttemptFailureType;
 import com.app.ai.provider.ProviderAttemptContext;
 import com.app.ai.provider.ProviderChatEvent;
@@ -26,6 +40,8 @@ import com.app.ai.provider.StreamingChatProvider;
 import com.app.ai.runtime.FailureAction;
 import com.app.ai.runtime.FailureActionPolicy;
 import com.app.ai.runtime.MonotonicDeadline;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -82,16 +98,41 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         private final UUID logicalCallId = UUID.randomUUID();
         private final RequestId requestId;
         private final ExecutionTarget target;
+        private final long callStartedNanos = System.nanoTime();
+        private final OffsetDateTime startedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        private final CallDiagnosticBuilder diagnostic;
         private final AtomicReference<State> state = new AtomicReference<>(State.PROBING);
         private final AtomicBoolean dispatched = new AtomicBoolean();
+        private final AtomicBoolean diagnosticRecorded = new AtomicBoolean();
+        private final AtomicBoolean emptyStream = new AtomicBoolean();
         private final AtomicInteger probeEventCount = new AtomicInteger();
         private final AtomicLong probeByteCount = new AtomicLong();
+        private final AtomicInteger streamEventCount = new AtomicInteger();
+        private final AtomicLong attemptStartedOffsetMs = new AtomicLong(-1);
+        private final AtomicLong firstUpstreamEventMs = new AtomicLong(-1);
+        private final AtomicLong firstMeaningfulChunkMs = new AtomicLong(-1);
+        private final AtomicLong downstreamCommitMs = new AtomicLong(-1);
 
         private StreamExecution(ChatCommand command) {
             this.command = command;
             this.requestId = requestId(command.options());
             this.target = new ExecutionTarget(
                     deployment.providerId(), deployment.id(), deployment.modelIdentity());
+            this.diagnostic = diagnosticBuilder();
+            this.diagnostic.addCandidate(candidate());
+            this.diagnostic.addRouteEvent(new RouteEventDiagnostic(
+                    1,
+                    elapsedMillis(callStartedNanos),
+                    RouteEventType.ROUTE_COMPLETED,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    catalog.runtimePolicy().streamChat().totalTimeout().toMillis(),
+                    1));
         }
 
         private Flux<ChatStreamEvent> run() {
@@ -103,7 +144,7 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
                     1,
                     deadline,
                     command.options().cancellation(),
-                    () -> dispatched.compareAndSet(false, true));
+                    this::onDispatched);
             Flux<ProviderChatEvent> upstream;
             try {
                 upstream = Objects.requireNonNull(provider.stream(
@@ -121,6 +162,9 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         }
 
         private Flux<ChatStreamEvent> onProviderEvent(ProviderChatEvent event) {
+            long eventOffsetMs = elapsedMillis(callStartedNanos);
+            firstUpstreamEventMs.compareAndSet(-1, eventOffsetMs);
+            streamEventCount.incrementAndGet();
             if (event == null) {
                 return Flux.error(ProviderFailureException.of(
                         AttemptFailureType.PROVIDER_RESPONSE_INVALID));
@@ -154,7 +198,9 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
                 return invalidProviderEvent();
             }
             ChatStreamEvent publicEvent = publicEvent(event);
+            firstMeaningfulChunkMs.compareAndSet(-1, eventOffsetMs);
             if (state.compareAndSet(State.PROBING, State.COMMITTED)) {
+                downstreamCommitMs.compareAndSet(-1, elapsedMillis(callStartedNanos));
                 var execution = new ExecutionInfo(logicalCallId, requestId, target, 1, 0, 0);
                 return Flux.just(new ChatStreamEvent.StreamStarted(execution), publicEvent);
             }
@@ -185,10 +231,12 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
                         AttemptFailureType.PROVIDER_RESPONSE_INVALID));
             }
             if (state.compareAndSet(State.COMMITTED, State.COMPLETED)) {
+                recordSuccess(completed);
                 return Flux.just(new ChatStreamEvent.Completed(
                         completed.finishReason(), completed.usage()));
             }
             if (state.get() == State.PROBING) {
+                emptyStream.set(true);
                 return Flux.error(ProviderFailureException.of(
                         AttemptFailureType.PROVIDER_RESPONSE_INVALID));
             }
@@ -208,9 +256,11 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         private Flux<ChatStreamEvent> onFailure(Throwable failure) {
             ProviderFailureException normalized = normalizedFailure(failure);
             if (state.compareAndSet(State.PROBING, State.FAILED)) {
+                recordFailure(normalized, false);
                 return Flux.error(publicFailure(normalized, false));
             }
             if (state.compareAndSet(State.COMMITTED, State.STREAM_FAILED)) {
+                recordFailure(normalized, true);
                 TerminalCause cause = terminalCause(normalized, true);
                 return Flux.just(new ChatStreamEvent.StreamFailed(
                         cause, stableMessage(cause.errorType()), true));
@@ -219,8 +269,165 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
         }
 
         private void onCancel() {
-            state.compareAndSet(State.PROBING, State.CANCELED);
-            state.compareAndSet(State.COMMITTED, State.CANCELED);
+            if (state.compareAndSet(State.PROBING, State.CANCELED)) {
+                recordCanceled(false);
+            } else if (state.compareAndSet(State.COMMITTED, State.CANCELED)) {
+                recordCanceled(true);
+            }
+        }
+
+        private void onDispatched() {
+            if (dispatched.compareAndSet(false, true)) {
+                attemptStartedOffsetMs.compareAndSet(-1, elapsedMillis(callStartedNanos));
+            }
+        }
+
+        private void recordSuccess(ProviderChatEvent.Completed completed) {
+            recordTerminal(
+                    CallOutcome.SUCCEEDED,
+                    AttemptOutcome.SUCCEEDED,
+                    null,
+                    completed.finishReason(),
+                    completed.usage(),
+                    true,
+                    TerminationReason.COMPLETED);
+        }
+
+        private void recordFailure(ProviderFailureException failure, boolean committed) {
+            FailureAction action = FailureActionPolicy.actionFor(failure.failureType());
+            CallOutcome callOutcome = action.errorType() == ModelErrorType.CANCELED
+                    ? CallOutcome.CANCELED
+                    : committed ? CallOutcome.STREAM_FAILED : CallOutcome.FAILED;
+            AttemptOutcome attemptOutcome = committed
+                    ? AttemptOutcome.STREAM_FAILED
+                    : emptyStream.get()
+                            ? AttemptOutcome.EMPTY_STREAM
+                            : attemptOutcome(action.errorType());
+            recordTerminal(
+                    callOutcome,
+                    attemptOutcome,
+                    failure,
+                    null,
+                    null,
+                    committed,
+                    FailureActionPolicy.terminationReason(failure.failureType(), committed));
+        }
+
+        private void recordCanceled(boolean committed) {
+            recordTerminal(
+                    CallOutcome.CANCELED,
+                    AttemptOutcome.CANCELED,
+                    ProviderFailureException.of(AttemptFailureType.CALLER_CANCELED),
+                    null,
+                    null,
+                    committed,
+                    TerminationReason.CALLER_CANCELED);
+        }
+
+        private void recordTerminal(
+                CallOutcome callOutcome,
+                AttemptOutcome attemptOutcome,
+                ProviderFailureException failure,
+                ChatFinishReason finishReason,
+                TokenUsage tokenUsage,
+                boolean committed,
+                TerminationReason termination) {
+            if (!diagnosticRecorded.compareAndSet(false, true)) {
+                return;
+            }
+            long completedOffsetMs = elapsedMillis(callStartedNanos);
+            FailureAction action = failure == null
+                    ? null
+                    : FailureActionPolicy.actionFor(failure.failureType());
+            if (dispatched.get()) {
+                long attemptStart = Math.max(0, attemptStartedOffsetMs.get());
+                diagnostic.addAttempt(new AttemptDiagnostic(
+                        1,
+                        0,
+                        null,
+                        null,
+                        0,
+                        AttemptKind.INITIAL,
+                        2,
+                        3,
+                        target,
+                        modelProvider.quotaDomain(),
+                        BreakerState.CLOSED,
+                        callOutcome == CallOutcome.SUCCEEDED ? BreakerState.CLOSED : null,
+                        attemptOutcome,
+                        action == null ? null : action.errorType(),
+                        action == null ? null : action.failurePhase(),
+                        failure == null ? Integer.valueOf(200) : failure.httpStatus(),
+                        failure == null ? null : failure.providerRequestIdMasked(),
+                        attemptStart,
+                        nullableOffset(firstUpstreamEventMs),
+                        nullableOffset(firstMeaningfulChunkMs),
+                        nullableOffset(downstreamCommitMs),
+                        Math.max(0, completedOffsetMs - attemptStart),
+                        inputTokens(tokenUsage),
+                        outputTokens(tokenUsage),
+                        streamEventCount.get()));
+            }
+            diagnostic.addRouteEvent(new RouteEventDiagnostic(
+                    dispatched.get() ? 4 : 2,
+                    completedOffsetMs,
+                    RouteEventType.CALL_TERMINATED,
+                    0,
+                    dispatched.get() ? 1 : null,
+                    0,
+                    deployment.providerId(),
+                    deployment.id(),
+                    termination.name(),
+                    null,
+                    null,
+                    null));
+            var completed = diagnostic.complete(
+                    callOutcome,
+                    action == null ? null : action.errorType(),
+                    action == null ? null : action.failurePhase(),
+                    termination,
+                    failure == null ? Integer.valueOf(200) : failure.httpStatus(),
+                    finishReason,
+                    committed,
+                    null,
+                    null,
+                    usage(tokenUsage),
+                    new TimingDiagnostic(
+                            0L,
+                            nullableOffset(firstUpstreamEventMs),
+                            nullableOffset(firstMeaningfulChunkMs),
+                            nullableOffset(downstreamCommitMs),
+                            completedOffsetMs,
+                            startedAt,
+                            OffsetDateTime.now(ZoneOffset.UTC)));
+            recordBestEffort(completed);
+        }
+
+        private CallDiagnosticBuilder diagnosticBuilder() {
+            return new CallDiagnosticBuilder(
+                    logicalCallId,
+                    requestId.value(),
+                    Capability.STREAM_CHAT,
+                    command.tier(),
+                    null,
+                    true,
+                    catalog.policyVersion(),
+                    catalog.configFingerprint());
+        }
+
+        private RouteCandidateDiagnostic candidate() {
+            return new RouteCandidateDiagnostic(
+                    0,
+                    target,
+                    Capability.STREAM_CHAT,
+                    command.tier(),
+                    modelProvider.quotaDomain(),
+                    RouteDecision.ELIGIBLE,
+                    null,
+                    0,
+                    deployment.defaultCandidate(),
+                    deployment.priority(),
+                    BreakerState.CLOSED);
         }
 
         private ModelCallException publicFailure(
@@ -286,6 +493,46 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
                 : ProviderFailureException.of(AttemptFailureType.PROVIDER_RESPONSE_INVALID);
     }
 
+    private void recordBestEffort(
+            com.app.ai.diagnostic.CompletedCallDiagnostic completed) {
+        try {
+            diagnostics.offer(completed);
+        } catch (RuntimeException ignored) {
+            // Diagnostics are best effort and must never change the stream result.
+        }
+    }
+
+    private static Long nullableOffset(AtomicLong offset) {
+        long value = offset.get();
+        return value < 0 ? null : value;
+    }
+
+    private static UsageDiagnostic usage(TokenUsage usage) {
+        return new UsageDiagnostic(
+                inputTokens(usage), outputTokens(usage), null, null, null, null, null, null);
+    }
+
+    private static Integer inputTokens(TokenUsage usage) {
+        return usage == null ? null : diagnosticTokenCount(usage.inputTokens());
+    }
+
+    private static Integer outputTokens(TokenUsage usage) {
+        return usage == null ? null : diagnosticTokenCount(usage.outputTokens());
+    }
+
+    private static Integer diagnosticTokenCount(long count) {
+        return count <= Integer.MAX_VALUE ? (int) count : null;
+    }
+
+    private static AttemptOutcome attemptOutcome(ModelErrorType errorType) {
+        return switch (errorType) {
+            case RATE_LIMITED -> AttemptOutcome.RATE_LIMITED;
+            case TIMEOUT -> AttemptOutcome.TIMED_OUT;
+            case CANCELED -> AttemptOutcome.CANCELED;
+            default -> AttemptOutcome.FAILED;
+        };
+    }
+
     private static RequestId requestId(CallOptions options) {
         return options.requestId() == null
                 ? new RequestId("request-" + UUID.randomUUID())
@@ -313,6 +560,10 @@ public final class SingleCandidateStreamingChatClient implements StreamingChatCl
             case CANCELED -> "模型调用已取消";
             case STREAM_INTERRUPTED -> "模型流式响应中断";
         };
+    }
+
+    private static long elapsedMillis(long startedNanos) {
+        return Math.max(0, (System.nanoTime() - startedNanos) / 1_000_000);
     }
 
     private enum State {
