@@ -7,6 +7,7 @@ public sealed interface ProviderChatEvent
         permits ProviderChatEvent.TextDelta,
                 ProviderChatEvent.ToolCallDelta,
                 ProviderChatEvent.RefusalDelta,
+                ProviderChatEvent.ProbeSignal,
                 ProviderChatEvent.Completed {
 
     record TextDelta(String text) implements ProviderChatEvent {
@@ -17,6 +18,15 @@ public sealed interface ProviderChatEvent
     }
 
     record RefusalDelta(String text) implements ProviderChatEvent {
+    }
+
+    /** A legal upstream event that is not a public business event. */
+    record ProbeSignal(int byteCount) implements ProviderChatEvent {
+        public ProbeSignal {
+            if (byteCount < 0) {
+                throw new IllegalArgumentException("byteCount must be non-negative");
+            }
+        }
     }
 
     record Completed(ChatFinishReason finishReason, TokenUsage usage) implements ProviderChatEvent {

@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -547,11 +548,11 @@ public final class OpenAiCompatibleChatProvider
                 }
                 log.warn("Skipping unknown upstream SSE event type={}",
                         diagnosticEventType(eventType));
-                return List.of();
+                return List.of(probeSignal(event.data()));
             }
             String data = event.data();
             if (data == null || data.isBlank()) {
-                return List.of();
+                return List.of(probeSignal(data));
             }
             if ("[DONE]".equals(data.trim())) {
                 return completeStream();
@@ -575,7 +576,7 @@ public final class OpenAiCompatibleChatProvider
                     if (eventUsage == null) {
                         throw new IllegalArgumentException("empty choices require usage");
                     }
-                    return List.of();
+                    return List.of(probeSignal(data));
                 }
                 JsonNode choice = requiredArrayItem(root, "choices", 0);
                 String rawFinishReason = optionalText(choice, "finish_reason");
@@ -593,7 +594,9 @@ public final class OpenAiCompatibleChatProvider
                     events.add(new ProviderChatEvent.RefusalDelta(refusal));
                 }
                 decodeToolCalls(delta.path("tool_calls"), events);
-                return List.copyOf(events);
+                return events.isEmpty()
+                        ? List.of(probeSignal(data))
+                        : List.copyOf(events);
             } catch (JsonProcessingException | IllegalArgumentException invalid) {
                 throw ProviderFailureException.of(
                         AttemptFailureType.PROVIDER_RESPONSE_INVALID);
@@ -652,6 +655,11 @@ public final class OpenAiCompatibleChatProvider
                     ? Flux.empty()
                     : Flux.error(ProviderFailureException.of(
                             AttemptFailureType.UPSTREAM_STREAM_INTERRUPTED));
+        }
+
+        private ProviderChatEvent.ProbeSignal probeSignal(String data) {
+            return new ProviderChatEvent.ProbeSignal(
+                    data == null ? 0 : data.getBytes(StandardCharsets.UTF_8).length);
         }
     }
 

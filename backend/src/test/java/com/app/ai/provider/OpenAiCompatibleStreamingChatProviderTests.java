@@ -72,10 +72,16 @@ class OpenAiCompatibleStreamingChatProviderTests {
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
-                    .containsExactly(
-                            new ProviderChatEvent.TextDelta("甲"),
-                            new ProviderChatEvent.TextDelta("乙"),
-                            new ProviderChatEvent.Completed(ChatFinishReason.STOP, null));
+                    .satisfiesExactly(
+                            event -> assertThat(event)
+                                    .isEqualTo(new ProviderChatEvent.ProbeSignal(0)),
+                            event -> assertThat(event)
+                                    .isEqualTo(new ProviderChatEvent.TextDelta("甲")),
+                            event -> assertThat(event)
+                                    .isEqualTo(new ProviderChatEvent.TextDelta("乙")),
+                            event -> assertThat(event)
+                                    .isEqualTo(new ProviderChatEvent.Completed(
+                                            ChatFinishReason.STOP, null)));
         } finally {
             server.disposeNow();
         }
@@ -100,6 +106,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
+                    .filteredOn(event -> !(event instanceof ProviderChatEvent.ProbeSignal))
                     .containsExactly(
                             new ProviderChatEvent.TextDelta("跨片"),
                             new ProviderChatEvent.TextDelta("同"),
@@ -134,6 +141,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
+                    .filteredOn(event -> !(event instanceof ProviderChatEvent.ProbeSignal))
                     .containsExactly(
                             new ProviderChatEvent.ToolCallDelta(
                                     "call-1", 0, "search", "{\"q\":"),
@@ -163,9 +171,14 @@ class OpenAiCompatibleStreamingChatProviderTests {
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
-                    .containsExactly(
-                            new ProviderChatEvent.TextDelta("继续"),
-                            new ProviderChatEvent.Completed(ChatFinishReason.STOP, null));
+                    .satisfiesExactly(
+                            event -> assertThat(event)
+                                    .isInstanceOf(ProviderChatEvent.ProbeSignal.class),
+                            event -> assertThat(event)
+                                    .isEqualTo(new ProviderChatEvent.TextDelta("继续")),
+                            event -> assertThat(event)
+                                    .isEqualTo(new ProviderChatEvent.Completed(
+                                            ChatFinishReason.STOP, null)));
         } finally {
             server.disposeNow();
         }
