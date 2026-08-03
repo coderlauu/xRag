@@ -1,0 +1,312 @@
+# 测试用例矩阵：大模型调度引擎
+
+- `status`: approved（Step D 已开始按工单执行；整表尚未完成，2026-08-02）
+- `date`: 2026-07-28
+- `prd`: [大模型调度引擎 PRD](../../docs/prd/2026-07-28-model-scheduling-prd.md)
+- `architecture`: [技术方案](architecture.md)
+- `api`: [API 契约](api.md)
+
+## 1. 测试层次
+
+| 层次 | 依赖 | 用途 |
+|---|---|---|
+| Unit | 无 IO、可控 Clock/Jitter | 配置校验、路由、预算、错误策略、状态机 |
+| Provider contract | 本地 Reactor Netty HTTP server | HTTP 状态、SSE framing、取消、断流和畸形响应 |
+| Integration | 真实 Postgres + Spring context | Migration、异步诊断、查询、保留和兼容注入 |
+| Browser | 本地前后端 + 可编程假 Provider | Trace Console 状态组合与交互 |
+| Manual real-provider | 显式通用计费 Key | 官方能力、限制、请求 ID、费用与限流准入 |
+
+所有时间、jitter、sleeper、Provider 结果和 breaker registry 必须可替换。自动化测试不得真实睡 30 秒、等待 breaker 自然恢复或调用收费 API。
+
+状态标记：
+
+- `A`：应自动化；
+- `M`：必须手工执行并记录证据；
+- `A+M`：自动化契约 + 一次真实环境核验。
+
+## 2. CFG — 配置与模型目录
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| CFG-01 | 合法 Provider + deployment 配置 | 生成不可变 catalog 与脱敏 fingerprint | A |
+| CFG-02 | 重复 Provider ID | 启动失败并指明重复 ID | A |
+| CFG-03 | 重复 deployment ID | 启动失败 | A |
+| CFG-04 | deployment 引用不存在 Provider | 启动失败 | A |
+| CFG-05 | Embedding 缺 dimensions/batch limit | 启动失败 | A |
+| CFG-06 | 同一 Embedding identity 的等价部署维度不同 | 启动失败，不能形成候选 | A |
+| CFG-07 | 同一 Embedding identity 的预处理标识不同 | 启动失败 | A |
+| CFG-08 | 同一 capability+tier 有两个 default | 启动失败 | A |
+| CFG-09 | 密钥属性不存在 | 应用启动；Provider=`UNCONFIGURED` | A |
+| CFG-10 | 读取 overview | 不出现密钥值、Authorization 或 secret property 解析结果 | A |
+| CFG-11 | 只改密钥值 | 脱敏 config fingerprint 不变化 | A |
+| CFG-12 | 改候选优先级 | config fingerprint 变化 | A |
+| CFG-13 | 配置中把 Noop 登记为 deployment | 启动失败 | A |
+| CFG-14 | 负超时/attempt/缓冲上限 | 启动失败并指出字段 | A |
+| CFG-15 | 等价 Embedding deployment 的 artifact/version 不一致 | 启动失败，不能共享 identity | A |
+| CFG-16 | 无精确制品证据的 legacy identity 配置多个 deployment | 启动失败；`legacy-single-deployment` 只能绑定一个 | A |
+| CFG-17 | 非 legacy Embedding identity 缺 artifact-version 或 preprocessing fingerprint | 启动失败并指出缺失证据字段 | A |
+
+## 3. RTE — 候选规划与预算
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| RTE-01 | BALANCED Chat 首选可用 | 首选排序第 0 | A |
+| RTE-02 | 相同输入和快照重复规划 100 次 | 候选顺序完全相同 | A |
+| RTE-03 | 一个 default、多个 priority | default 优先，再 priority，再 deployment ID | A |
+| RTE-04 | priority 相同 | deployment ID 字典序稳定打破平局 | A |
+| RTE-05 | capability 不支持 | `CAPABILITY_UNSUPPORTED` | A |
+| RTE-06 | ChatCommand 的 tools、assistant tool-call 历史或 tool-result 消息任一存在，候选不支持工具 | 从命令结构推导 `TOOL_CALLING`，候选以 `FEATURE_UNSUPPORTED` 过滤；公共命令没有可绕过该过滤的布尔开关 | A |
+| RTE-07 | tier 不匹配 | `SERVICE_TIER_MISMATCH`，不跨等级 | A |
+| RTE-08 | 数据地域不匹配 | `DATA_BOUNDARY_MISMATCH` | A |
+| RTE-09 | Provider 白名单不匹配 | `CALLER_CONSTRAINT_MISMATCH` | A |
+| RTE-10 | breaker 规划快照 OPEN | `BREAKER_OPEN` | A |
+| RTE-11 | 规划后首选 HALF_OPEN 许可被抢，次选成功 | 首选不发 HTTP、不计 attempt；次选产生唯一 `FAILOVER` attempt，attemptCount=1、failoverCount=1 | A |
+| RTE-12 | 所有 deployment 被过滤 | `NO_ELIGIBLE_MODEL`，attempt=0 | A |
+| RTE-13 | 调用中更换配置对象 | 已生成 RoutePlan 不变化 | A |
+| RTE-14 | 预算不足以开始下一 attempt | 停止恢复并记录 `BUDGET_INSUFFICIENT` | A |
+| RTE-15 | 调用方 timeout 高于模块上限 | 截到上限或构造时拒绝，不能放宽 | A |
+| RTE-16 | Embedding 70 个正常批次 | 不受每 work unit 三次上限误伤 | A |
+| RTE-17 | 等价 Embedding 候选 batch limit 分别为 10/6，输入 13 条 | RoutePlan 按最小值切为 6/6/1，每批可原样切任一候选 | A |
+| RTE-18 | 调用中 wall clock 前后跳变 | `Deadline.remaining()` 只随 monotonic ticker 递减 | A |
+| RTE-19 | retry wait 与 failover 连续发生 | 两者消费同一 Deadline，不重置或派生新时钟 | A |
+
+## 4. SYN — 同步执行、错误与故障转移
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| SYN-01 | 单候选 Chat 200 | 1 attempt，返回类型化 `AssistantMessage`、`ChatFinishReason`、完整 `TokenUsage` 与实际 deployment | A |
+| SYN-02 | 首选 503、次选 200 | failover=1，最终成功，中间失败保留 | A |
+| SYN-03 | 首选网络断开、原地重试成功 | retry=1，failover=0 | A |
+| SYN-04 | 首选连续两次 5xx | 不再原地重试，转下一候选 | A |
+| SYN-05 | Provider 返回 400 | `UPSTREAM_REQUEST_REJECTED → INVALID_REQUEST + RESPONSE_HEADERS`，terminationReason=NON_RECOVERABLE_ERROR，不重试/切换/计 breaker | A |
+| SYN-06 | 401 | error=AUTHENTICATION、terminationReason=NON_RECOVERABLE_ERROR，不尝试其他候选 | A |
+| SYN-07 | 403 | error=PERMISSION、terminationReason=NON_RECOVERABLE_ERROR | A |
+| SYN-08 | 429 + 可接受 Retry-After | 在同 work unit 总预算内等待后重试 | A |
+| SYN-09 | 429 + Retry-After 超 5s | 不等待、不在原候选 jitter；只切独立 quotaDomain，否则 error=RATE_LIMITED、terminationReason=ALL_CANDIDATES_EXHAUSTED | A |
+| SYN-10 | 429 + 独立 quotaDomain 候选 | 切换并记录决定 | A |
+| SYN-11 | 429 + 同 quotaDomain 候选 | 不切换；error=RATE_LIMITED、terminationReason=ALL_CANDIDATES_EXHAUSTED | A |
+| SYN-12 | 非法 Retry-After | 不抛解析异常、不等待、不在原候选 jitter；无独立 quotaDomain 时 error=RATE_LIMITED、terminationReason=ALL_CANDIDATES_EXHAUSTED | A |
+| SYN-13 | 三次可恢复的 503 attempt 都失败 | 最终 error=`SERVER_ERROR + RESPONSE_HEADERS`、terminationReason=ALL_CANDIDATES_EXHAUSTED，并保留全部 attempts | A |
+| SYN-14 | 第二次 attempt 前取消 | 不发第二个 HTTP，不计 breaker | A |
+| SYN-15 | 同步调用线程已中断 | abort 当前底层 request、停止恢复并恢复 interrupted 标志 | A |
+| SYN-16 | 诊断 recorder 抛异常 | 主调用结果不变 | A |
+| SYN-17 | Provider 原始 body 含 secret/prompt | 跨 seam 的异常与诊断均不含原文 | A |
+| SYN-18 | 429 缺少 Retry-After | 不在原候选重试；只切独立 quotaDomain，否则 error=RATE_LIMITED、terminationReason=ALL_CANDIDATES_EXHAUSTED | A |
+| SYN-19 | 穷举全部 `AttemptFailureType` | 每个值只映射一个 `ModelErrorType + FailurePhase`，terminationReason 独立且动作与架构表一致 | A |
+| SYN-20 | 调用参数非法 | attempt=0、error/terminationReason 均为 INVALID_REQUEST，不计 breaker、不尝试候选 | A |
+| SYN-21 | attempt 开始时 Deadline 仅剩 700ms、配置 cap 为 3s | transport timeout 均不超过 700ms；到期 abort 请求，error=TIMEOUT、phase=TOTAL_DEADLINE、terminationReason=DEADLINE_EXCEEDED | A |
+| SYN-22 | CancellationToken 在同步 HTTP 阻塞期间触发 | 一次性回调主动 abort request，注销回调，以 CALLER_CANCELED 结束且不再 retry/failover | A |
+| SYN-23 | 取消回调与同步响应完成竞态 | 只能有一个终态，breaker 许可只结算一次 | A |
+| SYN-24 | 有限响应已收到 headers、body 读取停滞 | `RESPONSE_BODY_TIMEOUT → TIMEOUT + UPSTREAM_RESPONSE`，不误记为协议校验失败 | A |
+| SYN-25 | token 在 attempt 注册取消回调前已经取消 | 注册时回调立即且只执行一次，不发 HTTP；registration 关闭幂等 | A |
+| SYN-26 | Provider 200 但有限响应畸形 | `PROVIDER_RESPONSE_INVALID → PROTOCOL_CONTRACT + PROVIDER_RESPONSE_VALIDATION`，计 breaker 并可切候选 | A |
+| SYN-27 | 有限响应持续滴入字节、从不触发 socket idle timeout | monotonic 总 Deadline 的绝对定时器仍按时 abort，终态只结算一次 | A |
+| SYN-28 | 已收到有限响应 headers，body 中途 reset | `RESPONSE_BODY_FAILED → NETWORK + UPSTREAM_RESPONSE`，按预算至多原地重试一次并可切候选 | A |
+| SYN-29 | Chat 消息、tool call 或 tool schema 违反公开形状约束 | attempt=0，`INVALID_REQUEST`；不把不完整参数透传给 Provider | A |
+| SYN-30 | Provider 返回未知 finish reason，或只返回部分 usage | finish reason 归一为 `UNKNOWN`；usage 信息不完整时整个 `TokenUsage=null`，不用 0 补齐 | A |
+
+## 5. CBR — 熔断
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| CBR-01 | 低于 minimum calls 的失败 | 保持 CLOSED | A |
+| CBR-02 | 窗口达到 50% 失败率 | CLOSED → OPEN | A |
+| CBR-03 | 慢调用达到阈值 | CLOSED → OPEN，原因 SLOW_CALL_RATE | A |
+| CBR-04 | OPEN 未到等待时间 | 许可拒绝 | A |
+| CBR-05 | Clock 推进 30s | OPEN → HALF_OPEN | A |
+| CBR-06 | HALF_OPEN 两个许可已占 | 第三个调用不发 HTTP | A |
+| CBR-07 | HALF_OPEN 探测全部成功 | → CLOSED | A |
+| CBR-08 | HALF_OPEN 任一失败达到阈值 | → OPEN | A |
+| CBR-09 | 400/401/403/取消 | 不进入失败率统计 | A |
+| CBR-10 | 429 | rate-limited 计数增加，普通失败率不增加 | A |
+| CBR-11 | CHAT breaker OPEN | 同 deployment EMBEDDING breaker 不受影响 | A |
+| CBR-12 | 应用 registry 重建 | 状态从 CLOSED 开始，API 公开重启语义 | A |
+| CBR-13 | 状态变化 | transition 只含稳定原因，无错误正文 | A |
+| CBR-14 | 取消 HALF_OPEN 流 | 许可释放且不记成功/失败 | A |
+| CBR-15 | Provider 200 但响应违反协议 | `PROVIDER_RESPONSE_INVALID` 进入普通失败率；调用方 INVALID_REQUEST 不进入 | A |
+
+## 6. STR — SSE、探测、提交与取消
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| STR-01 | LF 分隔 SSE | 正确解析 | A |
+| STR-02 | CRLF 与单 CR 分隔 | 正确解析 | A |
+| STR-03 | 多行 `data:` | 合并为一个事件 data | A |
+| STR-04 | 注释/心跳事件 | 不算首个有效业务块 | A |
+| STR-05 | JSON 跨 TCP chunk | 只在完整 SSE event 后解析 | A |
+| STR-06 | 一个 TCP chunk 含多个事件 | 逐事件输出 | A |
+| STR-07 | 未知合法事件 | 跳过并记录类型，不打断流 | A |
+| STR-08 | 畸形 JSON | 提交前为 `PROTOCOL_CONTRACT + PROVIDER_RESPONSE_VALIDATION`，计 breaker 并可换候选 | A |
+| STR-09 | 单个 SSE event 超 64KiB | 当前 attempt 为 Provider 协议失败，提交前可切换且内存有界 | A |
+| STR-10 | 32 个非业务事件仍无有效块 | 探测缓冲到上限后失败 | A |
+| STR-11 | 只有空 delta 后 DONE | attempt outcome=EMPTY_STREAM；映射 `PROVIDER_RESPONSE_INVALID → PROTOCOL_CONTRACT + PROVIDER_RESPONSE_VALIDATION`，提交前可切换 | A |
+| STR-12 | 首个合法事件超时 | 提交前切换 | A |
+| STR-13 | 有 metadata 但首有效块超时 | metadata 不提交，切换候选 | A |
+| STR-14 | 首选提交前 503、次选成功 | 下游只出现次选 `STREAM_STARTED` 和内容 | A |
+| STR-15 | 收到首有效文本 | `STREAM_STARTED` 先于 TextDelta，且只发一次 | A |
+| STR-16 | 首有效内容是工具参数增量 | 同样形成提交点；`ToolCallDelta.index` 从 0 开始，同一 index 的 callId/name 稳定，fragment 按上游顺序传递 | A |
+| STR-17 | 首有效内容是拒答增量 | 同样形成提交点 | A |
+| STR-18 | 提交后上游 reset | error=STREAM_INTERRUPTED、phase=UPSTREAM_STREAM、terminationReason=STREAM_INTERRUPTED_AFTER_COMMIT；保留内容且只有一个 StreamFailed | A |
+| STR-19 | 提交后合法 Provider error SSE event | error=SERVER_ERROR、phase=UPSTREAM_STREAM、terminationReason=STREAM_INTERRUPTED_AFTER_COMMIT；不切换、计 breaker，只发一个 StreamFailed | A |
+| STR-20 | 正常 DONE | 唯一 `Completed(ChatFinishReason, TokenUsage)`，finish reason 已归一，无 StreamFailed | A |
+| STR-21 | usage 缺失 | 正常完成，usage=null | A |
+| STR-22 | 提交前 subscription cancel | 关闭上游，不 retry/failover，不计 breaker | A |
+| STR-23 | 提交后 subscription cancel | 关闭上游，不发伪造失败；call outcome=CANCELED、termination=CALLER_CANCELED、committed=true 且保留唯一贡献 deployment | A |
+| STR-24 | 取消与上游完成竞态 | 只能有一个终态，breaker 只结算一次 | A |
+| STR-25 | 慢下游 | WebClient 遵循 demand、不出现无界 buffer；取消后连接释放 | A |
+| STR-26 | 连接/响应头/首事件/首有效/idle/total 超时 | 分别映射 `CONNECT / RESPONSE_HEADERS / FIRST_UPSTREAM_EVENT / FIRST_MEANINGFUL_CHUNK / STREAM_IDLE / TOTAL_DEADLINE` | A |
+| STR-27 | 第二次订阅同一个 Flux | 立即 `onError(IllegalStateException)`，不新建 logical call、不发第二个 HTTP | A |
+| STR-28 | 所有可恢复候选提交前失败并耗尽 | 零个 ChatStreamEvent，直接 `onError(ModelCallException)` 且 call terminationReason=ALL_CANDIDATES_EXHAUSTED，绝不发送 StreamFailed | A |
+| STR-29 | 提交后失败 | 只发送一个 `StreamFailed(incomplete=true)` 后正常结束 publisher，不追加 Reactor error | A |
+| STR-30 | 对同一个 Flux 使用 Reactor `retry` | 重订阅被单订阅守卫拒绝，不获得新预算、不重复计费 | A |
+| STR-31 | headers 后、首事件前 upstream reset | `NETWORK + FIRST_UPSTREAM_EVENT`，提交前可切候选 | A |
+| STR-32 | metadata 后、首有效块前 upstream reset | `NETWORK + FIRST_MEANINGFUL_CHUNK`，metadata 不下发且可切候选 | A |
+| STR-33 | 提交后出现畸形 Provider 事件 | `StreamFailed(PROTOCOL_CONTRACT, incomplete=true)`，phase=PROVIDER_RESPONSE_VALIDATION，不切候选且计 breaker | A |
+| STR-34 | 提交前合法 Provider error SSE event | `UPSTREAM_ERROR_EVENT → SERVER_ERROR + UPSTREAM_STREAM`，计 breaker 并可切候选 | A |
+| STR-35 | 总 deadline 分别在提交前、提交后到期 | 提交前 onError 且 termination=DEADLINE_EXCEEDED；提交后只发 StreamFailed，termination=STREAM_INTERRUPTED_AFTER_COMMIT；两者均 error=TIMEOUT、phase=TOTAL_DEADLINE | A |
+
+## 7. EMB — Embedding 迁移与不变量
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| EMB-01 | `EmbeddingClient` 公共方法面 | 只有 `embed(EmbeddingCommand) -> EmbeddingResult`；不存在旧方法、裸 String 重载或 default fallback | A |
+| EMB-02 | 显式 identity | 只产生同 identity 候选 | A |
+| EMB-03 | 同维不同 identity | 被 `MODEL_IDENTITY_MISMATCH` 过滤 | A |
+| EMB-04 | 等价 deployment 首选失败 | 只切同 identity deployment | A |
+| EMB-05 | 全部候选 batch limit=10、输入 23 条 | 10/10/3 三批，结果顺序不变 | A |
+| EMB-06 | Provider 返回乱序 index | 按 index 还原 | A |
+| EMB-07 | 重复/越界 index | `PROTOCOL_CONTRACT + PROVIDER_RESPONSE_VALIDATION`，提交前可切换且计 breaker | A |
+| EMB-08 | 返回条数少 | 失败，不写部分向量 | A |
+| EMB-09 | 维度不符 | 失败 | A |
+| EMB-10 | 向量含 NaN/Infinity | 失败 | A |
+| EMB-11 | 中间批次切换等价 deployment | 已完成批次不重算，最终顺序正确；记录全部 contributing deployments | A |
+| EMB-12 | identity 无配置 | 明确 NO_ELIGIBLE，不回退默认模型 | A |
+| EMB-13 | 知识库所有生产调用点 | 都传 `knowledge_base.embedding_model` | A |
+| EMB-14 | 编辑/新增/批量/异步入库 | Provider 调用时 Spring 事务 inactive | A |
+| EMB-15 | Phase 1 全套知识库测试 | 全绿，向量数与分块数不变量不回归 | A |
+| EMB-16 | 本地两个现有 identity | `doubao-embedding-vision` 与 `text-embedding-v3` 不互切 | A+M |
+| EMB-17 | 一个逻辑调用的成功批次来自两个 deployment | 进程内 contributors 按首次贡献去重、mixed=true；持久化 call actual 三字段均为 null、count=2 | A |
+| EMB-18 | 所有批次只使用同一个 deployment | 进程内 contributors.size=1、mixed=false；持久化 call actual 三字段为唯一 deployment、count=1 | A |
+| EMB-19 | legacy identity 无 artifact/preprocessing 等价证据 | 只能使用唯一 deployment；添加备选不会形成 failover | A |
+| EMB-20 | 已有知识库 identity 改绑不同制品 | 拒绝静默改绑，要求显式全量向量重建 | A |
+| EMB-21 | 工单 15 的原子接口替换提交 | 所有生产实现、测试 fake/匿名实现、Bean 和调用点同时更新，编译与 Phase 1 测试全绿 | A |
+| EMB-22 | 知识库生产 Spring context | 所有调用点构造显式 identity command 并注入 RoutedEmbeddingClient | A |
+| EMB-23 | 前一批成功、后一批最终失败 | 不返回部分 vectors；call contributor count=0、mixed=false、actual=null，成功批 attempt 仍在详情 | A |
+| EMB-24 | 前一批成功、完整结果返回前取消 | 不返回部分 vectors；call outcome=CANCELED、contributor count=0、actual=null，已完成批只保留为 attempt 事实 | A |
+
+## 8. RRK — Rerank 与显式降级
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| RRK-01 | 正常真实 Rerank | 按 Provider index 映射稳定 candidate ID | A |
+| RRK-02 | topN=1 | 只返回一条 | A |
+| RRK-03 | candidate ID 重复 | 调用前 INVALID_REQUEST | A |
+| RRK-04 | topN 越界 | 调用前 INVALID_REQUEST | A |
+| RRK-05 | Provider index 重复/越界 | `PROTOCOL_CONTRACT + PROVIDER_RESPONSE_VALIDATION`，可切候选且计 breaker | A |
+| RRK-06 | 目录未声明 Rerank 能力 | Noop 原顺序 top-N，`rerankApplied=false`、reason=`CAPABILITY_NOT_DECLARED` | A |
+| RRK-07 | 所有可恢复候选耗尽 | Noop；reason=`RECOVERABLE_CANDIDATES_EXHAUSTED`，保留失败 attempts | A |
+| RRK-08 | 本应匹配的 Rerank deployment 缺 secret、返回 401/403 或配置错误 | 直接失败，不用 Noop 掩盖；与“目录未声明能力”区分 | A |
+| RRK-09 | 调用方取消 | CANCELED，不用 Noop | A |
+| RRK-10 | Noop | 不产生 Provider attempt、不改变 breaker、score=null；`rerankApplied=false` 与非空 reason 始终成对 | A |
+| RRK-11 | 超过 Provider 文档/token 上限 | 调用前拒绝或按显式策略截断，不静默 | A |
+| RRK-12 | 目录声明 Rerank，但地域/等级/调用方约束下无合格候选 | Noop 原顺序 top-N，reason=`NO_ELIGIBLE_CANDIDATE`；与缺 secret 或非法配置区分 | A |
+
+## 9. DIA — 诊断持久化、隐私与保留
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| DIA-01 | V6 migration | call/candidate/attempt/route-event/breaker-transition 五表、索引、check/FK 全部存在 | A |
+| DIA-02 | 成功调用终态 | call/candidates/attempts/route events 一事务完整写入 | A |
+| DIA-03 | 中间失败后最终成功 | 列表成功，详情仍有失败 attempt | A |
+| DIA-04 | attempt=0 的无候选 | call+candidates 存在，attempts 空 | A |
+| DIA-05 | Rerank Noop | outcome=DEGRADED，rerankApplied=false，degradedReason 是三种稳定枚举之一；成功和失败/取消的交叉字段约束同样生效 | A |
+| DIA-06 | 流提交后中断 | outcome=STREAM_FAILED，committed=true | A |
+| DIA-07 | 队列 offer 满 | 调用线程不阻塞，dropped 计数增加 | A |
+| DIA-08 | 数据库不可用 | 主调用结果不变，writer 告警/计数 | A |
+| DIA-09 | writer 子表插入失败 | 整条诊断事务回滚，无半条详情 | A |
+| DIA-10 | 原始请求/响应/工具参数含标记串 | 所有诊断表、API 和日志都找不到标记串 | A |
+| DIA-11 | 原始 error body 含凭据 | 只保存稳定 error type/status | A |
+| DIA-12 | Provider request ID | 入库前已脱敏，列表/详情相同 | A |
+| DIA-13 | 8 天前数据 | 清理 logical call 并 cascade 子表 | A |
+| DIA-14 | 10,001 条 7 天内数据 | 只保留最新 10,000 条 | A |
+| DIA-15 | logical call 已按 10,000 条上限清理 | 独立 transition 仍保留到 7 天 | A |
+| DIA-16 | 清理一次超过 1,000 条 | 分批执行，不开单个大删除事务 | A |
+| DIA-17 | 应用优雅停止 | 最多等待 2s flush，不无限停机 | A |
+| DIA-18 | 进程在调用中崩溃 | 允许缺少在途记录；重启后页面不伪造 | M |
+| DIA-19 | HALF_OPEN 许可被抢后选择下一候选 | 持久化有序 `BREAKER_PERMISSION_REJECTED` 与 `FAILOVER_SELECTED` route events，attempt 不含伪 HTTP | A |
+| DIA-20 | retry wait 后总预算耗尽 | `RETRY_SCHEDULED / RETRY_WAIT_STARTED / BUDGET_EXHAUSTED / CALL_TERMINATED` 顺序与时间真实，不由 attempt 间隙推导 | A |
+| DIA-21 | 各阶段失败完成态 | attempt/call 保存架构映射表中的稳定 `ModelErrorType + FailurePhase` | A |
+
+## 10. API/UI — 诊断接口与 Trace Console
+
+| ID | 场景 | 预期 | 类型 |
+|---|---|---|---|
+| API-01 | overview 无 Provider | 返回空 deployments/breakers，非 500 | A |
+| API-02 | calls 默认查询 | 最近 24h、page1、size20、倒序 | A |
+| API-03 | capability/outcome/tier/provider 联合筛选 | AND 语义、total 正确 | A |
+| API-04 | requestId 精确查内部或脱敏 ID | 返回匹配项，不做模糊 | A |
+| API-05 | 时间跨度超过 7 天 | 400 INVALID_FILTER | A |
+| API-06 | size>100 | 截到 100，与项目分页风格一致 | A |
+| API-07 | 不存在/已清理 call | 404 稳定错误体 | A |
+| API-08 | 详情 | 候选与 attempt 顺序稳定、能力详情正确 | A |
+| API-09 | `failoverOccurred=true/false` | 分别严格匹配 failoverCount>0/=0，支持切换摘要精确下钻 | A |
+| API-10 | `outcome=FAILED&outcome=STREAM_FAILED` | 同字段 OR、与其他筛选 AND，覆盖失败/流中断摘要下钻 | A |
+| API-11 | provider 筛选命中失败首选或 mixed Embedding contributor | 通过 attempt exists 返回调用，不依赖调用级 actual 单值 | A |
+| UI-01 | A 双栏宽屏 | 左列表、右固定详情、顶部紧凑状态条 | M |
+| UI-02 | 960px/720px 响应式 | 抽屉/卡片，无关键字段丢失 | M |
+| UI-03 | 六个原型场景 | 成功、同步切换、提交前切换、提交后中断、OPEN、Noop 全覆盖 | M |
+| UI-04 | 筛选/视图 URL 同步 | 刷新后筛选保留；选中详情不承诺深链 | A+M |
+| UI-05 | overview 30s 轮询 | 可见时刷新、隐藏暂停、不重叠 | A+M |
+| UI-06 | 刷新失败 | 保留旧数据并显示可能过期 | M |
+| UI-07 | 键盘与 Escape | 行可聚焦打开，关闭后焦点返回 | M |
+| UI-08 | 隐私 | 页面无正文、原始错误、完整 Provider request ID 或 secret；稳定 providerId 正常展示 | A+M |
+| UI-09 | 点击可用候选/OPEN/故障转移/失败与流中断四个摘要 | 前两者精确过滤 overview 视图；后两者分别请求 `failoverOccurred=true` 与 `outcome=FAILED&outcome=STREAM_FAILED`，不用当前页近似过滤 | A+M |
+| UI-10 | dropped/write-failure 任一进程内计数大于 0 | 显示“部分调用诊断可能缺失”及两个计数，不把 Provider 或主调用标成失败 | A+M |
+
+## 11. REAL — 真实 Provider 准入
+
+以下只在项目所有者提供通用按量计费 Key 后执行；默认 CI 必须 skip，并在日志明确写 `SKIPPED: missing DASHSCOPE_API_KEY`。
+
+| ID | 场景 | 证据与通过条件 | 类型 |
+|---|---|---|---|
+| REAL-01 | 固定版本 Chat | 短请求成功，记录实际模型、脱敏 request ID、usage | M |
+| REAL-02 | 固定版本流式 Chat | SSE 增量、取消、usage 可缺失行为与契约一致 | M |
+| REAL-03 | `text-embedding-v3/v4` 1024维 | 批次上限、index、维度和价格快照已核对 | M |
+| REAL-04 | `qwen3-rerank` | index/score/top-N；500 文档与 token 上限来自官方证据 | M |
+| REAL-05 | 人工制造或观察 429 | Retry-After/错误码/request ID 脱敏行为已记录；不为制造 429 产生失控费用 | M |
+| REAL-06 | 凭据检查 | Key 是通用 `sk-...`，不是 Coding Plan/工具环境 token | M |
+| REAL-07 | 费用检查 | 每能力不超 20 次短调用，控制台费用告警已开启 | M |
+| REAL-08 | 能力矩阵 | 只把实际通过的能力加入 `verifiedCapabilities` | M |
+
+## 12. PRD 验收标准追溯
+
+| PRD AC | 主要用例 |
+|---|---|
+| AC-01 | RTE-01、SYN-01 |
+| AC-02 | RTE-05、API-08 |
+| AC-03 | SYN-02 |
+| AC-04 | SYN-05、SYN-06 |
+| AC-05 | SYN-08~SYN-11 |
+| AC-06 | CBR-02、RTE-10 |
+| AC-07 | CBR-06 |
+| AC-08 | STR-12~STR-15 |
+| AC-09 | STR-18、DIA-06 |
+| AC-10 | STR-22~STR-24 |
+| AC-11 | EMB-02~EMB-04 |
+| AC-12 | RRK-06、RRK-10 |
+| AC-13 | SYN-13 |
+| AC-14 | API-08~API-10、UI-01、UI-03、UI-09 |
+| AC-15 | DIA-10~DIA-12、UI-08 |
+| AC-16 | DIA-13、DIA-14 |
+| AC-17 | SYN-16、DIA-07~DIA-09、UI-10 |
+
+## 13. 完成口径
+
+Step E 关闭前：
+
+- 所有 `A` 用例有对应自动化测试且全绿；
+- 所有 `M` 用例记录日期、环境、实际结果和必要截图/日志摘要；
+- 真实 Provider 不支持的能力写成“已验证不支持”，不能标通过；
+- 后端完整 `./mvnw -B verify`、前端 build/lint、整体 `scripts/ci-validate.sh` 通过；
+- 浏览器按 A — Trace Console 走完 UI-01~UI-08；
+- Phase 1 知识库回归必须包含 EMB-13~EMB-16，不能只跑新模块测试。

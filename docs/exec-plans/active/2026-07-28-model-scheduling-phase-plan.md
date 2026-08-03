@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step A complete）
+- `status`: in-progress（Step D 工单 01、02、03、04、06、07、08、09、10、11 done；05、12、14、16、19 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -71,9 +71,11 @@ Phase 2 的核心消费者是 Phase 3 后端，但路由和熔断状态具有明
 - [x] [一手资料复核](../../research/2026-07-28-model-scheduling-primary-source-review.md)。
 - [x] 更新 `learning/ragent-column/INDEX.md`：59/91。
 
-闸门：项目所有者确认学习结论后进入 Step B。
+闸门：项目所有者已于 2026-07-28 确认学习结论，已进入 Step B。
 
 ### Step B — PRD 与界面范围
+
+状态：**complete（2026-07-28）**
 
 先定义调度引擎服务谁、解决什么问题，再讨论实现：
 
@@ -83,17 +85,39 @@ Phase 2 的核心消费者是 Phase 3 后端，但路由和熔断状态具有明
 - 冻结已确认的轻量诊断页字段、保留期、查看权限和脱敏规则。
 - 产出 PRD、界面规格与可点击原型。
 
+已确认产品决策：
+
+- Chat、流式 Chat、Rerank 默认由调度器选模型；Embedding 固定模型身份。
+- 候选范围内的瞬时故障默认自动切换，普通调用方不能逐请求关闭。
+- 服务等级为 `ECONOMY / BALANCED / QUALITY`，默认 `BALANCED`，不跨等级故障转移。
+- 流提交后中断保留部分内容并明确 `STREAM_FAILED`，不混入其他模型。
+- Provider/模型使用文件与环境变量配置，诊断页只读。
+- 诊断记录保留 7 天或最多 10,000 次调用，沿用单用户访问边界且不保存正文。
+
+产出：
+
+- [x] [模型调度引擎 PRD](../../prd/2026-07-28-model-scheduling-prd.md)。
+- [x] [模型调度诊断页界面规格](../../../tech/model-scheduling/ui-spec.md)。
+- [x] [A/B/C 三方案可点击原型](../../../prototype/model-scheduling/index.html)。
+- [x] 项目所有者确认 PRD、界面规格，并选择 A — Trace Console。
+
 闸门：PRD 必须确认；若有界面，原型必须在写前端代码前确认。
 
 ### Step C — 技术方案与执行拆分
 
+状态：**complete（项目所有者已于 2026-08-02 确认）**
+
 产出：
 
-- `tech/model-scheduling/architecture.md`
-- `tech/model-scheduling/data-model.md`
-- `tech/model-scheduling/api.md`
-- 必要的 ADR
-- 分角色任务书、垂直切片工单和测试矩阵
+- [x] [技术方案](../../../tech/model-scheduling/architecture.md)
+- [x] [数据模型](../../../tech/model-scheduling/data-model.md)
+- [x] [API 契约](../../../tech/model-scheduling/api.md)
+- [x] [测试矩阵](../../../tech/model-scheduling/test-matrix.md)
+- [x] [ADR 0003：按能力分离端口](../../adr/0003-separate-model-capability-ports.md)
+- [x] [ADR 0004：WebClient/Reactor 流式运行时](../../adr/0004-reactive-streaming-runtime.md)
+- [x] [ADR 0005：分离配置、熔断运行态与诊断历史](../../adr/0005-separate-model-runtime-state.md)
+- [x] [分角色任务书](2026-07-28-model-scheduling-implementation-lanes.md)
+- [x] [.scratch/model-scheduling 23 张原子工单草案](../../../.scratch/model-scheduling/README.md)
 
 必须在本 Step 决策：
 
@@ -105,21 +129,45 @@ Phase 2 的核心消费者是 Phase 3 后端，但路由和熔断状态具有明
 - Phase 1 `EmbeddingClient` 的兼容迁移路径。
 - 外部模型供应商的条款、限额、费用和测试凭据。
 
-闸门：技术方案及关键取舍经项目所有者确认后进入 Step D。
+当前草案方向：
+
+- 四种能力保持分离业务端口，候选、预算、错误、熔断和诊断由 `com.app.ai` 内部共享。
+- 确定性排序使用“默认候选 → priority → deployment ID”，第一版无随机、权重或学习型路由。
+- 同步有限响应继续使用 `RestClient`；流式使用 `WebClient + Reactor`，应用服务端仍为 MVC/Tomcat。
+- breaker 使用 Resilience4j，按 `provider/deployment/capability` 隔离并保存在当前 JVM。
+- 完成态诊断异步写 PostgreSQL；配置在文件、秘密在环境变量、当前 breaker 在内存。
+- Phase 1 `EmbeddingClient` 继续作为知识模块 seam，但 interface 在单张原子工单中收敛为 `embed(EmbeddingCommand) -> EmbeddingResult`；所有现有实现、Bean、启动校验和知识库调用点同时迁移，不长期保留两套重载。
+- 推荐真实验证使用阿里云百炼通用计费 Key；当前未配置该 Key，只阻塞最终真实 Provider 准入。
+
+Step C.1 评审修订：
+
+- 统一错误分类、恢复动作和流式终态契约。
+- 补齐可持久化的 route event 与 failure phase，使 Trace Console 能还原真实决策时间线。
+- 明确 Embedding 多批次由多个等价 deployment 共同完成时的执行事实，以及单次订阅流契约。
+- 冻结公共 Java 契约：封闭 Chat 消息、工具传输、finish/usage 归一、`ModelCallException` 及 Rerank 降级原因；`TOOL_CALLING` 由命令结构推导，不暴露可绕过过滤的开关。
+- 使诊断 DDL 的 stream/capability、finish reason、Rerank 结果与降级原因约束和公开枚举对齐。
+- 把原 14 张纵向工单重切为 23 张可独立验收的原子工单，修正首批并行与依赖关系，并分开验收隐私审计与诊断故障注入。
+- 一致性验证覆盖 202 条可执行场景，已全部映射到 23 张工单；链接、锚点、JSON 示例、枚举/SQL 闭集和编号连续性均通过检查。
+
+闸门：**已通过（2026-08-02）**。技术文档、测试矩阵和工单拆分已完成一致性复核并获项目所有者确认。
 
 ### Step D — 垂直切片实现
 
-预期按以下能力切片，最终顺序由 Step C 的依赖图确定：
+状态：**in progress（工单 01、02、03、04、06、07、08、09、10、11 已完成；05、12、14、16、19 ready）**
 
-1. Provider/模型/能力配置与只读查询。
-2. 统一调用上下文和同步 Chat 最小链路。
-3. 可解释的路由选择。
-4. 熔断状态机与同步故障转移。
-5. SSE 流式解析、首包探测、取消和超时。
-6. 流式路由与故障转移。
-7. Embedding 迁移并回归 Phase 1 入库。
-8. Rerank 接口与实现。
-9. 诊断记录及经确认的运维页面。
+实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成两批基础切片：
+
+1. 领域词汇、不可变模型目录与配置校验。
+2. 纯诊断 DDL。
+3. 四能力 Provider seam 与可编程假实现。
+4. 完成态诊断快照、异步 writer 与原子落库。
+5. 确定性 RoutePlan、工具能力推导与 Embedding work unit。
+6. 单调 Deadline、attempt 预算与唯一错误动作表。
+7. 单候选同步 Chat、OpenAI-compatible 有限响应 adapter、取消/绝对 deadline 与完成态诊断。
+8. Breaker registry、原子 HALF_OPEN 许可、分类结算、运行快照与异步 transition 持久化。
+9. 同步 Chat 有界原地重试、跨候选故障转移、429 独立配额边界与完整恢复事件。
+
+后续依次解锁 Provider seam 与假实现、诊断 writer、能力最小链路、路由/预算/熔断、同步与流式恢复、Embedding/Rerank、Trace API/UI，以及交付与真实 Provider 准入。工单不按编号机械串行，但不得绕过依赖图。
 
 闸门：浏览器或 API 演示统一入口、选路、熔断和故障转移。
 
@@ -174,6 +222,6 @@ Phase 2 的核心消费者是 Phase 3 后端，但路由和熔断状态具有明
 
 ## 7. Current Node
 
-- `now`: Phase 2 Step A 已完成：8/8 学习稿、一手资料复核、对齐检查点和 59/91 索引已落地；没有修改业务代码。
-- `next`: 项目所有者确认 Step A 学习结论后进入 Step B，先产出 PRD、诊断页界面规格和可点击原型。
-- `decision_needed`: Step B 需要确认调用方选具体模型还是声明能力、自动故障转移边界、流提交后中断语义、配置管理方式，以及诊断记录的保留期/权限/脱敏规则。
+- `now`: Step D 工单 11 已完成；WebClient/Reactor Netty 在保持 Servlet/Tomcat 服务端的前提下打通单 deployment SSE adapter，STR-01~09、事件归一、64KiB 边界、断流与取消传播均已自动化。完整后端验证通过（294 tests，0 failures，2 skipped）。
+- `next`: 工单 05（Overview API）、12（单候选流状态机）、14（Embedding mixed execution）、16（Rerank/Noop）、19（诊断保留）均为 `ready`。
+- `decision_needed`: 无；五张已解锁工单的范围与依赖均已由 Step C 冻结。

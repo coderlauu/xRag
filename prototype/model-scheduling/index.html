@@ -1,0 +1,1432 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>模型调度诊断 · Step B 原型</title>
+  <style>
+    :root {
+      --bg: #f5f7f7;
+      --surface: #ffffff;
+      --surface-2: #f8fafa;
+      --surface-3: #edf2f1;
+      --ink: #132321;
+      --ink-2: #4f625f;
+      --ink-3: #7d8d8a;
+      --line: #dde5e3;
+      --line-strong: #c6d2cf;
+      --accent: #0d7a72;
+      --accent-2: #075d58;
+      --accent-soft: #e4f3f0;
+      --ok: #247451;
+      --ok-bg: #e7f5ed;
+      --warn: #a55f08;
+      --warn-bg: #fff3da;
+      --bad: #b4232a;
+      --bad-bg: #fdebed;
+      --neutral: #64706e;
+      --neutral-bg: #edf0ef;
+      --blue: #2b63a3;
+      --blue-bg: #eaf1fa;
+      --shadow: 0 18px 50px rgba(16, 43, 39, .12);
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 84% -10%, rgba(13,122,114,.07), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+      font: 400 14px/1.55 var(--sans);
+      padding-bottom: 86px;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .muted { color: var(--ink-3); }
+    .subtle { color: var(--ink-2); }
+
+    .app-header {
+      height: 58px;
+      padding: 0 26px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.94);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .brand {
+      font-size: 19px;
+      font-weight: 720;
+      letter-spacing: -.03em;
+    }
+    .main-nav { display: flex; gap: 6px; }
+    .main-nav a {
+      color: var(--ink-2);
+      text-decoration: none;
+      padding: 6px 10px;
+      border-radius: 7px;
+      font-size: 13.5px;
+    }
+    .main-nav a.active {
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-weight: 620;
+    }
+    .proto-mark {
+      margin-left: auto;
+      border: 1px solid #d3b562;
+      color: #7b5b08;
+      background: #fff9e6;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font: 650 10px/1.5 var(--mono);
+      letter-spacing: .06em;
+    }
+
+    .page {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: 24px 26px 40px;
+    }
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+    .page-head h1 {
+      margin: 0 0 5px;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: -.03em;
+    }
+    .page-head p {
+      margin: 0;
+      color: var(--ink-2);
+      font-size: 13.5px;
+    }
+    .head-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .freshness {
+      font: 12px var(--mono);
+      color: var(--ink-3);
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      padding: 6px 11px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+    }
+    .btn:hover { border-color: var(--ink-3); background: var(--surface-2); }
+    .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn.primary:hover { background: var(--accent-2); }
+    .btn.ghost { border-color: transparent; background: transparent; color: var(--accent); }
+    .btn.small { padding: 4px 8px; font-size: 11.5px; }
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      justify-content: center;
+      font-size: 17px;
+    }
+
+    .health-strip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 9px 13px;
+      margin-bottom: 12px;
+      min-height: 42px;
+    }
+    .health-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
+      box-shadow: 0 0 0 4px var(--ok-bg);
+      flex: none;
+    }
+    .health-strip b { font-size: 12.5px; }
+    .health-strip .retention { margin-left: auto; color: var(--ink-3); font-size: 11.5px; }
+
+    .scenario-bar {
+      background: #112824;
+      color: #dbe7e4;
+      border-radius: 10px;
+      padding: 9px 11px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 24px rgba(11,43,37,.1);
+    }
+    .scenario-bar .label {
+      font: 650 10px var(--mono);
+      letter-spacing: .08em;
+      color: #7fa09a;
+      margin: 0 3px;
+    }
+    .scenario-bar button {
+      border: 1px solid #2e4b46;
+      color: #9db2ae;
+      background: #17332e;
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+    .scenario-bar button:hover { border-color: #5a857d; color: white; }
+    .scenario-bar button.active {
+      color: #bff3e9;
+      background: #145f55;
+      border-color: #3b998b;
+    }
+    .scenario-bar .explain {
+      margin-left: auto;
+      color: #7fa09a;
+      font-size: 11.5px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .card-head {
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+    .card-head h2, .card-head h3 {
+      margin: 0;
+      font-size: 13.5px;
+      letter-spacing: -.01em;
+    }
+    .card-head .count {
+      color: var(--ink-3);
+      font: 11px var(--mono);
+    }
+    .card-body { padding: 14px; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .status::before {
+      content: "";
+      width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+    }
+    .status.SUCCESS, .status.CLOSED { color: var(--ok); background: var(--ok-bg); }
+    .status.DEGRADED, .status.HALF_OPEN, .status.TIMEOUT, .status.RATE_LIMITED {
+      color: var(--warn); background: var(--warn-bg);
+    }
+    .status.FAILED, .status.STREAM_FAILED, .status.OPEN { color: var(--bad); background: var(--bad-bg); }
+    .status.CANCELLED, .status.DISABLED, .status.SKIPPED { color: var(--neutral); background: var(--neutral-bg); }
+    .status.RUNNING { color: var(--blue); background: var(--blue-bg); }
+    .status.PLAIN { color: var(--ink-2); background: var(--neutral-bg); }
+
+    .cap {
+      display: inline-flex;
+      padding: 2px 6px;
+      border-radius: 5px;
+      color: var(--ink-2);
+      background: var(--surface-3);
+      font: 10.5px var(--mono);
+      letter-spacing: .02em;
+      white-space: nowrap;
+    }
+    .cap.tier { color: var(--accent); background: var(--accent-soft); }
+
+    .provider-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 9px;
+      margin-bottom: 12px;
+    }
+    .provider-mini {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 10px 11px;
+      min-width: 0;
+    }
+    .provider-mini .top {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      margin-bottom: 6px;
+    }
+    .provider-mini b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .provider-mini .caps { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    .filters {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filters select {
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 5px 24px 5px 8px;
+      font-size: 11.5px;
+    }
+
+    /* Variant A — call-first split console */
+    .trace-layout {
+      display: grid;
+      grid-template-columns: minmax(430px, .88fr) minmax(520px, 1.12fr);
+      gap: 12px;
+      align-items: start;
+    }
+    .call-list { max-height: 690px; overflow: auto; }
+    .call-item {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      padding: 12px 14px;
+      text-align: left;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 92px minmax(0,1fr) auto;
+      gap: 11px;
+      align-items: center;
+    }
+    .call-item:last-child { border-bottom: 0; }
+    .call-item:hover { background: var(--surface-2); }
+    .call-item.selected {
+      background: var(--accent-soft);
+      box-shadow: inset 3px 0 var(--accent);
+    }
+    .call-time { font: 11px var(--mono); color: var(--ink-3); }
+    .call-main { min-width: 0; }
+    .call-title { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; flex-wrap: wrap; }
+    .call-route {
+      color: var(--ink-2);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .call-metrics { text-align: right; }
+    .call-metrics b { display: block; font: 600 11.5px var(--mono); }
+    .call-metrics span { color: var(--ink-3); font-size: 10.5px; }
+    .detail-sticky { position: sticky; top: 76px; max-height: calc(100vh - 105px); overflow: auto; }
+
+    .detail-hero {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .detail-hero .top {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+      margin-bottom: 12px;
+    }
+    .detail-hero h2 { margin: 0 0 4px; font-size: 15px; }
+    .detail-hero p { margin: 0; color: var(--ink-2); font-size: 12px; }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      border-radius: 7px;
+      padding: 8px 9px;
+    }
+    .metric label {
+      display: block;
+      color: var(--ink-3);
+      font: 9.5px var(--mono);
+      letter-spacing: .04em;
+      margin-bottom: 3px;
+    }
+    .metric b { font: 600 11.5px var(--mono); }
+
+    .privacy-note, .warning-note {
+      display: flex;
+      gap: 9px;
+      padding: 9px 11px;
+      margin: 12px 14px 0;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-2);
+      color: var(--ink-2);
+      font-size: 11.5px;
+    }
+    .warning-note {
+      border-color: #efc4c7;
+      background: var(--bad-bg);
+      color: #7e2026;
+    }
+    .detail-section { padding: 14px; border-bottom: 1px solid var(--line); }
+    .detail-section:last-child { border-bottom: 0; }
+    .section-title {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      margin-bottom: 10px;
+    }
+    .section-title h3 {
+      margin: 0;
+      color: var(--ink-2);
+      font: 650 10px var(--mono);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    .candidate {
+      display: grid;
+      grid-template-columns: minmax(120px,1fr) auto minmax(130px,1fr);
+      gap: 9px;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 11.5px;
+    }
+    .candidate:last-child { border-bottom: 0; }
+    .candidate .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+    .candidate .reason { color: var(--ink-3); text-align: right; }
+
+    .timeline { position: relative; margin-left: 5px; }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 55px; top: 7px; bottom: 7px;
+      width: 1px; background: var(--line-strong);
+    }
+    .event {
+      display: grid;
+      grid-template-columns: 47px 16px minmax(0,1fr) auto;
+      gap: 8px;
+      align-items: start;
+      position: relative;
+      padding: 6px 0;
+      font-size: 11.5px;
+    }
+    .event .at { color: var(--ink-3); font: 10.5px var(--mono); text-align: right; padding-top: 2px; }
+    .event .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+      margin: 4px; z-index: 1; box-shadow: 0 0 0 3px var(--surface);
+    }
+    .event.bad .dot { background: var(--bad); }
+    .event.warn .dot { background: var(--warn); }
+    .event .desc b { font-size: 11.5px; }
+    .event .desc small { display: block; color: var(--ink-3); margin-top: 1px; }
+
+    /* Variant B — overview-first operations board */
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 13px 14px;
+    }
+    .kpi label { display: block; color: var(--ink-3); font-size: 11px; margin-bottom: 4px; }
+    .kpi strong { font: 680 22px var(--mono); letter-spacing: -.03em; }
+    .kpi small { color: var(--ink-3); margin-left: 6px; }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: minmax(620px, 1.55fr) minmax(300px, .75fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .matrix-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      padding: 9px 11px;
+      color: var(--ink-3);
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+      font: 600 9.5px var(--mono);
+      letter-spacing: .05em;
+      white-space: nowrap;
+    }
+    td {
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--line);
+      font-size: 11.5px;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: var(--surface-2); }
+    td.numeric { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .provider-cell b { display: block; font-size: 11.5px; }
+    .provider-cell span { display: block; color: var(--ink-3); font: 10px var(--mono); }
+    .incident-list { padding: 3px 13px 9px; }
+    .incident {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      padding: 11px 0;
+      text-align: left;
+      cursor: pointer;
+    }
+    .incident:last-child { border-bottom: 0; }
+    .incident:hover b { color: var(--accent); }
+    .incident .when { color: var(--ink-3); font: 10px var(--mono); margin-bottom: 3px; }
+    .incident b { display: block; font-size: 11.5px; margin-bottom: 2px; }
+    .incident p { margin: 0; color: var(--ink-2); font-size: 10.5px; }
+    .calls-table tr { cursor: pointer; }
+    .calls-table tr.selected { background: var(--accent-soft); }
+
+    .scrim {
+      position: fixed;
+      inset: 0;
+      background: rgba(12,25,23,.42);
+      z-index: 60;
+    }
+    .drawer {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: min(610px, 95vw);
+      background: var(--surface);
+      z-index: 61;
+      box-shadow: var(--shadow);
+      overflow: auto;
+      border-left: 1px solid var(--line);
+    }
+    .drawer-close {
+      position: sticky;
+      top: 0;
+      display: flex;
+      justify-content: flex-end;
+      padding: 9px;
+      background: rgba(255,255,255,.95);
+      border-bottom: 1px solid var(--line);
+      z-index: 2;
+    }
+
+    /* Variant C — route-centric capability map */
+    .route-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(320px, .65fr);
+      gap: 12px;
+      align-items: start;
+    }
+    .cap-tabs {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .cap-tabs button {
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      border-radius: 7px;
+      padding: 5px 9px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .cap-tabs button.active {
+      color: var(--accent);
+      border-color: rgba(13,122,114,.4);
+      background: var(--accent-soft);
+    }
+    .tier-map {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(190px, 1fr));
+      gap: 10px;
+      padding: 14px;
+      min-height: 430px;
+      background:
+        linear-gradient(var(--surface-2), var(--surface-2)) padding-box,
+        repeating-linear-gradient(90deg, transparent 0 24px, rgba(13,122,114,.035) 25px) border-box;
+    }
+    .tier-lane {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255,255,255,.76);
+      padding: 10px;
+    }
+    .tier-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    .tier-head b { font: 650 10.5px var(--mono); color: var(--accent); }
+    .tier-head span { font-size: 10px; color: var(--ink-3); }
+    .route-node {
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 9px;
+      margin-bottom: 22px;
+      position: relative;
+      cursor: pointer;
+    }
+    .route-node:last-child { margin-bottom: 0; }
+    .route-node:not(:last-child)::after {
+      content: "↓";
+      position: absolute;
+      bottom: -19px;
+      left: 50%;
+      color: var(--ink-3);
+      font: 13px var(--mono);
+    }
+    .route-node.filtered { opacity: .52; border-style: dashed; }
+    .route-node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .route-node .rank { color: var(--ink-3); font: 9px var(--mono); margin-bottom: 3px; }
+    .route-node b { display: block; font-size: 11.5px; margin-bottom: 5px; }
+    .route-node .node-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .route-node .why { font-size: 9.5px; color: var(--ink-3); }
+    .event-stream { max-height: 590px; overflow: auto; padding: 4px 13px 10px; }
+    .stream-item {
+      width: 100%;
+      border: 0;
+      border-left: 2px solid var(--line-strong);
+      background: transparent;
+      padding: 10px 0 10px 11px;
+      text-align: left;
+      cursor: pointer;
+      position: relative;
+    }
+    .stream-item::before {
+      content: "";
+      position: absolute;
+      left: -5px; top: 16px;
+      width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong);
+    }
+    .stream-item.selected { border-left-color: var(--accent); background: var(--accent-soft); }
+    .stream-item.selected::before { background: var(--accent); }
+    .stream-item .when { color: var(--ink-3); font: 9.5px var(--mono); }
+    .stream-item b { display: block; margin: 2px 0; font-size: 11.5px; }
+    .stream-item span { color: var(--ink-2); font-size: 10.5px; }
+    .route-detail {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 12px;
+    }
+    .route-summary {
+      padding: 14px;
+    }
+    .route-summary h3 { margin: 0 0 8px; font-size: 14px; }
+    .route-summary p { margin: 0 0 12px; color: var(--ink-2); font-size: 11.5px; }
+
+    .variant-switcher {
+      position: fixed;
+      z-index: 80;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #38514d;
+      border-radius: 999px;
+      background: #102522;
+      color: #e9f2f0;
+      padding: 7px 9px;
+      box-shadow: 0 10px 40px rgba(8, 28, 24, .28);
+    }
+    .variant-switcher button {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1px solid #38514d;
+      background: #17332e;
+      color: white;
+      cursor: pointer;
+      font-size: 17px;
+    }
+    .variant-switcher button:hover { border-color: #64a79b; background: #1f453e; }
+    .variant-label {
+      min-width: 220px;
+      text-align: center;
+    }
+    .variant-label b { display: block; font-size: 11.5px; }
+    .variant-label span { display: block; color: #86a29d; font: 9.5px var(--mono); }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 88px;
+      background: #102522;
+      color: white;
+      border-radius: 7px;
+      padding: 8px 11px;
+      font-size: 11.5px;
+      z-index: 90;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(7px);
+      pointer-events: none;
+      transition: .18s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1080px) {
+      .trace-layout, .route-shell { grid-template-columns: 1fr; }
+      .detail-sticky { position: static; max-height: none; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .provider-strip { grid-template-columns: repeat(2, 1fr); }
+      .route-detail { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .app-header { padding: 0 14px; gap: 12px; }
+      .main-nav a { padding: 5px 7px; }
+      .proto-mark { display: none; }
+      .page { padding: 18px 13px 34px; }
+      .page-head { flex-direction: column; }
+      .head-actions { justify-content: flex-start; }
+      .scenario-bar .explain { display: none; }
+      .provider-strip, .kpis { grid-template-columns: repeat(2, 1fr); }
+      .tier-map { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: repeat(2,1fr); }
+      .call-item { grid-template-columns: 76px minmax(0,1fr); }
+      .call-metrics { display: none; }
+      .variant-label { min-width: 170px; }
+    }
+    @media (max-width: 480px) {
+      .provider-strip, .kpis { grid-template-columns: 1fr; }
+      .main-nav a:first-child { display: none; }
+      .health-strip .retention { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    /*
+     * PROTOTYPE — three variants of the existing /diagnostics page,
+     * switchable via ?variant=A|B|C and a floating bottom bar.
+     * This file uses static in-memory data and must not be promoted directly.
+     */
+    const variantMeta = {
+      A: { name: "Trace Console", hint: "调用优先 · 已选定" },
+      B: { name: "Operations Overview", hint: "运行态优先" },
+      C: { name: "Route Map", hint: "候选关系优先" }
+    };
+
+    const scenarioMeta = {
+      success: { label: "正常成功", explain: "首选模型一次完成" },
+      failover: { label: "同步切换", explain: "5xx 后切换同等级候选" },
+      precommit: { label: "提交前切换", explain: "首个有效块超时，缓冲丢弃后切换" },
+      streamfail: { label: "提交后中断", explain: "保留部分内容，不再混入其他模型" },
+      breaker: { label: "熔断 OPEN", explain: "候选被熔断过滤，最终耗尽" },
+      rerank: { label: "Rerank Noop", explain: "显式降级，保持原召回顺序" }
+    };
+
+    const calls = [
+      {
+        id: "call-normal", scenario: "success", time: "18:42:16", outcome: "SUCCESS",
+        capability: "CHAT", tier: "BALANCED", route: "ark / qwen-plus",
+        process: "1 attempt", total: "1.84 s", firstChunk: "—", requestId: "req_7f31…e902",
+        title: "普通问答调用",
+        summary: "首选候选一次完成，没有重试或故障转移。",
+        candidates: [
+          ["ark / qwen-plus", "进入候选链", "排序第 1"],
+          ["siliconflow / qwen2.5-72b", "进入候选链", "排序第 2"],
+          ["local / qwen2.5", "已过滤", "服务等级不匹配"]
+        ],
+        metrics: ["44 ms", "—", "—", "1.84 s"],
+        events: [
+          ["0 ms", "路由完成", "2 个合格候选", "ok"],
+          ["13 ms", "Attempt #1 开始", "ark / qwen-plus · CLOSED", "ok"],
+          ["1.84 s", "调用完成", "实际模型 qwen-plus", "ok"]
+        ]
+      },
+      {
+        id: "call-failover", scenario: "failover", time: "18:38:02", outcome: "SUCCESS",
+        capability: "CHAT", tier: "QUALITY", route: "siliconflow / qwen2.5-72b",
+        process: "切换 1 次", total: "3.84 s", firstChunk: "—", requestId: "req_1ac8…442d",
+        title: "高质量问答调用",
+        summary: "首选模型返回 503，系统在同一 QUALITY 候选链内切换后成功。",
+        candidates: [
+          ["ark / qwen-max", "进入候选链", "排序第 1 · 已失败"],
+          ["siliconflow / qwen2.5-72b", "进入候选链", "排序第 2 · 最终成功"],
+          ["local / qwen2.5", "已过滤", "服务等级不匹配"]
+        ],
+        metrics: ["31 ms", "—", "—", "3.84 s"],
+        events: [
+          ["0 ms", "路由完成", "2 个 QUALITY 候选", "ok"],
+          ["18 ms", "Attempt #1 开始", "ark / qwen-max · CLOSED", "ok"],
+          ["641 ms", "Attempt #1 失败", "SERVER_ERROR · HTTP 503", "bad"],
+          ["647 ms", "故障转移", "切换到候选 #2", "warn"],
+          ["661 ms", "Attempt #2 开始", "siliconflow / qwen2.5-72b", "ok"],
+          ["3.84 s", "调用完成", "最终成功 · 切换 1 次", "ok"]
+        ]
+      },
+      {
+        id: "call-precommit", scenario: "precommit", time: "18:31:47", outcome: "SUCCESS",
+        capability: "STREAM_CHAT", tier: "QUALITY", route: "siliconflow / qwen2.5-72b",
+        process: "提交前切换", total: "6.12 s", firstChunk: "1.20 s", requestId: "req_63bd…81ae",
+        title: "流式高质量回答",
+        summary: "首选模型在总预算内没有产生有效业务块；探测缓冲未提交，切换后只输出第二个模型的内容。",
+        candidates: [
+          ["local / qwen2.5-72b", "进入候选链", "排序第 1 · 首块超时"],
+          ["siliconflow / qwen2.5-72b", "进入候选链", "排序第 2 · 最终成功"],
+          ["ark / qwen-plus", "已过滤", "服务等级不匹配"]
+        ],
+        metrics: ["92 ms", "1.20 s", "1.22 s", "6.12 s"],
+        events: [
+          ["0 ms", "路由完成", "2 个 STREAM_CHAT 候选", "ok"],
+          ["21 ms", "Attempt #1 开始", "local / qwen2.5-72b", "ok"],
+          ["2.50 s", "首块探测超时", "缓冲未提交，取消上游", "bad"],
+          ["2.53 s", "故障转移", "切换到候选 #2", "warn"],
+          ["2.61 s", "Attempt #2 开始", "siliconflow / qwen2.5-72b", "ok"],
+          ["3.81 s", "首个有效业务块", "1.20 s after attempt #2", "ok"],
+          ["3.83 s", "下游提交", "透明切换边界关闭", "ok"],
+          ["6.12 s", "流正常完成", "只包含候选 #2 内容", "ok"]
+        ]
+      },
+      {
+        id: "call-streamfail", scenario: "streamfail", time: "18:24:09", outcome: "STREAM_FAILED",
+        capability: "STREAM_CHAT", tier: "BALANCED", route: "ark / qwen-plus",
+        process: "提交后中断", total: "5.42 s", firstChunk: "0.83 s", requestId: "req_903f…ca10",
+        title: "流式普通回答",
+        summary: "内容已经交给下游后上游连接中断；保留部分结果并明确终止，没有切换模型。",
+        candidates: [
+          ["ark / qwen-plus", "进入候选链", "排序第 1 · 提交后中断"],
+          ["siliconflow / qwen2.5-72b", "未尝试", "下游已经提交"]
+        ],
+        metrics: ["61 ms", "0.83 s", "0.85 s", "5.42 s"],
+        events: [
+          ["0 ms", "路由完成", "2 个 BALANCED 候选", "ok"],
+          ["17 ms", "Attempt #1 开始", "ark / qwen-plus", "ok"],
+          ["830 ms", "首个有效业务块", "文本增量", "ok"],
+          ["852 ms", "下游提交", "透明切换边界关闭", "ok"],
+          ["5.42 s", "上游连接中断", "NETWORK_ERROR · 已保留部分内容", "bad"],
+          ["5.42 s", "STREAM_FAILED", "未切换其他模型", "bad"]
+        ]
+      },
+      {
+        id: "call-breaker", scenario: "breaker", time: "18:17:33", outcome: "FAILED",
+        capability: "CHAT", tier: "BALANCED", route: "—",
+        process: "候选耗尽", total: "1.28 s", firstChunk: "—", requestId: "req_ea21…79b0",
+        title: "普通问答调用",
+        summary: "首选候选因 OPEN 被过滤，剩余候选失败；系统没有跨等级寻找模型。",
+        candidates: [
+          ["ark / qwen-plus", "已过滤", "熔断 OPEN"],
+          ["siliconflow / qwen2.5-72b", "进入候选链", "HTTP 503"],
+          ["local / qwen2.5", "已过滤", "服务等级不匹配"]
+        ],
+        metrics: ["25 ms", "—", "—", "1.28 s"],
+        events: [
+          ["0 ms", "候选过滤", "ark/qwen-plus · OPEN", "warn"],
+          ["14 ms", "路由完成", "1 个合格候选", "ok"],
+          ["29 ms", "Attempt #1 开始", "siliconflow / qwen2.5-72b", "ok"],
+          ["1.28 s", "Attempt #1 失败", "SERVER_ERROR · HTTP 503", "bad"],
+          ["1.28 s", "所有候选耗尽", "未跨等级切换", "bad"]
+        ]
+      },
+      {
+        id: "call-rerank", scenario: "rerank", time: "18:09:55", outcome: "DEGRADED",
+        capability: "RERANK", tier: "BALANCED", route: "Noop",
+        process: "未执行重排", total: "31 ms", firstChunk: "—", requestId: "req_b19a…320c",
+        title: "检索结果重排序",
+        summary: "真实 Rerank 候选不可用，系统保留原召回顺序并明确标记 rerankApplied=false。",
+        candidates: [
+          ["bailian / gte-rerank-v2", "已过滤", "熔断 OPEN"],
+          ["Noop", "显式降级", "保持原顺序 top-N"]
+        ],
+        metrics: ["19 ms", "—", "—", "31 ms"],
+        events: [
+          ["0 ms", "候选过滤", "bailian/gte-rerank-v2 · OPEN", "warn"],
+          ["19 ms", "选择 Noop", "没有发出 Provider 请求", "warn"],
+          ["31 ms", "降级完成", "rerankApplied=false", "warn"]
+        ]
+      }
+    ];
+
+    const baseProviders = [
+      { provider: "ark", model: "qwen-plus", id: "mdl_ark_qp", caps: ["CHAT","STREAM"], tiers: "BALANCED", state: "CLOSED", recent: "99.2%" },
+      { provider: "siliconflow", model: "qwen2.5-72b", id: "mdl_sf_q72", caps: ["CHAT","STREAM"], tiers: "BALANCED · QUALITY", state: "CLOSED", recent: "98.7%" },
+      { provider: "ark", model: "text-embedding-v3", id: "mdl_ark_emb3", caps: ["EMBEDDING"], tiers: "固定身份", state: "CLOSED", recent: "100%" },
+      { provider: "bailian", model: "gte-rerank-v2", id: "mdl_bl_rr2", caps: ["RERANK"], tiers: "BALANCED", state: "CLOSED", recent: "97.4%" },
+      { provider: "local", model: "qwen2.5", id: "mdl_local_q25", caps: ["CHAT","STREAM"], tiers: "ECONOMY", state: "HALF_OPEN", recent: "恢复探测" }
+    ];
+
+    const state = {
+      variant: "A",
+      scenario: "failover",
+      selectedId: "call-failover",
+      capability: "ALL",
+      outcome: "ALL",
+      drawer: false,
+      routeCapability: "CHAT"
+    };
+
+    function initFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const v = (params.get("variant") || "A").toUpperCase();
+      const s = params.get("scenario") || "failover";
+      state.variant = variantMeta[v] ? v : "A";
+      state.scenario = scenarioMeta[s] ? s : "failover";
+      const scenarioCall = calls.find(call => call.scenario === state.scenario);
+      state.selectedId = scenarioCall ? scenarioCall.id : calls[0].id;
+    }
+
+    function syncUrl() {
+      const params = new URLSearchParams(location.search);
+      params.set("variant", state.variant);
+      params.set("scenario", state.scenario);
+      history.replaceState(null, "", `${location.pathname}?${params.toString()}`);
+    }
+
+    function statusLabel(value) {
+      return {
+        SUCCESS: "成功", DEGRADED: "已降级", FAILED: "失败",
+        CANCELLED: "已取消", STREAM_FAILED: "流中断",
+        CLOSED: "正常", OPEN: "已熔断", HALF_OPEN: "恢复探测",
+        DISABLED: "配置禁用", TIMEOUT: "超时", RATE_LIMITED: "受限"
+      }[value] || value;
+    }
+
+    function statusPill(value) {
+      return `<span class="status ${value}">${statusLabel(value)}</span>`;
+    }
+
+    function capTag(value, tier = false) {
+      return `<span class="cap ${tier ? "tier" : ""}">${value}</span>`;
+    }
+
+    function currentCall() {
+      return calls.find(call => call.id === state.selectedId) || calls[0];
+    }
+
+    function providers() {
+      return baseProviders.map(item => {
+        const copy = { ...item };
+        if (state.scenario === "breaker" && copy.provider === "ark" && copy.model === "qwen-plus") {
+          copy.state = "OPEN"; copy.recent = "3 次连续失败";
+        }
+        if (state.scenario === "rerank" && copy.provider === "bailian") {
+          copy.state = "OPEN"; copy.recent = "5xx · 18:09";
+        }
+        return copy;
+      });
+    }
+
+    function filteredCalls() {
+      const selected = calls.find(call => call.scenario === state.scenario);
+      const ordered = [selected, ...calls.filter(call => call !== selected)];
+      return ordered.filter(call =>
+        (state.capability === "ALL" || call.capability === state.capability) &&
+        (state.outcome === "ALL" || call.outcome === state.outcome)
+      );
+    }
+
+    function scenarioBar() {
+      return `
+        <div class="scenario-bar">
+          <span class="label">原型演示场景</span>
+          ${Object.entries(scenarioMeta).map(([key, item]) =>
+            `<button class="${state.scenario === key ? "active" : ""}" onclick="selectScenario('${key}')">${item.label}</button>`
+          ).join("")}
+          <span class="explain">${scenarioMeta[state.scenario].explain}</span>
+        </div>`;
+    }
+
+    function pageHeader() {
+      return `
+        <div class="page-head">
+          <div>
+            <h1>模型调度诊断</h1>
+            <p>只记录路由与调用事实，不保存 Prompt、文档正文或模型输出。</p>
+          </div>
+          <div class="head-actions">
+            <span class="freshness">刚刚更新 · 2026-07-28 18:43:02</span>
+            <button class="btn" onclick="fakeRefresh()">↻ 刷新</button>
+          </div>
+        </div>
+        <div class="health-strip">
+          <span class="health-dot"></span>
+          <b>后端可用</b>
+          <span class="subtle">5 个模型部署 · 4 种能力</span>
+          <span class="retention">保留 7 天或最近 10,000 次调用</span>
+        </div>`;
+    }
+
+    function appShell(content) {
+      return `
+        <header class="app-header">
+          <div class="brand">xrag</div>
+          <nav class="main-nav" aria-label="主导航">
+            <a href="#" onclick="outOfScope(event)">知识库</a>
+            <a href="#" class="active" onclick="return false">诊断</a>
+          </nav>
+          <span class="proto-mark">PROTOTYPE · STEP B</span>
+        </header>
+        <main class="page">
+          ${pageHeader()}
+          ${scenarioBar()}
+          ${content}
+        </main>
+        ${variantSwitcher()}`;
+    }
+
+    function providerStrip() {
+      return `<div class="provider-strip">${providers().slice(0,4).map(item => `
+        <div class="provider-mini">
+          <div class="top"><b>${item.provider} / ${item.model}</b>${statusPill(item.state)}</div>
+          <div class="caps">${item.caps.map(c => capTag(c)).join("")}<span class="cap tier">${item.tiers}</span></div>
+        </div>`).join("")}</div>`;
+    }
+
+    function filterControls() {
+      return `
+        <div class="filters">
+          <select aria-label="筛选能力" onchange="setFilter('capability', this.value)">
+            ${["ALL","CHAT","STREAM_CHAT","EMBEDDING","RERANK"].map(v =>
+              `<option value="${v}" ${state.capability === v ? "selected" : ""}>${v === "ALL" ? "全部能力" : v}</option>`
+            ).join("")}
+          </select>
+          <select aria-label="筛选结果" onchange="setFilter('outcome', this.value)">
+            ${["ALL","SUCCESS","DEGRADED","FAILED","STREAM_FAILED","CANCELLED"].map(v =>
+              `<option value="${v}" ${state.outcome === v ? "selected" : ""}>${v === "ALL" ? "全部结果" : statusLabel(v)}</option>`
+            ).join("")}
+          </select>
+        </div>`;
+    }
+
+    function callItem(call) {
+      return `
+        <button class="call-item ${state.selectedId === call.id ? "selected" : ""}"
+          onclick="selectCall('${call.id}', false)">
+          <span class="call-time">07-28<br>${call.time}</span>
+          <span class="call-main">
+            <span class="call-title">${statusPill(call.outcome)} ${capTag(call.capability)} ${capTag(call.tier, true)}</span>
+            <span class="call-route">${call.route} · ${call.process}</span>
+          </span>
+          <span class="call-metrics"><b>${call.total}</b><span>${call.requestId}</span></span>
+        </button>`;
+    }
+
+    function detailMarkup(call, sticky = false) {
+      const streamWarning = call.outcome === "STREAM_FAILED"
+        ? `<div class="warning-note"><b>!</b><span>生成中断。已显示的内容可能不完整；系统没有在提交后切换模型。</span></div>`
+        : "";
+      return `
+        <section class="card ${sticky ? "detail-sticky" : ""}">
+          <div class="detail-hero">
+            <div class="top">
+              <div><h2>${call.title}</h2><p>${call.capability} · ${call.tier} · ${call.requestId}</p></div>
+              ${statusPill(call.outcome)}
+            </div>
+            <div class="detail-grid">
+              ${["路由耗时","首个有效块","下游提交","总耗时"].map((label, i) =>
+                `<div class="metric"><label>${label}</label><b>${call.metrics[i]}</b></div>`
+              ).join("")}
+            </div>
+          </div>
+          ${streamWarning}
+          <div class="privacy-note"><b>隐私</b><span>未保存输入和输出正文。Provider 请求 ID仅保留脱敏值。</span></div>
+          <div class="detail-section">
+            <div class="section-title"><h3>最终结果</h3><button class="btn ghost small" onclick="copyId('${call.requestId}')">复制请求 ID</button></div>
+            <div class="subtle" style="font-size:12px">${call.summary}</div>
+          </div>
+          <div class="detail-section">
+            <div class="section-title"><h3>候选与过滤</h3><span class="muted mono" style="font-size:10px">${call.candidates.length} candidates</span></div>
+            ${call.candidates.map((row, i) => `
+              <div class="candidate">
+                <span class="name">${i + 1}. ${row[0]}</span>
+                ${row[1] === "进入候选链" ? statusPill("CLOSED") : row[1] === "显式降级" ? statusPill("DEGRADED") : statusPill("SKIPPED")}
+                <span class="reason">${row[2]}</span>
+              </div>`).join("")}
+          </div>
+          <div class="detail-section">
+            <div class="section-title"><h3>Attempt 时间线</h3><span class="muted mono" style="font-size:10px">relative time</span></div>
+            <div class="timeline">
+              ${call.events.map(event => `
+                <div class="event ${event[3]}">
+                  <span class="at">${event[0]}</span><span class="dot"></span>
+                  <span class="desc"><b>${event[1]}</b><small>${event[2]}</small></span>
+                </div>`).join("")}
+            </div>
+          </div>
+        </section>`;
+    }
+
+    function renderA() {
+      const list = filteredCalls();
+      return `
+        ${providerStrip()}
+        <div class="trace-layout">
+          <section class="card">
+            <div class="card-head"><h2>最近调用</h2>${filterControls()}</div>
+            <div class="call-list">
+              ${list.length ? list.map(callItem).join("") : `
+                <div class="card-body" style="text-align:center;padding:52px 20px">
+                  <b>没有符合条件的调用</b><p class="muted">清除筛选后再试。</p>
+                  <button class="btn" onclick="clearFilters()">清除筛选</button>
+                </div>`}
+            </div>
+          </section>
+          ${detailMarkup(currentCall(), true)}
+        </div>`;
+    }
+
+    function kpiMarkup() {
+      const openCount = providers().filter(p => p.state === "OPEN").length;
+      return `
+        <div class="kpis">
+          <div class="kpi"><label>当前可用候选</label><strong>${5 - openCount}</strong><small>/ 5</small></div>
+          <div class="kpi"><label>OPEN 熔断</label><strong style="color:${openCount ? "var(--bad)" : "inherit"}">${openCount}</strong></div>
+          <div class="kpi"><label>24h 故障转移</label><strong>12</strong><small>次</small></div>
+          <div class="kpi"><label>24h 失败 / 流中断</label><strong>3</strong><small>次</small></div>
+        </div>`;
+    }
+
+    function providerMatrix() {
+      return `
+        <div class="matrix-wrap">
+          <table>
+            <thead><tr><th>Provider / 模型</th><th>能力</th><th>等级</th><th>熔断</th><th>近期结果</th><th>最近变化</th></tr></thead>
+            <tbody>${providers().map((item, i) => `
+              <tr>
+                <td class="provider-cell"><b>${item.provider} / ${item.model}</b><span>${item.id}</span></td>
+                <td>${item.caps.map(c => capTag(c)).join(" ")}</td>
+                <td>${item.tiers}</td>
+                <td>${statusPill(item.state)}</td>
+                <td>${item.recent}</td>
+                <td class="mono muted">${i === 0 ? "18:40:12" : i === 3 ? "18:09:55" : "—"}</td>
+              </tr>`).join("")}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function callsTable() {
+      const list = filteredCalls();
+      return `
+        <div class="matrix-wrap">
+          <table class="calls-table">
+            <thead><tr><th>时间</th><th>结果</th><th>能力 / 等级</th><th>实际路由</th><th>过程</th><th>首块</th><th>总耗时</th><th>请求 ID</th></tr></thead>
+            <tbody>${list.map(call => `
+              <tr class="${call.id === state.selectedId ? "selected" : ""}" tabindex="0"
+                onclick="selectCall('${call.id}', true)" onkeydown="if(event.key==='Enter')selectCall('${call.id}',true)">
+                <td class="mono">${call.time}</td><td>${statusPill(call.outcome)}</td>
+                <td>${capTag(call.capability)} ${capTag(call.tier,true)}</td>
+                <td>${call.route}</td><td>${call.process}</td>
+                <td class="numeric">${call.firstChunk}</td><td class="numeric">${call.total}</td>
+                <td class="mono muted">${call.requestId}</td>
+              </tr>`).join("")}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function renderB() {
+      const incidentCalls = [calls[3], calls[4], calls[5]];
+      return `
+        ${kpiMarkup()}
+        <div class="overview-grid">
+          <section class="card">
+            <div class="card-head"><h2>Provider / 模型能力</h2><span class="count">按 Provider + 模型 + 能力隔离熔断</span></div>
+            ${providerMatrix()}
+          </section>
+          <section class="card">
+            <div class="card-head"><h2>最近异常</h2><span class="count">最近 24h</span></div>
+            <div class="incident-list">${incidentCalls.map(call => `
+              <button class="incident" onclick="selectCall('${call.id}', true)">
+                <span class="when">${call.time}</span><b>${statusLabel(call.outcome)} · ${call.capability}</b>
+                <p>${call.process} · ${call.route}</p>
+              </button>`).join("")}</div>
+          </section>
+        </div>
+        <section class="card">
+          <div class="card-head"><h2>最近调用</h2>${filterControls()}</div>
+          ${callsTable()}
+        </section>
+        ${state.drawer ? `
+          <div class="scrim" onclick="closeDrawer()" aria-hidden="true"></div>
+          <aside class="drawer" role="dialog" aria-modal="true" aria-label="调用详情">
+            <div class="drawer-close"><button class="btn icon-btn" onclick="closeDrawer()" aria-label="关闭详情">×</button></div>
+            ${detailMarkup(currentCall(), false)}
+          </aside>` : ""}`;
+    }
+
+    function routeNodes(tier) {
+      const chatMap = {
+        ECONOMY: [
+          ["local / qwen2.5", "CLOSED", "优先级 10"],
+          ["ark / qwen-turbo", "CLOSED", "优先级 20"]
+        ],
+        BALANCED: [
+          ["ark / qwen-plus", state.scenario === "breaker" ? "OPEN" : "CLOSED", "默认候选"],
+          ["siliconflow / qwen2.5-72b", "CLOSED", "优先级 20"]
+        ],
+        QUALITY: [
+          ["ark / qwen-max", "CLOSED", "默认候选"],
+          ["siliconflow / qwen2.5-72b", "CLOSED", "优先级 20"]
+        ]
+      };
+      const rerankMap = {
+        ECONOMY: [
+          ["Noop", "DEGRADED", "显式未重排"]
+        ],
+        BALANCED: [
+          ["bailian / gte-rerank-v2", state.scenario === "rerank" ? "OPEN" : "CLOSED", "默认候选"]
+        ],
+        QUALITY: [
+          ["未配置质量级 Rerank", "DISABLED", "无合格候选"]
+        ]
+      };
+      const map = state.routeCapability === "RERANK" ? rerankMap : chatMap;
+      return map[tier].map((node, index) => `
+        <div class="route-node ${node[1] === "OPEN" ? "filtered" : ""} ${currentCall().tier === tier && index === 0 ? "selected" : ""}"
+          onclick="showToast('${node[0]}：${statusLabel(node[1])}，${node[2]}')">
+          <div class="rank">CANDIDATE ${index + 1}</div>
+          <b>${node[0]}</b>
+          <div class="node-foot">${statusPill(node[1])}<span class="why">${node[2]}</span></div>
+        </div>`).join("");
+    }
+
+    function embeddingRouteMap() {
+      return `
+        <div class="tier-lane">
+          <div class="tier-head"><b>REQUESTED IDENTITY</b><span>知识库固定</span></div>
+          <div class="route-node selected">
+            <div class="rank">MODEL IDENTITY</div>
+            <b>text-embedding-v3@2025-06</b>
+            <div class="node-foot">${capTag("1024 dims")}<span class="why">不可自由替换</span></div>
+          </div>
+        </div>
+        <div class="tier-lane">
+          <div class="tier-head"><b>ELIGIBLE DEPLOYMENTS</b><span>同一制品</span></div>
+          <div class="route-node selected">
+            <div class="rank">PRIMARY</div>
+            <b>ark / embedding-primary</b>
+            <div class="node-foot">${statusPill("CLOSED")}<span class="why">同模型身份</span></div>
+          </div>
+          <div class="route-node filtered">
+            <div class="rank">BACKUP</div>
+            <b>等价备用部署未配置</b>
+            <div class="node-foot">${statusPill("DISABLED")}<span class="why">第一版当前事实</span></div>
+          </div>
+        </div>
+        <div class="tier-lane">
+          <div class="tier-head"><b>FILTERED</b><span>即使同维也拒绝</span></div>
+          <div class="route-node filtered">
+            <div class="rank">IDENTITY MISMATCH</div>
+            <b>siliconflow / bge-m3</b>
+            <div class="node-foot">${statusPill("SKIPPED")}<span class="why">向量空间不匹配</span></div>
+          </div>
+        </div>`;
+    }
+
+    function compactTimeline(call) {
+      return `
+        <div class="timeline">
+          ${call.events.slice(-5).map(event => `
+            <div class="event ${event[3]}">
+              <span class="at">${event[0]}</span><span class="dot"></span>
+              <span class="desc"><b>${event[1]}</b><small>${event[2]}</small></span>
+            </div>`).join("")}
+        </div>`;
+    }
+
+    function renderC() {
+      const call = currentCall();
+      const mapHint = state.routeCapability === "EMBEDDING"
+        ? "固定模型身份，仅等价部署切换"
+        : "同一次调用不跨服务等级";
+      return `
+        <div class="route-shell">
+          <section class="card">
+            <div class="card-head">
+              <div><h2>${state.routeCapability} 候选地图</h2><span class="count">${mapHint}</span></div>
+              <div class="cap-tabs">
+                ${["CHAT","STREAM_CHAT","EMBEDDING","RERANK"].map(cap =>
+                  `<button class="${state.routeCapability === cap ? "active" : ""}" onclick="setRouteCapability('${cap}')">${cap}</button>`
+                ).join("")}
+              </div>
+            </div>
+            <div class="tier-map">
+              ${state.routeCapability === "EMBEDDING" ? embeddingRouteMap() :
+                ["ECONOMY","BALANCED","QUALITY"].map(tier => `
+                <div class="tier-lane">
+                  <div class="tier-head"><b>${tier}</b><span>${tier === "BALANCED" ? "默认等级" : "配置化意图"}</span></div>
+                  ${routeNodes(tier)}
+                </div>`).join("")}
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-head"><h2>近期路由事件</h2><span class="count">不含正文</span></div>
+            <div class="event-stream">
+              ${calls.map(item => `
+                <button class="stream-item ${item.id === call.id ? "selected" : ""}" onclick="selectCall('${item.id}', false)">
+                  <span class="when">${item.time} · ${item.requestId}</span>
+                  <b>${statusLabel(item.outcome)} · ${item.capability}</b>
+                  <span>${item.process} · ${item.route}</span>
+                </button>`).join("")}
+            </div>
+          </section>
+        </div>
+        <div class="route-detail">
+          <section class="card route-summary">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:start">
+              <div><h3>${call.title}</h3><p>${call.summary}</p></div>${statusPill(call.outcome)}
+            </div>
+            <div class="detail-grid" style="grid-template-columns:repeat(2,1fr)">
+              <div class="metric"><label>实际路由</label><b>${call.route}</b></div>
+              <div class="metric"><label>总耗时</label><b>${call.total}</b></div>
+              <div class="metric"><label>服务等级</label><b>${call.tier}</b></div>
+              <div class="metric"><label>过程</label><b>${call.process}</b></div>
+            </div>
+            <button class="btn primary" style="margin-top:12px" onclick="openFullDetail()">查看完整调用详情</button>
+          </section>
+          <section class="card">
+            <div class="card-head"><h2>关键事件</h2><span class="count">${call.requestId}</span></div>
+            <div class="card-body">${compactTimeline(call)}</div>
+          </section>
+        </div>
+        ${state.drawer ? `
+          <div class="scrim" onclick="closeDrawer()"></div>
+          <aside class="drawer" role="dialog" aria-modal="true" aria-label="调用详情">
+            <div class="drawer-close"><button class="btn icon-btn" onclick="closeDrawer()" aria-label="关闭详情">×</button></div>
+            ${detailMarkup(call, false)}
+          </aside>` : ""}`;
+    }
+
+    function variantSwitcher() {
+      const meta = variantMeta[state.variant];
+      return `
+        <div class="variant-switcher" aria-label="原型方案切换">
+          <button onclick="nextVariant(-1)" aria-label="上一个方案">←</button>
+          <div class="variant-label"><b>${state.variant} — ${meta.name}</b><span>${meta.hint} · 键盘 ← → 切换</span></div>
+          <button onclick="nextVariant(1)" aria-label="下一个方案">→</button>
+        </div>`;
+    }
+
+    function renderApp() {
+      const content = state.variant === "A" ? renderA() : state.variant === "B" ? renderB() : renderC();
+      document.getElementById("app").innerHTML = appShell(content);
+    }
+
+    function nextVariant(direction) {
+      const keys = Object.keys(variantMeta);
+      const index = keys.indexOf(state.variant);
+      state.variant = keys[(index + direction + keys.length) % keys.length];
+      state.drawer = false;
+      syncUrl();
+      renderApp();
+    }
+
+    function selectScenario(key) {
+      state.scenario = key;
+      const call = calls.find(item => item.scenario === key);
+      state.selectedId = call.id;
+      state.drawer = false;
+      syncUrl();
+      renderApp();
+    }
+
+    function selectCall(id, openDrawer) {
+      state.selectedId = id;
+      state.drawer = Boolean(openDrawer);
+      renderApp();
+    }
+
+    function setFilter(type, value) {
+      state[type] = value;
+      renderApp();
+    }
+
+    function clearFilters() {
+      state.capability = "ALL";
+      state.outcome = "ALL";
+      renderApp();
+    }
+
+    function closeDrawer() {
+      state.drawer = false;
+      renderApp();
+    }
+
+    function openFullDetail() {
+      state.drawer = true;
+      renderApp();
+    }
+
+    function setRouteCapability(capability) {
+      state.routeCapability = capability;
+      showToast(`${capability}：原型只切换能力上下文，不修改真实配置`);
+      renderApp();
+    }
+
+    function copyId(id) {
+      if (navigator.clipboard) navigator.clipboard.writeText(id);
+      showToast("已复制脱敏请求 ID");
+    }
+
+    function fakeRefresh() {
+      showToast("诊断数据已刷新；当前筛选保持不变");
+    }
+
+    function outOfScope(event) {
+      event.preventDefault();
+      showToast("知识库不在本次模型调度原型范围内");
+    }
+
+    let toastTimer;
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    window.addEventListener("keydown", event => {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (["INPUT","TEXTAREA","SELECT"].includes(tag) || document.activeElement?.isContentEditable) return;
+      if (event.key === "ArrowLeft") nextVariant(-1);
+      if (event.key === "ArrowRight") nextVariant(1);
+      if (event.key === "Escape" && state.drawer) closeDrawer();
+    });
+    window.addEventListener("popstate", () => { initFromUrl(); renderApp(); });
+
+    initFromUrl();
+    renderApp();
+  </script>
+</body>
+</html>

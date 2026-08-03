@@ -55,7 +55,7 @@
 |---|---|---|
 | Phase 0 基础学习与 Bootstrap | completed | 40/40 篇与环境检查点完成 |
 | Phase 1 AI 知识库建设 | completed | 已于 2026-07-28 归档；[里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md) |
-| Phase 2 大模型调度引擎 | in progress | Step A 8/8 学习与[对齐检查点](../../../learning/ragent-column/PHASE-2-STEP-A-CHECKPOINT.md)完成，待确认后进入 Step B |
+| Phase 2 大模型调度引擎 | in progress | Step D 工单 01、02、03、04、06、07、08、09、10、11 done；05、12、14、16、19 ready |
 | Phase 3 AI 知识问答核心链路 | pending | 等待 Phase 2 提供统一模型调用能力 |
 | Phase 4 RAG 评测体系 | pending | 等待 Phase 3 形成可评测链路 |
 | Phase 5 面试专题与系统说明书 | pending | 最终汇总阶段 |
@@ -136,3 +136,11 @@
 - `2026-07-28`: **Phase 1 正式关闭并归档。** 20 张工单、前后端实现、176 条本地测试基线、全部手工验收、复盘与里程碑状态均已完成并经用户确认。GitHub `validate` 仍为红灯；用户明确决定先放置 Step F，不让它影响主计划，因此失败证据保留为递延维护项，Phase 1 任务书移动到 `docs/exec-plans/completed/`。
 - `2026-07-28`: **进入 Phase 2 规划。** 新建[大模型调度引擎阶段计划](2026-07-28-model-scheduling-phase-plan.md)，仍按 A～G 闸门推进。下一步只启动 Step A：整理 04-model-scheduling 的 8 篇文章并形成检查点，不提前写实现工单。界面范围留给用户裁决：推荐做轻量“模型调度诊断页”，最小方案则为纯后端模块；若选择有界面，必须继续执行界面规格与可点击原型闸门。
 - `2026-07-28`: **Phase 2 Step A 完成。** 04-model-scheduling 的 8 篇学习稿全部落地，`INDEX.md` 更新为 59/91；补充[一手资料复核](../../research/2026-07-28-model-scheduling-primary-source-review.md)与[Step A 对齐检查点](../../../learning/ragent-column/PHASE-2-STEP-A-CHECKPOINT.md)，明确能力端口分开、调度骨架共享、确定性路由、错误分类驱动容错、流提交点边界和 Embedding 向量空间保护线。项目所有者已确认采用轻量“模型调度诊断页”，仍须在 Step B 完成 PRD、界面规格与可点击原型闸门。本 Step 未修改业务代码。
+- `2026-07-28`: **Phase 2 Step B 完成。** 项目所有者确认模型选择权、透明故障转移、三档服务等级、流提交后中断、只读配置和诊断保留六项产品决策；[PRD](../../prd/2026-07-28-model-scheduling-prd.md)、[界面规格](../../../tech/model-scheduling/ui-spec.md)和[A/B/C 三方案原型](../../../prototype/model-scheduling/index.html)均获确认，正式方向选择 A — Trace Console。浏览器走查覆盖方案切换、筛选、详情、Embedding 身份保护、熔断、流中断和 Rerank Noop；下一步进入 Step C 技术方案，原型代码不直接复制到生产前端。
+- `2026-07-28`: **Phase 2 Step C 草案完成，进入评审。** 产出[架构](../../../tech/model-scheduling/architecture.md)、[数据模型](../../../tech/model-scheduling/data-model.md)、[API](../../../tech/model-scheduling/api.md)、三条 proposed ADR、[测试矩阵](../../../tech/model-scheduling/test-matrix.md)、[分角色任务书](2026-07-28-model-scheduling-implementation-lanes.md)和 [.scratch 14 张纵向工单](../../../.scratch/model-scheduling/README.md)。草案采用四能力端口 + 共享内部调度骨架、确定性排序、Resilience4j 进程内 breaker、RestClient 同步/WebClient+Reactor 流式、完成态诊断异步落 PostgreSQL，并为 Phase 1 Embedding 设计显式 model identity 兼容迁移。当前只写文档与任务拆分，未修改业务代码；项目所有者确认后才启动 Step D 工单 01/02。
+- `2026-07-30`: **Phase 2 Step C.1 根据技术评审修订。** 保留四能力端口、确定性路由、RestClient/WebClient 分工、进程内 breaker 与三类状态所有权；统一内部失败到公开错误/失败阶段的动作表，补单调 deadline、真实 route event、流提交前后终态、Embedding mixed execution 和 legacy identity 保护线。原 14 张纵向工单重切为 23 张原子工单，首批只允许“领域目录”和“纯诊断 DDL”并行，并把隐私审计与诊断故障注入分开验收。当前仍为 `in review`，未修改业务代码或正式 Schema；一致性复核和项目所有者确认后才进入 Step D。
+- `2026-08-02`: **Phase 2 Step C.1 修订及一致性复核完成。** 补齐封闭 Chat 消息/工具传输、finish/usage 归一、`ModelCallException`、流式终态优先级和 Rerank 稳定降级原因；诊断 DDL 与公开枚举及交叉字段不变量对齐。测试矩阵现含 202 条可执行场景，全部被 23 张工单覆盖；文档链接/锚点、JSON 示例、枚举/SQL 闭集、编号连续性和格式检查均通过。未修改业务代码或正式 Schema；当前等待项目所有者确认 Step C，工单仍保持 blocked。
+- `2026-08-02`: **Phase 2 Step C 经项目所有者确认。** 架构、数据模型、API 和测试矩阵转为 approved，ADR 0003~0005 转为已接受；Step C 闸门关闭。Step D 只解锁首批互不依赖的工单 01（领域目录）和 02（诊断纯 DDL），其余 21 张继续 blocked；尚未开始业务代码或正式 Schema 实现。
+- `2026-08-02`: **Phase 2 Step D 第一依赖前沿完成。** 工单 01 实现领域 value type、`ai-models.yml`、不可变 catalog、启动校验与不含密钥值的稳定 fingerprint；工单 02 新增 V6 五张诊断表、索引、约束与升级测试，不修改 Phase 1 业务表。`./mvnw -B verify` 通过（198 tests，0 failures，2 skipped）；工单 03、04、07、08 解锁为 ready。
+- `2026-08-03`: **Phase 2 Step D 同步恢复链完成。** 工单 03/04/07/08 提供 Provider seam、完成态诊断、RoutePlan 与 Deadline/error policy，工单 06/09 提供单候选同步 Chat 与 breaker permission，工单 10 完成有界原地重试、跨候选故障转移、429 独立配额边界及真实 route event。`./mvnw -B verify` 通过（281 tests，0 failures，2 skipped）；当前 05、11、14、16、19 为 ready。
+- `2026-08-03`: **Phase 2 Step D 工单 11 完成。** WebClient/Reactor Netty client 在 Servlet/Tomcat 服务端边界内打通单 deployment SSE adapter；STR-01~09、文本/工具/拒答/usage/done/error、64KiB 上限、HTTP 失败分类、断流与取消传播均已自动化。`./mvnw -B verify` 通过（294 tests，0 failures，2 skipped）；工单 12 解锁，当前 05、12、14、16、19 为 ready。
