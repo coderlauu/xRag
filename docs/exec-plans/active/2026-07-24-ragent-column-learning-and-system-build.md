@@ -55,7 +55,7 @@
 |---|---|---|
 | Phase 0 基础学习与 Bootstrap | completed | 40/40 篇与环境检查点完成 |
 | Phase 1 AI 知识库建设 | completed | 已于 2026-07-28 归档；[里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md) |
-| Phase 2 大模型调度引擎 | in progress | Step D 工单 01、02、03、04、06、07、08、09、10、11 done；05、12、14、16、19 ready |
+| Phase 2 大模型调度引擎 | in progress | Step D 工单 01、02、03、04、06、07、08、09、10、11、12 done；05、13、14、16、19 ready |
 | Phase 3 AI 知识问答核心链路 | pending | 等待 Phase 2 提供统一模型调用能力 |
 | Phase 4 RAG 评测体系 | pending | 等待 Phase 3 形成可评测链路 |
 | Phase 5 面试专题与系统说明书 | pending | 最终汇总阶段 |
@@ -144,3 +144,4 @@
 - `2026-08-02`: **Phase 2 Step D 第一依赖前沿完成。** 工单 01 实现领域 value type、`ai-models.yml`、不可变 catalog、启动校验与不含密钥值的稳定 fingerprint；工单 02 新增 V6 五张诊断表、索引、约束与升级测试，不修改 Phase 1 业务表。`./mvnw -B verify` 通过（198 tests，0 failures，2 skipped）；工单 03、04、07、08 解锁为 ready。
 - `2026-08-03`: **Phase 2 Step D 同步恢复链完成。** 工单 03/04/07/08 提供 Provider seam、完成态诊断、RoutePlan 与 Deadline/error policy，工单 06/09 提供单候选同步 Chat 与 breaker permission，工单 10 完成有界原地重试、跨候选故障转移、429 独立配额边界及真实 route event。`./mvnw -B verify` 通过（281 tests，0 failures，2 skipped）；当前 05、11、14、16、19 为 ready。
 - `2026-08-03`: **Phase 2 Step D 工单 11 完成。** WebClient/Reactor Netty client 在 Servlet/Tomcat 服务端边界内打通单 deployment SSE adapter；STR-01~09、文本/工具/拒答/usage/done/error、64KiB 上限、HTTP 失败分类、断流与取消传播均已自动化。`./mvnw -B verify` 通过（294 tests，0 failures，2 skipped）；工单 12 解锁，当前 05、12、14、16、19 为 ready。
+- `2026-08-03`: **Phase 2 Step D 工单 12 完成。** 公共流端口落地单次订阅守卫、PROBING/COMMITTED/唯一终态、有界探测、六阶段超时、取消传播和完成态诊断；STR-10~13、15~27、29、30、35 已自动化，50 轮取消/完成竞态无重复结算。`./scripts/ci-validate.sh` 通过（backend 318 tests，0 failures，2 skipped）；工单 13 解锁，当前 05、13、14、16、19 为 ready。

@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step D 工单 01、02、03、04、06、07、08、09、10、11 done；05、12、14、16、19 ready）
+- `status`: in-progress（Step D 工单 01、02、03、04、06、07、08、09、10、11、12 done；05、13、14、16、19 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -153,9 +153,9 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01、02、03、04、06、07、08、09、10、11 已完成；05、12、14、16、19 ready）**
+状态：**in progress（工单 01、02、03、04、06、07、08、09、10、11、12 已完成；05、13、14、16、19 ready）**
 
-实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成两批基础切片：
+实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 
 1. 领域词汇、不可变模型目录与配置校验。
 2. 纯诊断 DDL。
@@ -166,8 +166,10 @@ Step C.1 评审修订：
 7. 单候选同步 Chat、OpenAI-compatible 有限响应 adapter、取消/绝对 deadline 与完成态诊断。
 8. Breaker registry、原子 HALF_OPEN 许可、分类结算、运行快照与异步 transition 持久化。
 9. 同步 Chat 有界原地重试、跨候选故障转移、429 独立配额边界与完整恢复事件。
+10. WebClient/SSE Provider adapter、事件归一、断流分类与取消传播。
+11. 单候选流单次订阅、探测/提交/唯一终态、阶段超时与诊断结算。
 
-后续依次解锁 Provider seam 与假实现、诊断 writer、能力最小链路、路由/预算/熔断、同步与流式恢复、Embedding/Rerank、Trace API/UI，以及交付与真实 Provider 准入。工单不按编号机械串行，但不得绕过依赖图。
+当前前沿并行推进 Overview API、流式路由恢复、Embedding/Rerank 和诊断保留；随后再进入 Trace API/UI、交付与真实 Provider 准入。工单不按编号机械串行，但不得绕过依赖图。
 
 闸门：浏览器或 API 演示统一入口、选路、熔断和故障转移。
 
@@ -222,6 +224,6 @@ Step C.1 评审修订：
 
 ## 7. Current Node
 
-- `now`: Step D 工单 11 已完成；WebClient/Reactor Netty 在保持 Servlet/Tomcat 服务端的前提下打通单 deployment SSE adapter，STR-01~09、事件归一、64KiB 边界、断流与取消传播均已自动化。完整后端验证通过（294 tests，0 failures，2 skipped）。
-- `next`: 工单 05（Overview API）、12（单候选流状态机）、14（Embedding mixed execution）、16（Rerank/Noop）、19（诊断保留）均为 `ready`。
+- `now`: Step D 工单 12 已完成；单 deployment 流具备单次订阅、探测/提交/唯一终态、有界探测、六阶段超时、取消传播和一次性诊断结算。完整验证通过（backend 318 tests，0 failures，2 skipped）。
+- `next`: 工单 05（Overview API）、13（流式路由/故障转移）、14（Embedding mixed execution）、16（Rerank/Noop）、19（诊断保留）均为 `ready`。
 - `decision_needed`: 无；五张已解锁工单的范围与依赖均已由 Step C 冻结。

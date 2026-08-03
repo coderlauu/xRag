@@ -1,18 +1,18 @@
 # 工单：大模型调度引擎
 
-本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01、02、03、04、06、07、08、09、10、11 已完成，当前 05、12、14、16、19 为 `ready`。
+本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01、02、03、04、06、07、08、09、10、11、12 已完成，当前 05、13、14、16、19 为 `ready`。
 
 ## 下一前沿
 
-工单 11 已完成 WebClient/SSE Provider adapter，并解锁单候选流状态机。当前可独立推进五张工单：
+工单 12 已完成单候选流状态机与单次订阅契约，并解锁流式路由与故障转移。当前可独立推进五张工单：
 
 - [05 只读调度总览 API](issues/05-diagnostics-overview-api.md)
-- [12 单候选流状态机与单次订阅](issues/12-single-subscription-stream-state.md)
+- [13 流式路由与故障转移](issues/13-stream-routing-failover.md)
 - [14 Embedding 批次与 mixed execution](issues/14-embedding-mixed-execution.md)
 - [16 Rerank 与显式 Noop](issues/16-rerank-and-noop.md)
 - [19 诊断保留与分批清理](issues/19-diagnostic-retention.md)
 
-五张工单都已满足显式依赖：05 只组装 Overview，12 在已完成的 SSE adapter 上建立公共单订阅状态机，14/16 复用已完成的同步恢复边界，19 只做诊断物理清理。
+五张工单都已满足显式依赖：05 只组装 Overview，13 在已完成的单候选状态机上加入路由恢复，14/16 复用已完成的同步恢复边界，19 只做诊断物理清理。
 
 ## 依赖图
 
@@ -54,8 +54,8 @@
 | 09 | [Breaker 注册表、原子许可与转换](issues/09-breaker-registry-permissions.md) | 01, 04, 08 | done |
 | 10 | [同步重试与故障转移](issues/10-sync-retry-failover.md) | 06, 07, 08, 09 | done |
 | 11 | [WebClient 与 SSE Provider](issues/11-webclient-sse-provider.md) | 03 | done |
-| 12 | [单候选流状态机与单次订阅](issues/12-single-subscription-stream-state.md) | 04, 08, 11 | ready |
-| 13 | [流式路由与故障转移](issues/13-stream-routing-failover.md) | 07, 08, 09, 12 | blocked |
+| 12 | [单候选流状态机与单次订阅](issues/12-single-subscription-stream-state.md) | 04, 08, 11 | done |
+| 13 | [流式路由与故障转移](issues/13-stream-routing-failover.md) | 07, 08, 09, 12 | ready |
 | 14 | [Embedding 批次与 mixed execution](issues/14-embedding-mixed-execution.md) | 03, 04, 07, 08, 09, 10 | ready |
 | 15 | [Phase 1 Embedding 原子迁移](issues/15-phase1-embedding-atomic-migration.md) | 14 | blocked |
 | 16 | [Rerank 与显式 Noop](issues/16-rerank-and-noop.md) | 10 | ready |
@@ -69,7 +69,7 @@
 
 ## 推进规则
 
-- Step C 外部闸门已通过；01/02/03/04/06/07/08/09/10/11 已完成，当前 05/12/14/16/19 为 `ready`，更下游工单继续等待显式依赖完成。
+- Step C 外部闸门已通过；01/02/03/04/06/07/08/09/10/11/12 已完成，当前 05/13/14/16/19 为 `ready`，更下游工单继续等待显式依赖完成。
 - 一张工单只提交一个可验证变化，完成其 Acceptance 后才能解锁下游。
 - 发现需要同时修改下游契约时，先回到本依赖图调整，不把隐藏依赖塞进当前提交。
 - 测试矩阵中的用例 ID 是验收依据；契约修订新增的 route event、failure phase、mixed execution 和 single-subscription 用例必须先进入矩阵。

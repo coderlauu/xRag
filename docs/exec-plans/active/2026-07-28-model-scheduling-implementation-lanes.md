@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 
-- `status`: in progress（Step D 工单 01、02、03、04、06、07、08、09、10、11 done；05、12、14、16、19 ready）
+- `status`: in progress（Step D 工单 01、02、03、04、06、07、08、09、10、11、12 done；05、13、14、16、19 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [Phase 2 执行计划](2026-07-28-model-scheduling-phase-plan.md)
@@ -196,15 +196,15 @@ Lane 是职责视角，工单是按可验证路径组织的执行视角。实现
 
 ## 6. 依赖前沿
 
-Step C 已于 2026-08-02 获确认。工单 01、02、03、04、06、07、08、09、10 已完成；当前前沿包含：
+Step C 已于 2026-08-02 获确认。工单 01、02、03、04、06、07、08、09、10、11、12 已完成；当前前沿包含：
 
 - 工单 05：只读调度总览 API；
-- 工单 11：WebClient 与 SSE Provider；
+- 工单 13：流式路由与故障转移；
 - 工单 14：Embedding 批次与 mixed execution；
 - 工单 16：Rerank 与显式 Noop；
 - 工单 19：诊断保留与分批清理。
 
-10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter 并解锁 12。05/12/14/16/19 当前互不依赖，可独立推进，19 独立完成诊断保留边界。
+10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter，12 已完成单候选流状态机并解锁 13。05/13/14/16/19 当前互不依赖，可独立推进，19 独立完成诊断保留边界。
 
 完整依赖图见 [.scratch/model-scheduling/README.md](../../../.scratch/model-scheduling/README.md)。
 
@@ -253,3 +253,4 @@ scripts/ci-validate.sh
 - `2026-08-03`: Step D 工单 09 完成。基于 Resilience4j 落地 `provider/deployment/capability` registry、手工原子许可、分类一次结算、可读运行快照与异步 transition 持久化；CBR-01~15 的 breaker 侧契约已自动化。`./mvnw -B verify` 通过（256 tests，0 failures，2 skipped），解锁工单 05 与 10；RTE-11 / DIA-19 的真实 route-event/failover 集成归工单 10。
 - `2026-08-03`: Step D 工单 10 完成。同步 Chat 接通 RoutePlan、共享 monotonic Deadline/AttemptBudget、breaker permission、最多一次原地重试、独立 quota-domain 429 切换与完成态 route event；SYN-02~18、20、26、28、DIA-03/19/20、RTE-11 已自动化。`./mvnw -B verify` 通过（281 tests，0 failures，2 skipped），解锁工单 14 与 16。
 - `2026-08-03`: Step D 工单 11 完成。在保持 Servlet/Tomcat 服务端的前提下引入 WebClient/Reactor Netty client，基于 `ServerSentEvent<String>` 完成 STR-01~09、文本/工具/拒答/usage/done/error 归一、64KiB 事件上限、未知事件诊断跳过、HTTP 失败分类、断流和取消传播；Spring 6.2 不识别独立 CR 的缺口由 reader 前的有界行尾归一补齐，不引入自定义 SSE parser。`./mvnw -B verify` 通过（294 tests，0 failures，2 skipped），解锁工单 12。
+- `2026-08-03`: Step D 工单 12 完成。落地 `StreamingChatClient` 与类型化公共事件、同一 publisher 单次订阅守卫、PROBING/COMMITTED/唯一终态 CAS、32 events/64KiB 探测、连接/响应头/首事件/首有效/idle/total 六阶段超时、取消传播与一次性诊断结算；STR-10~13、15~27、29、30、35 已自动化。`./scripts/ci-validate.sh` 通过（backend 318 tests，0 failures，2 skipped），解锁工单 13。
