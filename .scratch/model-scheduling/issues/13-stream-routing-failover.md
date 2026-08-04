@@ -23,7 +23,7 @@
 - [x] 首选失败时下游看不到首选事件；详情按真实时间顺序显示失败、切换和成功。
 - [x] 提交后不会出现第二个 deployment 的事件。
 - [x] route event 与 failure phase 足以还原 permission、timeout 和 failover 决策。
-- [x] `./mvnw -B verify` 通过（335 tests，0 failures，2 skipped）。
+- [x] `./mvnw -B verify` 通过（336 tests，0 failures，2 skipped）。
 
 **Design:** [PRD FR-04](../../../docs/prd/2026-07-28-model-scheduling-prd.md#fr-04-流式调用)
 

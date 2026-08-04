@@ -51,10 +51,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 import reactor.test.scheduler.VirtualTimeScheduler;
 
 class RoutingStreamingChatClientTests {
@@ -680,6 +682,40 @@ class RoutingStreamingChatClientTests {
                 .hasMessage("stream publisher allows only one subscription");
         assertThat(fake.invocations()).hasSize(1);
         assertThat(diagnostics.calls).hasSize(1);
+    }
+
+    @Test
+    void str24_取消与完成竞态下终态诊断与许可结算始终唯一() {
+        for (int iteration = 0; iteration < 50; iteration++) {
+            Sinks.Many<ProviderChatEvent> terminal = Sinks.many().unicast().onBackpressureBuffer();
+            var catalog = catalog();
+            var fake = new ProgrammableFakeProvider(ProgrammableFakeProvider.Script.stream(
+                    (deployment, request, context) -> Flux.concat(
+                            Flux.just(new ProviderChatEvent.TextDelta("部分")),
+                            terminal.asFlux())));
+            var diagnostics = new CapturingDiagnosticRecorder();
+            var breakers = new Resilience4jModelBreakerRegistry(
+                    catalog.runtimePolicy().breaker(), Clock.systemUTC(), transition -> true);
+            StreamingChatClient client = new RoutingStreamingChatClient(
+                    catalog, Map.of(PROVIDER_A, fake, PROVIDER_B, fake), breakers, diagnostics);
+            var events = new ArrayList<ChatStreamEvent>();
+            var subscription = client.stream(command()).subscribe(events::add);
+
+            CompletableFuture<Void> complete = CompletableFuture.runAsync(() -> {
+                terminal.tryEmitNext(new ProviderChatEvent.Completed(ChatFinishReason.STOP, null));
+                terminal.tryEmitComplete();
+            });
+            CompletableFuture<Void> cancel = CompletableFuture.runAsync(subscription::dispose);
+            CompletableFuture.allOf(complete, cancel).join();
+
+            assertThat(diagnostics.calls).hasSize(1);
+            assertThat(fake.releasedCount()).isEqualTo(1);
+            assertThat(fake.invocations()).hasSize(1);
+            assertThat(events)
+                    .filteredOn(event -> event instanceof ChatStreamEvent.Completed
+                            || event instanceof ChatStreamEvent.StreamFailed)
+                    .hasSizeLessThanOrEqualTo(1);
+        }
     }
 
     private static StreamingChatClient client(
