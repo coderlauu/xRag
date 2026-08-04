@@ -589,7 +589,7 @@ class SingleCandidateStreamingChatClientTests {
                 DEPLOYMENT_ID,
                 provider,
                 diagnostics,
-                SingleCandidateStreamingChatClient.StreamPhaseTimeouts.defaults(),
+                StreamPhaseTimeouts.defaults(),
                 scheduler);
     }
 
