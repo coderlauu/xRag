@@ -480,7 +480,7 @@ class RoutedEmbeddingClientTests {
     }
 
     @Test
-    void emb14_Provider调用发生在Spring事务之外() {
+    void provider调用发生在Spring事务之外() {
         var catalog = catalog();
         var transactionActive = new AtomicBoolean(true);
         EmbeddingProvider provider = (deployment, texts, context) -> {

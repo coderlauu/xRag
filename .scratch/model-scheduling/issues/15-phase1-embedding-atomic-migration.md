@@ -4,7 +4,7 @@
 
 **Blocked by:** 14
 
-**Status:** blocked
+**Status:** ready
 
 ## Slice
 

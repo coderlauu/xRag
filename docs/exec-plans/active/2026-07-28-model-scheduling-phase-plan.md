@@ -224,6 +224,6 @@ Step C.1 评审修订：
 
 ## 7. Current Node
 
-- `now`: Step D 工单 13 已完成；流式链路自此闭环——RoutePlan、共享 Deadline/AttemptBudget、错误动作表与 breaker permission 都已接入单次订阅状态机，提交前可透明切换候选、提交后锁定 deployment 并只产生唯一 `StreamFailed`，成功/失败/取消分别结算许可。完整验证通过（backend 336 tests，0 failures，2 skipped）。
-- `next`: 工单 05（Overview API）、14（Embedding mixed execution）、16（Rerank/Noop）、19（诊断保留）均为 `ready`。
+- `now`: Step D 工单 14 已完成；调度层四个能力口中的 Chat、流式 Chat、Embedding 均已接入 RoutePlan、共享 Deadline/AttemptBudget、错误动作表与 breaker permission。Embedding 支持按最小批量上限切 work unit、逐批独立恢复、已完成批次不重算与多 deployment 共同贡献的准确表达。完整验证通过（backend 351 tests，0 failures，2 skipped）。
+- `next`: 工单 05（Overview API）、15（Phase 1 Embedding 原子迁移）、16（Rerank/Noop）、19（诊断保留）均为 `ready`。
 - `decision_needed`: 无；四张已解锁工单的范围与依赖均已由 Step C 冻结。
