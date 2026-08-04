@@ -41,6 +41,9 @@
   unit；`ModelCatalogFactory.validateEmbeddingIdentities` 已强制 legacy identity 单绑定；
   `CompletedCallDiagnostic.executionSummary()` 已从成功 attempt 派生 mixed/count 摘要，
   非成功终态直接归零。
+- 原地重试门同时检查 `maxSameDeploymentAttempts` 与 work unit attempt 上限，避免在同
+  deployment 上限为 1 时写出并不存在的 `RETRY_SCHEDULED` / `RETRY_WAIT_STARTED` 与一次
+  多余退避（该配置下 `AttemptBudget` 随后必然拒绝）。
 - 已知重复：候选循环（breaker 许可 → attempt 预算 → 重试/切换 → route event）与
   `RoutingChatClient` 结构同形但未抽取公共实现。留到工单 16（Rerank）出现第三个调用点时
   一并设计抽象，避免只凭两个样本猜接口。

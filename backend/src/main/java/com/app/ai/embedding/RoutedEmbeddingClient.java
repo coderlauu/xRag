@@ -400,9 +400,11 @@ public final class RoutedEmbeddingClient implements EmbeddingClient {
                                 attemptStartedOffsetMs.get(),
                                 completedOffsetMs));
 
-                        Duration retryDelay = candidateAdmissionCount == 1
-                                ? retryDelay(failure)
-                                : null;
+                        var limits = catalog.runtimePolicy().embedding();
+                        boolean retryCapacity = candidateAdmissionCount == 1
+                                && candidateAdmissionCount < limits.maxSameDeploymentAttempts()
+                                && budget.workUnitAttemptNo() < limits.maxAttemptsPerWorkUnit();
+                        Duration retryDelay = retryCapacity ? retryDelay(failure) : null;
                         if (retryDelay != null) {
                             addRouteEvent(
                                     RouteEventType.RETRY_SCHEDULED,

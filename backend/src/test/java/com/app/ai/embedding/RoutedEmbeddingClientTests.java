@@ -10,6 +10,7 @@ import com.app.ai.diagnostic.CallOutcome;
 import com.app.ai.diagnostic.CompletedCallDiagnostic;
 import com.app.ai.diagnostic.DiagnosticRecorder;
 import com.app.ai.diagnostic.RouteDecision;
+import com.app.ai.diagnostic.RouteEventType;
 import com.app.ai.diagnostic.RouteRejectionReason;
 import com.app.ai.model.AiRuntimePolicy;
 import com.app.ai.model.CallOptions;
@@ -495,6 +496,36 @@ class RoutedEmbeddingClientTests {
         assertThat(transactionActive).isFalse();
     }
 
+    @Test
+    void 同deployment上限为一时不写出并不存在的重试事件() {
+        var catalog = catalogWithSameDeploymentAttempts(1);
+        var served = new ArrayList<DeploymentId>();
+        EmbeddingProvider provider = (deployment, texts, context) -> {
+            context.lifecycle().dispatched();
+            served.add(deployment.id());
+            if (deployment.id().equals(EMBED_A)) {
+                throw ProviderFailureException.http(503, null, "req_****a");
+            }
+            return echo(texts);
+        };
+        var diagnostics = new CapturingDiagnosticRecorder();
+        var waits = new ArrayList<Duration>();
+
+        client(catalog, provider, diagnostics, waits)
+                .embed(new EmbeddingCommand(SHARED_IDENTITY, inputs(3), CallOptions.defaults()));
+
+        assertThat(served).containsExactly(EMBED_A, EMBED_B);
+        assertThat(waits).isEmpty();
+        assertThat(diagnostics.calls).singleElement().satisfies(diagnostic -> {
+            assertThat(diagnostic.routeEvents()).extracting(event -> event.eventType())
+                    .doesNotContain(
+                            RouteEventType.RETRY_SCHEDULED, RouteEventType.RETRY_WAIT_STARTED)
+                    .contains(RouteEventType.FAILOVER_SELECTED);
+            assertThat(diagnostic.attempts()).extracting(attempt -> attempt.attemptKind())
+                    .containsExactly(AttemptKind.INITIAL, AttemptKind.FAILOVER);
+        });
+    }
+
     private static ExecutionTarget target(DeploymentId deploymentId) {
         ModelDeployment deployment = catalog().deployments().get(deploymentId);
         return new ExecutionTarget(
@@ -526,12 +557,31 @@ class RoutedEmbeddingClientTests {
         return client(catalog, provider, diagnostics, breakers);
     }
 
-    /** Uses a recording sleeper and fixed jitter so retry backoff never really blocks a test. */
+    private static EmbeddingClient client(
+            ModelCatalogSnapshot catalog,
+            EmbeddingProvider provider,
+            DiagnosticRecorder diagnostics,
+            List<Duration> waits) {
+        var breakers = new Resilience4jModelBreakerRegistry(
+                catalog.runtimePolicy().breaker(), Clock.systemUTC(), transition -> true);
+        return client(catalog, provider, diagnostics, breakers, waits);
+    }
+
     private static EmbeddingClient client(
             ModelCatalogSnapshot catalog,
             EmbeddingProvider provider,
             DiagnosticRecorder diagnostics,
             Resilience4jModelBreakerRegistry breakers) {
+        return client(catalog, provider, diagnostics, breakers, new ArrayList<>());
+    }
+
+    /** Uses a recording sleeper and fixed jitter so retry backoff never really blocks a test. */
+    private static EmbeddingClient client(
+            ModelCatalogSnapshot catalog,
+            EmbeddingProvider provider,
+            DiagnosticRecorder diagnostics,
+            Resilience4jModelBreakerRegistry breakers,
+            List<Duration> waits) {
         return new RoutedEmbeddingClient(
                 catalog,
                 Map.of(PROVIDER_A, provider, PROVIDER_B, provider),
@@ -541,7 +591,7 @@ class RoutedEmbeddingClientTests {
                 Clock.systemUTC(),
                 NanoTicker.system(),
                 upperBound -> Duration.ofMillis(5),
-                ignored -> { },
+                waits::add,
                 Duration.ofMillis(1));
     }
 
@@ -593,6 +643,26 @@ class RoutedEmbeddingClientTests {
                 10,
                 true,
                 new EmbeddingProfile(true, null, DIMENSIONS, 10, 512, null));
+    }
+
+    private static ModelCatalogSnapshot catalogWithSameDeploymentAttempts(int maxSameDeployment) {
+        var base = catalog();
+        AiRuntimePolicy policy = base.runtimePolicy();
+        return new ModelCatalogSnapshot(
+                base.policyVersion(),
+                base.configFingerprint(),
+                base.providers(),
+                base.deployments(),
+                new AiRuntimePolicy(
+                        policy.chat(),
+                        policy.streamChat(),
+                        new AiRuntimePolicy.CapabilityLimits(
+                                policy.embedding().totalTimeout(),
+                                policy.embedding().maxAttemptsPerWorkUnit(),
+                                maxSameDeployment),
+                        policy.rerank(),
+                        policy.stream(),
+                        policy.breaker()));
     }
 
     private static ModelProvider provider(ProviderId id, String quota) {
