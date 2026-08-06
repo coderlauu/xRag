@@ -1,9 +1,17 @@
 package com.app.knowledge;
 
+import com.app.ai.model.EmbeddingClient;
+import com.app.ai.model.EmbeddingCommand;
+import com.app.ai.model.EmbeddingResult;
+import com.app.ai.model.ExecutionInfo;
+import com.app.ai.model.ModelCallException;
+import com.app.ai.model.ModelErrorType;
+import com.app.ai.model.RequestId;
+import com.app.ai.model.TerminalCause;
+import com.app.ai.model.TerminationReason;
 import com.app.knowledge.embedding.DeterministicEmbeddingClient;
-import com.app.knowledge.embedding.EmbeddingClient;
-import com.app.knowledge.embedding.EmbeddingException;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -30,7 +38,7 @@ public class FakeEmbeddingConfig {
     public static final AtomicBoolean SHOULD_FAIL = new AtomicBoolean(false);
 
     /**
-     * 让下一次 embed 调用抛 {@link Error} 而不是 {@link EmbeddingException}。
+     * 让下一次 embed 调用抛 {@link Error} 而不是 {@link ModelCallException}。
      *
      * <p>造的是 {@code Error} 而不是随便一个 RuntimeException，因为要守的正是
      * {@code catch (Exception)} 与 {@code catch (Throwable)} 的差别——用 RuntimeException
@@ -60,24 +68,35 @@ public class FakeEmbeddingConfig {
     @Primary
     EmbeddingClient fakeEmbeddingClient() {
         DeterministicEmbeddingClient delegate = new DeterministicEmbeddingClient(1024);
-        return new EmbeddingClient() {
-            @Override
-            public List<float[]> embed(List<String> texts) {
-                CALLS.incrementAndGet();
-                IN_TRANSACTION_AT_CALL.set(TransactionSynchronizationManager.isActualTransactionActive());
-                if (SHOULD_THROW_ERROR.get()) {
-                    throw new OutOfMemoryError("模拟的 Error：向量化时堆内存耗尽");
-                }
-                if (SHOULD_FAIL.get()) {
-                    throw new EmbeddingException("模拟的 Embedding 调用失败");
-                }
-                return delegate.embed(texts);
+        return (EmbeddingCommand command) -> {
+            CALLS.incrementAndGet();
+            IN_TRANSACTION_AT_CALL.set(TransactionSynchronizationManager.isActualTransactionActive());
+            if (SHOULD_THROW_ERROR.get()) {
+                throw new OutOfMemoryError("模拟的 Error：向量化时堆内存耗尽");
             }
-
-            @Override
-            public int dimensions() {
-                return delegate.dimensions();
+            if (SHOULD_FAIL.get()) {
+                throw simulatedFailure();
             }
+            return delegate.embed(command);
         };
+    }
+
+    private static ModelCallException simulatedFailure() {
+        return new ModelCallException(
+                "模拟的 Embedding 调用失败",
+                new ExecutionInfo(
+                        UUID.randomUUID(),
+                        new RequestId("request-" + UUID.randomUUID()),
+                        null,
+                        1,
+                        0,
+                        0),
+                new TerminalCause(
+                        ModelErrorType.SERVER_ERROR,
+                        null,
+                        TerminationReason.ALL_CANDIDATES_EXHAUSTED,
+                        503,
+                        null),
+                true);
     }
 }

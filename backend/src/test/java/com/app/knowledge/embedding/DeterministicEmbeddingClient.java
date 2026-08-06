@@ -1,9 +1,15 @@
 package com.app.knowledge.embedding;
 
+import com.app.ai.model.EmbeddingClient;
+import com.app.ai.model.EmbeddingCommand;
+import com.app.ai.model.EmbeddingExecutionInfo;
+import com.app.ai.model.EmbeddingResult;
+import com.app.ai.model.RequestId;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 /**
  * 确定性假实现：同样的文本永远得到同样的向量，不发生任何网络调用。
@@ -25,15 +31,31 @@ public class DeterministicEmbeddingClient implements EmbeddingClient {
     }
 
     @Override
-    public List<float[]> embed(List<String> texts) {
-        List<float[]> vectors = new ArrayList<>(texts.size());
-        for (String text : texts) {
+    public EmbeddingResult embed(EmbeddingCommand command) {
+        List<float[]> vectors = new ArrayList<>(command.texts().size());
+        for (String text : command.texts()) {
             vectors.add(pseudoVector(text));
         }
-        return vectors;
+        return result(command, vectors);
     }
 
-    @Override
+    /** 供假实现复用：套上一个不含任何贡献 deployment 的执行信息。 */
+    public EmbeddingResult result(EmbeddingCommand command, List<float[]> vectors) {
+        return new EmbeddingResult(
+                vectors,
+                command.modelIdentity(),
+                dimensions,
+                new EmbeddingExecutionInfo(
+                        UUID.randomUUID(),
+                        new RequestId("request-" + UUID.randomUUID()),
+                        1,
+                        0,
+                        0,
+                        false,
+                        List.of(),
+                        List.of()));
+    }
+
     public int dimensions() {
         return dimensions;
     }

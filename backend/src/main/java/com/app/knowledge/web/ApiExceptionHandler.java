@@ -1,6 +1,7 @@
 package com.app.knowledge.web;
 
-import com.app.knowledge.embedding.EmbeddingException;
+import com.app.ai.model.ModelCallException;
+import com.app.ai.model.ModelErrorType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -51,11 +52,15 @@ public class ApiExceptionHandler {
      * 不映射的话供应商故障会返回 500，前端只能显示"操作失败"，而这恰恰是用户看一眼提示
      * 就知道该去查模型服务配置的情况。
      */
-    @ExceptionHandler(EmbeddingException.class)
-    public ResponseEntity<ErrorResponse> handleEmbeddingFailure(EmbeddingException exception) {
-        LOGGER.warn("Embedding 调用失败：{}", exception.toString());
+    @ExceptionHandler(ModelCallException.class)
+    public ResponseEntity<ErrorResponse> handleModelCallFailure(ModelCallException exception) {
+        LOGGER.warn("模型调用失败：{}（{}）",
+                exception.terminalCause().errorType(), exception.terminalCause().terminationReason());
+        String detail = exception.terminalCause().errorType() == ModelErrorType.NO_ELIGIBLE_MODEL
+                ? "向量计算服务未配置或没有可用模型。请检查 ai-models.yml 中 EMBEDDING deployment "
+                        + "所属 Provider 的 secret-property 对应环境变量是否已设置。"
+                : "向量计算服务暂时不可用。请稍后重试；若持续失败请检查模型服务配置。";
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(new ErrorResponse("EMBEDDING_FAILED",
-                        "向量计算服务暂时不可用。请稍后重试；若持续失败请检查模型服务配置。"));
+                .body(new ErrorResponse("EMBEDDING_FAILED", detail));
     }
 }

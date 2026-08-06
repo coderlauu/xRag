@@ -36,7 +36,7 @@ public class EmbeddingClientConfiguration {
     private static final Logger LOGGER = LoggerFactory.getLogger(EmbeddingClientConfiguration.class);
 
     @Bean
-    public EmbeddingClient routedEmbeddingClient(
+    public EmbeddingClient embeddingClient(
             ModelCatalogSnapshot catalog,
             ModelBreakerRegistry breakers,
             DiagnosticRecorder diagnostics,

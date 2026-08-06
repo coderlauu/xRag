@@ -1,6 +1,10 @@
 package com.app.knowledge.service;
 
-import com.app.knowledge.embedding.EmbeddingClient;
+import com.app.ai.model.CallOptions;
+import com.app.ai.model.EmbeddingClient;
+import com.app.ai.model.EmbeddingCommand;
+import com.app.ai.model.ModelIdentity;
+import com.app.knowledge.repository.KnowledgeBaseRepository;
 import com.app.knowledge.ingestion.ContentHash;
 import com.app.knowledge.ingestion.TokenEstimator;
 import com.app.knowledge.model.DocumentChunk;
@@ -40,15 +44,17 @@ public class ChunkService {
     private final SourceDocumentRepository documents;
     private final ChunkVectorRepository vectors;
     private final EmbeddingClient embeddingClient;
+    private final KnowledgeBaseRepository knowledgeBases;
     private final TransactionOperations transactions;
 
     public ChunkService(DocumentChunkRepository chunks, SourceDocumentRepository documents,
             ChunkVectorRepository vectors, EmbeddingClient embeddingClient,
-            PlatformTransactionManager transactionManager) {
+            KnowledgeBaseRepository knowledgeBases, PlatformTransactionManager transactionManager) {
         this.chunks = chunks;
         this.documents = documents;
         this.vectors = vectors;
         this.embeddingClient = embeddingClient;
+        this.knowledgeBases = knowledgeBases;
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
@@ -82,7 +88,7 @@ public class ChunkService {
 
         // 禁用的分块本来就没有向量（向量表不变量 2），改内容也不该让它凭空出现一条。
         // 顺带省下这次 Embedding 调用——用户禁用它就是不想让它参与检索。
-        float[] vector = chunk.enabled() ? embedOne(content) : null;
+        float[] vector = chunk.enabled() ? embedOne(document.kbId(), content) : null;
 
         int charCount = content.length();
         int tokenCount = TokenEstimator.estimate(content);
@@ -120,7 +126,7 @@ public class ChunkService {
             throw ApiException.invalidRequest("分块序号不能为负数。");
         }
 
-        float[] vector = embedOne(content);
+        float[] vector = embedOne(document.kbId(), content);
         TextChunk pending = new TextChunk(index, content, content.length(),
                 TokenEstimator.estimate(content), ContentHash.sha256(content));
 
@@ -157,7 +163,7 @@ public class ChunkService {
                 throw new ApiException(HttpStatus.CONFLICT, "INVALID_STATE",
                         "文档已禁用，无法单独启用其中的分块。请先启用文档。");
             }
-            float[] vector = embedOne(chunk.content());
+            float[] vector = embedOne(document.kbId(), chunk.content());
             transactions.executeWithoutResult(status -> {
                 chunks.setEnabled(chunkId, true);
                 // 先删再插：正常情况下禁用的分块没有向量，这条 delete 影响 0 行。留着是因为
@@ -230,8 +236,10 @@ public class ChunkService {
                         "文档已禁用，无法单独启用其中的分块。请先启用文档。");
             }
             // 事务外：整批算完向量再进事务。
-            List<float[]> embeddings = embeddingClient.embed(
-                    pending.stream().map(DocumentChunk::content).toList());
+            List<float[]> embeddings = embeddingClient.embed(new EmbeddingCommand(
+                    embeddingIdentity(document.kbId()),
+                    pending.stream().map(DocumentChunk::content).toList(),
+                    CallOptions.defaults())).vectors();
             transactions.executeWithoutResult(status -> {
                 chunks.setEnabledAll(ids, true);
                 vectors.deleteByChunkIds(ids);
@@ -261,8 +269,15 @@ public class ChunkService {
         });
     }
 
-    private float[] embedOne(String content) {
-        List<float[]> result = embeddingClient.embed(List.of(content));
+    private ModelIdentity embeddingIdentity(long kbId) {
+        return new ModelIdentity(knowledgeBases.findById(kbId)
+                .orElseThrow(() -> new IllegalStateException("知识库不存在：" + kbId))
+                .embeddingModel());
+    }
+
+    private float[] embedOne(long kbId, String content) {
+        List<float[]> result = embeddingClient.embed(new EmbeddingCommand(
+                embeddingIdentity(kbId), List.of(content), CallOptions.defaults())).vectors();
         if (result.size() != 1) {
             throw new IllegalStateException("Embedding 返回了 %d 条向量，期望 1 条".formatted(result.size()));
         }

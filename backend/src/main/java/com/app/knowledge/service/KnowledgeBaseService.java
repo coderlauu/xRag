@@ -1,12 +1,16 @@
 package com.app.knowledge.service;
 
-import com.app.knowledge.embedding.EmbeddingProperties;
+import com.app.ai.model.Capability;
+import com.app.ai.model.ModelCatalogSnapshot;
+import com.app.ai.model.ModelDeployment;
+import com.app.ai.model.ModelIdentity;
 import com.app.knowledge.model.KnowledgeBase;
 import com.app.knowledge.repository.KnowledgeBaseRepository;
 import com.app.knowledge.storage.ObjectKeyFactory;
 import com.app.knowledge.web.ApiException;
 import com.app.knowledge.web.PageResponse;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,11 +26,25 @@ public class KnowledgeBaseService {
     private static final int DESCRIPTION_MAX_LENGTH = 1024;
 
     private final KnowledgeBaseRepository repository;
-    private final EmbeddingProperties embeddingProperties;
+    private final ModelIdentity defaultEmbeddingIdentity;
+    private final int defaultEmbeddingDimensions;
 
-    public KnowledgeBaseService(KnowledgeBaseRepository repository, EmbeddingProperties embeddingProperties) {
+    public KnowledgeBaseService(
+            KnowledgeBaseRepository repository,
+            ModelCatalogSnapshot catalog,
+            @Value("${app.knowledge.default-embedding-identity}") String defaultEmbeddingIdentity) {
         this.repository = repository;
-        this.embeddingProperties = embeddingProperties;
+        this.defaultEmbeddingIdentity = new ModelIdentity(defaultEmbeddingIdentity);
+        this.defaultEmbeddingDimensions = catalog.deployments().values().stream()
+                .filter(deployment -> deployment.capabilities().contains(Capability.EMBEDDING))
+                .filter(deployment -> deployment.modelIdentity().equals(this.defaultEmbeddingIdentity))
+                .map(ModelDeployment::embedding)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "app.knowledge.default-embedding-identity=%s 在 catalog 中没有对应的 "
+                                + "EMBEDDING deployment；新建知识库无法确定向量身份。"
+                                        .formatted(defaultEmbeddingIdentity)))
+                .dimensions();
     }
 
     /**
@@ -44,7 +62,7 @@ public class KnowledgeBaseService {
         long id;
         try {
             id = repository.insert(trimmedName, ObjectKeyFactory.storageAlias(trimmedName), description,
-                    embeddingProperties.getModel(), embeddingProperties.getDimensions());
+                    defaultEmbeddingIdentity.value(), defaultEmbeddingDimensions);
         } catch (DuplicateKeyException raceLostToAnotherRequest) {
             // 上面的 existsByName 只是为了给出友好提示，真正的唯一性由部分唯一索引保证。
             // 两次请求几乎同时创建同名知识库时会走到这里，仍然要返回同一条用户文案。

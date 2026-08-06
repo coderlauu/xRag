@@ -8,11 +8,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.app.knowledge.embedding.EmbeddingProperties;
+import com.app.ai.model.ModelCatalogSnapshot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -48,8 +49,11 @@ class KnowledgeBaseIntegrationTests {
      * 断言对照配置值而不是写死模型名：这两条用例要证明的是"值来自服务端配置"，
      * 写死字面量会让每次换供应商都无谓地弄红一次测试。
      */
+    @Value("${app.knowledge.default-embedding-identity}")
+    private String defaultEmbeddingIdentity;
+
     @Autowired
-    private EmbeddingProperties embeddingProperties;
+    private ModelCatalogSnapshot catalog;
 
     private long createKnowledgeBase(String name) throws Exception {
         String body = mvc.perform(post("/api/v1/knowledge-bases")
@@ -69,8 +73,8 @@ class KnowledgeBaseIntegrationTests {
         mvc.perform(get("/api/v1/knowledge-bases/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("测试-创建"))
-                .andExpect(jsonPath("$.embeddingModel").value(embeddingProperties.getModel()))
-                .andExpect(jsonPath("$.embeddingDimensions").value(embeddingProperties.getDimensions()))
+                .andExpect(jsonPath("$.embeddingModel").value(defaultEmbeddingIdentity))
+                .andExpect(jsonPath("$.embeddingDimensions").value(defaultEmbeddingDimensions()))
                 .andExpect(jsonPath("$.documentCount").value(0))
                 .andExpect(jsonPath("$.chunkCount").value(0));
     }
@@ -87,8 +91,8 @@ class KnowledgeBaseIntegrationTests {
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode created = json.readTree(body);
-        assertThat(created.get("embeddingModel").asText()).isEqualTo(embeddingProperties.getModel());
-        assertThat(created.get("embeddingDimensions").asInt()).isEqualTo(embeddingProperties.getDimensions());
+        assertThat(created.get("embeddingModel").asText()).isEqualTo(defaultEmbeddingIdentity);
+        assertThat(created.get("embeddingDimensions").asInt()).isEqualTo(defaultEmbeddingDimensions());
     }
 
     @Test
@@ -230,5 +234,14 @@ class KnowledgeBaseIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page").value(1))
                 .andExpect(jsonPath("$.size").value(100));
+    }
+
+    private int defaultEmbeddingDimensions() {
+        return catalog.deployments().values().stream()
+                .filter(deployment -> deployment.modelIdentity().value().equals(defaultEmbeddingIdentity))
+                .findFirst()
+                .orElseThrow()
+                .embedding()
+                .dimensions();
     }
 }

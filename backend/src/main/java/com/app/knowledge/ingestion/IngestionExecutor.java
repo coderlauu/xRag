@@ -1,6 +1,10 @@
 package com.app.knowledge.ingestion;
 
-import com.app.knowledge.embedding.EmbeddingClient;
+import com.app.ai.model.CallOptions;
+import com.app.ai.model.EmbeddingClient;
+import com.app.ai.model.EmbeddingCommand;
+import com.app.ai.model.ModelIdentity;
+import com.app.knowledge.repository.KnowledgeBaseRepository;
 import com.app.knowledge.model.ChunkConfig;
 import com.app.knowledge.model.IngestionPhase;
 import com.app.knowledge.model.IngestionRun;
@@ -44,6 +48,7 @@ public class IngestionExecutor {
     private final TextExtractor extractor;
     private final TextChunker chunker;
     private final EmbeddingClient embeddingClient;
+    private final KnowledgeBaseRepository knowledgeBases;
     private final S3Client s3;
     private final String bucket;
     private final TransactionOperations transactions;
@@ -51,7 +56,8 @@ public class IngestionExecutor {
 
     public IngestionExecutor(IngestionRunRepository runs, SourceDocumentRepository documents,
             DocumentChunkRepository chunks, ChunkVectorRepository vectors, TextExtractor extractor,
-            TextChunker chunker, EmbeddingClient embeddingClient, S3Client s3,
+            TextChunker chunker, EmbeddingClient embeddingClient,
+            KnowledgeBaseRepository knowledgeBases, S3Client s3,
             @Value("${app.storage.bucket}") String bucket, PlatformTransactionManager transactionManager) {
         this.runs = runs;
         this.documents = documents;
@@ -60,6 +66,7 @@ public class IngestionExecutor {
         this.extractor = extractor;
         this.chunker = chunker;
         this.embeddingClient = embeddingClient;
+        this.knowledgeBases = knowledgeBases;
         this.s3 = s3;
         this.bucket = bucket;
         this.transactions = new TransactionTemplate(transactionManager);
@@ -127,7 +134,10 @@ public class IngestionExecutor {
 
             // 步骤 4：批量算向量（事务外，关键）
             runs.updatePhase(run.id(), IngestionPhase.EMBED);
-            embeddings = embeddingClient.embed(textChunks.stream().map(TextChunk::content).toList());
+            embeddings = embeddingClient.embed(new EmbeddingCommand(
+                    embeddingIdentity(document.kbId()),
+                    textChunks.stream().map(TextChunk::content).toList(),
+                    CallOptions.defaults())).vectors();
         } finally {
             deleteQuietly(temp);
         }
@@ -189,5 +199,12 @@ public class IngestionExecutor {
         } catch (Exception exception) {
             LOGGER.warn("临时文件删除失败，需要人工清理：{}", temp.getAbsolutePath());
         }
+    }
+
+    /** 向量身份始终来自知识库本身，不回退默认模型（EMB-13）。 */
+    private ModelIdentity embeddingIdentity(long kbId) {
+        return new ModelIdentity(knowledgeBases.findById(kbId)
+                .orElseThrow(() -> new IllegalStateException("知识库不存在：" + kbId))
+                .embeddingModel());
     }
 }

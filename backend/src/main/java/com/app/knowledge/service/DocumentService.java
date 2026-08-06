@@ -1,6 +1,9 @@
 package com.app.knowledge.service;
 
-import com.app.knowledge.embedding.EmbeddingClient;
+import com.app.ai.model.CallOptions;
+import com.app.ai.model.EmbeddingClient;
+import com.app.ai.model.EmbeddingCommand;
+import com.app.ai.model.ModelIdentity;
 import com.app.knowledge.ingestion.ContentHash;
 import com.app.knowledge.ingestion.RemoteFetcher;
 import com.app.knowledge.ingestion.SyncCronValidator;
@@ -366,8 +369,10 @@ public class DocumentService {
         }
 
         // 事务外算完再开事务（本方法因此不能加 @Transactional，同 ChunkService）
-        List<float[]> embeddings = embeddingClient.embed(alive.stream()
-                .map(DocumentChunk::content).toList());
+        List<float[]> embeddings = embeddingClient.embed(new EmbeddingCommand(
+                embeddingIdentity(document.kbId()),
+                alive.stream().map(DocumentChunk::content).toList(),
+                CallOptions.defaults())).vectors();
         List<Long> chunkIds = alive.stream().map(DocumentChunk::id).toList();
         transactions.executeWithoutResult(status -> {
             documents.setEnabled(docId, true);
@@ -435,5 +440,12 @@ public class DocumentService {
         } catch (IOException exception) {
             LOGGER.warn("临时文件删除失败，需要人工清理：{}", temp.getAbsolutePath(), exception);
         }
+    }
+
+    /** 向量身份始终来自知识库本身，不回退默认模型（EMB-13）。 */
+    private ModelIdentity embeddingIdentity(long kbId) {
+        return new ModelIdentity(knowledgeBases.findById(kbId)
+                .orElseThrow(() -> new IllegalStateException("知识库不存在：" + kbId))
+                .embeddingModel());
     }
 }

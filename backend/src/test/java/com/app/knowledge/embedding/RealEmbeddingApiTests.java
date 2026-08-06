@@ -1,5 +1,11 @@
 package com.app.knowledge.embedding;
 
+import com.app.ai.model.CallOptions;
+import com.app.ai.model.EmbeddingClient;
+import com.app.ai.model.EmbeddingCommand;
+import com.app.ai.model.ModelCatalogSnapshot;
+import com.app.ai.model.ModelIdentity;
+import org.springframework.beans.factory.annotation.Value;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -31,14 +37,18 @@ class RealEmbeddingApiTests {
     private EmbeddingClient client;
 
     @Autowired
-    private EmbeddingProperties properties;
+    private ModelCatalogSnapshot catalog;
+
+    @Value("${app.knowledge.default-embedding-identity}")
+    private String identity;
+
 
     @Test
     void 真实调用返回的维度与配置一致() {
-        List<float[]> vectors = client.embed(List.of("知识库分块的向量化测试"));
+        List<float[]> vectors = client.embed(new EmbeddingCommand(new ModelIdentity(identity), List.of("知识库分块的向量化测试"), CallOptions.defaults())).vectors();
 
         assertThat(vectors).hasSize(1);
-        assertThat(vectors.get(0)).hasSize(properties.getDimensions());
+        assertThat(vectors.get(0)).hasSize(dimensions());
         // 不是一串 0：真返回了内容，而不是某种占位响应
         assertThat(norm(vectors.get(0))).isGreaterThan(0.1);
     }
@@ -69,12 +79,15 @@ class RealEmbeddingApiTests {
                 .mapToObj(i -> "第 " + i + " 段内容，用于验证分批后的顺序对应关系。")
                 .toList();
 
-        List<float[]> vectors = client.embed(texts);
+        List<float[]> vectors = client.embed(new EmbeddingCommand(
+                new ModelIdentity(identity), texts, CallOptions.defaults())).vectors();
 
         assertThat(vectors).hasSize(23);
-        assertThat(vectors).allSatisfy(v -> assertThat(v).hasSize(properties.getDimensions()));
+        assertThat(vectors).allSatisfy(v -> assertThat(v).hasSize(dimensions()));
 
-        float[] alone = client.embed(List.of(texts.get(17))).get(0);
+        float[] alone = client.embed(new EmbeddingCommand(
+                new ModelIdentity(identity), List.of(texts.get(17)), CallOptions.defaults()))
+                .vectors().get(0);
         assertThat(cosine(vectors.get(17), alone))
                 .as("第 17 条应与单独计算的结果重合（只允许推理抖动，实测下界 0.9977）")
                 .isGreaterThan(SAME_TEXT_THRESHOLD);
@@ -97,5 +110,14 @@ class RealEmbeddingApiTests {
             dot += (double) a[i] * b[i];
         }
         return dot / (norm(a) * norm(b));
+    }
+
+    private int dimensions() {
+        return catalog.deployments().values().stream()
+                .filter(deployment -> deployment.modelIdentity().value().equals(identity))
+                .findFirst()
+                .orElseThrow()
+                .embedding()
+                .dimensions();
     }
 }
