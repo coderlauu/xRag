@@ -153,7 +153,7 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01、02、03、04、06、07、08、09、10、11、12 已完成；05、13、14、16、19 ready）**
+状态：**in progress（工单 01、02、03、04、06、07、08、09、10、11、12、13、14 已完成；15 进行中；05、16、19 ready）**
 
 实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 
@@ -168,8 +168,10 @@ Step C.1 评审修订：
 9. 同步 Chat 有界原地重试、跨候选故障转移、429 独立配额边界与完整恢复事件。
 10. WebClient/SSE Provider adapter、事件归一、断流分类与取消传播。
 11. 单候选流单次订阅、探测/提交/唯一终态、阶段超时与诊断结算。
+12. 流式路由与故障转移：提交前透明切换候选、提交后锁定 deployment 并只产生唯一 `StreamFailed`。
+13. 调度层 Embedding 能力：按最小批量上限切 work unit、逐批独立恢复、已完成批次不重算与 mixed execution。
 
-当前前沿并行推进 Overview API、流式路由恢复、Embedding/Rerank 和诊断保留；随后再进入 Trace API/UI、交付与真实 Provider 准入。工单不按编号机械串行，但不得绕过依赖图。
+工单 15 正在把 Phase 1 知识库调用点原子迁移到调度层 Embedding 入口，Provider 适配器与 Spring 装配已分两次落地，接口替换那一刀待完成。当前前沿并行推进 Overview API、Rerank/Noop 和诊断保留；随后再进入 Trace API/UI、交付与真实 Provider 准入。工单不按编号机械串行，但不得绕过依赖图。
 
 闸门：浏览器或 API 演示统一入口、选路、熔断和故障转移。
 

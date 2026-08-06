@@ -55,7 +55,7 @@
 |---|---|---|
 | Phase 0 基础学习与 Bootstrap | completed | 40/40 篇与环境检查点完成 |
 | Phase 1 AI 知识库建设 | completed | 已于 2026-07-28 归档；[里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md) |
-| Phase 2 大模型调度引擎 | in progress | Step D 工单 01、02、03、04、06、07、08、09、10、11、12 done；05、13、14、16、19 ready |
+| Phase 2 大模型调度引擎 | in progress | Step D 工单 01~04、06~14 done；15 进行中；05、16、19 ready |
 | Phase 3 AI 知识问答核心链路 | pending | 等待 Phase 2 提供统一模型调用能力 |
 | Phase 4 RAG 评测体系 | pending | 等待 Phase 3 形成可评测链路 |
 | Phase 5 面试专题与系统说明书 | pending | 最终汇总阶段 |

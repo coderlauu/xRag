@@ -2,9 +2,9 @@
 
 **What to build:** 实现稳定 candidate ID 的 Rerank 端口、Provider adapter 与显式 Noop 降级，并复用已验收的同步恢复骨架。
 
-**Blocked by:** 10
+**Blocked by:** 无（10 已于 2026-08-03 完成）
 
-**Status:** blocked
+**Status:** ready
 
 ## Slice
 
