@@ -153,7 +153,7 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01、02、03、04、06、07、08、09、10、11、12、13、14 已完成；15 进行中；05、16、19 ready）**
+状态：**in progress（工单 01~04、06~15 已完成；05、16、19 ready）**
 
 实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 
@@ -170,8 +170,9 @@ Step C.1 评审修订：
 11. 单候选流单次订阅、探测/提交/唯一终态、阶段超时与诊断结算。
 12. 流式路由与故障转移：提交前透明切换候选、提交后锁定 deployment 并只产生唯一 `StreamFailed`。
 13. 调度层 Embedding 能力：按最小批量上限切 work unit、逐批独立恢复、已完成批次不重算与 mixed execution。
+14. Phase 1 知识库 Embedding 原子迁移：显式身份、catalog 维度校验与已有绑定的改绑防护。
 
-工单 15 正在把 Phase 1 知识库调用点原子迁移到调度层 Embedding 入口，Provider 适配器与 Spring 装配已分两次落地，接口替换那一刀待完成。当前前沿并行推进 Overview API、Rerank/Noop 和诊断保留；随后再进入 Trace API/UI、交付与真实 Provider 准入。工单不按编号机械串行，但不得绕过依赖图。
+工单 15 已把 Phase 1 知识库调用点原子迁移到调度层，Embedding 自此只有一个入口。当前前沿并行推进 Overview API、Rerank/Noop 和诊断保留；随后再进入 Trace API/UI、交付与真实 Provider 准入。工单不按编号机械串行，但不得绕过依赖图。
 
 闸门：浏览器或 API 演示统一入口、选路、熔断和故障转移。
 
@@ -226,6 +227,6 @@ Step C.1 评审修订：
 
 ## 7. Current Node
 
-- `now`: Step D 工单 14 已完成；调度层四个能力口中的 Chat、流式 Chat、Embedding 均已接入 RoutePlan、共享 Deadline/AttemptBudget、错误动作表与 breaker permission。Embedding 支持按最小批量上限切 work unit、逐批独立恢复、已完成批次不重算与多 deployment 共同贡献的准确表达。完整验证通过（backend 352 tests，0 failures，2 skipped）。
-- `next`: 工单 05（Overview API）、15（Phase 1 Embedding 原子迁移）、16（Rerank/Noop）、19（诊断保留）均为 `ready`。
+- `now`: Step D 工单 15 已完成；Phase 1 知识库的向量化调用点已原子迁移到调度层，Embedding 自此只有一个入口，身份由 `knowledge_base.embedding_model` 显式传入，维度事实源为 catalog 的 `EmbeddingProfile`。完整验证通过（backend 347 tests，0 failures，2 skipped）。
+- `next`: 工单 05（Overview API）、16（Rerank/Noop）、19（诊断保留）均为 `ready`；17 起的 Trace 线依赖 16。
 - `decision_needed`: 无；四张已解锁工单的范围与依赖均已由 Step C 冻结。

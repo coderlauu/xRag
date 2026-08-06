@@ -319,7 +319,9 @@ Reactor Netty 还把连接池获取、连接、响应等超时区分为不同配
 
 ### 6.1 当前可直接保留的契约
 
-xrag 已有的 [EmbeddingClient.java](../../backend/src/main/java/com/app/knowledge/embedding/EmbeddingClient.java) 定义：
+> 本节引用的 `com.app.knowledge.embedding.EmbeddingClient` 与 `OpenAiCompatibleEmbeddingClient` 已于工单 15 删除：接口收敛为 [com.app.ai.model.EmbeddingClient](../../backend/src/main/java/com/app/ai/model/EmbeddingClient.java)，OpenAI 兼容编解码迁入 [OpenAiCompatibleEmbeddingProvider](../../backend/src/main/java/com/app/ai/provider/OpenAiCompatibleEmbeddingProvider.java)。本文是 `2026-07-28` 的现状调研记录，故保留当时的描述，仅去掉已失效的链接。
+
+xrag 已有的 `EmbeddingClient.java` 定义：
 
 - 批量文本输入；
 - 返回与输入数量、顺序严格一致；
@@ -328,7 +330,7 @@ xrag 已有的 [EmbeddingClient.java](../../backend/src/main/java/com/app/knowle
 
 这些正好对应官方 Embeddings 协议和 Phase 1 的数据库不变量，应保留为知识库模块依赖的稳定端口，而不是让知识库直接依赖新的路由实现。
 
-现有 [OpenAiCompatibleEmbeddingClient.java](../../backend/src/main/java/com/app/knowledge/embedding/OpenAiCompatibleEmbeddingClient.java) 已做：
+现有 `OpenAiCompatibleEmbeddingClient.java` 已做：
 
 - 串行分批；
 - 按响应 `index` 重排；
@@ -448,11 +450,11 @@ OpenTelemetry 把输入消息、输出消息和系统指令列为 opt-in 属性�
 |---|---|---|
 | 后端是 Java 17、Spring Boot 3.4.1、`spring-boot-starter-web`，没有 WebFlux/Resilience4j/OpenTelemetry 依赖 | [pom.xml](../../backend/pom.xml) | 不要在学习稿里把任何具体库写成既成事实；Step C 再做依赖选择 |
 | 当前只有 Embedding AI 客户端，无 Chat / 流式 Chat / Rerank | [embedding 包](../../backend/src/main/java/com/app/knowledge/embedding) | Phase 2 是新增共享基础设施并迁移已有能力，不是重构现成调度系统 |
-| Embedding 使用同步 `RestClient` | [OpenAiCompatibleEmbeddingClient.java](../../backend/src/main/java/com/app/knowledge/embedding/OpenAiCompatibleEmbeddingClient.java) | 同步能力可保留；流式能力需单独决定 HTTP/异步模型 |
-| Embedding 只对 429 重试，固定倍增，无 `Retry-After` 和抖动 | [OpenAiCompatibleEmbeddingClient.java](../../backend/src/main/java/com/app/knowledge/embedding/OpenAiCompatibleEmbeddingClient.java) | 作为共享重试策略的现实输入，但不能原样推广给所有能力 |
+| Embedding 使用同步 `RestClient` | `OpenAiCompatibleEmbeddingClient.java` | 同步能力可保留；流式能力需单独决定 HTTP/异步模型 |
+| Embedding 只对 429 重试，固定倍增，无 `Retry-After` 和抖动 | `OpenAiCompatibleEmbeddingClient.java` | 作为共享重试策略的现实输入，但不能原样推广给所有能力 |
 | 现有 Embedding 配置全局唯一，Ark 每批 10 条是已验证的供应商限制 | [application.properties](../../backend/src/main/resources/application.properties) | 批次、维度、端点和能力应迁为 Provider/模型元数据 |
 | 知识库创建时固化 embedding model/dimensions，数据库列为 `vector(1024)` | [knowledge-base architecture](../../tech/knowledge-base/architecture.md#6-embedding-接入prd-9-待决策-4) | 路由候选必须保证向量空间兼容；故障转移不能仅看维度相同 |
-| Embedding 外部调用位于事务外，并有测试断言 | [EmbeddingClient.java](../../backend/src/main/java/com/app/knowledge/embedding/EmbeddingClient.java)、[FakeEmbeddingConfig.java](../../backend/src/test/java/com/app/knowledge/FakeEmbeddingConfig.java) | 迁移必须保持；调度诊断写库也不能把外部模型调用包进长事务 |
+| Embedding 外部调用位于事务外，并有测试断言 | `EmbeddingClient.java`、[FakeEmbeddingConfig.java](../../backend/src/test/java/com/app/knowledge/FakeEmbeddingConfig.java) | 迁移必须保持；调度诊断写库也不能把外部模型调用包进长事务 |
 | 当前部署决策是单实例；进程内并发协调在此假设下可接受 | [ADR 0002](../adr/0002-knowledge-base-async-and-concurrency.md) | 进程内熔断可作为第一版候选，但必须记录多实例失效点 |
 | 当前真实 Provider 测试由环境变量守门，CI 使用确定性假实现 | [RealEmbeddingApiTests.java](../../backend/src/test/java/com/app/knowledge/embedding/RealEmbeddingApiTests.java) | Phase 2 应延续“假 Provider 进 CI、真实能力显式守门”的测试模式 |
 | 现有 Ark Coding Plan Key 用法不合规，项目已记录知情风险 | [knowledge-base architecture](../../tech/knowledge-base/architecture.md#6-embedding-接入prd-9-待决策-4) | Phase 2 Provider 准入必须使用合规 Key，不能把现状扩展到 Chat/Rerank |

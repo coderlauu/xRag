@@ -196,14 +196,13 @@ Lane 是职责视角，工单是按可验证路径组织的执行视角。实现
 
 ## 6. 依赖前沿
 
-Step C 已于 2026-08-02 获确认。工单 01、02、03、04、06、07、08、09、10、11、12、13、14 已完成；当前前沿包含：
+Step C 已于 2026-08-02 获确认。工单 01、02、03、04、06、07、08、09、10、11、12、13、14、15 已完成；当前前沿包含：
 
 - 工单 05：只读调度总览 API；
-- 工单 15：Phase 1 Embedding 原子迁移；
 - 工单 16：Rerank 与显式 Noop；
 - 工单 19：诊断保留与分批清理。
 
-10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter，12 已完成单候选流状态机并解锁 13；13 已完成流式路由与故障转移，流式链路自此闭环；14 已完成调度层 Embedding 能力并解锁 15。05/15/16/19 当前互不依赖，可独立推进，19 独立完成诊断保留边界。
+10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter，12 已完成单候选流状态机并解锁 13；13 已完成流式路由与故障转移，流式链路自此闭环；14 已完成调度层 Embedding 能力并解锁 15；15 已把 Phase 1 知识库调用点原子迁移到调度层，Embedding 自此只有一个入口。05/16/19 当前互不依赖，可独立推进；17 起的 Trace 线依赖 15、16。
 
 完整依赖图见 [.scratch/model-scheduling/README.md](../../../.scratch/model-scheduling/README.md)。
 
@@ -252,6 +251,7 @@ scripts/ci-validate.sh
 - `2026-08-03`: Step D 工单 09 完成。基于 Resilience4j 落地 `provider/deployment/capability` registry、手工原子许可、分类一次结算、可读运行快照与异步 transition 持久化；CBR-01~15 的 breaker 侧契约已自动化。`./mvnw -B verify` 通过（256 tests，0 failures，2 skipped），解锁工单 05 与 10；RTE-11 / DIA-19 的真实 route-event/failover 集成归工单 10。
 - `2026-08-03`: Step D 工单 10 完成。同步 Chat 接通 RoutePlan、共享 monotonic Deadline/AttemptBudget、breaker permission、最多一次原地重试、独立 quota-domain 429 切换与完成态 route event；SYN-02~18、20、26、28、DIA-03/19/20、RTE-11 已自动化。`./mvnw -B verify` 通过（281 tests，0 failures，2 skipped），解锁工单 14 与 16。
 - `2026-08-03`: Step D 工单 11 完成。在保持 Servlet/Tomcat 服务端的前提下引入 WebClient/Reactor Netty client，基于 `ServerSentEvent<String>` 完成 STR-01~09、文本/工具/拒答/usage/done/error 归一、64KiB 事件上限、未知事件诊断跳过、HTTP 失败分类、断流和取消传播；Spring 6.2 不识别独立 CR 的缺口由 reader 前的有界行尾归一补齐，不引入自定义 SSE parser。`./mvnw -B verify` 通过（294 tests，0 failures，2 skipped），解锁工单 12。
+- `2026-08-04`: Step D 工单 15 完成。分三步落地：Provider 适配器与 Spring 装配先各自作为纯新增提交，再用一个原子提交完成接口替换——删除 knowledge 侧 EmbeddingClient 及其两个实现、两个异常类与 EmbeddingProperties，三个调用点改为显式 `ModelIdentity` 的 `EmbeddingCommand`，`EmbeddingConfig` 退化为启动校验并新增 EMB-20 身份绑定检查，`ApiExceptionHandler` 改映射 `ModelCallException`。出站限流的主动节流落在 Provider 适配器，作用域提升到 Provider 实例；新增 `app.knowledge.default-embedding-identity` 以避免静默改变新建知识库绑定的模型。EMB-01、13~16、20 已完成，EMB-21/22 的自动化用例待补。`./mvnw -B verify` 通过（347 tests，0 failures，2 skipped），解锁工单 17。
 - `2026-08-04`: Step D 工单 14 完成。按 api.md §1.5 冻结 Embedding 公共类型，新增 `RoutedEmbeddingClient`：按所有合格等价候选 `maxBatchItems` 的最小值切 work unit，每批独立 attempt 预算、全调用共享 deadline；按 index 保序还原并拒绝重复/越界/缺失 index、维度不符与非有限浮点；中间批次可在等价 deployment 间切换且已完成批次不重算，候选起点随上一批成功候选前移（sticky）；contributors 按首次贡献去重，`mixedExecution` 当且仅当数量大于 1；任一批失败或取消都不返回部分向量且调用级贡献者归零。EMB-02~12、17~19、23、24 已自动化。范围只到 `com.app.ai`，知识库调用点迁移留给工单 15。`./scripts/ci-validate.sh` 通过（backend 352 tests，0 failures，2 skipped），解锁工单 15。
 - `2026-08-04`: Step D 工单 13 完成。新增 `RoutingStreamingChatClient` 作为流式路由协调层，把 RoutePlan、共享 monotonic Deadline/AttemptBudget、错误动作表与 breaker permission 接到单次订阅状态机上：提交前按动作表透明切换候选且失败候选事件不下发，提交后锁定 deployment 只产生唯一 `StreamFailed`，成功按首个有效块耗时判慢、失败与取消分别结算许可，候选耗尽时零事件 `onError(ModelCallException)`。为避免复制 200 行状态机，把单次 attempt 的机制提取为包内 `CandidateStreamAttempt`，`SingleCandidateStreamingChatClient` 改为委托、行为不变。STR-08、12、14、18、19、22、23、27、28、30~35 与 DIA-06 已自动化。`./scripts/ci-validate.sh` 通过（backend 336 tests，0 failures，2 skipped）。
 - `2026-08-03`: Step D 工单 12 完成。落地 `StreamingChatClient` 与类型化公共事件、同一 publisher 单次订阅守卫、PROBING/COMMITTED/唯一终态 CAS、32 events/64KiB 探测、连接/响应头/首事件/首有效/idle/total 六阶段超时、取消传播与一次性诊断结算；STR-10~13、15~27、29、30、35 已自动化。`./scripts/ci-validate.sh` 通过（backend 318 tests，0 failures，2 skipped），解锁工单 13。
