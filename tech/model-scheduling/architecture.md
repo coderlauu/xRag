@@ -262,6 +262,21 @@ interface RerankProvider {
 - `OpenAiCompatibleRerankProvider`：百炼 `/reranks` 扩展；不假设标准 OpenAI 支持 Rerank。
 - `ProgrammableFakeProvider`：CI 中模拟成功、HTTP 错误、超时、断流、取消和畸形响应。
 
+#### 响应解析对未知字段必须宽容
+
+适配器读取的字段是**协议子集**，不是全集。OpenAI 兼容协议只固定了各家共有的部分，供应商普遍
+额外返回自己的字段（火山方舟的 `/embeddings` 会带 `created` / `id` / `model` / `usage` 与逐项的
+`object`），这属于正常响应而非畸形响应。因此：
+
+- **适配器自建的 `ObjectMapper` 必须显式关闭 `FAIL_ON_UNKNOWN_PROPERTIES`。** Jackson 的默认值
+  是 `true`；Spring Boot 注入的 mapper 默认关掉了它，自建时不会继承这个默认。
+- **测试夹具必须照抄真实供应商响应，不得只留适配器声明的字段。** 精简夹具会让上一条永远
+  触发不到——2026-08-07 的真实缺陷正是这么逃过整个 Phase 2 的，
+  见 [test-matrix §14.4.2](test-matrix.md)。
+
+只有"缺少必需字段"「index 越界/重复」「维度不符」「非有限浮点」才算
+`PROVIDER_RESPONSE_INVALID`。**多出字段不是错误。**
+
 ## 6. 路由、预算与错误策略
 
 ### 6.1 两阶段候选规划

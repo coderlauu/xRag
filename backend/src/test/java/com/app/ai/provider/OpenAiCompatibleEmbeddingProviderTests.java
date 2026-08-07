@@ -40,6 +40,12 @@ class OpenAiCompatibleEmbeddingProviderTests {
         }
     }
 
+    /**
+     * 响应体照抄真实供应商（火山方舟 {@code /embeddings}，`2026-08-07` 实测）的完整形状，**不做精简**：
+     * 此前这里只留了 {@code data/index/embedding} 三个字段，于是裸 {@code ObjectMapper} 的
+     * {@code FAIL_ON_UNKNOWN_PROPERTIES} 一直没被触发，真实调用却在 {@code object} 上整体绑定失败，
+     * 表现为 200 响应被判成 PROTOCOL_CONTRACT。夹具越干净，这类 bug 越容易从测试里漏过去。
+     */
     @Test
     void 成功响应按index原样带回并透传脱敏请求ID() throws Exception {
         var received = new AtomicReference<Map<String, Object>>();
@@ -47,7 +53,10 @@ class OpenAiCompatibleEmbeddingProviderTests {
             received.set(readJson(exchange));
             exchange.getResponseHeaders().add("x-request-id", "req_1234567890abcdef");
             respond(exchange, 200, """
-                    {"data":[{"index":1,"embedding":[0.5,0.5]},{"index":0,"embedding":[0.25,0.25]}]}
+                    {"created":1786084220,"id":"0217860842206","object":"list","model":"embed-model",
+                     "data":[{"index":1,"embedding":[0.5,0.5],"object":"embedding"},
+                             {"index":0,"embedding":[0.25,0.25],"object":"embedding"}],
+                     "usage":{"prompt_tokens":44,"total_tokens":44}}
                     """);
         });
 

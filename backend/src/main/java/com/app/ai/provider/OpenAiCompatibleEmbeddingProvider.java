@@ -2,6 +2,7 @@ package com.app.ai.provider;
 
 import com.app.ai.model.ModelDeployment;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.ConnectException;
 import java.net.URI;
@@ -33,7 +34,17 @@ public final class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvide
 
     private final URI endpoint;
     private final RestClient restClient;
-    private final ObjectMapper json = new ObjectMapper();
+
+    /**
+     * Unknown properties must be ignored. The OpenAI-compatible contract only fixes the fields this
+     * adapter reads; providers are free to add their own, and real ones do — Volcengine Ark returns
+     * {@code created}, {@code id}, {@code model}, {@code usage} and a per-item {@code object}. With
+     * Jackson's default the whole 200 response fails to bind and surfaces as PROTOCOL_CONTRACT,
+     * which reads like a broken provider rather than an over-strict client.
+     */
+    private final ObjectMapper json = new ObjectMapper()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+
     private final Duration minRequestInterval;
 
     private final Object pacingLock = new Object();

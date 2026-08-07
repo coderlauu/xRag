@@ -320,7 +320,7 @@ Step E 关闭前：
 | 日期 | 2026-08-07 |
 | 后端 | JDK 17，`scripts/ci-validate.sh`，**clean 构建** |
 | 结果 | backend 399 tests，0 failures，2 skipped |
-| 2 个 skipped | `RealEmbeddingApiTests`，由 `@EnabledIfEnvironmentVariable` 守门，无 Key 自动跳过 |
+| 2 个 skipped | `RealEmbeddingApiTests`，由 `@EnabledIfEnvironmentVariable` 守门，无 Key 自动跳过。**这两条 skipped 掩盖了一个真实缺陷整整一个工单周期**，见 §14.4.2 |
 | 依赖 | 本机 Docker Compose 的 Postgres 16 / Redis / RustFS |
 | 浏览器 | 本地 Vite dev server + 后端 `spring-boot:run` + 手工种入的 4 条演示诊断 |
 | Provider | 全程 `ProgrammableFakeProvider`，未发出任何真实收费请求 |
@@ -419,6 +419,56 @@ Phase 1 的 M-06 通过记录（2026-07-28）验的是迁移**前**的实现，�
 这条留给工单 23：拿到合规 Key 后，它验的不只是"新 Provider 能不能用"，
 还包括"迁移后的 Embedding 路径到底通不通"。
 
+#### 14.4.2 根因查明并修复（2026-08-07 当日晚些）
+
+**上一节留的三个猜测全部不成立，真正的原因是第四种：我们自己的解析代码过严。**
+
+起因是项目所有者在界面上重试文档处理仍然失败。排查主要靠诊断表本身，不靠再调 API：
+`ai_logical_call` 记录 `http_status=200` + `failure_phase=PROVIDER_RESPONSE_VALIDATION` +
+`normalized_error_type=PROTOCOL_CONTRACT`——**200 却判协议不符，问题必然在客户端**，
+这一步就已经排除了 Key 被风控与限流。
+
+随后发了 1 次 curl 探针（2 条短文本）确认线路形状，供应商返回完全正常：2 条输入 → 2 条向量、
+index 正确、1024 维。但响应体除本适配器声明的字段外还带 `created`、`id`、`model`、`object`
+与 `usage`：
+
+```json
+{"created":…,"id":"…","object":"list","model":"doubao-embedding-vision-251215",
+ "data":[{"embedding":[…],"index":0,"object":"embedding"}],
+ "usage":{"prompt_tokens":44,"total_tokens":44}}
+```
+
+而 `OpenAiCompatibleEmbeddingProvider` 用的是裸 `new ObjectMapper()`，Jackson 默认
+`FAIL_ON_UNKNOWN_PROPERTIES = true`，遇到 record 未声明的 `object` 抛
+`UnrecognizedPropertyException`，被 `decode` 的 catch 归类成 `PROVIDER_RESPONSE_INVALID`。
+把真实响应体离线喂给两个 mapper 验证过：裸 mapper 报 `Unrecognized field "object"`，
+关掉该开关立刻成功、维度 1024。
+
+**为什么迁移后才坏**：工单 15 之前的 `knowledge` 侧实现用的是 Spring 注入的
+`RestClient.Builder`，Spring Boot 默认就关掉了这个开关；新 Provider 自建 ObjectMapper 时
+把这个默认丢了。请求体与字段声明两边完全一致，唯一的差别就是这个开关。
+
+**为什么测试全绿**：本表 EMB 类用例的 provider 夹具是精简的
+`{"data":[{"index":0,"embedding":[…]}]}`，只含我们声明的字段，永远触发不到该开关。
+夹具越干净，这类缺陷越容易漏过去——**适配器的响应夹具必须照抄真实供应商响应，不得精简**。
+
+| 项 | 内容 |
+|---|---|
+| 修复 | `OpenAiCompatibleEmbeddingProvider` 与 `OpenAiCompatibleRerankProvider` 关闭 `FAIL_ON_UNKNOWN_PROPERTIES`；`OpenAiCompatibleChatProvider` 走 `readTree` 逐字段读，不受影响 |
+| 回归测试 | `OpenAiCompatibleEmbeddingProviderTests` 成功路径夹具换成实测到的完整响应形状 |
+| 变异验证 | 临时撤掉修复 → 该用例红，报错正是 `PROVIDER_RESPONSE_INVALID`，与线上症状同源；装回 → 绿 |
+| 真实链路验证 | 重启后端后 4 次 EMBEDDING 调用全部 `SUCCEEDED`（含一次 27 条输入分 3 批）；`document_chunk` 426 条与 `document_chunk_embedding` 426 条一一对应 |
+| `RealEmbeddingApiTests` | **迁移后首次真正执行**：把 `.env` 里的 Key 显式注入为环境变量后 `Tests run: 2, Failures: 0, Skipped: 0`。此前它每次都是 skipped，M-06 的通过记录（2026-07-28）验的是迁移**前**的实现 |
+
+**调用披露**：本次排查又发起了 1 次 curl 探针，以及重启后项目所有者正常触发入库产生的
+4 次调用。它们与 §14.4.1 记录的那几次属于同一类——**仍是 Coding Plan 条款禁止的直接
+API 调用**。这里如实记录而不是略去：上一节写了"已停止，不再重复"，事实是为定位这个缺陷
+又调用了。
+
+**对 REAL 用例的影响**：REAL-03（Embedding 真实链路可用性）的技术事实**已确认可用**，
+它不再是工单 23 的未知项；但这条验证走的是不合规凭据，**不构成合规准入**，
+REAL-01~08 的 blocked 状态与 §14.4 的三条纪律一律不变。
+
 ### 14.5 Step E 闸门待办
 
 关闭 Step E 之前还需要：
@@ -428,7 +478,14 @@ Phase 1 的 M-06 通过记录（2026-07-28）验的是迁移**前**的实现，�
   UI-05 与 UI-10 的自动化已在 §14.6 覆盖，只剩"真实浏览器计时"与"真实制造计数"两项
   低优先级手工确认；
 - ~~前端测试运行器落地后补齐 UI-04/05/08/09/10 的自动化~~ — **已完成（2026-08-07），见 §14.6**；
+- ~~查明 §14.4.1 的 Embedding 真实链路失败原因~~ — **已完成（2026-08-07），见 §14.4.2**：
+  根因是本仓库的解析代码，与凭据无关，已修复并有回归测试；
 - 项目所有者确认本节结果。
+
+> **Step E 结案裁决（2026-08-07，项目所有者）**：UI-01、UI-03、UI-06、DIA-18 四条纯手工
+> 用例**确认未执行**，作为递延项 P2-03 随 Phase 2 一同关闭，留待后续补做。§14.2 的 23 条
+> A 类用例（P2-04）同样保持"待逐条确认"。两项都不阻塞里程碑关闭——它们是覆盖率的已知缺口，
+> 不是已知缺陷。
 
 ### 14.6 前端自动化测试落地（2026-08-07）
 

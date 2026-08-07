@@ -3,6 +3,7 @@ package com.app.ai.provider;
 import com.app.ai.model.ModelDeployment;
 import com.app.ai.model.RerankCandidate;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.ConnectException;
 import java.net.URI;
@@ -35,7 +36,14 @@ public final class OpenAiCompatibleRerankProvider implements RerankProvider {
 
     private final URI endpoint;
     private final RestClient restClient;
-    private final ObjectMapper json = new ObjectMapper();
+
+    /**
+     * 未知字段必须忽略，理由同 {@link OpenAiCompatibleEmbeddingProvider}：这套形状只固定了本适配器
+     * 读取的字段，供应商普遍会额外返回 {@code id}、{@code results[].document}、{@code meta} 等，
+     * 用 Jackson 的默认严格模式会让一个正常的 200 响应整体绑定失败。
+     */
+    private final ObjectMapper json = new ObjectMapper()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
     public OpenAiCompatibleRerankProvider(URI baseUrl, String apiKey) {
         this.endpoint = reranksEndpoint(Objects.requireNonNull(baseUrl));
