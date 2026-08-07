@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step D 工单 01~15 done；16、19 ready）
+- `status`: in-progress（Step D 工单 01~15、19 done；16 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -153,7 +153,7 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01~15 已完成；16、19 ready）**
+状态：**in progress（工单 01~15、19 已完成；16 ready）**
 
 实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 
@@ -227,6 +227,6 @@ Step C.1 评审修订：
 
 ## 7. Current Node
 
-- `now`: Step D 工单 05 已完成，01~15 自此全部关闭。只读调度总览 API 上线，从 catalog、breaker registry 和 writer 计数组装 `GET /api/v1/ai/diagnostics/overview`；诊断保留窗口的两个配置键（`app.ai.diagnostics.retention.*`）随本工单引入，供工单 19 复用。完整验证通过（backend 367 tests，0 failures，2 skipped）。
-- `next`: 工单 16（Rerank/Noop）、19（诊断保留）为 `ready`，互不依赖；17 起的 Trace 线依赖 16，18 还需要 05（已完成）与 17。
-- `decision_needed`: 无；两张已解锁工单的范围与依赖均已由 Step C 冻结。
+- `now`: Step D 工单 19 已完成。诊断按 7 天与最近 10,000 次逻辑调用物理清理，每批一个独立短事务；breaker transition 只按时间独立保留。总览此前只是把保留窗口念给页面听，现在这个窗口有东西真正在执行。完整验证通过（backend 372 tests，0 failures，2 skipped）。
+- `next`: 只剩工单 16（Rerank/Noop）为 `ready`，它是 17 起整条 Trace 线的唯一前置——17 还差 16，18 还差 17，20/21 还差更下游，22 要 01~21 全绿。
+- `decision_needed`: 无。唯一的外部不确定性在工单 23：它需要一把合规的通用计费 Key，没有就只能保持 blocked，不能伪造通过。

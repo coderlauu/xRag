@@ -16,9 +16,11 @@ import org.springframework.web.context.WebApplicationContext;
 // 同时关掉入库调度器：本类的配置与集成测试不同、注定分属两个 Spring 上下文，而两个
 // 上下文的调度器会同时连同一个库抢任务，各自的启动回收还会把对方正在跑的任务判成僵尸
 // ——症状是集成测试随机失败在"期望 SUCCESS 实际 FAILED"。见 IngestionDispatcher 注释。
+// 诊断保留清理同理：它是又一个连同一个库的 @Scheduled 任务，本类只验证装配，不该真去删数据。
 @SpringBootTest(properties = {
         "spring.flyway.enabled=false",
-        "app.knowledge.ingestion.enabled=false"
+        "app.knowledge.ingestion.enabled=false",
+        "app.ai.diagnostics.retention.enabled=false"
 })
 class ApplicationTests {
 

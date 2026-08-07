@@ -1,16 +1,15 @@
 # 工单：大模型调度引擎
 
-本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~15 已全部完成，当前 16、19 为 `ready`。
+本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~15、19 已完成，当前只剩 16 为 `ready`。
 
 ## 下一前沿
 
-工单 05 已完成只读调度总览 API，01~15 自此全部关闭。当前可独立推进两张工单：
+工单 19 已完成诊断物理清理，总览声称的保留窗口自此有东西真正执行。当前只剩一张：
 
 - [16 Rerank 与显式 Noop](issues/16-rerank-and-noop.md)
-- [19 诊断保留与分批清理](issues/19-diagnostic-retention.md)
 
-两张工单都已满足显式依赖：16 复用已完成的同步恢复边界，19 只做诊断物理清理且复用 05 引入的
-`app.ai.diagnostics.retention.*` 两个配置键。17 起的 Trace 线仍等待 16。
+16 复用已完成的同步恢复边界，无新增依赖。它是 17 起整条 Trace 线的唯一前置：
+17 还差 16，18 还差 17，20/21 还差更下游。
 
 ## 依赖图
 
@@ -53,13 +52,13 @@
 | 10 | [同步重试与故障转移](issues/10-sync-retry-failover.md) | 06, 07, 08, 09 | done |
 | 11 | [WebClient 与 SSE Provider](issues/11-webclient-sse-provider.md) | 03 | done |
 | 12 | [单候选流状态机与单次订阅](issues/12-single-subscription-stream-state.md) | 04, 08, 11 | done |
-| 13 | [流式路由与故障转移](issues/13-stream-routing-failover.md) | 07, 08, 09, 12 | ready |
-| 14 | [Embedding 批次与 mixed execution](issues/14-embedding-mixed-execution.md) | 03, 04, 07, 08, 09, 10 | ready |
-| 15 | [Phase 1 Embedding 原子迁移](issues/15-phase1-embedding-atomic-migration.md) | 14 | blocked |
+| 13 | [流式路由与故障转移](issues/13-stream-routing-failover.md) | 07, 08, 09, 12 | done |
+| 14 | [Embedding 批次与 mixed execution](issues/14-embedding-mixed-execution.md) | 03, 04, 07, 08, 09, 10 | done |
+| 15 | [Phase 1 Embedding 原子迁移](issues/15-phase1-embedding-atomic-migration.md) | 14 | done |
 | 16 | [Rerank 与显式 Noop](issues/16-rerank-and-noop.md) | 10 | ready |
 | 17 | [Trace calls/detail API](issues/17-trace-calls-detail-api.md) | 04, 10, 13, 14, 15, 16 | blocked |
 | 18 | [A — Trace Console 前端](issues/18-trace-console-frontend.md) | 05, 17 | blocked |
-| 19 | [诊断保留与分批清理](issues/19-diagnostic-retention.md) | 02, 04 | ready |
+| 19 | [诊断保留与分批清理](issues/19-diagnostic-retention.md) | 02, 04 | done |
 | 20 | [诊断隐私审计](issues/20-diagnostic-privacy-audit.md) | 05, 10, 13, 14, 15, 16, 17, 18 | blocked |
 | 21 | [诊断故障注入与 best-effort 证明](issues/21-diagnostic-failure-injection.md) | 04, 05, 10, 13, 14, 15, 16 | blocked |
 | 22 | [CI 与部署门禁](issues/22-ci-and-deployment-gates.md) | 01~21 | blocked |
@@ -67,7 +66,7 @@
 
 ## 推进规则
 
-- Step C 外部闸门已通过；01~15 已全部完成，当前 16/19 为 `ready`，更下游工单继续等待显式依赖完成。
+- Step C 外部闸门已通过；01~15、19 已完成，当前只剩 16 为 `ready`，更下游工单继续等待显式依赖完成。
 - 一张工单只提交一个可验证变化，完成其 Acceptance 后才能解锁下游。
 - 发现需要同时修改下游契约时，先回到本依赖图调整，不把隐藏依赖塞进当前提交。
 - 测试矩阵中的用例 ID 是验收依据；契约修订新增的 route event、failure phase、mixed execution 和 single-subscription 用例必须先进入矩阵。
