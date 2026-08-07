@@ -1,6 +1,6 @@
 # 测试用例矩阵：大模型调度引擎
 
-- `status`: approved（Step D 已开始按工单执行；整表尚未完成，2026-08-02）
+- `status`: approved；Step E 执行结果已回写（2026-08-07，见 §14），**待项目所有者确认**
 - `date`: 2026-07-28
 - `prd`: [大模型调度引擎 PRD](../../docs/prd/2026-07-28-model-scheduling-prd.md)
 - `architecture`: [技术方案](architecture.md)
@@ -310,3 +310,89 @@ Step E 关闭前：
 - 后端完整 `./mvnw -B verify`、前端 build/lint、整体 `scripts/ci-validate.sh` 通过；
 - 浏览器按 A — Trace Console 走完 UI-01~UI-08；
 - Phase 1 知识库回归必须包含 EMB-13~EMB-16，不能只跑新模块测试。
+
+## 14. Step E 执行结果回写（2026-08-07）
+
+### 14.1 执行环境
+
+| 项 | 值 |
+|---|---|
+| 日期 | 2026-08-07 |
+| 后端 | JDK 17，`scripts/ci-validate.sh`，**clean 构建** |
+| 结果 | backend 399 tests，0 failures，2 skipped |
+| 2 个 skipped | `RealEmbeddingApiTests`，由 `@EnabledIfEnvironmentVariable` 守门，无 Key 自动跳过 |
+| 依赖 | 本机 Docker Compose 的 Postgres 16 / Redis / RustFS |
+| 浏览器 | 本地 Vite dev server + 后端 `spring-boot:run` + 手工种入的 4 条演示诊断 |
+| Provider | 全程 `ProgrammableFakeProvider`，未发出任何真实收费请求 |
+
+> **计数口径**：必须 clean 构建后统计。`target/surefire-reports/` 会残留已删除测试类的旧报告，
+> 本阶段前期就因此把总数虚报过 11（详见任务书 Decision Log `2026-08-07` 更正条）。
+
+### 14.2 A 类用例的覆盖审计
+
+审计方法（可复现）：抽取本表全部 202 条用例 ID，在 `backend/src/test` 全文中查找与 ID 同名的
+测试方法（仓库约定形如 `api01_…`、`dia13_…`，区间形如 `cbr04到07_…`）。
+
+| 结果 | 条数 |
+|---|---:|
+| A / A+M 用例总数 | 188 |
+| 有**同名测试方法**的 | 160 |
+| 无同名测试方法的 | 28 |
+| M 用例 | 14 |
+
+**无同名测试方法的 28 条**，按可确认程度分两类：
+
+- **确认缺口（5 条）**：`UI-04`、`UI-05`、`UI-08`、`UI-09`、`UI-10` 的自动化部分。
+  仓库没有前端测试运行器，这五条目前只有浏览器实测证据（§14.3）。原因与后续计划见工单 22。
+- **待逐条确认（23 条）**：`CBR-02`、`CBR-10`、`DIA-03`、`RTE-18`、`SYN-18`、`SYN-30`、
+  `STR-03`、`STR-04`、`STR-06`、`STR-15`、`STR-21`、`EMB-01`、`EMB-03`、`EMB-04`、
+  `EMB-13`~`EMB-18`、`EMB-20`~`EMB-22`。
+  这些场景**很可能**已被描述性命名的测试覆盖（例如 CBR-02 的失败率开路由
+  `ModelBreakerRegistryTests` 覆盖，STR-03/04/06 由 `OpenAiCompatibleStreamingChatProviderTests`
+  覆盖），各工单的验收记录也逐条声称过它们。但**关键词搜索不足以作为逐条证据**——
+  它只能证明某个文件里出现过相关词，不能证明存在对应断言。
+  **本回写不代替这 23 条的逐条确认**，那正是 Step E 闸门要做的事。
+
+### 14.3 M / A+M 用例执行记录
+
+| ID | 类型 | 状态 | 证据 |
+|---|---|---|---|
+| UI-02 | M | **已执行** | 375px 实测，卡片布局无关键字段丢失，`scrollWidth === innerWidth`（无横向滚动） |
+| UI-07 | M | **部分执行** | Escape 关闭 + 焦点返回触发行已实测；**Enter 打开详情未实测** |
+| UI-04 | A+M | 手工部分已执行 | 带 `?outcome=FAILED&outcome=STREAM_FAILED&capability=STREAM_CHAT` 刷新后筛选保留、命中 1 条 |
+| UI-08 | A+M | 手工部分已执行 | 页面文本含脱敏 `req_****1b7c`，无密钥/Authorization/Prompt/正文 |
+| UI-09 | A+M | 手工部分已执行 | 点"24h 失败/流中断"实际发出 `?outcome=FAILED&outcome=STREAM_FAILED`，非前端近似过滤（网络面板证据） |
+| UI-01 | M | **未执行** | 双栏需 ≥1600px 视口；实测只做到 1440px（抽屉档）。CSS 断点已就位但未目视确认双栏 |
+| UI-03 | M | **未执行** | 只构造了 4 种场景（成功+切换、流中断、Rerank Noop、失败），缺"同步切换"与"提交前切换"两种 |
+| UI-05 | A+M | **未执行** | 30s 轮询与隐藏暂停未做计时观测 |
+| UI-06 | M | **未执行** | 刷新失败保留旧数据的代码路径存在，未人为制造失败验证 |
+| UI-10 | A+M | **未执行** | 需人为制造 dropped/write-failure 大于 0 |
+| DIA-18 | M | **未执行** | 需 kill 进程后重启核对页面不伪造记录 |
+| EMB-16 | A+M | 自动化部分已完成 | catalog 侧由 `cfg16` 守、调用侧由工单 14 的 `emb19` 守；真实环境核验未做 |
+| REAL-01~08 | M | **blocked** | 见 §14.4 |
+
+### 14.4 REAL — 真实 Provider 准入：blocked
+
+**状态：blocked，原因是缺少合规凭据，不是测试失败。**
+
+现有 `EMBEDDING_API_KEY` 是火山方舟 Coding Plan 凭据。官方条款写明该类 Key 仅限在官方支持的
+AI 编程工具中使用、不得用于直接 API 调用；architecture.md §13 据此明确它**不得扩展**到
+Chat、流式 Chat 或 Rerank，也不算已合规准入的 Provider。`DASHSCOPE_API_KEY` 未配置。
+
+因此 REAL-01~REAL-08 全部维持 blocked。三条纪律：
+
+1. **不改代码伪造支持。** 诊断页 `verifiedCapabilities` 恒为空数组——那是"尚未验证"，
+   不是"不支持"，也不是"已验证不支持"。
+2. **不把 blocked 伪装成 CI 失败或通过。** CI 全程使用假 Provider，绿灯不代表真实链路可用。
+3. **解除条件明确**：拿到一把通用按量计费 Key（`sk-…`，非 Coding Plan/工具 token），
+   开启控制台费用告警，然后按工单 23 执行——每能力不超过 20 次短调用，
+   并在执行日重新核对官方模型版本、区域、限额与价格。
+
+### 14.5 Step E 闸门待办
+
+关闭 Step E 之前还需要：
+
+- 逐条确认 §14.2 里那 23 条"待确认"用例，把对应测试方法名补进本表；
+- 补做 §14.3 中 6 条未执行的手工项（UI-01、UI-03、UI-05、UI-06、UI-10、DIA-18）；
+- 前端测试运行器落地后补齐 UI-04/05/08/09/10 的自动化（工单 22 已记录方案）；
+- 项目所有者确认本节结果。
