@@ -22,7 +22,7 @@
 - [x] 本工单不写 `verifiedCapabilities` 的真实通过结论——它仍恒为空数组。
 - [x] 真实 Provider 未准入既不伪装成 CI 失败也不伪装成通过：deploy/README 新增一节写明"CI 绿灯不代表真实准入通过"，工单 23 保持 blocked。
 
-**Design:** [implementation lanes §5 Lane 运维](../../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md#lane-运维)
+**Design:** [implementation lanes §5 Lane 运维](../../../docs/exec-plans/completed/2026-07-28-model-scheduling-implementation-lanes.md#lane-运维)
 
 
 ## 实现记录（2026-08-07）

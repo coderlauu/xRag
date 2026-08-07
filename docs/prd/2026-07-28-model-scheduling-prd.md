@@ -5,7 +5,7 @@
 - `created`: 2026-07-28
 - `approved_at`: 2026-07-28
 - `ui_decision`: 采用 A — Trace Console；B/C 仅保留为原型决策证据
-- `phase_plan`: [Phase 2 大模型调度引擎](../exec-plans/active/2026-07-28-model-scheduling-phase-plan.md)
+- `phase_plan`: [Phase 2 大模型调度引擎](../exec-plans/completed/2026-07-28-model-scheduling-phase-plan.md)
 - `learning_checkpoint`: [Phase 2 Step A 对齐检查点](../../learning/ragent-column/PHASE-2-STEP-A-CHECKPOINT.md)
 - `research`: [Phase 2 一手资料复核](../research/2026-07-28-model-scheduling-primary-source-review.md)
 - `ui_spec`: [模型调度诊断页界面规格](../../tech/model-scheduling/ui-spec.md)

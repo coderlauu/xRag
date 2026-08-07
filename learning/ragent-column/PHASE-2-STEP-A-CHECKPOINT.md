@@ -2,7 +2,7 @@
 
 日期：2026-07-28
 
-状态：**complete（2026-07-28）**。本文件冻结 Step A 学习验收时点；Phase 2 后续步骤的当前状态以 [Phase 2 执行计划](../../docs/exec-plans/active/2026-07-28-model-scheduling-phase-plan.md) 为准。
+状态：**complete（2026-07-28）**。本文件冻结 Step A 学习验收时点；Phase 2 后续步骤的当前状态以 [Phase 2 执行计划](../../docs/exec-plans/completed/2026-07-28-model-scheduling-phase-plan.md) 为准。
 
 ## 1. 覆盖率
 
@@ -17,7 +17,7 @@
 补充产出：
 
 - [Phase 2 大模型调度引擎一手资料复核](../../docs/research/2026-07-28-model-scheduling-primary-source-review.md)
-- [Phase 2 执行计划](../../docs/exec-plans/active/2026-07-28-model-scheduling-phase-plan.md)
+- [Phase 2 执行计划](../../docs/exec-plans/completed/2026-07-28-model-scheduling-phase-plan.md)
 
 ## 2. 课程方案与 xrag 基线
 
@@ -70,4 +70,4 @@ knowledge 模块
 
 ## 5. Step A 闸门结论
 
-Step A 的 8 篇学习整理、一手资料复核、现状对照和迁移保护线已于 2026-07-28 经项目所有者确认。此后的 PRD、技术设计、实现拆分和交付状态不回写本历史检查点，统一在 [Phase 2 执行计划](../../docs/exec-plans/active/2026-07-28-model-scheduling-phase-plan.md) 中维护。
+Step A 的 8 篇学习整理、一手资料复核、现状对照和迁移保护线已于 2026-07-28 经项目所有者确认。此后的 PRD、技术设计、实现拆分和交付状态不回写本历史检查点，统一在 [Phase 2 执行计划](../../docs/exec-plans/completed/2026-07-28-model-scheduling-phase-plan.md) 中维护。

@@ -2,7 +2,7 @@
 
 - 日期：2026-07-28
 - 范围：统一 Chat / 流式 Chat / Embedding / Rerank 客户端、模型路由、三态熔断、故障转移、SSE、异步执行和调度诊断
-- 对应计划：[Phase 2 大模型调度引擎](../exec-plans/active/2026-07-28-model-scheduling-phase-plan.md)
+- 对应计划：[Phase 2 大模型调度引擎](../exec-plans/completed/2026-07-28-model-scheduling-phase-plan.md)
 - 研究性质：Step A 学习支撑；本文不冻结 Phase 2 的 API、Schema、依赖库或配置格式
 
 ## 结论摘要

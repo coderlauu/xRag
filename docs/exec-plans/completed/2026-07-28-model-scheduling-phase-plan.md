@@ -3,10 +3,13 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step D 工单 01~22 done；23 缺合规 Key 保持 blocked；Step E/G 待项目所有者确认）
+- `status`: completed（2026-08-07 关闭；Step A~G 交付完毕，Step E/G 已确认；工单 23 缺合规 Key 带 blocked 状态一同关闭）
+- `closed_at`: 2026-08-07
+- `milestone`: [Phase 2 里程碑状态](../../status/2026-08-07-phase-2-model-scheduling.md)
+- `retrospective`: [Phase 2 复盘](../../retro/2026-08-07-phase-2-model-scheduling-retrospective.md)
 - `created`: 2026-07-28
 - `owner`: liuqiang
-- `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
+- `parent`: [总执行计划](../active/2026-07-24-ragent-column-learning-and-system-build.md)
 - `source_group`: [04-model-scheduling](../../../learning/ragent-column/INDEX.md)
 - `predecessor`: [Phase 1 里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md)
 

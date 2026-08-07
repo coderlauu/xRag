@@ -3,12 +3,12 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: awaiting-owner-confirmation
+- `status`: approved
 - `date`: 2026-08-07
 - `owner`: liuqiang
-- `approved_at`: —
-- `closed_at`: —
-- `scope`: Step A~G；工单 23 因缺合规计费 Key 保持 blocked
+- `approved_at`: 2026-08-07
+- `closed_at`: 2026-08-07
+- `scope`: Step A~G；工单 23 因缺合规计费 Key 带 blocked 状态一同关闭
 - `related_status`: [Phase 2 里程碑状态](../status/2026-08-07-phase-2-model-scheduling.md)
 
 ## 2. 一句话结论
@@ -119,6 +119,32 @@ api.md §7 承诺 Embedding `capabilityDetails.validation` 的三个校验标志
 Step C 的一致性复核核对了"枚举/SQL 闭集、JSON 示例、编号连续性"，但没核对
 "API 承诺的每个字段在数据模型里都有来源"。
 
+### 5.6 干净的测试夹具让唯一一个功能缺陷逃到了真实环境
+
+阶段末期，项目所有者在界面上处理文档时报错"模型供应商响应不符合协议"。查下来是
+`OpenAiCompatibleEmbeddingProvider` 自建了裸 `ObjectMapper`，Jackson 默认
+`FAIL_ON_UNKNOWN_PROPERTIES=true`，而供应商正常的 200 响应里带着 `object` / `created` /
+`usage` 等本适配器没声明的字段，于是整体绑定失败——**供应商完全正常，是我们拒绝了它**。
+详见 [test-matrix §14.4.2](../../tech/model-scheduling/test-matrix.md)。
+
+这是 Phase 2 唯一一个逃到真实环境才暴露的功能缺陷，值得记的是**三道防线为什么同时失效**：
+
+1. **夹具精简。** provider 测试的响应体是 `{"data":[{"index":0,"embedding":[…]}]}`，
+   只含我们声明的字段——永远触发不到那个开关。夹具越干净，越像在验协议，越验不到协议。
+2. **`RealEmbeddingApiTests` 常年 skipped。** 它由环境变量守门，本机 Key 在 `.env` 里不是
+   环境变量，从工单 15 迁移那天起每次都跳过。§5.1 的教训是"计数口径没定义"，这里是同一类：
+   **skipped 不是绿，但它长得像绿**。
+3. **归因归错了地方。** 首次实测失败时，结论记成了"缺合规 Key 导致无法验证"，挂到工单 23
+   名下。实际上诊断表里 `http_status=200` + `PROVIDER_RESPONSE_VALIDATION` 已经排除了凭据
+   问题——**200 却判协议不符，问题必然在客户端**。现成的证据没被读，就先归给了外部阻塞。
+
+前两条是 §5.1（计数虚高）、§5.2（死配置在文档里存活一个阶段）的同族问题：
+**测试与文档没有反映现实，而失败方式恰好是"看起来一切正常"。** 第三条是新的，
+且代价最大——它差点让一个五行能修的 bug 以"外部阻塞"的身份写进结案文档。
+
+**Chat 适配器躲过一劫是运气不是设计**：它用 `readTree` 逐字段读，天然容忍未知字段。
+Rerank 与 Embedding 同构，同样中招，只是 `enabled: false` 还没机会暴露。
+
 ## 6. 手工验收带来的直接收益
 
 四个前端缺陷（§4.3）全部来自浏览器实测。其中"列表首个有效块列恒为 `—`"还反向暴露了
@@ -128,9 +154,17 @@ Step C 的一致性复核核对了"枚举/SQL 闭集、JSON 示例、编号连�
 ## 7. 给 Phase 3 的建议
 
 1. **删除类改动的完成定义加一条**：grep 全仓库找残留引用（配置示例、部署文档、CI）。
-2. **Step C 拆工单时识别横跨性基础设施缺口**并单独立项，不要让它在工单之间弹来弹去。
-3. **Step C 一致性复核加一项**：API 承诺的每个字段在数据模型里都要有来源。
-4. **测试计数一律以 clean 构建为准**，已写进 test-matrix §14.1。
-5. **先解除 P2-02（前端测试运行器）再开始 Phase 3 的前端工作**，否则会继承同一个缺口。
-6. Phase 3 不得绕过 `com.app.ai` 直接调用 Provider SDK；Rerank 可能返回 Noop 降级，
+2. **外部适配器的响应夹具必须照抄真实供应商响应，不得精简**（§5.6）。写适配器测试时先留一份
+   真实响应样本，字段一个不删——多余字段正是最容易炸的地方。同理，自建 `ObjectMapper` 要显式
+   关掉 `FAIL_ON_UNKNOWN_PROPERTIES`，不要依赖 Spring Boot 帮你关。
+3. **skipped 要当红看待，不能当绿。** 任何长期 skipped 的测试都应有明确到期日或替代验证，
+   否则它守的那条路等于没人守（§5.6）。
+4. **归因外部阻塞之前先读现成的诊断证据**（§5.6）。本阶段自己建了诊断表，
+   第一次却没查就把失败挂给了缺 Key。
+5. **Step C 拆工单时识别横跨性基础设施缺口**并单独立项，不要让它在工单之间弹来弹去。
+6. **Step C 一致性复核加一项**：API 承诺的每个字段在数据模型里都要有来源。
+7. **测试计数一律以 clean 构建为准**，已写进 test-matrix §14.1。
+8. ~~**先解除 P2-02（前端测试运行器）再开始 Phase 3 的前端工作**~~ — 已于 2026-08-07 解除，
+   Phase 3 直接沿用 vitest + testing-library。
+9. Phase 3 不得绕过 `com.app.ai` 直接调用 Provider SDK；Rerank 可能返回 Noop 降级，
    调用方必须区分 `rerankApplied=false` 与普通成功。

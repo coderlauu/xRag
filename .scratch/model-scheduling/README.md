@@ -1,6 +1,8 @@
 # 工单：大模型调度引擎
 
-本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~22 已完成；**只剩 23 因缺合规计费 Key 保持 blocked**。
+本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/completed/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~22 已完成。
+
+**Phase 2 已于 2026-08-07 关闭**，工单 23 带 blocked 状态一同关闭——它卡在外部条件（缺合规通用计费 Key）而非实现缺陷。拿到 Key 后可单独执行，不必等 Phase 3。
 
 ## 下一前沿
 
