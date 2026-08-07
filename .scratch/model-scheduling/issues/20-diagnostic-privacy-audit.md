@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 10, 13, 14, 15, 16, 17, 18
 
-**Status:** blocked
+**Status:** done（2026-08-07）
 
 ## Slice
 
@@ -16,10 +16,25 @@
 
 ## Acceptance
 
-- [ ] DIA-10~DIA-12、UI-08 与 AC-15~AC-16 有自动化/浏览器证据。
-- [ ] 所有持久化/API/日志/页面 DOM 均找不到隐私标记串。
-- [ ] 完整 Provider request ID、Authorization、secret property 解析值和 raw body 均不可见。
-- [ ] 后端 verify、前端测试/build/lint 通过。
-- [ ] 失败报告只指出泄漏位置和字段，不在报告中复制敏感原文。
+- [x] DIA-10：八类标记串（Prompt、工具参数、Embedding 正文、Rerank query/候选、原始错误体、密钥值、完整 request ID）跑完四个能力后，在五张诊断表与两个诊断 API 的序列化结果里都找不到。
+- [x] DIA-11：原始错误体只留下 `SERVER_ERROR + RESPONSE_HEADERS + 500`，异常消息本身也不含标记串。
+- [x] DIA-12：`provider_request_id_masked` 入库即为脱敏值，列表与详情用同一个值，attempt 层一致。
+- [x] UI-08：浏览器实测页面文本含脱敏 `req_****1b7c`，不含密钥/Authorization/Prompt/正文（证据见工单 18）。
+- [x] 失败报告只给表名、字段名与类别名，不复制敏感原文——并由一个自检用例断言这一点。
+- [x] `./scripts/ci-validate.sh` 通过（clean 构建后 backend 399 tests，0 failures，2 skipped）。
+- [ ] **页面 DOM 的自动化扫描未落地**：需要前端测试运行器，见工单 18 的同一条遗留，已并入工单 22。
 
 **Design:** [data model §8](../../../tech/model-scheduling/data-model.md#8-隐私与完整性检查)
+
+
+## 实现记录（2026-08-07）
+
+`DiagnosticPrivacyAuditIntegrationTests`。两条设计选择值得记下：
+
+- **用扫描而不是逐字段断言。** 泄漏最常发生在**新增字段**时——有人给 DTO 加一个"顺手带上原始
+  响应"的字段，逐字段断言不会失败，扫描会。表的列清单从 `information_schema` 现取，
+  所以将来新增的文本列自动纳入审计范围。
+- **审计自身要可信。** 一个永远找不到东西的扫描器和一个正确的扫描器，测试结果长得一模一样。
+  因此加了一个自检用例：先确认干净，再人为往 `ai_logical_call.request_id` 与
+  `ai_attempt.provider_request_id_masked` 各种一个标记串，断言两处都被扫出来，
+  并且报告里不含原文。没有这一例，前三个用例的"通过"是没有意义的。

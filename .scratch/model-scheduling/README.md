@@ -1,16 +1,16 @@
 # 工单：大模型调度引擎
 
-本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~19 已完成，当前 20、21 为 `ready`。
+本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~21 已完成，当前 22 为 `ready`；23 因缺合规计费 Key 保持 blocked。
 
 ## 下一前沿
 
-工单 18 已完成 A — Trace Console，Phase 2 的功能面自此全部落地。当前可并行推进两张：
+工单 20、21 已完成隐私审计与 best-effort 证明。当前只剩：
 
-- [20 诊断隐私审计](issues/20-diagnostic-privacy-audit.md)
-- [21 诊断故障注入与 best-effort 证明](issues/21-diagnostic-failure-injection.md)
+- [22 CI 与部署门禁](issues/22-ci-and-deployment-gates.md)
 
-两张的依赖都已满足。之后 22（CI 与部署门禁）要求 01~21 全绿，23（真实 Provider 准入）
-另外还卡一把合规的通用计费 Key——没有 Key 时它只能保持 blocked，不能伪造通过。
+22 的依赖 01~21 已全部完成。**23（真实 Provider 准入）需要一把合规的通用计费 Key**——
+现有 `EMBEDDING_API_KEY` 是 Coding Plan 凭据，architecture §13 明确不得扩展到其他能力——
+没有 Key 时它只能保持 blocked，不能伪造通过。
 
 ## 依赖图
 
@@ -60,14 +60,14 @@
 | 17 | [Trace calls/detail API](issues/17-trace-calls-detail-api.md) | 04, 10, 13, 14, 15, 16 | done |
 | 18 | [A — Trace Console 前端](issues/18-trace-console-frontend.md) | 05, 17 | done |
 | 19 | [诊断保留与分批清理](issues/19-diagnostic-retention.md) | 02, 04 | done |
-| 20 | [诊断隐私审计](issues/20-diagnostic-privacy-audit.md) | 05, 10, 13, 14, 15, 16, 17, 18 | ready |
-| 21 | [诊断故障注入与 best-effort 证明](issues/21-diagnostic-failure-injection.md) | 04, 05, 10, 13, 14, 15, 16 | ready |
-| 22 | [CI 与部署门禁](issues/22-ci-and-deployment-gates.md) | 01~21 | blocked |
+| 20 | [诊断隐私审计](issues/20-diagnostic-privacy-audit.md) | 05, 10, 13, 14, 15, 16, 17, 18 | done |
+| 21 | [诊断故障注入与 best-effort 证明](issues/21-diagnostic-failure-injection.md) | 04, 05, 10, 13, 14, 15, 16 | done |
+| 22 | [CI 与部署门禁](issues/22-ci-and-deployment-gates.md) | 01~21 | ready |
 | 23 | [真实 Provider 准入](issues/23-real-provider-admission.md) | 10, 13, 14, 16, 22, compliant key | blocked |
 
 ## 推进规则
 
-- Step C 外部闸门已通过；01~19 已完成，当前 20、21 为 `ready`，22/23 继续等待显式依赖完成。
+- Step C 外部闸门已通过；01~21 已完成，当前 22 为 `ready`；23 缺合规计费 Key，保持 blocked。
 - 一张工单只提交一个可验证变化，完成其 Acceptance 后才能解锁下游。
 - 发现需要同时修改下游契约时，先回到本依赖图调整，不把隐藏依赖塞进当前提交。
 - 测试矩阵中的用例 ID 是验收依据；契约修订新增的 route event、failure phase、mixed execution 和 single-subscription 用例必须先进入矩阵。

@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step D 工单 01~19 done；20、21 ready）
+- `status`: in-progress（Step D 工单 01~21 done；22 ready；23 缺合规 Key 保持 blocked）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -153,7 +153,7 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01~19 已完成；20、21 ready）**
+状态：**in progress（工单 01~21 已完成；22 ready；23 缺合规 Key 保持 blocked）**
 
 实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 

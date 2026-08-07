@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 
-- `status`: in progress（Step D 工单 01~19 done；20、21 ready）
+- `status`: in progress（Step D 工单 01~21 done；22 ready；23 缺合规 Key 保持 blocked）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [Phase 2 执行计划](2026-07-28-model-scheduling-phase-plan.md)
@@ -196,10 +196,11 @@ Lane 是职责视角，工单是按可验证路径组织的执行视角。实现
 
 ## 6. 依赖前沿
 
-Step C 已于 2026-08-02 获确认。工单 01~19 已完成；当前前沿：
+Step C 已于 2026-08-02 获确认。工单 01~21 已完成；当前前沿只剩：
 
-- 工单 20：诊断隐私审计；
-- 工单 21：诊断故障注入与 best-effort 证明。
+- 工单 22：CI 与部署门禁。
+
+工单 23（真实 Provider 准入）需要一把合规的通用计费 Key，无 Key 时保持 blocked。
 
 10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter，12 已完成单候选流状态机并解锁 13；13 已完成流式路由与故障转移，流式链路自此闭环；14 已完成调度层 Embedding 能力并解锁 15；15 已把 Phase 1 知识库调用点原子迁移到调度层，Embedding 自此只有一个入口；05 已完成只读调度总览 API 并引入诊断保留的两个配置键。16/19 当前互不依赖，可独立推进；17 起的 Trace 线依赖 16，18 还需要 17。
 
@@ -260,3 +261,4 @@ scripts/ci-validate.sh
 - `2026-08-07`: 更正此前三条记录里的测试计数。`target/` 里残留着 `5aa33f4` 删除的两个 Phase 1 测试类（`UnconfiguredEmbeddingClientTests`、`OpenAiCompatibleEmbeddingClientTests`，合计 11 例）的旧 surefire 报告，而统计是对 `target/surefire-reports/*.txt` 求和的，于是工单 05 记成 367（实为 356）、工单 19 记成 372（实为 361）。工单 16 因为改了 `ModelDeployment` 的 record 组件触发 `NoClassDefFound`、被迫 clean 重建才暴露出来。**今后计数一律以 clean 构建为准**；已提交的 commit message 里的旧数字无法追改，以本条与各工单记录为准。
 - `2026-08-07`: Step D 工单 17 完成，后端三个只读诊断接口齐了。`com.app.ai.web` 新增列表项/详情 DTO、筛选条件、`DiagnosticCallQueryService` 与 `DiagnosticCallsController`。**前置重构**：把 `ApiException` / `ApiExceptionHandler` / `PageResponse` 从 `com.app.knowledge.web` 移到 `com.app.web`——`knowledge.web` 已经依赖 `com.app.ai.model`，再让 `ai.web` 反向 import 就成环了；这三个类本来就是全应用契约（handler 的注释自己写着"不能限定 basePackages"），放在 knowledge 下只是历史位置，迁移改动全是 import。四条实现要点：`providerId` 与脱敏 request ID 走 `ai_attempt exists` 而不是比对调用级 `actual_*`，否则失败的首选 Provider 与 mixed Embedding 贡献者会从筛选里消失；`requestId` 一律精确匹配，不做 `%like%`；详情用显式 RowMapper 而不是 `queryForMap`（后者对 timestamptz 返回 `java.sql.Timestamp`，强转会运行时炸，实测踩到）；`lastAttemptTarget` 与 `actual*` 严格分开，前者只是最后一次真实 attempt，不参与 actual/mixed/contributing 语义。API-02~11 与 DIA-21 已自动化（14 例）。**已知规格缺口**：api.md §7 承诺的 Embedding `capabilityDetails.validation` 三个标志 V6 Schema 没有存，失败调用也无法归因到具体哪一项，当前成功时返回三个 true、其余返回 null 而不猜；要真正兑现需要 V7 加列，另开工单。`./scripts/ci-validate.sh` 通过（clean 构建后 backend 389 tests，0 failures，2 skipped）。
 - `2026-08-07`: Step D 工单 18 完成，Phase 2 的功能面全部落地。按 approved A 方向重写 `/diagnostics`：`frontend/src/api/diagnostics.ts` 封装三个接口，`DiagnosticsPage` 负责筛选/URL 同步/轮询/状态，`OverviewBar` 与 `CallDetailPanel` 分别承担摘要条与详情时间线。只有 overview 轮询（可见 30s、隐藏暂停、不重叠），调用列表只在进入/筛选变化/手动刷新时重载，否则列表会在阅读时自己跳动。**浏览器实测发现并修掉四个读代码发现不了的缺陷**：① 列表"首个有效块"列恒为 `—`，因为列表 DTO 根本没这个字段，后端补 `firstMeaningfulChunkMs`（只有流式非空），顺带把测试 fixture 改真实（原来给同步 Chat 也塞了流式时刻）；② 1280px 双栏把 8 列表格挤成竖排折行，双栏断点提到 1600px、之下改右侧固定抽屉，正是 ui-spec §8.2 的"普通桌面用抽屉"；③ 375px 页头被挤成一列单字且卡片仍需横向滚动，改竖排并取消 `overflow-x`，实测 `scrollWidth === innerWidth`；④ 可点击行与摘要格子都是 `role="button"` 却没有可访问名，读屏只念"button"，补了完整句子的 `aria-label`。UI-09 的关键语义用网络请求证据确认：点"24h 失败/流中断"真实发出 `?outcome=FAILED&outcome=STREAM_FAILED`，不是过滤当前已加载的一页。**遗留**：UI-04/05/08/09/10 的"A（自动化）"部分未落地——仓库从无前端测试运行器，引入 vitest 被 pnpm store 版本不一致挡住（`node_modules` 由 10.7.1 装出、当前环境 10.12.3，`pnpm add` 报 `ERR_PNPM_UNEXPECTED_STORE`，需整体重装依赖）。这属于工具链/CI 决策，不在一张前端功能工单里单方面做掉，留给工单 22 连同把 `pnpm test` 接进 ci-validate 一起处理。`./scripts/ci-validate.sh` 通过（clean 构建后 backend 390 tests，0 failures，2 skipped）。
+- `2026-08-07`: Step D 工单 20、21 完成。**20**：`DiagnosticPrivacyAuditIntegrationTests` 把八类标记串（Prompt、工具参数、Embedding 正文、Rerank query/候选、原始错误体、密钥值、完整 request ID）塞进本不该保存的位置，跑完四个能力后扫描五张诊断表的全部文本列与两个诊断 API 的序列化结果。用扫描而非逐字段断言，是因为泄漏最常发生在新增字段时——有人给 DTO 加一个"顺手带上原始响应"的字段，逐字段断言不会失败、扫描会；列清单从 `information_schema` 现取，将来新增的文本列自动纳入。另加一个**审计自检**用例：先确认干净，再人为往两张表各种一个标记串并断言都被扫出来、且报告不含原文——没有这一例，前面的"通过"和一个永远找不到东西的扫描器无法区分。**21**：进场核对发现 DIA-07/08/09/17 早已被工单 04 的用例覆盖，那些证明的是 writer 自身行为；缺的是另一半——writer 再 best effort，只要某个 routed client 忘了把 `offer` 包进 try/catch，诊断异常就会冒成业务失败。新增 `DiagnosticBestEffortTests` 逐能力比对"诊断坏掉"与"诊断健康"两次调用的返回，Rerank 的 Noop 降级单列一例（降级路径同样走 `recordBestEffort`，最容易被漏）。**遗留**：页面 DOM 的自动化扫描与 DIA-18（手工 kill 进程）未做，前者并入工单 22 的前端测试运行器决策，后者留待 Step E 手工项。`./scripts/ci-validate.sh` 通过（clean 构建后 backend 399 tests，0 failures，2 skipped）。
