@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 
-- `status`: in progress（Step D 工单 01、02、03、04、06、07、08、09、10、11、12 done；05、13、14、16、19 ready）
+- `status`: in progress（Step D 工单 01~15 done；16、19 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [Phase 2 执行计划](2026-07-28-model-scheduling-phase-plan.md)
@@ -196,13 +196,12 @@ Lane 是职责视角，工单是按可验证路径组织的执行视角。实现
 
 ## 6. 依赖前沿
 
-Step C 已于 2026-08-02 获确认。工单 01、02、03、04、06、07、08、09、10、11、12、13、14、15 已完成；当前前沿包含：
+Step C 已于 2026-08-02 获确认。工单 01~15 已全部完成；当前前沿包含：
 
-- 工单 05：只读调度总览 API；
 - 工单 16：Rerank 与显式 Noop；
 - 工单 19：诊断保留与分批清理。
 
-10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter，12 已完成单候选流状态机并解锁 13；13 已完成流式路由与故障转移，流式链路自此闭环；14 已完成调度层 Embedding 能力并解锁 15；15 已把 Phase 1 知识库调用点原子迁移到调度层，Embedding 自此只有一个入口。05/16/19 当前互不依赖，可独立推进；17 起的 Trace 线依赖 15、16。
+10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter，12 已完成单候选流状态机并解锁 13；13 已完成流式路由与故障转移，流式链路自此闭环；14 已完成调度层 Embedding 能力并解锁 15；15 已把 Phase 1 知识库调用点原子迁移到调度层，Embedding 自此只有一个入口；05 已完成只读调度总览 API 并引入诊断保留的两个配置键。16/19 当前互不依赖，可独立推进；17 起的 Trace 线依赖 16，18 还需要 17。
 
 完整依赖图见 [.scratch/model-scheduling/README.md](../../../.scratch/model-scheduling/README.md)。
 
@@ -255,3 +254,4 @@ scripts/ci-validate.sh
 - `2026-08-04`: Step D 工单 14 完成。按 api.md §1.5 冻结 Embedding 公共类型，新增 `RoutedEmbeddingClient`：按所有合格等价候选 `maxBatchItems` 的最小值切 work unit，每批独立 attempt 预算、全调用共享 deadline；按 index 保序还原并拒绝重复/越界/缺失 index、维度不符与非有限浮点；中间批次可在等价 deployment 间切换且已完成批次不重算，候选起点随上一批成功候选前移（sticky）；contributors 按首次贡献去重，`mixedExecution` 当且仅当数量大于 1；任一批失败或取消都不返回部分向量且调用级贡献者归零。EMB-02~12、17~19、23、24 已自动化。范围只到 `com.app.ai`，知识库调用点迁移留给工单 15。`./scripts/ci-validate.sh` 通过（backend 352 tests，0 failures，2 skipped），解锁工单 15。
 - `2026-08-04`: Step D 工单 13 完成。新增 `RoutingStreamingChatClient` 作为流式路由协调层，把 RoutePlan、共享 monotonic Deadline/AttemptBudget、错误动作表与 breaker permission 接到单次订阅状态机上：提交前按动作表透明切换候选且失败候选事件不下发，提交后锁定 deployment 只产生唯一 `StreamFailed`，成功按首个有效块耗时判慢、失败与取消分别结算许可，候选耗尽时零事件 `onError(ModelCallException)`。为避免复制 200 行状态机，把单次 attempt 的机制提取为包内 `CandidateStreamAttempt`，`SingleCandidateStreamingChatClient` 改为委托、行为不变。STR-08、12、14、18、19、22、23、27、28、30~35 与 DIA-06 已自动化。`./scripts/ci-validate.sh` 通过（backend 336 tests，0 failures，2 skipped）。
 - `2026-08-03`: Step D 工单 12 完成。落地 `StreamingChatClient` 与类型化公共事件、同一 publisher 单次订阅守卫、PROBING/COMMITTED/唯一终态 CAS、32 events/64KiB 探测、连接/响应头/首事件/首有效/idle/total 六阶段超时、取消传播与一次性诊断结算；STR-10~13、15~27、29、30、35 已自动化。`./scripts/ci-validate.sh` 通过（backend 318 tests，0 failures，2 skipped），解锁工单 13。
+- `2026-08-07`: Step D 工单 05 完成，01~15 自此全部关闭。落地 `com.app.ai.web` 三件套：`AiDiagnosticsOverview`（DTO）、`DiagnosticsOverviewService`（组装）、`DiagnosticsOverviewController`（`GET /api/v1/ai/diagnostics/overview`）。配置快照取自 catalog、当前熔断态取自 JVM registry、最近 24 小时聚合取自 `ai_logical_call`，四个可空计数一律以 `null` 表达"读不到"而不是 0。三条实现约束：`eligibleCandidates` 只能读 `snapshots()`，用 `snapshot(target, capability)` 逐个探测会因 `computeIfAbsent` 凭空建出 breaker 条目；合格候选跟着 `allowsCall` 走而不看状态名，HALF_OPEN 许可占满同样不算候选但不计入 `openBreakers`；时间字段用 `ToStringSerializer` 输出，否则 CFG-10 的裸 `ObjectMapper` 会在 `generatedAt` 上抛 JSR-310 缺失。诊断保留窗口的两个键（`app.ai.diagnostics.retention.max-age-days` / `max-logical-calls`）随本工单引入并定义在 `application.properties`，工单 19 复用同一份配置。API-01、CFG-10 及 OPEN/HALF_OPEN/UNCONFIGURED/配置禁用/无 Provider 五种状态已自动化；24 小时聚合口径另由真库集成测试守，其 fixture 刻意让窗口内调用切换两次，使 `count(*) filter` 与 `sum(failover_count)` 可区分。按 Decisions，`limits.maxContextTokens` 本期不返回，`verifiedCapabilities` 恒为空数组待工单 23 补齐验证记录。`./mvnw -B verify` 通过（367 tests，0 failures，2 skipped）。

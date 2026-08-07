@@ -3,6 +3,7 @@ package com.app.ai.web;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.app.ai.breaker.BreakerPermission;
+import com.app.ai.breaker.BreakerTransitionReason;
 import com.app.ai.breaker.Resilience4jModelBreakerRegistry;
 import com.app.ai.diagnostic.BreakerState;
 import com.app.ai.diagnostic.CompletedCallDiagnostic;
@@ -24,9 +25,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -95,6 +100,39 @@ class DiagnosticsOverviewServiceTests {
             assertThat(breaker.recent().failure()).isEqualTo(5);
         });
         // OPEN 的 CHAT 单元不再算合格候选，STREAM_CHAT 仍然算。
+        assertThat(overview.summary().eligibleCandidates()).isEqualTo(1);
+    }
+
+    @Test
+    void halfOpen不计入openBreakers且许可占满时不再算合格候选() {
+        var catalog = catalog();
+        var breaker = catalog.runtimePolicy().breaker();
+        var clock = new MutableClock(Instant.parse("2026-08-03T00:00:00Z"));
+        var registry = new Resilience4jModelBreakerRegistry(breaker, clock, transition -> true);
+        ExecutionTarget target = new ExecutionTarget(
+                PROVIDER_A, CHAT_A, new ModelIdentity("chat-a-v1"));
+        for (int call = 0; call < breaker.minimumNumberOfCalls(); call++) {
+            ((BreakerPermission) registry.tryAcquire(target, Capability.CHAT))
+                    .fail(Duration.ofMillis(10), AttemptFailureType.SERVER_ERROR_RESPONSE);
+        }
+        clock.advance(breaker.openWaitDuration());
+        // 两个 halfOpen 许可都拿走且不结算，registry 从此不再放行。
+        for (int probe = 0; probe < breaker.halfOpenPermits(); probe++) {
+            registry.tryAcquire(target, Capability.CHAT);
+        }
+
+        AiDiagnosticsOverview overview = service(catalog, registry, null).overview();
+
+        // HALF_OPEN 是"正在试探"，不是开路——不能混进 openBreakers 让页面误报故障数。
+        assertThat(overview.summary().openBreakers()).isZero();
+        assertThat(overview.breakers()).singleElement().satisfies(halfOpen -> {
+            assertThat(halfOpen.state()).isEqualTo(BreakerState.HALF_OPEN.name());
+            assertThat(halfOpen.halfOpenPermissionInUse()).isTrue();
+            assertThat(halfOpen.allowsCall()).isFalse();
+            assertThat(halfOpen.lastChangeReason())
+                    .isEqualTo(BreakerTransitionReason.WAIT_ELAPSED.name());
+        });
+        // 合格候选跟着 allowsCall 走，与状态名无关：许可占满的 CHAT 不算，STREAM_CHAT 仍然算。
         assertThat(overview.summary().eligibleCandidates()).isEqualTo(1);
     }
 
@@ -202,6 +240,35 @@ class DiagnosticsOverviewServiceTests {
                 new AiRuntimePolicy.StreamLimits(32, 65_536, 65_536),
                 new AiRuntimePolicy.BreakerLimits(
                         20, 5, 50, 50, Duration.ofSeconds(30), 2, Duration.ofSeconds(30)));
+    }
+
+    /** 推进时间才能把 OPEN 等到 HALF_OPEN；与 ModelBreakerRegistryTests 里的同名工具一致。 */
+    private static final class MutableClock extends Clock {
+
+        private final AtomicReference<Instant> instant;
+
+        private MutableClock(Instant initial) {
+            this.instant = new AtomicReference<>(initial);
+        }
+
+        void advance(Duration duration) {
+            instant.updateAndGet(current -> current.plus(duration));
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return zone.equals(ZoneOffset.UTC) ? this : Clock.fixed(instant(), zone);
+        }
+
+        @Override
+        public Instant instant() {
+            return instant.get();
+        }
     }
 
     private static final class CountingRecorder implements DiagnosticRecorder {

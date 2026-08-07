@@ -1,18 +1,16 @@
 # 工单：大模型调度引擎
 
-本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01、02、03、04、06、07、08、09、10、11、12 已完成，当前 05、13、14、16、19 为 `ready`。
+本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~15 已全部完成，当前 16、19 为 `ready`。
 
 ## 下一前沿
 
-工单 12 已完成单候选流状态机与单次订阅契约，并解锁流式路由与故障转移。当前可独立推进五张工单：
+工单 05 已完成只读调度总览 API，01~15 自此全部关闭。当前可独立推进两张工单：
 
-- [05 只读调度总览 API](issues/05-diagnostics-overview-api.md)
-- [13 流式路由与故障转移](issues/13-stream-routing-failover.md)
-- [14 Embedding 批次与 mixed execution](issues/14-embedding-mixed-execution.md)
 - [16 Rerank 与显式 Noop](issues/16-rerank-and-noop.md)
 - [19 诊断保留与分批清理](issues/19-diagnostic-retention.md)
 
-五张工单都已满足显式依赖：05 只组装 Overview，13 在已完成的单候选状态机上加入路由恢复，14/16 复用已完成的同步恢复边界，19 只做诊断物理清理。
+两张工单都已满足显式依赖：16 复用已完成的同步恢复边界，19 只做诊断物理清理且复用 05 引入的
+`app.ai.diagnostics.retention.*` 两个配置键。17 起的 Trace 线仍等待 16。
 
 ## 依赖图
 
@@ -47,7 +45,7 @@
 | 02 | [诊断纯 DDL](issues/02-diagnostic-ddl.md) | — | done |
 | 03 | [Provider seam 与可编程假实现](issues/03-provider-seam-and-fake.md) | 01 | done |
 | 04 | [诊断快照与异步 writer](issues/04-diagnostic-snapshot-writer.md) | 01, 02 | done |
-| 05 | [只读调度总览 API](issues/05-diagnostics-overview-api.md) | 01, 04, 09 | ready |
+| 05 | [只读调度总览 API](issues/05-diagnostics-overview-api.md) | 01, 04, 09 | done |
 | 06 | [单候选同步 Chat tracer](issues/06-sync-chat-tracer.md) | 03, 04, 08 | done |
 | 07 | [确定性 RoutePlan](issues/07-deterministic-route-plan.md) | 01 | done |
 | 08 | [Deadline、attempt 预算与错误动作](issues/08-deadline-budget-error-actions.md) | 01 | done |
@@ -69,7 +67,7 @@
 
 ## 推进规则
 
-- Step C 外部闸门已通过；01/02/03/04/06/07/08/09/10/11/12 已完成，当前 05/13/14/16/19 为 `ready`，更下游工单继续等待显式依赖完成。
+- Step C 外部闸门已通过；01~15 已全部完成，当前 16/19 为 `ready`，更下游工单继续等待显式依赖完成。
 - 一张工单只提交一个可验证变化，完成其 Acceptance 后才能解锁下游。
 - 发现需要同时修改下游契约时，先回到本依赖图调整，不把隐藏依赖塞进当前提交。
 - 测试矩阵中的用例 ID 是验收依据；契约修订新增的 route event、failure phase、mixed execution 和 single-subscription 用例必须先进入矩阵。
