@@ -185,6 +185,22 @@ class DiagnosticCallQueryIntegrationTests {
     }
 
     @Test
+    void 列表直接带出流式首个有效块其他能力为空() {
+        store.write(chatCall(id(1), NOW.minusHours(1), CallOutcome.SUCCEEDED, ServiceTier.BALANCED));
+        store.write(streamFailedCall(id(2), NOW.minusHours(1)));
+
+        var items = service.list(query().build()).items();
+
+        // ui-spec §6.2 的"首个有效块"列只对流式有意义；放进列表响应，前端不必为一列去拉详情。
+        assertThat(items).filteredOn(item -> item.capability().equals("STREAM_CHAT"))
+                .singleElement()
+                .satisfies(item -> assertThat(item.firstMeaningfulChunkMs()).isEqualTo(1204L));
+        assertThat(items).filteredOn(item -> item.capability().equals("CHAT"))
+                .singleElement()
+                .satisfies(item -> assertThat(item.firstMeaningfulChunkMs()).isNull());
+    }
+
+    @Test
     void api09_failoverOccurred严格匹配切换次数() {
         store.write(chatCall(id(1), NOW.minusHours(1), CallOutcome.SUCCEEDED, ServiceTier.BALANCED));
         store.write(failoverCall(id(2), NOW.minusHours(1)));
@@ -366,7 +382,7 @@ class DiagnosticCallQueryIntegrationTests {
                 FailurePhase.UPSTREAM_STREAM,
                 TerminationReason.STREAM_INTERRUPTED_AFTER_COMMIT, 200, null, true, null, null,
                 new UsageDiagnostic(1, 2, null, null, null, null, null, 18),
-                timing(startedAt),
+                streamTiming(startedAt),
                 List.of(candidate(0, target, Capability.STREAM_CHAT, ServiceTier.BALANCED,
                         RouteDecision.ELIGIBLE, null, 0)),
                 List.of(routeCompleted(1)),
@@ -468,8 +484,13 @@ class DiagnosticCallQueryIntegrationTests {
                 null, null, null, null, null, eligibleCandidateCount);
     }
 
+    /** 同步能力没有流式时刻，三个字段必须是 null。 */
     private static TimingDiagnostic timing(OffsetDateTime startedAt) {
-        return new TimingDiagnostic(1L, 842L, 1204L, 1216L, 3842, startedAt, startedAt.plusSeconds(4));
+        return new TimingDiagnostic(1L, null, null, null, 3842, startedAt, startedAt.plusSeconds(4));
+    }
+
+    private static TimingDiagnostic streamTiming(OffsetDateTime startedAt) {
+        return new TimingDiagnostic(1L, 842L, 1204L, 1216L, 5210, startedAt, startedAt.plusSeconds(5));
     }
 
     private static ExecutionTarget target(String providerId, String deploymentId) {

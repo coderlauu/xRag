@@ -73,7 +73,8 @@ public class DiagnosticCallQueryService {
                        c.actual_provider_id, c.actual_deployment_id, c.actual_model_identity,
                        c.attempt_count, c.retry_count, c.failover_count,
                        c.mixed_execution, c.contributing_deployment_count, c.committed,
-                       c.total_duration_ms, c.started_at, c.normalized_error_type
+                       c.total_duration_ms, c.first_meaningful_chunk_ms,
+                       c.started_at, c.normalized_error_type
                   from ai_logical_call c
                 """ + where + """
                  order by c.started_at desc, c.id desc
@@ -95,7 +96,8 @@ public class DiagnosticCallQueryService {
                        c.actual_provider_id, c.actual_deployment_id, c.actual_model_identity,
                        c.attempt_count, c.retry_count, c.failover_count,
                        c.mixed_execution, c.contributing_deployment_count, c.committed,
-                       c.total_duration_ms, c.started_at, c.normalized_error_type
+                       c.total_duration_ms, c.first_meaningful_chunk_ms,
+                       c.started_at, c.normalized_error_type
                   from ai_logical_call c
                  where c.id = ?
                 """, ROW_MAPPER, logicalCallId);
@@ -516,6 +518,7 @@ public class DiagnosticCallQueryService {
             int contributingDeploymentCount,
             boolean committed,
             long totalDurationMs,
+            Long firstMeaningfulChunkMs,
             OffsetDateTime startedAt,
             String normalizedErrorType) {
 
@@ -525,7 +528,7 @@ public class DiagnosticCallQueryService {
                     actualProviderId, actualDeploymentId, actualModelIdentity,
                     lastAttemptTarget, attemptCount, retryCount, failoverCount,
                     failoverCount > 0, mixedExecution, contributingDeploymentCount, committed,
-                    totalDurationMs, startedAt, normalizedErrorType);
+                    totalDurationMs, firstMeaningfulChunkMs, startedAt, normalizedErrorType);
         }
     }
 
@@ -545,6 +548,7 @@ public class DiagnosticCallQueryService {
             rs.getInt("contributing_deployment_count"),
             rs.getBoolean("committed"),
             rs.getLong("total_duration_ms"),
+            longObject(rs, "first_meaningful_chunk_ms"),
             utc(rs.getObject("started_at", OffsetDateTime.class)),
             rs.getString("normalized_error_type"));
 }

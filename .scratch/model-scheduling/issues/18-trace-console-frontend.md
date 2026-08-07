@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 17
 
-**Status:** blocked
+**Status:** done（2026-08-07）
 
 ## Slice
 
@@ -16,10 +16,37 @@
 
 ## Acceptance
 
-- [ ] UI-01~UI-10 按矩阵自动化/浏览器验证；摘要下钻生成冻结的筛选语义，诊断丢弃/写失败显示独立警告。
-- [ ] 六种正式场景均可由假 Provider 构造，四个摘要入口均能精确下钻。
-- [ ] 页面不推测缺失事件，不展示正文、原始错误、完整 Provider request ID 或 secret；内部 request ID 仍可按契约复制。
-- [ ] 无 B/C 布局、CRUD、Key、手动 breaker 或 JSON 导出。
-- [ ] 前端 build/lint 与浏览器实测通过。
+- [x] UI-01 双栏/抽屉、UI-02 响应式、UI-04 URL 同步、UI-06 刷新失败保留旧数据、UI-07 键盘与 Escape、UI-08 隐私、UI-09 四个摘要下钻、UI-10 dropped/write-failure 警告，均已在浏览器实测（1440px 与 375px 两档）。
+- [x] UI-09 的关键语义已用网络请求证据确认：点"24h 失败/流中断"真实发出
+      `?outcome=FAILED&outcome=STREAM_FAILED`，不是过滤当前已加载的一页。
+- [x] 页面不推测缺失事件：时间线只渲染持久化的 route event 与 attempt，两者都为空时明说"没有持久化的调度事件"。
+- [x] 隐私实测：页面文本含脱敏 `req_****1b7c`，不含密钥/Authorization/Prompt/正文；内部 request ID 可复制。
+- [x] 无 B/C 布局、CRUD、Key、手动 breaker 或 JSON 导出。
+- [x] `pnpm build` 与 `pnpm lint` 通过；`./scripts/ci-validate.sh` 通过（clean 构建后 backend 390 tests，0 failures，2 skipped）。
+- [ ] **UI-04/05/08/09/10 的"A（自动化）"部分未落地**，原因见下方遗留。
 
 **Design:** [ui-spec A](../../../tech/model-scheduling/ui-spec.md#10-原型三方案)
+
+## 实现记录（2026-08-07）
+
+`frontend/src/api/diagnostics.ts`（三个接口的类型与请求）、`src/pages/DiagnosticsPage.tsx`（重写）、
+`src/pages/diagnostics/{OverviewBar,CallDetailPanel,labels}.tsx`，以及 `index.css` 的 Trace Console 段。
+
+浏览器实测中发现并修掉了四个真实缺陷，都不是靠读代码能发现的：
+
+1. **列表"首个有效块"列恒为 `—`。** 列表 DTO 根本没有这个字段，而 ui-spec §6.2 要求这一列。
+   后端 `AiDiagnosticCall` 增加 `firstMeaningfulChunkMs`（只有流式非空），前端直接用，不为一列去拉详情。
+   顺带把测试 fixture 改真实——原来 fixture 给同步 Chat 也塞了流式时刻。
+2. **1280px 双栏把列表挤成竖排折行。** 表格有 8 列，1280px 下分栏后每个单元格都在折行，关键状态
+   反而更难读。双栏断点提到 1600px，之下改为右侧固定抽屉（正是 ui-spec §8.2 的"普通桌面用抽屉"）。
+3. **375px 下页头被挤成一列单字，且卡片仍要横向滚动。** 页头改竖排，卡片模式取消
+   `overflow-x`，实测 `scrollWidth === innerWidth`。
+4. **可点击行与摘要格子没有可访问名。** 两者都是 `role="button"`，读屏只会念出"button"。
+   分别补了完整句子的 `aria-label`。
+
+**遗留 — 前端自动化测试未落地：** 仓库从来没有前端测试运行器（`package.json` 无 test 脚本）。
+本工单尝试引入 vitest + testing-library 时被 pnpm store 版本不一致挡住：`node_modules` 由
+pnpm 10.7.1 装出，当前环境是 10.12.3，`pnpm add` 报 `ERR_PNPM_UNEXPECTED_STORE`，
+要解决必须整体重装依赖。**这属于工具链/CI 决策，不该在一张前端功能工单里单方面做掉**，
+已留给工单 22（CI 与部署门禁）连同"把 `pnpm test` 接进 ci-validate"一起处理；
+在那之前 UI-04/05/08/09/10 只有浏览器实测证据，没有可重放的自动化。

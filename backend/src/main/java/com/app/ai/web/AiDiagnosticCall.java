@@ -32,6 +32,8 @@ public record AiDiagnosticCall(
         int contributingDeploymentCount,
         boolean committed,
         long totalDurationMs,
+        /** 只有流式能力非空；ui-spec §6.2 的"首个有效块"列直接用它，前端不再二次请求详情。 */
+        Long firstMeaningfulChunkMs,
         @JsonSerialize(using = ToStringSerializer.class) OffsetDateTime startedAt,
         String normalizedErrorType) {
 

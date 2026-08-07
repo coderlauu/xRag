@@ -808,3 +808,324 @@ button.link {
     color: #6fc48f;
   }
 }
+
+/* ---------- 模型调度诊断（A — Trace Console，tech/model-scheduling/ui-spec.md） ---------- */
+
+.trace-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.trace-stale {
+  color: var(--color-warning, #b26a00);
+  font-weight: 600;
+}
+
+.trace-health {
+  margin: 0 0 1rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.trace-health.ok {
+  background: color-mix(in srgb, green 12%, transparent);
+}
+
+.trace-health.down {
+  background: color-mix(in srgb, red 12%, transparent);
+}
+
+.trace-warning {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--color-warning, #b26a00);
+  background: color-mix(in srgb, orange 10%, transparent);
+  font-size: 0.9rem;
+}
+
+.trace-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.trace-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.trace-tile.active {
+  outline: 2px solid currentColor;
+}
+
+.trace-tile-value {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.trace-tile-label {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.trace-retention {
+  font-size: 0.85rem;
+}
+
+.trace-catalog {
+  margin-bottom: 1.5rem;
+}
+
+.trace-catalog summary {
+  cursor: pointer;
+  padding: 0.4rem 0;
+}
+
+.trace-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/*
+ * ui-spec §8.2 的三档：宽屏双栏、普通桌面右侧抽屉、窄屏覆盖。
+ * 双栏断点定在 1600px 而不是 1280px——列表有 8 列，1280px 下分栏会把每个单元格挤成
+ * 竖排折行，关键状态反而更难读。实测确认过。
+ */
+@media (min-width: 1600px) {
+  .trace-body.with-detail {
+    grid-template-columns: minmax(0, 1fr) minmax(420px, 480px);
+  }
+}
+
+.trace-detail {
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--color-bg, canvas);
+}
+
+/* 1600px 以下：右侧抽屉覆盖在列表之上，列表保持完整列宽和滚动位置。 */
+@media (max-width: 1599px) {
+  .trace-detail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(480px, 100vw);
+    max-height: 100vh;
+    border-radius: 0;
+    border-width: 0 0 0 1px;
+    box-shadow: -8px 0 24px rgb(0 0 0 / 25%);
+    z-index: 20;
+  }
+}
+
+@media (max-width: 720px) {
+  .trace-detail {
+    width: 100vw;
+    border-left-width: 0;
+  }
+}
+
+.trace-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.trace-detail-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.trace-detail-body section {
+  margin-top: 1.25rem;
+}
+
+.trace-detail-body h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+
+.trace-outcome {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.trace-narrative {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.trace-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.trace-facts dt {
+  opacity: 0.7;
+}
+
+.trace-facts dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.trace-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--color-border, #ddd);
+}
+
+.trace-timeline li {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 0.25rem 0.75rem;
+  padding: 0.4rem 0 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.trace-timeline li > .muted {
+  grid-column: 2;
+}
+
+.trace-timeline-attempt .trace-timeline-title {
+  font-weight: 600;
+}
+
+.trace-offset {
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-table tbody tr {
+  cursor: pointer;
+}
+
+.trace-table tbody tr.selected {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.trace-table tbody tr:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.trace-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.trace-copied {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background: var(--color-surface, #222);
+  color: var(--color-on-surface, #fff);
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.pill-ok,
+.outcome-succeeded {
+  background: color-mix(in srgb, green 15%, transparent);
+}
+
+.outcome-degraded,
+.pill-half_open {
+  background: color-mix(in srgb, orange 18%, transparent);
+}
+
+.outcome-failed,
+.outcome-stream_failed,
+.pill-open {
+  background: color-mix(in srgb, red 15%, transparent);
+}
+
+.outcome-canceled,
+.pill-muted,
+.pill-closed {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.pill-dashed {
+  border: 1px dashed currentColor;
+}
+
+@media (max-width: 720px) {
+  .trace-table thead {
+    display: none;
+  }
+
+  .trace-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-border, #ddd);
+  }
+
+  .trace-table tbody td {
+    border: none;
+    padding: 0.15rem 0.25rem;
+  }
+}
+
+@media (max-width: 720px) {
+  /* 页头在窄屏改为竖排：横排时"刚刚更新"会被挤成一列单字（实测 375px 下如此）。 */
+  .trace-console .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .trace-header-actions {
+    flex-wrap: wrap;
+  }
+
+  /* ui-spec §12：卡片模式下不得靠横向滚动才能看到关键状态。 */
+  .trace-list .table-scroll {
+    overflow-x: visible;
+  }
+
+  .trace-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .trace-table tbody td {
+    overflow-wrap: anywhere;
+  }
+
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+}
