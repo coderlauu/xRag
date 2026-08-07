@@ -48,3 +48,7 @@ pnpm store 版本不一致挡住（`node_modules` 由 10.7.1 装出、当前环�
 工单 20 的页面 DOM 扫描就只有浏览器实测证据、没有可重放的自动化。建议单开一张工单，
 内容是：统一 pnpm 版本 → 重装依赖 → 引入 vitest + testing-library → 把 `pnpm test`
 接进 `scripts/ci-validate.sh` 与 CI。
+
+> **已完成（2026-08-07）**，见 [test-matrix §14.6](../../../tech/model-scheduling/test-matrix.md)。
+> 实际成因是 pnpm **store 目录版本**（v11 vs v10）而非 pnpm 版本号，详见工单 18 的更正。
+> CI workflow 无需改动——所有门禁都经 `scripts/ci-validate.sh` 这一个入口。

@@ -1,18 +1,21 @@
 # App
 
-前后端分离的空白工程 scaffold：React 前端 + Java (Spring Boot) 后端，业务逻辑待从 0 开发。
+前后端分离的企业级 Agentic RAG 系统：React 前端 + Java (Spring Boot) 后端。已实现知识库建设与大模型调度两个模块，知识问答核心链路与 RAG 评测体系待建。
 
 ## Repository Layout
 
 ```text
 .
-├── frontend/           # React + Vite + TypeScript, pnpm 管理，最小占位页面
-├── backend/            # Spring Boot + Maven，health 接口 + DB/Redis/对象存储连接骨架
+├── frontend/           # React + Vite + TypeScript, pnpm 管理，知识库与诊断台页面
+├── backend/            # Spring Boot + Maven，健康检查 + 知识库模块 + 大模型调度模块
 ├── deploy/             # Docker/Caddy/Nginx/systemd 部署骨架，占位域名与命名待替换
-├── docs/               # 文档目录骨架（含通用模板），内容待积累
-├── .agents/skills/      # 可复用的 agent 技能包（mattpocock/skills）
+├── docs/               # 架构决策（ADR）、产品需求（PRD）、阶段计划与里程碑状态、复盘
+├── tech/               # 各模块技术方案（architecture/data-model/api 三件套 + 界面规格）
+├── learning/           # 《Ragent AI》专栏的重整理学习文档
+├── prototype/          # 各模块可点击交互原型（自包含单文件）
+├── .agents/skills/      # 可复用的 agent 技能包（mattpocock/skills + 项目自有 skill）
 ├── scripts/             # CI、基础设施起停、部署运维脚本
-└── .github/workflows/   # CI（validate/infra）与自动部署流水线
+└── .github/workflows/   # CI：validate / infra / build-images / deploy 与 smoke（staging + production）
 ```
 
 ## Tech Stack
@@ -81,10 +84,10 @@ node scripts/publish-feishu-docs.mjs --sync --yes --allow-overwrite --prune
 
 ## Notes
 
-- `backend/` 除健康检查（`GET /api/v1/health`、`GET /api/v1/health/ready`）外，已实现知识库模块：知识库管理、文档上传与 URL 来源、异步入库、分块管理、定时同步。`/health/ready` 会分别检查 Postgres/Redis/对象存储并在响应体里逐项列出，而不是折叠成一个笼统的失败。
+- `backend/` 除健康检查（`GET /api/v1/health`、`GET /api/v1/health/ready`）外，已实现两个业务模块：**知识库**（知识库管理、文档上传与 URL 来源、异步入库、分块管理、定时同步）与**大模型调度**（按能力分离的统一模型调用端口、路由与故障转移、熔断、调用诊断记录与查询接口）。`/health/ready` 会分别检查 Postgres/Redis/对象存储并在响应体里逐项列出，而不是折叠成一个笼统的失败。
 - `backend/` 已接入 Flyway（`src/main/resources/db/migration/`）；应用启动时会自动执行迁移，需要 Postgres 可连接。迁移失败只记警告不阻塞启动，因此**数据库恢复可达后需要重启应用才会真正补跑迁移**。
 - 启动时会尝试自动创建对象存储 Bucket（不存在则创建），失败只记录警告、不会阻止应用启动——应用是否真正就绪以 `/health/ready` 为准。
-- `frontend/` 有知识库列表、文档列表、分块管理三个页面，外加一个保留下来的健康检查诊断页。
+- `frontend/` 有知识库列表、文档列表、分块管理三个知识库页面，以及 `/diagnostics` 的模型调度 Trace Console（调用总览与单次调用链路详情）。
 - `deploy/` 与 `docker-compose.yml` 中的域名、账号密码均为占位值（`app` / `example.com`），上线前需替换为真实配置。
 - Java 包名当前为 `com.app`，Maven `groupId`/`artifactId` 为 `com.app:backend`；如需改成正式项目名，替换 `backend/pom.xml` 与 Java 包路径即可。
 - 本机全局 `mvn`/`java` 默认可能不是 JDK 17（比如被其他 JDK 版本占用），请用 `backend/mvnw`（已固定 Maven 3.9.9）并在需要时显式设置 `JAVA_HOME` 指向 JDK 17。

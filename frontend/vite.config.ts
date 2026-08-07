@@ -1,4 +1,7 @@
-import { defineConfig, loadEnv } from 'vite'
+import { loadEnv } from 'vite'
+// defineConfig 从 vitest/config 引才能带上 test 字段的类型；vitest 4 的 vitest/config
+// 不再 re-export loadEnv，所以那个仍从 vite 引。
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
@@ -21,6 +24,13 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
       },
+    },
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['./src/test/setup.ts'],
+      // 测试文件与被测组件同目录，不集中到 __tests__——改一个组件时它的测试就在旁边。
+      include: ['src/**/*.test.{ts,tsx}'],
+      restoreMocks: true,
     },
   }
 })

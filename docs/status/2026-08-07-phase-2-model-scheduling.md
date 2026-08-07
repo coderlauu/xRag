@@ -52,6 +52,7 @@ Phase 2 的 23 张原子工单中，**22 张已完成并通过 `scripts/ci-valid
 | 诊断 | 完成态异步写入、五张表、按 7 天/10,000 条物理清理、隐私标记串审计 |
 | 诊断 API | overview、calls 列表、calls 详情三个只读接口 |
 | 前端 | A — Trace Console：摘要条 + 最近调用 + 详情与真实事件时间线 |
+| 前端测试 | vitest + testing-library（仓库首次），14 条覆盖 UI-04/05/08/09/10，已进 `ci-validate.sh` |
 | 运维 | env example 登记 Phase 2 配置、部署 README 的四条运维须知、CI 全程假 Provider |
 
 ## 5. 验证状态
@@ -62,8 +63,8 @@ Phase 2 的 23 张原子工单中，**22 张已完成并通过 `scripts/ci-valid
 |---|---|
 | `scripts/ci-validate.sh` | 通过 |
 | backend（clean 构建） | 399 tests，0 failures，**2 skipped** |
-| 2 个 skipped | `RealEmbeddingApiTests`，无 Key 自动跳过 |
-| frontend | `pnpm build` + `pnpm lint` 通过 |
+| 2 个 skipped | `RealEmbeddingApiTests`，无 Key 自动跳过。**这两条 skipped 掩盖了一个缺口**：该测试在工单 15 之后已改为走 Phase 2 调度层，但从迁移起就一直是 skipped，等于迁移后的真实 Embedding 链路从未被验证过——2026-08-07 一次实测是失败的，见 [test-matrix §14.4.1](../../tech/model-scheduling/test-matrix.md) |
+| frontend | `pnpm build` + `pnpm lint` 通过；`pnpm test` **14 passed / 0 failed**（2026-08-07 接入） |
 | 文档链接 | `scripts/check-doc-links.mjs` 通过 |
 | 浏览器 | `/diagnostics` 在 1440px 与 375px 两档实测，详见 test-matrix §14.3 |
 
@@ -84,9 +85,9 @@ Phase 2 的 23 张原子工单中，**22 张已完成并通过 `scripts/ci-valid
 
 | 编号 | 内容 | 阻塞原因 | 影响 |
 |---|---|---|---|
-| P2-01 | 工单 23 真实 Provider 准入 | 缺合规通用计费 Key | `verifiedCapabilities` 恒为空数组（"尚未验证"，非"不支持"） |
-| P2-02 | 前端测试运行器 | pnpm store 版本不一致，需整体重装依赖；属工具链决策 | UI-04/05/08/09/10 与页面 DOM 隐私扫描只有浏览器实测证据 |
-| P2-03 | 6 项手工用例未执行 | UI-01、UI-03、UI-05、UI-06、UI-10、DIA-18 | 见 test-matrix §14.3 |
+| P2-01 | 工单 23 真实 Provider 准入 | 缺合规通用计费 Key | `verifiedCapabilities` 恒为空数组（"尚未验证"，非"不支持"）。**范围比原先记的更大**：迁移后的 Embedding 真实链路同样未验证，且 2026-08-07 一次实测是失败的，见 [test-matrix §14.4.1](../../tech/model-scheduling/test-matrix.md) |
+| ~~P2-02~~ | ~~前端测试运行器~~ | **已解除（2026-08-07）** | vitest + testing-library 落地并接进 `ci-validate.sh`，UI-04/05/08/09/10 有可重放自动化（14 passed），断言经三次变异验证。详见 [test-matrix §14.6](../../tech/model-scheduling/test-matrix.md) |
+| P2-03 | 4 项纯手工用例未执行 | UI-01、UI-03、UI-06、DIA-18 | 见 test-matrix §14.3。UI-05/UI-10 的自动化已补，只剩低优先级的真实环境确认 |
 | P2-04 | 23 条 A 用例待逐条确认 | 无同名测试方法，很可能已被描述性命名的测试覆盖 | 见 test-matrix §14.2 |
 | P2-05 | api.md §7 的 Embedding `validation` 三标志 | V6 Schema 未存储，失败调用无法归因 | 当前成功时返回三个 true、其余返回 null，不猜；需 V7 加列 |
 
@@ -109,7 +110,8 @@ Phase 3（AI 知识问答核心链路）消费的是四个稳定能力端口，�
 - **不阻塞**：Phase 3 可在 P2-01 未解除的情况下开始，用假 Provider 或已配置的 Embedding 凭据开发。
 - **需知悉**：Phase 3 不得绕过 `com.app.ai` 直接调用 Provider SDK；Rerank 可能返回 Noop 降级，
   调用方必须区分 `rerankApplied=false` 与普通成功。
-- **建议先解除**：P2-02（前端测试运行器），否则 Phase 3 的前端工作会继承同一个缺口。
+- ~~**建议先解除**：P2-02（前端测试运行器）~~ — **已于 2026-08-07 解除**。Phase 3 的前端工作
+  直接沿用这套栈：测试文件与被测组件同目录，`pnpm test` 已在 `ci-validate.sh` 内。
 
 ## 10. 关联资产
 

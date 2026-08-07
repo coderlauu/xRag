@@ -582,7 +582,19 @@ Phase 2 推荐用一把**通用按量计费**的阿里云百炼 Model Studio Key
 
 现有 `EMBEDDING_API_KEY` 是 Phase 1 遗留凭据，已知用途受限。迁移期间允许它仅维持原 Embedding 回归，不把它扩展到 Chat、流式 Chat 或 Rerank，也不把它标为已合规 Provider。
 
-Coding Plan 的 `sk-sp-...` 只允许 AI 编程工具，不能用于自建后端、curl、Postman 或批处理；违规可能停订阅或禁 Key。来源：[阿里云 Coding Plan FAQ](https://help.aliyun.com/en/model-studio/coding-plan-faq)。`ANTHROPIC_AUTH_TOKEN` 等当前 Codex/Claude 工具环境变量同样不得被应用读取或写入配置。
+Coding Plan 类 Key 只允许在官方支持的 AI 编程工具中使用，不能用于自建后端、curl、Postman 或批处理；违规可能停订阅或禁 Key。`ANTHROPIC_AUTH_TOKEN` 等当前 Codex/Claude 工具环境变量同样不得被应用读取或写入配置。
+
+**出处按供应商分开，不要混引（2026-08-07 更正）：**
+
+- `EMBEDDING_API_KEY` 是**火山方舟**凭据，端点 `/api/plan/v3` 是 Coding Plan 专用通道
+  （Plan 类 Key 打标准 `/api/v3` 实测直接 401）。适用条款是方舟官方文档，Phase 1 已在
+  `backend/src/main/resources/application.properties` 的 Embedding 段落逐字记录并注明
+  查证日期，同时写明"本项目拿它做知识库向量化，正属于被禁止的直接 API 调用……是项目
+  所有者知情后的选择，不是推荐用法"。
+- [阿里云 Coding Plan FAQ](https://help.aliyun.com/en/model-studio/coding-plan-faq) 约束的是
+  百炼的 `sk-sp-...`，与上面那把 Key 不是同一家。此前本节用它来论证火山方舟 Key 的限制，
+  出处对不上——**限制本身成立，错的是引用**。这类错引很危险：一旦有人发现出处不对，
+  很容易顺势推翻结论本身，而结论其实有更强的一手依据。
 
 ### 13.3 准入清单
 

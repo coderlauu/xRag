@@ -342,8 +342,9 @@ Step E 关闭前：
 
 **无同名测试方法的 28 条**，按可确认程度分两类：
 
-- **确认缺口（5 条）**：`UI-04`、`UI-05`、`UI-08`、`UI-09`、`UI-10` 的自动化部分。
-  仓库没有前端测试运行器，这五条目前只有浏览器实测证据（§14.3）。原因与后续计划见工单 22。
+- ~~**确认缺口（5 条）**：`UI-04`、`UI-05`、`UI-08`、`UI-09`、`UI-10` 的自动化部分。~~
+  **已于 2026-08-07 补齐**，见 §14.6。前端测试运行器（vitest + testing-library）已落地并接入
+  `scripts/ci-validate.sh`，这五条现在有可重放的自动化证据，不再只依赖浏览器实测。
 - **待逐条确认（23 条）**：`CBR-02`、`CBR-10`、`DIA-03`、`RTE-18`、`SYN-18`、`SYN-30`、
   `STR-03`、`STR-04`、`STR-06`、`STR-15`、`STR-21`、`EMB-01`、`EMB-03`、`EMB-04`、
   `EMB-13`~`EMB-18`、`EMB-20`~`EMB-22`。
@@ -359,14 +360,14 @@ Step E 关闭前：
 |---|---|---|---|
 | UI-02 | M | **已执行** | 375px 实测，卡片布局无关键字段丢失，`scrollWidth === innerWidth`（无横向滚动） |
 | UI-07 | M | **部分执行** | Escape 关闭 + 焦点返回触发行已实测；**Enter 打开详情未实测** |
-| UI-04 | A+M | 手工部分已执行 | 带 `?outcome=FAILED&outcome=STREAM_FAILED&capability=STREAM_CHAT` 刷新后筛选保留、命中 1 条 |
-| UI-08 | A+M | 手工部分已执行 | 页面文本含脱敏 `req_****1b7c`，无密钥/Authorization/Prompt/正文 |
-| UI-09 | A+M | 手工部分已执行 | 点"24h 失败/流中断"实际发出 `?outcome=FAILED&outcome=STREAM_FAILED`，非前端近似过滤（网络面板证据） |
+| UI-04 | A+M | **已完成** | 手工：带 `?outcome=FAILED&outcome=STREAM_FAILED&capability=STREAM_CHAT` 刷新后筛选保留、命中 1 条。自动化：见 §14.6 |
+| UI-08 | A+M | **已完成** | 手工：页面文本含脱敏 `req_****1b7c`，无密钥/Authorization/Prompt/正文。自动化：见 §14.6 |
+| UI-09 | A+M | **已完成** | 手工：点"24h 失败/流中断"实际发出 `?outcome=FAILED&outcome=STREAM_FAILED`，非前端近似过滤（网络面板证据）。自动化：见 §14.6 |
 | UI-01 | M | **未执行** | 双栏需 ≥1600px 视口；实测只做到 1440px（抽屉档）。CSS 断点已就位但未目视确认双栏 |
 | UI-03 | M | **未执行** | 只构造了 4 种场景（成功+切换、流中断、Rerank Noop、失败），缺"同步切换"与"提交前切换"两种 |
-| UI-05 | A+M | **未执行** | 30s 轮询与隐藏暂停未做计时观测 |
+| UI-05 | A+M | 自动化已完成 | fake timer 覆盖 30s 刷新、隐藏暂停与不重叠（§14.6）；**真实浏览器计时观测仍未做** |
 | UI-06 | M | **未执行** | 刷新失败保留旧数据的代码路径存在，未人为制造失败验证 |
-| UI-10 | A+M | **未执行** | 需人为制造 dropped/write-failure 大于 0 |
+| UI-10 | A+M | 自动化已完成 | 三态渲染由 §14.6 覆盖（两计数 >0、=0、读取失败）；**在真实后端上人为制造 dropped/write-failure 仍未做** |
 | DIA-18 | M | **未执行** | 需 kill 进程后重启核对页面不伪造记录 |
 | EMB-16 | A+M | 自动化部分已完成 | catalog 侧由 `cfg16` 守、调用侧由工单 14 的 `emb19` 守；真实环境核验未做 |
 | REAL-01~08 | M | **blocked** | 见 §14.4 |
@@ -388,11 +389,89 @@ Chat、流式 Chat 或 Rerank，也不算已合规准入的 Provider。`DASHSCOP
    开启控制台费用告警，然后按工单 23 执行——每能力不超过 20 次短调用，
    并在执行日重新核对官方模型版本、区域、限额与价格。
 
+#### 14.4.1 补充：迁移后 Embedding 真实链路实测失败（2026-08-07）
+
+**这一节记录一次不该发生的调用，以及它意外暴露的问题。**
+
+经过：为核实"REAL-03 是否可用现有 Key 执行"，用 `backend/.env` 里的
+`EMBEDDING_API_KEY` 跑了 `RealEmbeddingApiTests`（3 次，每次 1~2 条用例）。
+**这属于上面三条纪律里禁止的直接 API 调用**，做之前没有先读 Phase 1 在
+`application.properties` 留下的条款记录——那里白纸黑字写着这是"被禁止的直接 API 调用……
+项目所有者知情后的选择，不是推荐用法"。已停止，不再重复。
+
+**结果：两条用例全部失败**，错误是 `PROVIDER_RESPONSE_INVALID` →
+"模型供应商响应不符合协议"（`RoutedEmbeddingClient$EmbeddingCall.fail`）。
+按 `OpenAiCompatibleEmbeddingProvider.decode` 的分支，这个分类**排除了** 4xx 与 5xx
+（那些会分别归到 `UPSTREAM_REQUEST_REJECTED` 与 http 失败），所以不是认证失败或限流，
+而是"HTTP 2xx 但响应体不是预期结构"，或 3xx。
+
+**值得记的不是这次失败本身，而是它为什么直到现在才被发现：**
+
+`RealEmbeddingApiTests` 在工单 15 之后已经改为注入 `com.app.ai.model.EmbeddingClient`，
+走的是 Phase 2 调度层。但它由 `@EnabledIfEnvironmentVariable` 守门，本机 `.env` 里的 Key
+不是环境变量，所以**从迁移那天起它每次都是 skipped**——CI 与本地都显示绿。
+Phase 1 的 M-06 通过记录（2026-07-28）验的是迁移**前**的实现，不能替迁移后的路径背书。
+
+于是有了一条此前没写下来的风险：**Phase 2 的 Embedding 真实供应商链路从未被验证过一次**，
+2 个 skipped 长期被当作"只是没跑"，而不是"这条路可能是断的"。
+具体断在哪（Key 已被风控、Coding Plan 端点对 `/embeddings` 的响应形状变化、
+还是迁移丢了某个请求细节）**没有继续排查**——继续排查就要继续违规调用。
+这条留给工单 23：拿到合规 Key 后，它验的不只是"新 Provider 能不能用"，
+还包括"迁移后的 Embedding 路径到底通不通"。
+
 ### 14.5 Step E 闸门待办
 
 关闭 Step E 之前还需要：
 
 - 逐条确认 §14.2 里那 23 条"待确认"用例，把对应测试方法名补进本表；
-- 补做 §14.3 中 6 条未执行的手工项（UI-01、UI-03、UI-05、UI-06、UI-10、DIA-18）；
-- 前端测试运行器落地后补齐 UI-04/05/08/09/10 的自动化（工单 22 已记录方案）；
+- 补做 §14.3 中仍未执行的纯手工项：**UI-01、UI-03、UI-06、DIA-18**。
+  UI-05 与 UI-10 的自动化已在 §14.6 覆盖，只剩"真实浏览器计时"与"真实制造计数"两项
+  低优先级手工确认；
+- ~~前端测试运行器落地后补齐 UI-04/05/08/09/10 的自动化~~ — **已完成（2026-08-07），见 §14.6**；
 - 项目所有者确认本节结果。
+
+### 14.6 前端自动化测试落地（2026-08-07）
+
+递延项 P2-02 已解除。
+
+**先纠正一处成因误判。** 工单 18 与 22 都把阻塞原因记为"pnpm 版本不一致（`node_modules` 由
+10.7.1 装出、当前环境 10.12.3）"。实际复现出来的报错是 store **目录版本**不一致——
+`node_modules` 链接自 `store/v11`，而当前 pnpm 10.7.1 要用 `store/v10`。全局 pnpm、corepack
+解析到的版本和 `packageManager` 字段三者本就一致，版本号从来不是原因。修法碰巧相同
+（整体重装），但记错成因会让下次遇到同类问题的人去查版本号而不是 store 路径。
+
+| 项 | 内容 |
+|---|---|
+| 运行器 | vitest 4.1.10 + jsdom 30 + @testing-library/react 16 + user-event 14 + jest-dom 7 |
+| 配置位置 | `frontend/vite.config.ts` 的 `test` 段；setup 在 `frontend/src/test/setup.ts` |
+| 测试文件 | 与被测组件同目录（`src/pages/DiagnosticsPage.test.tsx`），夹具在 `src/pages/diagnostics/fixtures.ts` |
+| 入口 | `pnpm test`（`vitest run`），已接进 `scripts/ci-validate.sh` 的 frontend 段，排在 `build` 之后 |
+| 结果 | 14 passed / 0 failed |
+
+**mock 边界是全局 `fetch`，不是 `api/diagnostics.ts` 的导出函数。** UI-09 要证明的正是
+"摘要下钻发出了真实后端查询、而不是拿当前已加载的一页近似过滤"，mock 掉 `fetchCalls`
+就把待验逻辑一起 mock 掉了。在 fetch 层断言 URL，得到的证据与浏览器网络面板同源。
+
+覆盖到的断言：
+
+| 用例 | 断言 |
+|---|---|
+| UI-04 | URL 初始化筛选并带进请求；改筛选写回 URL 并重新请求；选中详情不进 URL |
+| UI-05 | 30s 刷新 overview 且不重拉列表；隐藏暂停、恢复后继续；上一轮未返回时跳过 |
+| UI-08 | 后端多返回 Prompt/输出/密钥/未脱敏 ID 时页面一律不渲染；脱敏 ID 与 providerId 正常展示 |
+| UI-09 | "失败/流中断"发 `outcome=FAILED&outcome=STREAM_FAILED`；"发生切换"发 `failoverOccurred=true` 且不叠加 outcome；候选/熔断下钻只过滤本页、不重新请求 |
+| UI-10 | 两计数 >0 时提示并显示条数、且声明不代表调用失败；=0 时不提示；读取失败时说读不到而非当作 0 |
+
+**这些断言经过变异验证，不是"跑绿即通过"。** 三次变异各自只让对应的一条测试变红：
+
+| 变异 | 结果 |
+|---|---|
+| 删掉 `loadOverview` 的 `overviewInFlight` 守卫 | UI-05 不重叠红：期望 1 次请求、实得 5 次 |
+| 把 failover 下钻口径改成 `outcomes: ["FAILED"]` | UI-09 红：URL 不含 `failoverOccurred=true` |
+| 让详情面板渲染 `promptText` | UI-08 红：页面文本出现"用户的原始问题正文" |
+
+第三条尤其值得做——UI-08 这类"断言某些东西不出现"的测试最容易沦为永远通过的空转测试，
+不变异就无法区分"前端确实按白名单渲染"和"夹具里根本没有那些字段"。
+
+另外确认 `tsc -b` 会连测试文件一起做类型检查（故意写一个 `const x: number = "s"` 可让
+`pnpm build` 以 TS2322 失败），所以 `ci-validate.sh` 里 build 排在 test 之前是有意义的。
