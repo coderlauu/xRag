@@ -21,7 +21,8 @@
 - [x] 无 Provider、UNCONFIGURED、配置禁用（`enabled=false`）、breaker OPEN 与 HALF_OPEN 五种状态均可构造并已断言。
 - [x] 输出无操作型 CRUD/Key/手动 breaker 字段；DTO 不嵌入 `ModelProvider`，`baseUrl` 也不返回。
 - [x] writer 计数读取失败返回 `null` 而不是 0，`failovers24h`/`failedOrInterrupted24h`/`oldestAvailableAt` 同此约定。
-- [x] `./mvnw -B verify` 通过（367 tests，0 failures，2 skipped）。
+- [x] `./mvnw -B verify` 通过（clean 构建后 356 tests，0 failures，2 skipped）。
+  最初记的是 367——`target/` 里残留着 `5aa33f4` 已删除的两个 Phase 1 测试类的旧 surefire 报告，把总数虚高了 11。计数请以 clean 构建为准。
 
 **Design:** [API §5](../../../tech/model-scheduling/api.md#5-调度总览)
 

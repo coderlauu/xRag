@@ -51,7 +51,14 @@ class ModelCatalogConfigurationTests {
                     var snapshot = context.getBean(ModelCatalogSnapshot.class);
                     assertThat(snapshot.policyVersion()).isEqualTo("phase2-v1");
                     assertThat(snapshot.providers()).hasSize(2);
-                    assertThat(snapshot.deployments()).hasSize(3);
+                    assertThat(snapshot.deployments()).hasSize(4);
+                    // Rerank deployment 默认关闭：打开它必须与注入 DASHSCOPE_API_KEY 同时做，
+                    // 只开一半会让重排以 AUTHENTICATION 直接失败（architecture.md §11）。
+                    var rerank = snapshot.deployments().get(
+                            new com.app.ai.model.DeploymentId("aliyun-qwen3-rerank-cn"));
+                    assertThat(rerank).isNotNull();
+                    assertThat(rerank.enabled()).isFalse();
+                    assertThat(rerank.rerank().maxDocuments()).isEqualTo(100);
                 });
     }
 }

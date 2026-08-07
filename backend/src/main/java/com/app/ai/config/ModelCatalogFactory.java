@@ -12,6 +12,7 @@ import com.app.ai.model.ModelFeature;
 import com.app.ai.model.ModelProvider;
 import com.app.ai.model.ProviderConfigurationStatus;
 import com.app.ai.model.ProviderId;
+import com.app.ai.model.RerankProfile;
 import com.app.ai.model.QuotaDomain;
 import com.app.ai.model.ServiceTier;
 import java.net.URI;
@@ -137,6 +138,7 @@ final class ModelCatalogFactory {
             }
 
             EmbeddingProfile embedding = embeddingProfile(path, capabilities, source.getEmbedding());
+            RerankProfile rerank = rerankProfile(path, capabilities, source.getRerank());
             result.put(id, new ModelDeployment(
                     id,
                     providerId,
@@ -148,9 +150,29 @@ final class ModelCatalogFactory {
                     source.getPriority(),
                     source.isEnabled(),
                     embedding,
-                    features));
+                    features,
+                    rerank));
         }
         return immutableOrdered(result);
+    }
+
+    private static RerankProfile rerankProfile(
+            String deploymentPath,
+            Set<Capability> capabilities,
+            AiModelsProperties.RerankProperties source) {
+        if (!capabilities.contains(Capability.RERANK)) {
+            if (source != null) {
+                throw invalid(deploymentPath + ".rerank", "is only valid for RERANK deployments");
+            }
+            return null;
+        }
+        if (source == null) {
+            throw invalid(deploymentPath + ".rerank", "is required for RERANK deployments");
+        }
+        if (source.getMaxDocuments() <= 0) {
+            throw invalid(deploymentPath + ".rerank.max-documents", "must be positive");
+        }
+        return new RerankProfile(source.getMaxDocuments());
     }
 
     private static EmbeddingProfile embeddingProfile(

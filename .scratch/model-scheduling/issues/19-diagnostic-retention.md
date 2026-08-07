@@ -21,7 +21,8 @@
 - [x] DIA-15：调用已按条数上限清理后，breaker transition 仍只按 7 天决定去留，不受上限影响。
 - [x] DIA-16：2,500 条按时间清理确实分成 1000+1000+500 三次删除事务，不是一个大事务。
 - [x] route event 与 attempt 随父调用级联删除，清理后不残留可派生的 Embedding 贡献事实。
-- [x] `./scripts/ci-validate.sh` 通过（backend 372 tests，0 failures，2 skipped）。
+- [x] `./scripts/ci-validate.sh` 通过（clean 构建后 backend 361 tests，0 failures，2 skipped）。
+  最初记的是 372，同样受陈旧 surefire 报告影响虚高 11，详见工单 05 的同一条更正。
 
 **Design:** [data model §7](../../../tech/model-scheduling/data-model.md#7-保留与清理)
 

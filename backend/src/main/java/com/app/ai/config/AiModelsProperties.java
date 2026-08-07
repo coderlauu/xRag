@@ -120,6 +120,7 @@ public class AiModelsProperties {
         private int priority;
         private boolean enabled = true;
         private EmbeddingProperties embedding;
+        private RerankProperties rerank;
 
         public String getProviderId() {
             return providerId;
@@ -199,6 +200,28 @@ public class AiModelsProperties {
 
         public void setEmbedding(EmbeddingProperties embedding) {
             this.embedding = embedding;
+        }
+
+        public RerankProperties getRerank() {
+            return rerank;
+        }
+
+        public void setRerank(RerankProperties rerank) {
+            this.rerank = rerank;
+        }
+    }
+
+    /** Rerank deployment 的调用上限，只对声明了 RERANK 能力的 deployment 有效。 */
+    public static class RerankProperties {
+
+        private int maxDocuments;
+
+        public int getMaxDocuments() {
+            return maxDocuments;
+        }
+
+        public void setMaxDocuments(int maxDocuments) {
+            this.maxDocuments = maxDocuments;
         }
     }
 

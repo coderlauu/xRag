@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step D 工单 01~15、19 done；16 ready）
+- `status`: in-progress（Step D 工单 01~16、19 done；17 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -153,7 +153,7 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01~15、19 已完成；16 ready）**
+状态：**in progress（工单 01~16、19 已完成；17 ready）**
 
 实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 
@@ -227,6 +227,6 @@ Step C.1 评审修订：
 
 ## 7. Current Node
 
-- `now`: Step D 工单 19 已完成。诊断按 7 天与最近 10,000 次逻辑调用物理清理，每批一个独立短事务；breaker transition 只按时间独立保留。总览此前只是把保留窗口念给页面听，现在这个窗口有东西真正在执行。完整验证通过（backend 372 tests，0 failures，2 skipped）。
-- `next`: 只剩工单 16（Rerank/Noop）为 `ready`，它是 17 起整条 Trace 线的唯一前置——17 还差 16，18 还差 17，20/21 还差更下游，22 要 01~21 全绿。
+- `now`: Step D 工单 16 已完成。Rerank 端口、`/reranks` 适配器与显式 Noop 降级落地，四个能力端口自此全部就位。Noop 只覆盖"目录未声明能力/约束下无合格候选/可恢复候选耗尽"三种产品状态，非法请求、取消与缺 secret 一律直接失败。完整验证通过（clean 构建后 backend 375 tests，0 failures，2 skipped）。
+- `next`: 工单 17（Trace calls/detail API）为 `ready`，其六项依赖已全部完成；它解锁 18（前端），再往后 20/21 依赖 17/18，22 要 01~21 全绿。
 - `decision_needed`: 无。唯一的外部不确定性在工单 23：它需要一把合规的通用计费 Key，没有就只能保持 blocked，不能伪造通过。

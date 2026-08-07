@@ -21,6 +21,7 @@ public final class RouteRequest {
     private final Set<ProviderId> allowedProviders;
     private final boolean toolCallingRequired;
     private final int embeddingInputCount;
+    private final int rerankDocumentCount;
 
     private RouteRequest(
             Capability capability,
@@ -29,7 +30,8 @@ public final class RouteRequest {
             Set<DataRegion> allowedDataRegions,
             Set<ProviderId> allowedProviders,
             boolean toolCallingRequired,
-            int embeddingInputCount) {
+            int embeddingInputCount,
+            int rerankDocumentCount) {
         this.capability = Objects.requireNonNull(capability);
         this.serviceTier = serviceTier;
         this.requiredModelIdentity = requiredModelIdentity;
@@ -37,6 +39,7 @@ public final class RouteRequest {
         this.allowedProviders = Set.copyOf(allowedProviders);
         this.toolCallingRequired = toolCallingRequired;
         this.embeddingInputCount = embeddingInputCount;
+        this.rerankDocumentCount = rerankDocumentCount;
     }
 
     public static RouteRequest chat(ChatCommand command, Set<ProviderId> allowedProviders) {
@@ -53,6 +56,7 @@ public final class RouteRequest {
                 command.options().allowedDataRegions(),
                 allowedProviders,
                 requiresTools,
+                0,
                 0);
     }
 
@@ -68,7 +72,28 @@ public final class RouteRequest {
                 options == null ? Set.of() : options.allowedDataRegions(),
                 allowedProviders,
                 false,
+                0,
                 0);
+    }
+
+    /** Rerank 的候选数参与路由：超过某个 deployment 文档上限的请求，那个 deployment 不算合格候选。 */
+    public static RouteRequest rerank(
+            ServiceTier tier,
+            int documentCount,
+            CallOptions options,
+            Set<ProviderId> allowedProviders) {
+        if (documentCount < 0) {
+            throw new IllegalArgumentException("rerank document count must be non-negative");
+        }
+        return new RouteRequest(
+                Capability.RERANK,
+                tier == null ? ServiceTier.BALANCED : tier,
+                null,
+                options == null ? Set.of() : options.allowedDataRegions(),
+                allowedProviders,
+                false,
+                0,
+                documentCount);
     }
 
     public static RouteRequest embedding(
@@ -86,7 +111,8 @@ public final class RouteRequest {
                 options == null ? Set.of() : options.allowedDataRegions(),
                 allowedProviders,
                 false,
-                inputCount);
+                inputCount,
+                0);
     }
 
     public Capability capability() {
@@ -115,5 +141,9 @@ public final class RouteRequest {
 
     public int embeddingInputCount() {
         return embeddingInputCount;
+    }
+
+    public int rerankDocumentCount() {
+        return rerankDocumentCount;
     }
 }

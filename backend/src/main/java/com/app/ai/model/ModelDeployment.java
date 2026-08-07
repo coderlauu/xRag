@@ -14,7 +14,8 @@ public record ModelDeployment(
         int priority,
         boolean enabled,
         EmbeddingProfile embedding,
-        Set<ModelFeature> features) {
+        Set<ModelFeature> features,
+        RerankProfile rerank) {
 
     public ModelDeployment(
             DeploymentId id,
@@ -38,7 +39,35 @@ public record ModelDeployment(
                 priority,
                 enabled,
                 embedding,
-                Set.of());
+                Set.of(),
+                null);
+    }
+
+    public ModelDeployment(
+            DeploymentId id,
+            ProviderId providerId,
+            String upstreamModel,
+            ModelIdentity modelIdentity,
+            Set<Capability> capabilities,
+            Set<ServiceTier> tiers,
+            boolean defaultCandidate,
+            int priority,
+            boolean enabled,
+            EmbeddingProfile embedding,
+            Set<ModelFeature> features) {
+        this(
+                id,
+                providerId,
+                upstreamModel,
+                modelIdentity,
+                capabilities,
+                tiers,
+                defaultCandidate,
+                priority,
+                enabled,
+                embedding,
+                features,
+                null);
     }
 
     public ModelDeployment {

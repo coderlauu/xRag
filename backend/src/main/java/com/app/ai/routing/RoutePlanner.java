@@ -124,6 +124,11 @@ public final class RoutePlanner {
                 && !request.allowedProviders().contains(provider.id())) {
             return CandidateRejectionReason.CALLER_CONSTRAINT_MISMATCH;
         }
+        if (request.capability() == Capability.RERANK
+                && deployment.rerank() != null
+                && request.rerankDocumentCount() > deployment.rerank().maxDocuments()) {
+            return CandidateRejectionReason.CALLER_CONSTRAINT_MISMATCH;
+        }
         if (breakerState == BreakerSnapshotState.OPEN) {
             return CandidateRejectionReason.BREAKER_OPEN;
         }
