@@ -1,5 +1,6 @@
 package com.app.knowledge.web;
 
+import com.app.web.PageResponse;
 import com.app.knowledge.model.IngestionRun;
 import com.app.knowledge.model.IngestionTriggerSource;
 import com.app.knowledge.service.IngestionService;

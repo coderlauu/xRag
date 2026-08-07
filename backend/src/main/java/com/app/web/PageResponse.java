@@ -1,4 +1,4 @@
-package com.app.knowledge.web;
+package com.app.web;
 
 import java.util.List;
 

@@ -1,5 +1,7 @@
 package com.app.knowledge.web;
 
+import com.app.web.ApiException;
+import com.app.web.PageResponse;
 import com.app.knowledge.model.ChunkStrategy;
 import com.app.knowledge.model.DocumentDetail;
 import com.app.knowledge.model.DocumentStatus;

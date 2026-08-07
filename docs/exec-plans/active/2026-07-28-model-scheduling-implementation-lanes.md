@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 
-- `status`: in progress（Step D 工单 01~16、19 done；17 ready）
+- `status`: in progress（Step D 工单 01~17、19 done；18 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [Phase 2 执行计划](2026-07-28-model-scheduling-phase-plan.md)
@@ -196,9 +196,9 @@ Lane 是职责视角，工单是按可验证路径组织的执行视角。实现
 
 ## 6. 依赖前沿
 
-Step C 已于 2026-08-02 获确认。工单 01~16、19 已完成；当前前沿只剩：
+Step C 已于 2026-08-02 获确认。工单 01~17、19 已完成；当前前沿只剩：
 
-- 工单 17：Trace calls/detail API。
+- 工单 18：A — Trace Console 前端。
 
 10 已完成同步 Chat 的 permission reject、retry wait、failover 与预算终止事件，并解锁 14/16；11 已完成 SSE adapter，12 已完成单候选流状态机并解锁 13；13 已完成流式路由与故障转移，流式链路自此闭环；14 已完成调度层 Embedding 能力并解锁 15；15 已把 Phase 1 知识库调用点原子迁移到调度层，Embedding 自此只有一个入口；05 已完成只读调度总览 API 并引入诊断保留的两个配置键。16/19 当前互不依赖，可独立推进；17 起的 Trace 线依赖 16，18 还需要 17。
 
@@ -257,3 +257,4 @@ scripts/ci-validate.sh
 - `2026-08-07`: Step D 工单 19 完成。`DiagnosticRetentionService` 按 data-model §7 落地物理清理：依次跑"按时间删调用 → 按条数上限删调用 → 按时间删 transition"三项，每项循环到本轮删不满一批为止，**每批一个独立短事务**——单个大删除事务会长时间持锁堵住正在写诊断的调用，而写入失败会被 writer 记成 write failure 暴露到总览，等于清理任务自己制造一次"看起来像故障"的事件。两条实现取舍：先按时间删再按条数删，顺序反了会拿注定要删的过期记录去占 10,000 的名额；cutoff 由注入的 `Clock` 计算而不是 SQL 里的 `now()`，设计文档的示例写的是后者，但那样测试无法控制时间。新增 `AiSchedulingConfig` 让本模块自己开 `@EnableScheduling`，不再依赖 `knowledge.ingestion.IngestionSchedulingConfig` 存在（那个文件的注释明说"将来若要关掉只动这一个文件"）；新增 `app.ai.diagnostics.retention.enabled`（默认 true）与 `.interval`（默认 1h），`ApplicationTests` 已用前者关掉，沿用 `app.knowledge.ingestion.enabled` 的做法，`max-age-days` / `max-logical-calls` 直接复用工单 05 引入的键。DIA-13~16 已自动化：cascade、10,001 条只留最新 10,000 且按 `started_at desc, id desc` 稳定排序不误删新记录、transition 不受条数上限影响、2,500 条确实拆成 1000+1000+500 三次事务。`./scripts/ci-validate.sh` 通过（clean 构建后 backend 361 tests，0 failures，2 skipped）。
 - `2026-08-07`: Step D 工单 16 完成，四个能力端口自此全部就位。新增公共契约 `RerankClient` / `RerankCommand` / `RankedCandidate` / `RerankResult`，路由客户端 `com.app.ai.rerank.RoutedRerankClient`，适配器 `OpenAiCompatibleRerankProvider`，装配 `RerankClientConfiguration`；`ModelDeployment` 增加 `RerankProfile`（`maxDocuments`），`RouteRequest`/`RoutePlanner` 增加 rerank 候选数过滤。恢复循环与 `RoutingChatClient`/`RoutedEmbeddingClient` 同形自持，不抽公共骨架——仓库既有取舍是共享运行时原语而非共享循环类，硬抽会动到已验收的 Chat 行为。四条设计取舍：`rerankApplied == (degradationReason == null)` 与"降级不得带 score"由 `RerankResult` 构造期强制；ID 唯一与 topN 范围放在 client 校验而不是 record 构造期，否则失败没有 requestId 也没有诊断；文档上限走路由过滤（`CALLER_CONSTRAINT_MISMATCH`）而不是前置硬拒，让 RRK-11 与 RRK-12 共用一套机制并保留"A 放不下 B 放得下就用 B"，明确排除静默截断；缺 secret 判定简化为"存在声明 RERANK 且 enabled 的 deployment 而其 Provider 未配置"即直接失败，因为只有完全没有合格候选时才会走到该分支，失败一侧更可诊断。`ai-models.yml` 新增 `aliyun-qwen3-rerank-cn` 但默认 `enabled: false`——打开它必须与注入 `DASHSCOPE_API_KEY` 同时做。RRK-01~12 与 DIA-05 已自动化（14 例）。**遗留**：适配器的线路形状（路径/字段名/`return_documents`）未经真实验证，`max-documents: 100` 是占位值，都要在工单 23 核实。`./scripts/ci-validate.sh` 通过（clean 构建后 backend 375 tests，0 failures，2 skipped）。
 - `2026-08-07`: 更正此前三条记录里的测试计数。`target/` 里残留着 `5aa33f4` 删除的两个 Phase 1 测试类（`UnconfiguredEmbeddingClientTests`、`OpenAiCompatibleEmbeddingClientTests`，合计 11 例）的旧 surefire 报告，而统计是对 `target/surefire-reports/*.txt` 求和的，于是工单 05 记成 367（实为 356）、工单 19 记成 372（实为 361）。工单 16 因为改了 `ModelDeployment` 的 record 组件触发 `NoClassDefFound`、被迫 clean 重建才暴露出来。**今后计数一律以 clean 构建为准**；已提交的 commit message 里的旧数字无法追改，以本条与各工单记录为准。
+- `2026-08-07`: Step D 工单 17 完成，后端三个只读诊断接口齐了。`com.app.ai.web` 新增列表项/详情 DTO、筛选条件、`DiagnosticCallQueryService` 与 `DiagnosticCallsController`。**前置重构**：把 `ApiException` / `ApiExceptionHandler` / `PageResponse` 从 `com.app.knowledge.web` 移到 `com.app.web`——`knowledge.web` 已经依赖 `com.app.ai.model`，再让 `ai.web` 反向 import 就成环了；这三个类本来就是全应用契约（handler 的注释自己写着"不能限定 basePackages"），放在 knowledge 下只是历史位置，迁移改动全是 import。四条实现要点：`providerId` 与脱敏 request ID 走 `ai_attempt exists` 而不是比对调用级 `actual_*`，否则失败的首选 Provider 与 mixed Embedding 贡献者会从筛选里消失；`requestId` 一律精确匹配，不做 `%like%`；详情用显式 RowMapper 而不是 `queryForMap`（后者对 timestamptz 返回 `java.sql.Timestamp`，强转会运行时炸，实测踩到）；`lastAttemptTarget` 与 `actual*` 严格分开，前者只是最后一次真实 attempt，不参与 actual/mixed/contributing 语义。API-02~11 与 DIA-21 已自动化（14 例）。**已知规格缺口**：api.md §7 承诺的 Embedding `capabilityDetails.validation` 三个标志 V6 Schema 没有存，失败调用也无法归因到具体哪一项，当前成功时返回三个 true、其余返回 null 而不猜；要真正兑现需要 V7 加列，另开工单。`./scripts/ci-validate.sh` 通过（clean 构建后 backend 389 tests，0 failures，2 skipped）。

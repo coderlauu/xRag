@@ -1,5 +1,6 @@
 package com.app.knowledge.web;
 
+import com.app.web.PageResponse;
 import com.app.knowledge.model.KnowledgeBase;
 import com.app.knowledge.service.KnowledgeBaseService;
 import org.springframework.http.HttpStatus;

@@ -1,5 +1,7 @@
 package com.app.knowledge.web;
 
+import com.app.web.ApiException;
+import com.app.web.PageResponse;
 import com.app.knowledge.model.DocumentChunk;
 import com.app.knowledge.service.ChunkService;
 import java.util.List;

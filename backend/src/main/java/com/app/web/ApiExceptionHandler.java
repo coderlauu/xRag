@@ -1,4 +1,4 @@
-package com.app.knowledge.web;
+package com.app.web;
 
 import com.app.ai.model.ModelCallException;
 import com.app.ai.model.ModelErrorType;

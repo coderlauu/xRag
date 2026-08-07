@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step D 工单 01~16、19 done；17 ready）
+- `status`: in-progress（Step D 工单 01~17、19 done；18 ready）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -153,7 +153,7 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01~16、19 已完成；17 ready）**
+状态：**in progress（工单 01~17、19 已完成；18 ready）**
 
 实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 
@@ -227,6 +227,6 @@ Step C.1 评审修订：
 
 ## 7. Current Node
 
-- `now`: Step D 工单 16 已完成。Rerank 端口、`/reranks` 适配器与显式 Noop 降级落地，四个能力端口自此全部就位。Noop 只覆盖"目录未声明能力/约束下无合格候选/可恢复候选耗尽"三种产品状态，非法请求、取消与缺 secret 一律直接失败。完整验证通过（clean 构建后 backend 375 tests，0 failures，2 skipped）。
-- `next`: 工单 17（Trace calls/detail API）为 `ready`，其六项依赖已全部完成；它解锁 18（前端），再往后 20/21 依赖 17/18，22 要 01~21 全绿。
+- `now`: Step D 工单 17 已完成。最近调用列表与调用详情两个只读 API 落地，后端三个诊断接口自此齐了。筛选口径的关键一条：`providerId` 与脱敏 request ID 走 `ai_attempt exists`，失败的首选 Provider 和 mixed Embedding 的贡献者都能被筛出来。完整验证通过（clean 构建后 backend 389 tests，0 failures，2 skipped）。
+- `next`: 工单 18（A — Trace Console 前端）为 `ready`，依赖 05/17 均已完成。它是 Phase 2 唯一有界面的工单，ui-spec 与可点击原型已在 Step B 经项目所有者确认，前端实现前的原型闸门已关闭。18 做完解锁 20/21，22 要 01~21 全绿。
 - `decision_needed`: 无。唯一的外部不确定性在工单 23：它需要一把合规的通用计费 Key，没有就只能保持 blocked，不能伪造通过。
