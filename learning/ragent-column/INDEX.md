@@ -6,14 +6,16 @@
 
 全专栏共 92 个链接（1 个加群链接 + 91 篇正文），下表逐条登记原文标题、原文短链接、新分组与本地整理稿路径。**状态**：`done` = 已整理，`pending` = 待处理。
 
-截至 2026-07-28，全部正文完成 **59/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成；Phase 2 Step A（04-model-scheduling组）8/8 全部完成。
+截至 2026-08-07，全部正文完成 **77/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成；Phase 2 Step A（04-model-scheduling组）8/8 全部完成；Phase 3 Step A（05-qa-pipeline组）18/18 全部完成。
 
-- `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`、`04-01`～`04-08`
-- `pending`：`05-qa-pipeline`（18篇）、`06-evaluation`（11篇）、`07-interview`（3篇+持续更新）
+- `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`、`04-01`～`04-08`、`05-01`～`05-18`
+- `pending`：`06-evaluation`（11篇）、`07-interview`（3篇+持续更新）
 
 Phase 0 的覆盖率、技术结论、环境验证与进入下一阶段前的待决策事项见 [Phase 0 对齐检查点](PHASE-0-CHECKPOINT.md)。
 
 Phase 2 Step A 的课程方案、xrag 当前实现对照、已收敛原则与后续待决策事项见 [Phase 2 Step A 对齐检查点](PHASE-2-STEP-A-CHECKPOINT.md)。
+
+Phase 3 Step A 的已确认决策、待决策问题（D-01~D-08）与不可照搬项汇总见 [Phase 3 Step A 学习检查点](PHASE-3-STEP-A-CHECKPOINT.md)。
 
 ## 处理进度总览
 
@@ -24,7 +26,7 @@ Phase 2 Step A 的课程方案、xrag 当前实现对照、已收敛原则与后
 | 02-bootstrap-and-deployment 本地开发与模型部署环境 | 10 | done（10/10） | 项目 Bootstrap/基础设施 |
 | 03-knowledge-base AI知识库建设 | 11 | done（11/11） | 知识库/文档管理模块 |
 | 04-model-scheduling 大模型调度引擎 | 8 | done（8/8，Phase 2 Step A） | AI基础设施层/模型路由网关模块 |
-| 05-qa-pipeline AI知识问答核心链路 | 18 | pending（Phase 3） | 检索增强问答（核心业务）模块 |
+| 05-qa-pipeline AI知识问答核心链路 | 18 | done（18/18，Phase 3 Step A） | 检索增强问答（核心业务）模块 |
 | 06-evaluation RAG评测体系 | 11 | pending（Phase 4） | 评测/质量保障模块 |
 | 07-interview 面试高频考点 | 3+（持续更新） | pending（Phase 5） | 横向参考 |
 
@@ -114,28 +116,28 @@ Phase 2 Step A 的课程方案、xrag 当前实现对照、已收敛原则与后
 | 7 | Embedding向量化客户端 | https://t.zsxq.com/k0zXf | `04-model-scheduling/04-07-Embedding向量化客户端.md` |
 | 8 | Rerank重排序与辅助工具 | https://t.zsxq.com/xKwgo | `04-model-scheduling/04-08-Rerank重排序与辅助工具.md` |
 
-## 05-qa-pipeline AI知识问答核心链路（18篇，pending）
+## 05-qa-pipeline AI知识问答核心链路（18篇，done）
 
-| # | 原文标题 | 原文链接 |
-|---|---|---|
-| 1 | 知识问答在后端经历了哪八个阶段？ | https://t.zsxq.com/pVQt8 |
-| 2 | 大模型没有记忆多轮对话怎么做到不失忆? | https://t.zsxq.com/WFr43 |
-| 3 | 聊了50轮Token爆了记忆该压缩还是该丢 | https://t.zsxq.com/5lxZo |
-| 4 | 用户说的话 ≠ 该搜的词 | https://t.zsxq.com/rCa8F |
-| 5 | 四分类撑不住20个知识库为什么要设计意图树 | https://t.zsxq.com/NuEaK |
-| 6 | 怎么让大模型同时给30个意图节点打分 | https://t.zsxq.com/VnGnQ |
-| 7 | 三个子问题命中了八个意图，该保留哪几个 | https://t.zsxq.com/vwZle |
-| 8 | 用户问退货政策，3C、家电和服装都举手了 | https://t.zsxq.com/Q19YN |
-| 9 | 意图分数出来了，该查哪个库、查多少条 | https://t.zsxq.com/Qokj8 |
-| 10 | 单次提问同时查三个知识库——多通道并行检索架构 | https://t.zsxq.com/dWyw9 |
-| 11 | 三个通道返回30条结果，最终只给模型5条 | https://t.zsxq.com/XsbNY |
-| 12 | 知识库答不了的问题，交给MCP工具去查 | https://t.zsxq.com/mfPoB |
-| 13 | 用户只说了一句话，工具需要的参数从哪来 | https://t.zsxq.com/X7tda |
-| 14 | 检索结果、工具数据、对话历史——最终的Prompt怎么拼 | https://t.zsxq.com/Y80Y3 |
-| 15 | 答案一个字一个字蹦出来流式生成的完整链路 | https://t.zsxq.com/Dl6F2 |
-| 16 | 用户点了停止生成集群里发生了什么 | https://t.zsxq.com/dqWjK |
-| 17 | 10个人同时提问只有3个坑位 | https://t.zsxq.com/m4blA |
-| 18 | 抢不到许可请求该等还是该拒？ | https://t.zsxq.com/mOutN |
+| # | 原文标题 | 原文链接 | 本地文件 |
+|---|---|---|---|
+| 1 | 知识问答在后端经历了哪八个阶段？ | https://t.zsxq.com/pVQt8 | `05-qa-pipeline/05-01-知识问答八阶段全景.md` |
+| 2 | 大模型没有记忆多轮对话怎么做到不失忆? | https://t.zsxq.com/WFr43 | `05-qa-pipeline/05-02-会话记忆的存储与加载.md` |
+| 3 | 聊了50轮Token爆了记忆该压缩还是该丢 | https://t.zsxq.com/5lxZo | `05-qa-pipeline/05-03-摘要压缩与水位线.md` |
+| 4 | 用户说的话 ≠ 该搜的词 | https://t.zsxq.com/rCa8F | `05-qa-pipeline/05-04-查询改写与子问题拆分.md` |
+| 5 | 四分类撑不住20个知识库为什么要设计意图树 | https://t.zsxq.com/NuEaK | `05-qa-pipeline/05-05-意图树的设计与存储.md` |
+| 6 | 怎么让大模型同时给30个意图节点打分 | https://t.zsxq.com/VnGnQ | `05-qa-pipeline/05-06-意图打分的Prompt与JSON容错.md` |
+| 7 | 三个子问题命中了八个意图，该保留哪几个 | https://t.zsxq.com/vwZle | `05-qa-pipeline/05-07-意图并行调度与总量封顶.md` |
+| 8 | 用户问退货政策，3C、家电和服装都举手了 | https://t.zsxq.com/Q19YN | `05-qa-pipeline/05-08-歧义检测与引导式问答.md` |
+| 9 | 意图分数出来了，该查哪个库、查多少条 | https://t.zsxq.com/Qokj8 | `05-qa-pipeline/05-09-意图到检索动作的映射.md` |
+| 10 | 单次提问同时查三个知识库——多通道并行检索架构 | https://t.zsxq.com/dWyw9 | `05-qa-pipeline/05-10-多通道并行检索架构.md` |
+| 11 | 三个通道返回30条结果，最终只给模型5条 | https://t.zsxq.com/XsbNY | `05-qa-pipeline/05-11-检索结果后处理流水线.md` |
+| 12 | 知识库答不了的问题，交给MCP工具去查 | https://t.zsxq.com/mfPoB | `05-qa-pipeline/05-12-MCP工具调用链路.md` |
+| 13 | 用户只说了一句话，工具需要的参数从哪来 | https://t.zsxq.com/X7tda | `05-qa-pipeline/05-13-工具参数的LLM抽取.md` |
+| 14 | 检索结果、工具数据、对话历史——最终的Prompt怎么拼 | https://t.zsxq.com/Y80Y3 | `05-qa-pipeline/05-14-Prompt组装与消息数组.md` |
+| 15 | 答案一个字一个字蹦出来流式生成的完整链路 | https://t.zsxq.com/Dl6F2 | `05-qa-pipeline/05-15-流式生成的五层链路.md` |
+| 16 | 用户点了停止生成集群里发生了什么 | https://t.zsxq.com/dqWjK | `05-qa-pipeline/05-16-停止生成与跨集群取消.md` |
+| 17 | 10个人同时提问只有3个坑位 | https://t.zsxq.com/m4blA | `05-qa-pipeline/05-17-排队限流的入队与抢占.md` |
+| 18 | 抢不到许可请求该等还是该拒？ | https://t.zsxq.com/mOutN | `05-qa-pipeline/05-18-异步等待与超时拒绝.md` |
 
 ## 06-evaluation RAG评测体系（11篇，pending）
 
