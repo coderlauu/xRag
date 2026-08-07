@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 2 / 大模型调度引擎
-- `status`: in-progress（Step D 工单 01~21 done；22 ready；23 缺合规 Key 保持 blocked）
+- `status`: in-progress（Step D 工单 01~22 done；23 缺合规 Key 保持 blocked；Step E/G 待项目所有者确认）
 - `created`: 2026-07-28
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -153,7 +153,7 @@ Step C.1 评审修订：
 
 ### Step D — 垂直切片实现
 
-状态：**in progress（工单 01~21 已完成；22 ready；23 缺合规 Key 保持 blocked）**
+状态：**in progress（工单 01~22 已完成；23 缺合规 Key 保持 blocked）**
 
 实现按 [23 张原子工单](../../../.scratch/model-scheduling/README.md) 的依赖前沿推进。当前已完成以下基础与能力切片：
 
@@ -227,6 +227,6 @@ Step C.1 评审修订：
 
 ## 7. Current Node
 
-- `now`: Step D 工单 18 已完成，Phase 2 的功能面全部落地。A — Trace Console 上线：顶部摘要条 + 左侧最近调用 + 右侧详情与真实事件时间线。浏览器实测（1440px/375px 两档）中发现并修掉四个缺陷：列表缺"首个有效块"字段、1280px 双栏把表格挤成竖排、375px 页头折成单字列且卡片仍横向滚动、可点击行与摘要格子没有可访问名。完整验证通过（clean 构建后 backend 390 tests，0 failures，2 skipped）。
-- `next`: 工单 20（诊断隐私审计）与 21（诊断故障注入）为 `ready`，可并行。之后 22 要求 01~21 全绿。
+- `now`: Step D 工单 01~22 全部完成。四个能力端口、路由/预算/熔断/故障转移、完成态诊断与保留清理、三个只读诊断 API、A — Trace Console 前端、隐私审计与 best-effort 证明、CI 与部署门禁均已落地并通过 `scripts/ci-validate.sh`（clean 构建后 backend 399 tests，0 failures，2 skipped）。
+- `next`: **Step D 已无可自主推进的工单。** 工单 23（真实 Provider 准入）卡在外部条件——需要一把合规的通用计费 Key，现有 `EMBEDDING_API_KEY` 是 Coding Plan 凭据、architecture §13 明确不得扩展。之后是 Step E（测试矩阵手工项回写，含 DIA-18 崩溃恢复与 UI-01~08 浏览器走查）、Step F（已由工单 22 覆盖大部分）、Step G（复盘与里程碑状态），三者都需要项目所有者确认才能关闭。
 - `decision_needed`: 两项待裁决——① 前端测试运行器：仓库从无前端测试，工单 18 引入 vitest 时被 pnpm store 版本不一致挡住（`node_modules` 由 10.7.1 装出、当前环境 10.12.3），需要整体重装依赖才能解决，已留给工单 22 连同把 `pnpm test` 接进 ci-validate 一起处理；② 工单 23 需要一把合规的通用计费 Key，没有就只能保持 blocked，不能伪造通过。

@@ -1,16 +1,16 @@
 # 工单：大模型调度引擎
 
-本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~21 已完成，当前 22 为 `ready`；23 因缺合规计费 Key 保持 blocked。
+本目录把 [Phase 2 分角色任务书](../../docs/exec-plans/active/2026-07-28-model-scheduling-implementation-lanes.md) 转成 23 张可独立验收的原子工单。Step C 已于 2026-08-02 获项目所有者确认；Step D 的工单 01~22 已完成；**只剩 23 因缺合规计费 Key 保持 blocked**。
 
 ## 下一前沿
 
-工单 20、21 已完成隐私审计与 best-effort 证明。当前只剩：
+工单 22 已完成 CI 与部署门禁，22 张可自主完成的工单全部关闭。
 
-- [22 CI 与部署门禁](issues/22-ci-and-deployment-gates.md)
-
-22 的依赖 01~21 已全部完成。**23（真实 Provider 准入）需要一把合规的通用计费 Key**——
-现有 `EMBEDDING_API_KEY` 是 Coding Plan 凭据，architecture §13 明确不得扩展到其他能力——
-没有 Key 时它只能保持 blocked，不能伪造通过。
+**唯一剩下的 23（真实 Provider 准入）卡在外部条件**：它需要一把合规的通用计费 Key。
+现有 `EMBEDDING_API_KEY` 是火山方舟 Coding Plan 凭据，官方条款禁止直接 API 调用，
+architecture §13 明确它不得扩展到 Chat / 流式 Chat / Rerank，也不算已合规准入的 Provider。
+在拿到合规 Key 之前 23 只能保持 blocked——**不能改代码伪造支持，也不能把它算作通过**。
+诊断页的 `verifiedCapabilities` 因此恒为空数组，那是"尚未验证"而不是"不支持"。
 
 ## 依赖图
 
@@ -62,12 +62,12 @@
 | 19 | [诊断保留与分批清理](issues/19-diagnostic-retention.md) | 02, 04 | done |
 | 20 | [诊断隐私审计](issues/20-diagnostic-privacy-audit.md) | 05, 10, 13, 14, 15, 16, 17, 18 | done |
 | 21 | [诊断故障注入与 best-effort 证明](issues/21-diagnostic-failure-injection.md) | 04, 05, 10, 13, 14, 15, 16 | done |
-| 22 | [CI 与部署门禁](issues/22-ci-and-deployment-gates.md) | 01~21 | ready |
+| 22 | [CI 与部署门禁](issues/22-ci-and-deployment-gates.md) | 01~21 | done |
 | 23 | [真实 Provider 准入](issues/23-real-provider-admission.md) | 10, 13, 14, 16, 22, compliant key | blocked |
 
 ## 推进规则
 
-- Step C 外部闸门已通过；01~21 已完成，当前 22 为 `ready`；23 缺合规计费 Key，保持 blocked。
+- Step C 外部闸门已通过；01~22 已完成；23 缺合规计费 Key，保持 blocked。
 - 一张工单只提交一个可验证变化，完成其 Acceptance 后才能解锁下游。
 - 发现需要同时修改下游契约时，先回到本依赖图调整，不把隐藏依赖塞进当前提交。
 - 测试矩阵中的用例 ID 是验收依据；契约修订新增的 route event、failure phase、mixed execution 和 single-subscription 用例必须先进入矩阵。

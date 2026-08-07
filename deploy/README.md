@@ -299,6 +299,41 @@ journalctl -u app-disk-guard.service -n 100 --no-pager
 
 > 顺带一提，那组真实 API 测试断言的是**余弦相似度**而不是向量相等：实测同一段文本两次调用的向量有 1e-3 量级抖动（大概率是低精度推理），拿"向量相等"做断言必然 flaky。
 
+## 模型调度引擎（Phase 2）运维须知
+
+四条部署前必须知道的行为，都是设计决定而不是缺陷：
+
+**1. 熔断状态只存在于当前 JVM，且假定单实例部署。**
+breaker 按 `provider / deployment / capability` 隔离，保存在进程内存里（ADR 0005）。
+含义有三条：应用重启后所有 breaker 回到 CLOSED；多实例部署时各实例各算各的，
+一个实例已经熔断不会阻止另一个继续打同一个坏 Provider；诊断页显示的是**你当前连到的
+那个实例**的状态。要横向扩容必须先回到 ADR 0005 重新决策，不能默认现状等价于分布式。
+
+**2. 模型配置改完必须重启才生效。**
+`ai-models.yml` 在启动时构建成不可变快照（含一个不含密钥值的 fingerprint），没有热更新。
+密钥同理：未注入的 Provider 标为 UNCONFIGURED、在路由阶段被过滤，**应用照常启动**——
+这沿用 Flyway 与对象存储已建立的"依赖缺失不阻塞启动"模式，但也意味着补上密钥后要重启。
+
+**3. 诊断是 best effort，诊断出问题不会影响模型调用。**
+完成态诊断异步写库；队列满会丢弃、写库失败会计数，两者都不向调用方冒泡。
+代价是**诊断页可能缺记录**——所以 overview 顶部会在 dropped/write-failure 大于 0 时
+显示"部分调用诊断可能缺失"及两个进程内计数（进程重启清零）。看到这条警告时，
+要排查的是数据库和写入队列，不是模型 Provider。
+
+诊断数据按 7 天或最近 10,000 次调用物理清理（`AI_DIAGNOSTICS_RETENTION_*`），
+每小时执行、每批一个短事务。**多实例部署时应只让一个实例开启清理**
+（`AI_DIAGNOSTICS_RETENTION_ENABLED=false` 关掉其余实例），否则会互相重复扫描。
+
+**4. 真实 Provider 准入是独立步骤，CI 绿灯不代表它通过。**
+CI 全程使用 `ProgrammableFakeProvider`，不读取任何收费 Key，也不发出真实请求。
+真实能力准入（固定模型版本、区域、限额、价格复核，每能力不超过 20 次短调用）
+是工单 23 的独立流程，需要一把**合规的通用计费 Key**。
+
+现有 `EMBEDDING_API_KEY` 是火山方舟 Coding Plan 凭据，官方条款禁止用于直接 API 调用；
+它只被允许维持 Phase 1 既有的 Embedding 回归，**不得扩展到 Chat、流式 Chat 或 Rerank**，
+也不算已合规准入的 Provider（architecture.md §13）。在拿到合规 Key 之前，
+诊断页的 `verifiedCapabilities` 恒为空数组——那是"尚未验证"，不是"不支持"。
+
 ## Local Validation
 
 本地可通过以下方式验证部署基线：
