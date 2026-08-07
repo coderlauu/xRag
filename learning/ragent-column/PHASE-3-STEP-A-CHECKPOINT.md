@@ -1,15 +1,15 @@
 # Phase 3 Step A 学习检查点（AI 知识问答核心链路）
 
-状态：**待确认**。18 篇学习整理、§5 的现状对照与设计原则均已完成，**内容上 Step A 已具备闸门条件**；
-剩余的唯一动作是项目所有者对 §3 的 D-01~D-08 逐条裁决并签字（`confirmed_at` 仍为空）。
-裁决完成后按主计划创建 Phase 3 执行计划，此后的 PRD、技术设计与交付状态不再回写本检查点。
+状态：**已确认，Step A 关闭**。18 篇学习整理、§5 现状对照与 §5.3 设计原则经项目所有者核准；
+§3 的 D-01~D-08 与 §3.1 的两项跨阶段归属已全部裁决。此后的 PRD、技术设计与交付状态不再回写
+本检查点，统一在 Phase 3 执行计划中维护。
 
 - `phase`: Phase 3 / AI 知识问答核心链路 / Step A
 - `owner`: liuqiang
 - `started`: 2026-08-07
-- `confirmed_at`: —
+- `confirmed_at`: 2026-08-07
 - `source_group`: [05-qa-pipeline](INDEX.md)（18 篇）
-- `exec_plan`: 待 Step A 完成后创建
+- `exec_plan`: 待创建（Step A 已关闭，按 D-01 的三段切分建计划）
 
 ## 1. 学习进度
 
@@ -49,20 +49,39 @@
 - **`2026-08-07`：叶子节点绑定 xrag 知识库 ID，而非 Milvus Collection。** 这不是可选项，是既定
   事实的推论——pgvector 在 Phase 0 已锁定为向量存储方案。由此带来的实现差异（原文是并行查多个
   物理集合，xrag 是同一张向量表按知识库 ID 过滤后并行查）属于 Step C 技术方案的范畴，
-  见下方待决策项。
+  见 §3 D-02。
 
-## 3. 待决策问题（Step A 完成时提交所有者裁决）
+- **`2026-08-07`：Step A 内容层核准。** 18 篇学习整理稿、§5 现状对照的事实认定、§5.3 的 8 条
+  设计原则均经项目所有者确认，作为 Phase 3 全程的约束固定下来。其中**第 2 条被单独点名确认**：
+  [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md) 的"改用数据库任务表"
+  手法**不适用于取消与唤醒**——那是亚秒级信号，轮询数据库的延迟不可接受；单实例下的正确答案是
+  "不需要跨进程通道"，**不是"建张表"**。写死这一条是为了防止后续机械套用 ADR 0002。
 
-| # | 问题 | 现状 | 备注 |
+- **`2026-08-07`：补一份压到最小的[一手资料复核](../../docs/research/2026-08-07-qa-pipeline-primary-source-review.md)。** 只查两项——
+  **(1) 多条 `SystemMessage` 插在消息数组中间百炼是否接受**（影响 §5.1 阶段 8a 的四段式骨架能否
+  照搬）、**(2) `qwen-plus` 的真实上下文窗口**（`ModelDeployment` 无该字段，影响 Step C 数据模型
+  要不要补）。另两项已知未查证事项——百炼 compatible-mode 的 prompt caching 支持形态、
+  Lost in the Middle（Liu et al., 2023）的结论边界——**明确不查，且不得作为设计依据引用**。
+
+## 3. 已裁决事项（`2026-08-07` 项目所有者确认）
+
+| # | 问题 | **裁决** | 依据与后续影响 |
 |---|---|---|---|
-| D-01 | Phase 3 是否拆成 3A/3B/3C 三个子里程碑 | 待定 | 18 篇是迄今最大一组（Phase 1 为 11 篇/20 工单，Phase 2 为 8 篇/23 工单）。计划已确认"先走 Step A，切分留到本检查点裁决" |
-| D-02 | 意图树、多通道检索、结果融合的选型 | 待定 | **检索策略尚无 ADR**（见 CLAUDE.md），不要假设已有定论。意图树是最该形成 ADR 的一项 |
-| D-03 | MCP 工具调用是否纳入本期 | 待定 | 对应第 12~13 篇 |
-| D-04 | 对话历史与并发许可的存储形态 | 待定 | Postgres / Redis / 进程内。受 [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md) 单实例假设约束 |
-| D-05 | Chat 供应商选型 | 待定 | 目前 catalog 里 Chat 只有阿里云百炼 `qwen-plus`。若改用其他供应商需在 Step C 之前定——服务等级设计（`ECONOMY` 做改写/打分、`QUALITY` 做生成）要按实际可得的模型来 |
-| D-06 | 采样参数（temperature / topP / thinking）进 `CallOptions` 还是绑 `ServiceTier` | 待定 | **端口设计空白**，非实现遗漏：`com.app.ai` 全包 grep 这三个词零命中，[ADR 0003](../../docs/adr/0003-separate-model-capability-ports.md) 未讨论过。绑 tier 更符合"业务代码不触碰 Provider 细节"，但要求 tier 语义从"选哪个模型"扩到"怎么调"。见 [第 14 篇](05-qa-pipeline/05-14-Prompt组装与消息数组.md) |
-| D-07 | 深度思考（thinking）是否纳入本期 | 待定 | **是产品需求不是技术细节，应在 Step B 定**。`ChatStreamEvent` 是 sealed interface 且无 `ThinkingDelta`，`ChatCommand` 也无 thinking 开关——支持它要同时改端口入参与出参，属 ADR 0003 管辖。见 [第 15 篇](05-qa-pipeline/05-15-流式生成的五层链路.md) |
-| D-08 | 不可信内容的隔离策略 | 待定 | 进入 Prompt 的不可信输入至少四类：用户问题、**检索 chunk（来自已上线的知识库上传通道）**、MCP 返回、运营写的 `promptSnippet`。原文只在一个 Prompt 里写了一句声明且无标签转义。Step C 应单开一节。见 [第 12](05-qa-pipeline/05-12-MCP工具调用链路.md)~[14 篇](05-qa-pipeline/05-14-Prompt组装与消息数组.md) |
+| D-01 | Phase 3 是否拆成三个子里程碑 | **拆成 3A / 3B / 3C** | 18 篇是迄今最大一组（Phase 1 为 11 篇/20 工单，Phase 2 为 8 篇/23 工单），不拆会让单个 Step D 膨胀到 40+ 工单。切分点：**3A 记忆+改写+意图（2~9 篇）｜3B 检索+工具（10~13 篇）｜3C 生成+流式+管控+限流（14~18 篇）**，3B/3C 各自独立验收。**Step B~G 按三轮走** |
+| D-02 | 意图树 / 多通道检索 / 结果融合选型 | **选型留到 Step C；但"意图树必须出 ADR"现在定死** | 检索策略至今零 ADR（见 CLAUDE.md）。意图树是全链路路由表，选错代价最大，不允许以"实现时再看"带过 |
+| D-03 | MCP 工具调用是否纳入本期 | **纳入本期，走原生 function calling（路线 B）** | `ToolDefinition`/`ToolCall`/`ToolResultMessage` 齐备，`OpenAiCompatibleChatProvider` 连流式 tool-call 增量都解码了；路线 A 要多一次 LLM 调用与整套模板/解析代码。**已知代价：工具选择由模型决定，是黑盒，不可像意图树那样审计或用管理界面维护**——此代价在裁决时已明示并接受 |
+| D-04 | 对话历史与并发许可的存储形态 | **许可进程内，历史进 Postgres，两者分开** | 许可是易失运行态（进程没了就该没了），历史是持久业务数据。同存储会让两边都别扭。与 [ADR 0005](../../docs/adr/0005-separate-model-runtime-state.md) 的分层直觉一致 |
+| D-05 | Chat 供应商选型 | **就用百炼 `qwen-plus`，不引第二家** | Key 已通（§4）。**附带项**：catalog 里 Chat 只声明 `tiers: [BALANCED]`，`ECONOMY`/`QUALITY` 路由不到任何东西——三档服务等级要么补部署，要么本期单档，**在 Step C 数据模型时定** |
+| D-06 | 采样参数进 `CallOptions` 还是绑 `ServiceTier` | **绑 `ServiceTier`，由 catalog 配死，单出一条 ADR 补充 ADR 0003** | 更符合"业务代码不触碰 Provider 细节"（各家参数名与取值域不一致，`thinking` 就是百炼/火山方言）。**⚠️ 这是 `com.app.ai` 的端口改动，见 §3.1 X-2 的归属与排期** |
+| D-07 | 深度思考（thinking）是否纳入本期 | **本期不做** | 要同时改 `ChatCommand` 入参与 sealed 的 `ChatStreamEvent` 出参；Phase 3 的核心价值是跑通问答链路，不是渲染思考过程。**现在定而不是留到 Step D**，避免届时发现端口装不下 |
+| D-08 | 不可信内容的隔离策略 | **本期必做，Step C 单开一节** | 四类不可信输入进 Prompt：用户问题、**检索 chunk（知识库上传通道已上线，用户可上传正文含 `</documents>` 的文件）**、MCP 返回、运营写的 `promptSnippet`。原文全程无标签转义。**这是安全边界，不是防御性编程** |
+
+### 3.1 跨阶段归属
+
+| # | 问题 | **裁决** |
+|---|---|---|
+| X-1 | Rerank 适配器缺口（缺 DashScope 原生适配器，非凭据，见 §4） | **算 Phase 3 新工单**，不回补 Phase 2（已归档）。若 D-02 确定精排用 rerank，则它是 3B 的前置 |
+| X-2 | D-06 的端口改动归属与排期 | **单独一条 ADR + 一张前置工单，在 Phase 3 Step C 之前落地**。否则 Phase 3 要先在一个已知要变的端口上写一遍 |
 
 ## 4. 已识别的阻塞前提
 
@@ -111,7 +130,7 @@
 | **阶段 6b 多通道检索**（10） | 三通道并行查多个 Milvus Collection | `ChunkVectorRepository.search(kbId, queryVector, limit)`——**单库、纯向量、无全文/关键词通道** | 并行编排与结果归并骨架 | 通道构成（要不要加全文/BM25，pgvector 侧怎么做）；**同表按 kbId 过滤并行查 vs 多次单库查**（§2 已定方向，实现待定） |
 | **阶段 6c 后处理精排**（11） | 30 条粗排 → 后处理流水线 → 5 条 | `RerankClient` 端口在，`aliyun-qwen3-rerank-cn` `enabled: false`；`2026-08-07` 实测**缺的是适配器不是凭据**（百炼 compatible-mode 无 `/reranks`，需 DashScope 原生适配器） | 流水线分段结构、Noop 降级必须显式标记"未重排"（Phase 2 已收敛） | 精排在本期是必需还是可降级；DashScope 原生 rerank 适配器算 Phase 3 工单还是 Phase 2 遗留 |
 | **阶段 6d MCP 工具**（12~13） | 意图路由到 `mcpToolId` + 单独一次 LLM 提参 | `ToolDefinition` / `ToolCall` / `ToolResultMessage` 齐备，`ChatCommand.tools` 是一等参数，`OpenAiCompatibleChatProvider` 支持 `tools` 请求体、`tool_calls` 解析与流式增量 | **白名单按 Schema 过滤必须自己做**（Provider 层只校验"是合法 JSON"）；只读与有副作用工具必须区别对待 | **D-03**，且路线 A（意图路由+提参）与 B（原生 function calling）成本差已量化：B 省一次 LLM 调用但工具选择变黑盒 |
-| **阶段 8a Prompt 组装**（14） | 三场景分模板 + 四段式骨架 + 证据放 user + 温度三档 | 无；`ChatMessage` 是 sealed（system/user/assistant/toolResult），四段式能原样拼出 | 场景分流、证据放 user 的三条理由、`<documents>`/`<tool-data>` 标签化 | **D-06 采样参数无处可放**；多条 `SystemMessage` 插数组中间供应商是否接受**需实测**；上下文预算无数据源（`ModelDeployment` 无窗口字段） |
+| **阶段 8a Prompt 组装**（14） | 三场景分模板 + 四段式骨架 + 证据放 user + 温度三档 | 无；`ChatMessage` 是 sealed（system/user/assistant/toolResult），四段式能原样拼出 | 场景分流、证据放 user 的三条理由、`<documents>`/`<tool-data>` 标签化 | **D-06 采样参数无处可放**；多条 `SystemMessage` 插数组中间**官方文档不承诺**（只说"一般"放第一位），[复核](../../docs/research/2026-08-07-qa-pipeline-primary-source-review.md) §1 建议 Step C 先走不依赖它的方案 B；`qwen-plus` 上下文 1M 使预算暂非瓶颈，但 `ModelDeployment` 仍需补窗口字段供路由过滤 |
 | **阶段 8b 流式生成**（15） | 五层接力 + `StreamCallback` + OkHttp 读流 + 谁读流谁推送 | 第三、四层已建完且路线不同：`Flux<ChatStreamEvent>` + WebClient/Reactor（ADR 0004）；`RoutingChatClient`/`RoutingStreamingChatClient` 的 `@Configuration` 接线 `2026-08-07` 刚补上；**无任何 SSE 出口，前端无对话页** | 第一、二、五层的职责划分；`SseEmitterSender` 的 CAS 幂等模式 | **推送层必须显式切线程**（event loop 不能阻塞）；`ExecutionInfo` 不得原样透给前端；D-07 深度思考 |
 | **阶段 8c 任务管控**（16） | Redis Bucket + Pub/Sub 跨集群取消，三道防线 | `CancellationToken`（含 `onCancel` 监听）+ `CallOptions.cancellation` + Reactor 订阅取消传播 | 取消时保存部分回复并回 `messageId`；前端先发停止再等确认事件 | **停止接口必须校验 taskId 归属**（原文完全没有）；**断连是否中断生成在 xrag 默认行为与原文相反**，要显式定 |
 
