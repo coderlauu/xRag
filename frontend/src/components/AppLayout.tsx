@@ -8,8 +8,10 @@ export function AppLayout() {
     <div className="app-shell">
       <header className="app-header">
         <span className="app-brand">xrag</span>
-        <nav>
+        <nav aria-label="主导航">
+          <NavLink to="/chat">问答</NavLink>
           <NavLink to="/knowledge-bases">知识库</NavLink>
+          <NavLink to="/intent-tree">意图树</NavLink>
           <NavLink to="/diagnostics">诊断</NavLink>
         </nav>
       </header>

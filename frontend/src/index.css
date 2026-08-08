@@ -169,6 +169,215 @@ code {
   margin: 0 0 16px;
 }
 
+.qa-page {
+  width: min(100%, 1440px);
+}
+
+.qa-page .page-header {
+  margin-bottom: 20px;
+}
+
+.qa-chat {
+  display: grid;
+  min-height: calc(100svh - 100px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/*
+ * 断点由 `useLayout` 判定后写在 class 上，这里不再重复一套 media query。
+ * 抽屉的开合是 JS 行为（Esc 关闭、焦点返回、打开时不渲染常驻栏），断点定义分两处
+ * 维护迟早会漂移——同一个 1024px，CSS 说该收起、JS 说还没到，就成了"看不见但仍可
+ * Tab 到"的幽灵栏。
+ */
+.qa-layout-wide { grid-template-columns: 260px minmax(420px, 1fr); }
+.qa-layout-wide.qa-inspector-docked { grid-template-columns: 260px minmax(420px, 1fr) 320px; }
+.qa-layout-medium { grid-template-columns: 240px minmax(0, 1fr); }
+.qa-layout-narrow { grid-template-columns: 1fr; }
+
+.qa-conversations,
+.qa-inspector {
+  padding: 18px;
+  background: var(--social-bg);
+  overflow-y: auto;
+}
+
+.qa-conversations { border-right: 1px solid var(--border); }
+.qa-inspector { border-left: 1px solid var(--border); }
+
+.qa-list-pane { display: grid; gap: 12px; align-content: start; }
+.qa-new-conversation { width: 100%; }
+.qa-list-pane nav { display: grid; gap: 8px; }
+.qa-list-pane nav button { display: grid; gap: 3px; text-align: left; }
+.qa-list-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.qa-list-pane nav button.selected { border-color: var(--accent); background: var(--accent-bg); }
+.qa-load-more { width: 100%; }
+.qa-skeleton { display: grid; gap: 8px; }
+.qa-skeleton span { height: 44px; border-radius: 8px; background: var(--border); opacity: 0.5; }
+.qa-empty { display: grid; gap: 6px; font-size: 14px; }
+
+.qa-thread { display: grid; grid-template-rows: auto 1fr auto auto; min-width: 0; }
+.qa-thread-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 22px; border-bottom: 1px solid var(--border);
+}
+.qa-thread-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.qa-thread-title h1 { margin: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--text); }
+.qa-thread-title h2 { margin: 0; font-size: 18px; }
+.qa-thread-actions { display: flex; align-items: center; gap: 8px; }
+.qa-menu { position: relative; }
+.qa-menu-items {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 5;
+  display: grid; gap: 6px; min-width: 150px; padding: 8px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+.qa-menu-items button { text-align: left; }
+
+.qa-messages { display: flex; flex-direction: column; gap: 14px; padding: 22px; overflow-y: auto; }
+.qa-messages-list { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.qa-load-earlier { align-self: center; }
+.qa-welcome { margin: auto; max-width: 520px; text-align: center; }
+.qa-message { display: grid; gap: 4px; max-width: 78%; }
+.qa-message.user { align-self: flex-end; }
+.qa-message-body {
+  margin: 0; padding: 10px 14px; white-space: pre-wrap;
+  border: 1px solid var(--border); border-radius: 10px; color: var(--text-h);
+}
+.qa-message.user .qa-message-body { background: var(--accent-bg); border-color: var(--accent-border); }
+.qa-message-role { font-size: 12px; }
+/* 时间戳默认弱化，悬停或键盘聚焦到这条消息时才恢复（ui-spec §4.3）。 */
+.qa-message time { font-size: 12px; opacity: 0.35; }
+.qa-message:hover time, .qa-message:focus-within time { opacity: 1; }
+
+.qa-system-notice { align-self: center; max-width: 620px; padding: 10px 14px; border-radius: 8px; background: var(--social-bg); font-size: 14px; }
+.qa-notice-error { border: 1px solid var(--danger); }
+.qa-tag { display: inline-block; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; }
+.qa-clarification { display: grid; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.qa-clarification label { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.qa-clarification input { margin-top: 3px; accent-color: var(--accent); }
+.qa-inline-error { margin: 0 22px; font-size: 14px; color: var(--danger); }
+
+.qa-composer { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 16px 22px; border-top: 1px solid var(--border); }
+.qa-composer textarea { min-height: 58px; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; color: var(--text-h); background: var(--bg); }
+.qa-composer small { grid-column: 1 / -1; }
+
+.qa-inspector-body { display: grid; gap: 12px; align-content: start; }
+.qa-inspector-body dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 14px; margin: 0; }
+.qa-inspector-body dt { font-weight: 600; color: var(--text-h); }
+.qa-inspector-body dd { margin: 0; overflow-wrap: anywhere; }
+.qa-inspector-note { margin: 0; font-size: 14px; }
+.qa-subquestion, .qa-degradations { padding-top: 12px; border-top: 1px solid var(--border); }
+.qa-subquestion h3, .qa-degradations h3 { margin: 0 0 6px; font-size: 15px; color: var(--text-h); }
+.qa-subquestion p, .qa-degradations p { margin: 4px 0; font-size: 14px; }
+.qa-match, .qa-action { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.qa-match-path { color: var(--text-h); }
+
+/* 窄屏覆盖层。用原生 <dialog>，焦点约束与背景不可交互交给浏览器。 */
+.qa-drawer {
+  margin: 0 0 0 auto;
+  width: min(420px, 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.qa-drawer::backdrop { background: rgb(0 0 0 / 0.35); }
+.qa-drawer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.qa-drawer-head h2 { margin: 0; font-size: 17px; }
+.qa-drawer-body { height: calc(100dvh - 58px); padding: 18px; overflow-y: auto; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .qa-skeleton span { animation: qa-pulse 1.4s ease-in-out infinite; }
+}
+
+@keyframes qa-pulse { 50% { opacity: 0.25; } }
+
+@media (max-width: 720px) {
+  .qa-message { max-width: 92%; }
+  .qa-clarification label { padding: 12px; }
+}
+
+/* ---- 意图树 C — Route Canvas ---- */
+
+.intent-page { display: grid; gap: 12px; align-content: start; }
+.intent-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.intent-header-actions input {
+  min-width: 260px; padding: 8px 10px; font: inherit;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-h);
+}
+.intent-status { margin: 0; font-size: 13px; }
+
+.intent-workspace { display: grid; min-height: 520px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.intent-layout-wide { grid-template-columns: minmax(0, 1fr) 420px; }
+.intent-layout-medium { grid-template-columns: minmax(0, 1fr) 340px; }
+.intent-layout-narrow { grid-template-columns: 1fr; }
+.intent-canvas-column { display: grid; min-width: 0; }
+/* `display: grid` 会盖掉 [hidden] 的 UA 规则，窄屏"列表→详情"必须显式让 hidden 赢。 */
+.intent-canvas-column[hidden] { display: none; }
+
+.intent-canvas-shell { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.intent-canvas-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border);
+}
+.intent-canvas-viewport { max-height: 70svh; padding: 18px; overflow: auto; }
+.intent-canvas-stage { width: max-content; transform-origin: left top; }
+.intent-branch { display: flex; align-items: center; gap: 28px; }
+.intent-branch:focus-visible { outline: none; }
+.intent-branch:focus-visible > .intent-node { outline: 2px solid var(--accent); outline-offset: 2px; }
+.intent-children { display: flex; flex-direction: column; gap: 12px; padding-left: 28px; border-left: 1px solid var(--border); }
+.intent-node {
+  display: grid; gap: 6px; min-width: 220px; max-width: 300px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+}
+.intent-node.selected { border-color: var(--accent); background: var(--accent-bg); }
+.intent-root-node { background: var(--social-bg); }
+.intent-node-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.intent-node-meta { margin: 0; font-size: 12px; }
+.intent-node-menu { position: relative; }
+
+.intent-inspector { max-height: 78svh; padding: 18px; overflow-y: auto; border-left: 1px solid var(--border); background: var(--social-bg); }
+.intent-inspector-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.intent-inspector-head h2 { margin: 0; font-size: 17px; }
+.intent-inspector-body { display: grid; gap: 16px; margin-top: 12px; }
+.intent-inspector-body section { display: grid; gap: 8px; }
+.intent-inspector-body h3 { margin: 0; font-size: 15px; color: var(--text-h); }
+.intent-inspector-body label { display: grid; gap: 4px; font-size: 14px; }
+.intent-inspector-body input,
+.intent-inspector-body textarea,
+.intent-inspector-body select {
+  padding: 8px 10px; font: inherit; font-size: 14px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-h);
+}
+.intent-path { margin: 0; font-size: 13px; color: var(--text-h); }
+.intent-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-size: 13px; }
+.intent-examples { display: grid; gap: 8px; font-size: 14px; }
+.intent-example-row { display: flex; gap: 8px; }
+.intent-example-row input { flex: 1; }
+.intent-kb-list { display: grid; gap: 6px; max-height: 220px; overflow-y: auto; }
+.intent-kb-list label { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; }
+.intent-enable-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.intent-danger { padding-top: 12px; border-top: 1px solid var(--border); }
+.intent-inspector-actions {
+  position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px;
+  padding-top: 12px; border-top: 1px solid var(--border); background: var(--social-bg);
+}
+
+@media (max-width: 720px) {
+  .intent-node { min-width: 180px; }
+  /* 触控目标 44px（ui-spec §13）。 */
+  .intent-node-menu button { min-height: 44px; }
+}
+
 /* ---- 加载态 / 错误态 ---- */
 
 .state-block {

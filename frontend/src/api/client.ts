@@ -23,8 +23,8 @@ export function apiUrl(path: string): string {
   return `${BASE_URL}/api/v1${path}`;
 }
 
-function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = `${BASE_URL}/api/v1${path}`;
+function buildUrl(basePath: string, path: string, query?: RequestOptions["query"]): string {
+  const url = `${BASE_URL}${basePath}${path}`;
   if (!query) {
     return url;
   }
@@ -46,6 +46,15 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
  * 3. 204 与空响应体返回 `undefined` 而不是让 `response.json()` 抛解析错误。
  */
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return requestAt<T>("/api/v1", path, options);
+}
+
+/** 与旧 `/api/v1` 并存的模块可显式选择自己的稳定 API 根路径。 */
+export async function requestAt<T>(
+  basePath: string,
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { method = "GET", body, formData, query, signal } = options;
 
   const headers: Record<string, string> = {};
@@ -55,7 +64,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   let response: Response;
   try {
-    response = await fetch(buildUrl(path, query), {
+    response = await fetch(buildUrl(basePath, path, query), {
       method,
       headers,
       body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),

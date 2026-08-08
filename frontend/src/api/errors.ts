@@ -72,18 +72,27 @@ export class ApiError extends Error {
   readonly code: string;
   /** 后端原文，可能为空（容器默认错误页没有它）。 */
   readonly serverMessage: string;
+  /** ProblemDetail 的结构化扩展（例如 currentRevisionId/violations）。 */
+  readonly extensions: Record<string, unknown>;
 
-  constructor(status: number, code: string, serverMessage: string) {
+  constructor(
+    status: number,
+    code: string,
+    serverMessage: string,
+    extensions: Record<string, unknown> = {},
+  ) {
     super(`${status} ${code}: ${serverMessage}`);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.serverMessage = serverMessage;
+    this.extensions = extensions;
   }
 
   static fromResponse(status: number, body: ApiErrorBody | null): ApiError {
-    const code = body?.error ?? STATUS_FALLBACK[status] ?? "UNKNOWN";
-    return new ApiError(status, code, body?.message ?? "");
+    const code = body?.code ?? body?.error ?? STATUS_FALLBACK[status] ?? "UNKNOWN";
+    const message = body?.detail ?? body?.message ?? "";
+    return new ApiError(status, code, message, body ?? {});
   }
 }
 

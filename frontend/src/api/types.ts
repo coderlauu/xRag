@@ -13,8 +13,11 @@ export interface Page<T> {
 
 /** 错误响应体。成功响应直接是业务对象，不套外壳。 */
 export interface ApiErrorBody {
-  error: string;
-  message: string;
+  error?: string;
+  message?: string;
+  code?: string;
+  detail?: string;
+  [extension: string]: unknown;
 }
 
 /** api.md §1 列出的全部错误码。 */

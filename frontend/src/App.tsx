@@ -5,6 +5,8 @@ import { DiagnosticsPage } from "./pages/DiagnosticsPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { KnowledgeBasesPage } from "./pages/KnowledgeBasesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { ChatPage } from "./pages/ChatPage";
+import { IntentTreePage } from "./pages/IntentTreePage";
 
 /**
  * 路由表。路径结构对应 tech/knowledge-base/ui-spec.md §1：
@@ -18,22 +20,30 @@ import { NotFoundPage } from "./pages/NotFoundPage";
  * 分块页由工单 13 加入。文档详情不占路由——原型把它做成了文档列表上的右侧抽屉，
  * 这样能保留列表上下文。
  */
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<Navigate to="/knowledge-bases" replace />} />
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/knowledge-bases" element={<KnowledgeBasesPage />} />
+        <Route path="/knowledge-bases/:kbId" element={<DocumentsPage />} />
+        <Route
+          path="/knowledge-bases/:kbId/documents/:docId/chunks"
+          element={<ChunksPage />}
+        />
+        <Route path="/intent-tree" element={<IntentTreePage />} />
+        <Route path="/diagnostics" element={<DiagnosticsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/knowledge-bases" replace />} />
-          <Route path="/knowledge-bases" element={<KnowledgeBasesPage />} />
-          <Route path="/knowledge-bases/:kbId" element={<DocumentsPage />} />
-          <Route
-            path="/knowledge-bases/:kbId/documents/:docId/chunks"
-            element={<ChunksPage />}
-          />
-          <Route path="/diagnostics" element={<DiagnosticsPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+      <AppRoutes />
     </BrowserRouter>
   );
 }
