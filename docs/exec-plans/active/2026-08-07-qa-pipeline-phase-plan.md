@@ -298,6 +298,17 @@ API）、06（记忆摘要）、08（意图评分）和 11（意图树 API）已
 
 #### Step C — 3B 技术方案与执行拆分
 
+状态：**草案完成，停在产出物确认硬闸门（2026-08-08）。** 16 张工单全部 blocked，未开始实现。
+
+- [x] X-1 证据核对完成，结论见下方与 §8；裁决为**列为外部依赖，不新建实现工单**。
+- [x] [ADR 0008 — 混合检索与 RRF 融合](../../adr/0008-hybrid-retrieval-and-rrf-fusion.md)。
+- [x] 技术三件套 3B 章节：[架构 §18~§22](../../../tech/qa-pipeline/architecture.md)、
+  [数据模型 §13~§17](../../../tech/qa-pipeline/data-model.md)、[API §9~§13](../../../tech/qa-pipeline/api.md)。
+- [x] [测试矩阵 §18~§25](../../../tech/qa-pipeline/test-matrix.md)：80 条 `3B-*`。
+- [x] [3B 分角色任务书](2026-08-08-qa-pipeline-3b-implementation-lanes.md)与
+  [16 张原子工单](../../../.scratch/qa-pipeline/3b/README.md)。
+- [ ] 技术方案与技术性取舍经项目所有者确认。
+
 进入本 Step 前先完成 X-1 证据核对：
 
 - `aliyun-qwen3-rerank-cn` 已启用且明确选择 DashScope 原生 adapter；
@@ -453,6 +464,24 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 - `2026-08-08`: 项目所有者确认 3A Step G 产物，**3A 正式关闭**。17 张工单 complete，
   测试矩阵 146 条全部回写（130 条 `A` 自动化 + 16 条 `M` 真实 Key 走查），无一条留在 `P`。
   进入 3B Step B。
+- `2026-08-08` / **X-1 核对结论：四项中第 4 项不成立**。DashScope 原生 Rerank adapter 真实存在、
+  有真实链路证据（工单 23 的 REAL-04：`rerank_applied=t`、200、排序正确），但**从未提交**，
+  且 [Phase 2 状态文档](../../status/2026-08-07-phase-2-model-scheduling.md) 仍写着"`/reranks`
+  线路形状未经真实验证"，与工作区矛盾——没有闭环记录。
+  项目所有者裁决：**列为外部依赖，不新建实现工单**。字面回退会新建一张与并行会话抢同一批文件的
+  重复实现工单，那不是计划本意。后果写在
+  [3B 任务书 §7](2026-08-08-qa-pipeline-3b-implementation-lanes.md)：
+  Step D 只能演示 Noop 降级路径，`3B-RANK-08` 在工单 23 落地前保持 `P`，不伪造 passed。
+- `2026-08-08` / **3B Step C 决策包**：项目所有者裁决 X-1 处理与中文分词方案，其余六项按推荐执行。
+  - **中文关键词用应用侧分词 + `tsvector('simple')`**，不自建 Postgres 镜像。起草时核实出 PRD §12.8
+    的两个错误前提并已更正：**Postgres 内置全文检索没有 BM25**（是 `ts_rank_cd`），
+    **`pgvector/pgvector:pg16` 不含 zhparser/pg_jieba**。
+  - **融合用 RRF**（`k=60`）。它只吃排名不吃分数，因此"拿不到真 BM25"从质量缺陷降级为实现细节；
+    这与 PRD §12.2"不展示任何原始分数"是同一件事的两面。
+  - **定向与全局向量通道不同时激活**——pgvector 单表下定向 ⊂ 全局，同时激活等于查两遍同一份数据。
+    激活条件直接取 3A 的动作，不由 3B 重算分数。
+  - **去重键 `chunk_id`**，不写 `hashCode` 兜底；**并行度 < 连接池**且启动校验（池大小从未配置的
+    默认 10 改为显式 20）；**通道抽象保留但只有一套 priority**。
 - `2026-08-08` / **P-01 改判：问答页 A → C — Focused Chat**。项目所有者审阅 3B 增量原型后改判：
   中央单列 760px，对话列表与「本轮处理」在所有断点都是抽屉，桌面不再有常驻侧栏。同时确认
   P-3B-01~06 全部为"做"。

@@ -1,11 +1,11 @@
-# 数据模型：AI 知识问答核心链路（Phase 3A）
+# 数据模型：AI 知识问答核心链路（Phase 3A + 3B）
 
-- `status`: approved
+- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§13~§17）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
 - `architecture`: [技术方案](architecture.md)
 - `api`: [API 契约](api.md)
-- `adr`: [ADR 0007 — 版本化意图树](../../docs/adr/0007-versioned-intent-tree.md)
+- `adr`: [ADR 0007 — 版本化意图树](../../docs/adr/0007-versioned-intent-tree.md)、[ADR 0008 — 混合检索与 RRF 融合](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)
 
 ## 1. 状态所有权
 
@@ -494,3 +494,215 @@ PostgreSQL check 负责单行不变量，领域验证负责图不变量；两层
 - turn 的 `intent_revision_id` 与 match/option 使用同一 revision。
 - 树头只前进；revision 不 update/delete；一个 revision 能重建一棵无孤儿、无环、深度不超过 3 的树。
 - `qa_turn_stage.logical_call_id` 能关联模型诊断，但两边都不复制正文。
+
+---
+
+# 3B — 检索与工具（draft，2026-08-08）
+
+> 选型理由见 [ADR 0008](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)，编排见[架构 §18~§22](architecture.md)。
+> 迁移编号 **V9**，只新建表与索引，不修改 V7/V8 任何列。
+
+## 13. 关键词派生表
+
+### 13.1 `document_chunk_keyword`
+
+形态与 `document_chunk_embedding` **逐条对齐**——同一个身份键、同样的物理删除、同样的三条不变量。
+对齐不是巧合，是刻意的：两张表由同一处写入、同增同删，任何形态差异都会变成"漏写一张"的温床。
+
+```sql
+create table document_chunk_keyword (
+    chunk_id    bigint    primary key references document_chunk (id),
+    kb_id       bigint    not null references knowledge_base (id),
+    doc_id      bigint    not null references source_document (id),
+    tsv         tsvector  not null,
+    create_time timestamptz not null default now()
+);
+
+create index idx_chunk_keyword_kb on document_chunk_keyword (kb_id);
+create index idx_chunk_keyword_tsv on document_chunk_keyword using gin (tsv);
+```
+
+不变量（与 `document_chunk_embedding` 同源）：
+
+1. 只做物理删除，无 `deleted` 列；
+2. 每行都对应一个未删除、已启用、且所属文档也未删除已启用的分块；
+3. `chunk_id` 作主键——一个分块最多一条关键词索引，更新分块内容时 delete + insert 同一个 `chunk_id`。
+
+**第四条是 3B 新增的、必须被测试正面断言的**：
+
+4. `document_chunk_keyword` 与 `document_chunk_embedding` 在同一批分块上**行集合一致**。
+   漏写没有任何报错，症状只是关键词通道悄悄少召回。
+
+`tsv` 由应用侧切词后写入：`to_tsvector('simple', '退货 政策 材料')`。用 `'simple'` 是因为文本进库前
+已经切好词，不需要 Postgres 再做语言处理——它也做不了中文。
+
+### 13.2 回填
+
+V9 只建表建索引，**不回填**。应用侧分词决定了回填不能是纯 SQL。存量由带 `enabled` 开关的批处理
+组件按 `chunk_id` 游标分批补齐，幂等可重跑；未补齐期间关键词通道照常工作，只是召回不全。
+
+## 14. 检索结果
+
+### 14.1 `qa_turn_retrieval`
+
+一个 turn 一行，记录 3B 阶段的整体状态。
+
+**为什么不复用 `qa_turn.status`**：3A 冻结了 `ACTIONS_READY` 是理解阶段的稳定终态
+（[3A 状态文档](../../docs/status/2026-08-08-phase-3a-qa-understanding.md) §5：不能改写它的历史含义）。
+把它降级成中间态，会让所有 3A 历史 turn 的语义随代码改变。因此 3B 用独立一行表达自己的状态：
+**没有这一行，就是这个 turn 从未进过 3B**，不需要给旧数据编造状态。
+
+```sql
+create table qa_turn_retrieval (
+    turn_id         uuid        primary key references qa_turn(id),
+    status          varchar(24) not null,
+    partial         boolean     not null default false,
+    rerank_applied  boolean     not null default false,
+    degradation     varchar(48),
+    channel_hits    integer     not null default 0,
+    after_dedup     integer     not null default 0,
+    after_rerank    integer     not null default 0,
+    started_at      timestamptz not null default now(),
+    completed_at    timestamptz,
+    constraint ck_qa_retrieval_status check (status in (
+        'RETRIEVING','RETRIEVED','NO_RESULT','RETRIEVAL_FAILED')),
+    constraint ck_qa_retrieval_rerank check (rerank_applied = (degradation is null)),
+    constraint ck_qa_retrieval_funnel check (
+        channel_hits >= after_dedup and after_dedup >= after_rerank)
+);
+```
+
+- `rerank_applied = (degradation is null)` 与 `com.app.ai` 的 `RerankResult` 构造期不变量**同形**。
+  端口那边靠 Java 断言，这边靠数据库约束——两处都拦，是因为"降级了却带着分数"这件事一旦落库就
+  再也分辨不出来了。
+- 漏斗三个计数满足单调不增，由 check 约束保证。它们是[架构 §22.2](architecture.md) 说的那份
+  "只存在于 `log.info` 里"的数据，落成列才能查询和告警。
+- `NO_RESULT` 与 `RETRIEVAL_FAILED` **是两个状态**：查了没有 vs 没查成。合并会让用户做错下一步
+  （PRD §12.3 / §12.4）。
+
+### 14.2 `qa_retrieval_source`
+
+一条来源一行。按 `(turn_id, subquestion_id, action_id)` 关联，兑现[架构 §15](architecture.md) 的承诺：
+3B 结果引用动作，不塞回意图快照表。
+
+```sql
+create table qa_retrieval_source (
+    id             uuid        primary key,
+    turn_id        uuid        not null references qa_turn(id),
+    subquestion_id uuid        not null references qa_subquestion(id),
+    action_id      uuid        not null references qa_retrieval_action(id),
+    ordinal        smallint    not null,
+    chunk_id       bigint      not null,
+    kb_id          bigint      not null,
+    doc_id         bigint      not null,
+    origin_channel varchar(24) not null,
+    created_at     timestamptz not null default now(),
+    constraint uq_qa_source_ordinal unique (turn_id, ordinal),
+    constraint uq_qa_source_chunk   unique (turn_id, chunk_id),
+    constraint ck_qa_source_channel check (origin_channel in (
+        'INTENT_TARGETED','KEYWORD','GLOBAL_VECTOR'))
+);
+```
+
+- **`unique (turn_id, chunk_id)` 是产品语义的数据库表达**：同一片段在一轮里只展示一次
+  （PRD §12.2）。放在约束上而不是只靠去重代码，是因为"命中两次显得更可信"这个错误一旦出现在
+  界面上，用户是察觉不到的。
+- **不存分数**。不存余弦距离、不存 `ts_rank_cd`、不存 RRF 分数、不存 `relevanceScore`。
+  PRD §12.2 冻结了"不展示任何原始分数"，那么存下来只会诱使某天有人把它渲染出去。
+  排序信息由 `ordinal` 承载，它就是系统认定的相关性顺序。
+- **不存 chunk 正文**。正文按 `chunk_id` 现查 `document_chunk`，天然跟随知识库的逻辑删除——
+  源文档被删后来源条目仍在（它确实被用过），但正文取不到，界面显示 `文档已删除`（ui-spec §13.3）。
+- `origin_channel` 取 `priority` 最小的命中通道，只进"处理详情"，不进用户可见的来源区。
+
+### 14.3 `qa_retrieval_target`
+
+每个动作对应的一个检索目标一行，承载**部分失败的显式状态**。
+
+```sql
+create table qa_retrieval_target (
+    id           uuid        primary key,
+    turn_id      uuid        not null references qa_turn(id),
+    action_id    uuid        not null references qa_retrieval_action(id),
+    kb_id        bigint,
+    status       varchar(16) not null,
+    failure_code varchar(48),
+    latency_ms   integer,
+    created_at   timestamptz not null default now(),
+    constraint uq_qa_target unique (turn_id, action_id),
+    constraint ck_qa_target_status check (status in ('SUCCEEDED','FAILED')),
+    constraint ck_qa_target_failure check ((status = 'FAILED') = (failure_code is not null))
+);
+```
+
+`partial` 由这张表**算出来**（存在 `FAILED` 行且存在 `SUCCEEDED` 行），不由来源条数倒推
+（PRD §12.4）。`failure_code` 是归一化闭集，不是异常 message。
+
+## 15. 工具调用
+
+### 15.1 `qa_tool_call`
+
+```sql
+create table qa_tool_call (
+    id            uuid        primary key,
+    turn_id       uuid        not null references qa_turn(id),
+    ordinal       smallint    not null,
+    tool_name     varchar(64) not null,
+    side_effect   boolean     not null,
+    status        varchar(20) not null,
+    arguments_json text,
+    result_text   text,
+    failure_code  varchar(48),
+    latency_ms    integer,
+    confirmed_at  timestamptz,
+    created_at    timestamptz not null default now(),
+    updated_at    timestamptz not null default now(),
+    constraint uq_qa_tool_ordinal unique (turn_id, ordinal),
+    constraint ck_qa_tool_status check (status in (
+        'PENDING_CONFIRM','RUNNING','SUCCEEDED','FAILED','CANCELLED','UNAVAILABLE','ABORTED')),
+    constraint ck_qa_tool_confirm check (
+        (confirmed_at is not null) = (side_effect and status in ('RUNNING','SUCCEEDED','FAILED'))),
+    constraint ck_qa_tool_failure check ((status = 'FAILED') = (failure_code is not null)),
+    constraint ck_qa_tool_unavailable check (
+        status <> 'UNAVAILABLE' or (arguments_json is null and result_text is null))
+);
+```
+
+- **`ck_qa_tool_confirm` 是"确认前一律不执行"的数据库表达**（PRD §12.7）。有副作用的工具只要
+  到达 `RUNNING` 及之后，就必须有确认时间戳；没有确认时间戳却在跑，插不进去。
+  这条约束的价值在于：即使某天有人在服务层写错了一个分支，数据库也不会让它落地。
+- **状态持久化，不放前端。** 刷新页面后 `PENDING_CONFIRM` 仍在等待，不会因为前端状态丢失变成
+  "永远等不到确认"或"下次静默执行了"。
+- `arguments_json` 存的是**复核通过后**的参数（白名单 + Schema 校验后的），不是模型原始输出。
+  模型编造的字段不入库——它们既不该执行，也不该被当成历史记录展示。
+- `result_text` 是不可信内容，按纯文本存取；界面不解析（ui-spec §13.7.3），3C 拼进 Prompt 时另做
+  标签转义（D-08）。
+- `failure_code` 是归一化闭集。**异常 message 不入库**，它可能带内部主机名、端口与堆栈片段
+  （PRD §12.6）。
+
+### 15.2 重试
+
+重试不 update 旧行，**追加一条新的 `qa_tool_call`**（`ordinal` 递增）。理由有两条：
+一是有副作用的工具重试必须重新确认（ui-spec §13.7.4），复用旧行会让 `confirmed_at` 含义变模糊；
+二是"这个工具试了几次、每次什么结果"本身就是要能查的历史。
+
+## 16. 3B 的 Repository 验收不变量
+
+- `qa_turn_retrieval` 一个 turn 最多一行；没有这一行 = 从未进过 3B。
+- 同一 turn 内 `chunk_id` 不重复（数据库约束保证，不靠代码自觉）。
+- `partial` 与 `qa_retrieval_target` 的实际状态一致，且不从来源条数推断。
+- `rerank_applied=false` 时不存在任何分数字段——本表本来就不存分数，这条恒成立，是有意的。
+- 有副作用的工具在 `confirmed_at` 为空时不可能处于 `RUNNING` 及之后状态。
+- `document_chunk_keyword` 与 `document_chunk_embedding` 行集合一致。
+- 3B 的表**都不做逻辑删除**：它们是某一轮的派生事实，随 turn 存在而存在。turn 本身仍是逻辑删除，
+  级联口径见 §10。
+
+## 17. 3B 迁移与回滚
+
+- **V9** 新建 `document_chunk_keyword`、`qa_turn_retrieval`、`qa_retrieval_source`、
+  `qa_retrieval_target`、`qa_tool_call` 五张表与索引；不修改 V7/V8 任何列，也不修改
+  Phase 1 的 `document_chunk` / `document_chunk_embedding`。
+- `qa_turn.status` 的 check 约束**不动**。3B 不新增 turn 状态，理由见 §14.1。
+- 回退应用可以保留这五张表；关键词通道不查表也不影响 3A 与知识库。
+- 若必须重做 V9，只允许在无 3B 业务数据的环境中显式 drop；生产式回滚不删已保存的来源与工具记录。
+- **换分词词典不是 migration**，是一次 `document_chunk_keyword` 全表重建。这条要进部署文档：
+  换了词典却不重建，症状是关键词召回率悄悄下降，没有任何报错。

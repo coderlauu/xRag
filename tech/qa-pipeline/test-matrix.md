@@ -1,9 +1,9 @@
-# 测试矩阵：AI 知识问答核心链路（Phase 3A）
+# 测试矩阵：AI 知识问答核心链路（Phase 3A + 3B）
 
-- `status`: approved
+- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§18~§25）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
-- `scope`: 本文件当前只批准 `3A-*`；3B/3C 到各自 Step C 增量追加
+- `scope`: `3A-*` 已批准并全部回写；`3B-*` 是 Step C 草案，3C 到各自 Step C 追加
 - `architecture`: [技术方案](architecture.md)
 - `data_model`: [数据模型](data-model.md)
 - `api`: [API 契约](api.md)
@@ -346,3 +346,130 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 走查用的是真实 Key 而非 `ProgrammableFakeProvider`，因此同时验证了真实模型链路下的
 表现——这比 CI 的确定性假 Chat 更接近生产，但也意味着它**不可重放**：同一问题下次
 改写与评分结果未必逐字相同，回归仍以 130 条自动化用例为准。
+
+---
+
+# 3B 分区（draft，2026-08-08）
+
+约定沿用 §1。3B 额外一条：**收费 Provider 不进普通 CI**——真实 Rerank 与真实工具端点由显式
+环境变量守门，缺变量自动 skip，不因此判 failed。
+
+## 18. 3B-KW — 关键词派生表与分词
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-KW-01 | A | V9 建表后 `document_chunk_keyword` 与 `document_chunk_embedding` 在同一批分块上行集合一致 | P |
+| 3B-KW-02 | A | 入库写向量的同一处也写关键词行；任一失败整批不产生半套索引 | P |
+| 3B-KW-03 | A | 分块内容更新走 delete + insert 同一 `chunk_id`，不产生重复行 | P |
+| 3B-KW-04 | A | 分块/文档逻辑删除或停用后关键词行被物理删除，通道查不到 | P |
+| 3B-KW-05 | A | 索引期与查询期使用同一切词器实例，同一文本两次切词结果逐 token 相等 | P |
+| 3B-KW-06 | A | 中文长句、中英混排、纯数字型号与全角标点各自切词稳定且可复现 | P |
+| 3B-KW-07 | A | 回填批处理幂等：重复执行不改变行数，只补缺失 | P |
+| 3B-KW-08 | A | 回填未完成时关键词通道照常返回，不抛异常也不阻塞向量通道 | P |
+| 3B-KW-09 | A | 切词器版本与词典摘要出现在启动日志与配置指纹 | P |
+
+## 19. 3B-CH — 通道与激活条件
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-CH-01 | A | 子问题有 `KB_TARGETED` 时激活定向通道，作用域等于动作里的 kb 集合 | P |
+| 3B-CH-02 | A | 子问题有 `GLOBAL_FALLBACK` 时激活全局通道，且不带 kb 过滤 | P |
+| 3B-CH-03 | A | **两个向量通道不同时激活**——定向存在时全局不执行任何 SQL | P |
+| 3B-CH-04 | A | 关键词通道始终激活，作用域与同轮向量通道一致 | P |
+| 3B-CH-05 | A | 检索用改写后的问题，不用用户原话 | P |
+| 3B-CH-06 | A | 3B 只读 `ACTIONS_READY` 的动作行，不读意图分数、不回读当前树 | P |
+| 3B-CH-07 | A | 通道只有一套 `priority`，排序与去重取舍用同一个值 | P |
+
+## 20. 3B-FUSE — 融合、去重与截断
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-FUSE-01 | A | 给定各通道排名，RRF 输出顺序确定且可复现（`k=60`） | P |
+| 3B-FUSE-02 | A | 同一 `chunk_id` 跨通道命中只出现一次，RRF 分数累加 | P |
+| 3B-FUSE-03 | A | 去重后来源归属取 `priority` 最小的通道 | P |
+| 3B-FUSE-04 | A | 融合只消费排名，通道分数量纲变化不改变输出顺序 | P |
+| 3B-FUSE-05 | A | 代码中不存在 `text.hashCode()` 一类去重兜底路径（静态断言） | P |
+| 3B-FUSE-06 | A | 两次截断分别受 `rerank-input-size` 与 `top-n` 约束，且前者 ≤ `maxDocuments` | P |
+| 3B-FUSE-07 | A | 去重失败 = 本轮检索失败；精排失败 = 降级继续（两种容错不混用） | P |
+
+## 21. 3B-RANK — 精排三态
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-RANK-01 | A | 假 Rerank 成功时 `rerankApplied=true`、`degradation=null` | P |
+| 3B-RANK-02 | A | Noop 降级时 `rerankApplied=false` 且携带成因，来源仍返回 | P |
+| 3B-RANK-03 | A | 目录无 RERANK deployment 时降级而非硬失败 | P |
+| 3B-RANK-04 | A | Rerank 抛异常时降级为未精排，本轮不失败 | P |
+| 3B-RANK-05 | A | **返回不足 topN 时不用原始候选补齐**，条数就是实际条数 | P |
+| 3B-RANK-06 | A | 降级结果不携带任何分数字段，API 与库里都没有 | P |
+| 3B-RANK-07 | A | 对齐用稳定 ID；输入被过滤或重排后结果不错位 | P |
+| 3B-RANK-08 | M | 真实 DashScope Rerank 走通并 `rerank_applied=t`（依赖 Phase 2 工单 23） | P |
+
+## 22. 3B-FAIL — 部分失败与无结果
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-FAIL-01 | A | 单个 kb 目标失败：其余结果照常，`partial=true` 并点名该库 | P |
+| 3B-FAIL-02 | A | `partial` 来自 `qa_retrieval_target` 状态，**不由来源条数推断** | P |
+| 3B-FAIL-03 | A | 全部目标失败 → `RETRIEVAL_FAILED`，与 `NO_RESULT` 是不同状态与不同 HTTP 语义 | P |
+| 3B-FAIL-04 | A | 检索成功但零命中 → 200 + `NO_RESULT`，不是错误 | P |
+| 3B-FAIL-05 | A | 关键词通道失败不影响向量通道，也不单独提示用户 | P |
+| 3B-FAIL-06 | A | `failureCode` 是归一化闭集，扫描响应与库不出现异常 message | P |
+| 3B-FAIL-07 | A | 重试只重跑失败目标，成功目标不再查询 | P |
+| 3B-FAIL-08 | A | 重试不新建 turn、不改理解结果字段、不重问歧义 | P |
+| 3B-FAIL-09 | A | 无失败目标时重试返回 409 `NOTHING_TO_RETRY` | P |
+
+## 23. 3B-TOOL — 工具白名单、复核与副作用
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-TOOL-01 | A | 重复 `name` 的工具配置**启动失败**，错误含两处配置路径 | P |
+| 3B-TOOL-02 | A | 工具清单为空时不向模型发送 `tools` 字段，也不产生"不可用"提示 | P |
+| 3B-TOOL-03 | A | 模型请求未注册工具 → `UNAVAILABLE` 且用户可见，不静默跳过 | P |
+| 3B-TOOL-04 | A | 模型编造的字段被白名单过滤，不入库也不发给工具 | P |
+| 3B-TOOL-05 | A | Schema 声明 integer 而模型给 10.5 或字符串 → `ABORTED` | P |
+| 3B-TOOL-06 | A | 字段名对但取值在 `enum` 外 → `ABORTED`，提示给允许值而非 Schema 原文 | P |
+| 3B-TOOL-07 | A | 缺任一必填参数**不调用工具**；不存在"过滤后照常执行"的路径 | P |
+| 3B-TOOL-08 | A | 参数抽取失败**绝不用默认值继续**（只读工具同样适用） | P |
+| 3B-TOOL-09 | A | 有副作用工具在 `PENDING_CONFIRM` 期间零外部调用（用可观测假工具断言调用次数为 0） | P |
+| 3B-TOOL-10 | A | 数据库约束拦住"无 `confirmed_at` 却处于 RUNNING"的写入 | P |
+| 3B-TOOL-11 | A | 重复 `CONFIRM` 用同一 `clientRequestId` 只执行一次 | P |
+| 3B-TOOL-12 | A | 取消后再确认返回 409 `TOOL_CALL_NOT_PENDING` | P |
+| 3B-TOOL-13 | A | 失败后重试产生新 `toolCallId`，有副作用者重新回到 `PENDING_CONFIRM` | P |
+| 3B-TOOL-14 | A | 工具超时归一化为 `TOOL_EXECUTION_TIMEOUT`，不透传异常 | P |
+| 3B-TOOL-15 | A | 只读工具不经确认直接执行，参数同样全程可见 | P |
+| 3B-TOOL-16 | A | 工具返回按纯文本存取，含 `</data>`、HTML、Markdown 链接时不被解析 | P |
+| 3B-TOOL-17 | A | `description` 来自配置；模型返回的描述性文本不进入确认卡 | P |
+| 3B-TOOL-18 | A | 刷新后 `PENDING_CONFIRM` 仍可裁决（状态持久化，不在前端内存） | P |
+
+## 24. 3B-CFG — 配置与启动校验
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-CFG-01 | A | `max-parallelism >= maximum-pool-size` 时**启动失败**，错误打印两个实际值 | P |
+| 3B-CFG-02 | A | 池大小显式配置生效，不再落到默认 10 | P |
+| 3B-CFG-03 | A | `rerank-input-size > RerankProfile.maxDocuments` 时启动失败 | P |
+| 3B-CFG-04 | A | `channel-top-k < top-n` 时启动失败 | P |
+| 3B-CFG-05 | A | 并发检索峰值下未出现连接获取超时（按配置上限压测） | P |
+| 3B-CFG-06 | A | 检索执行器与意图评分执行器是两个独立 Bean，不共享队列 | P |
+
+## 25. 3B-API/UI/E2E — 契约、界面与垂直链路
+
+| ID | 类型 | 场景 / 断言 | 状态 |
+|---|:---:|---|---|
+| 3B-API-01 | A | turn 未进过 3B 时 `retrieval=null`、`tools=[]`，3A 字段逐字段不变 | P |
+| 3B-API-02 | A | 响应扫描不出现分数、chunk 正文、通道名、Schema 原文、异常 message | P |
+| 3B-API-03 | A | 同一 turn 的 `sources` 内 `chunkId` 不重复 | P |
+| 3B-API-04 | A | `documentDeleted=true` 时仍返回该来源条目，正文不返回 | P |
+| 3B-UI-01 | M | 正常来源：知识库/文档/`#位置` 三项齐全，无分数无名次 | P |
+| 3B-UI-02 | M | 未精排：摘要行与抽屉标题同时可见，抽屉关着也不丢该事实 | P |
+| 3B-UI-03 | M | 部分失败：点名失败库 + 重试/继续两个动作可用 | P |
+| 3B-UI-04 | M | 无结果文案与 3A `NO_MATCH` 可区分，无"用通用知识回答"入口 | P |
+| 3B-UI-05 | M | 工具确认卡：不抢焦点，Tab 先到取消，Esc 不等于取消 | P |
+| 3B-UI-06 | M | 工具四态在界面上依次可见；执行中输入区禁用且无中止入口 | P |
+| 3B-UI-07 | M | 1440/1024/720/375 四档：无常驻栏，关键信息全在消息区 | P |
+| 3B-UI-08 | M | 参数抽取中止：点名缺失字段与允许值，无"继续执行"入口 | P |
+| 3B-E2E-01 | A | 动作 → 三通道 → 融合 → 精排 → 来源落库 → API 返回全链路 | P |
+| 3B-E2E-02 | A | 一轮内同时产生来源与工具调用，两者互不阻塞 | P |
+| 3B-E2E-03 | A | 3A 的 146 条与知识库/模型调度既有测试不因 V9 与新 Bean 回归 | P |
+| 3B-E2E-04 | A | 无 Key 环境：应用启动正常，检索可用，精排降级为未精排 | P |

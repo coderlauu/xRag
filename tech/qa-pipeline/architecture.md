@@ -1,15 +1,15 @@
-# 技术方案：AI 知识问答核心链路（Phase 3A）
+# 技术方案：AI 知识问答核心链路（Phase 3A + 3B）
 
-- `status`: approved
+- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§18~§22，待 Step C 闸门确认）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
-- `scope`: 3A — 记忆 + 改写 + 意图；3B/3C 只冻结扩展边界
+- `scope`: 3A — 记忆 + 改写 + 意图；3B — 检索 + 工具（§18~§22）；3C 只冻结扩展边界
 - `prd`: [Phase 3 PRD](../../docs/prd/2026-08-07-qa-pipeline-prd.md)
 - `phase_plan`: [Phase 3 执行计划](../../docs/exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
 - `data_model`: [数据模型](data-model.md)
 - `api`: [API 契约](api.md)
 - `tests`: [测试矩阵](test-matrix.md)
-- `related`: [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)、[ADR 0003](../../docs/adr/0003-separate-model-capability-ports.md)、[ADR 0005](../../docs/adr/0005-separate-model-runtime-state.md)、[ADR 0006](../../docs/adr/0006-bind-chat-sampling-to-service-tier.md)、[ADR 0007](../../docs/adr/0007-versioned-intent-tree.md)
+- `related`: [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)、[ADR 0003](../../docs/adr/0003-separate-model-capability-ports.md)、[ADR 0005](../../docs/adr/0005-separate-model-runtime-state.md)、[ADR 0006](../../docs/adr/0006-bind-chat-sampling-to-service-tier.md)、[ADR 0007](../../docs/adr/0007-versioned-intent-tree.md)、[ADR 0008](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)
 
 ## 1. 方案结论
 
@@ -395,6 +395,8 @@ app:
 
 ## 15. 3B/3C 扩展边界
 
+> 3B 已按本节边界展开，落在 §18~§22。本节保留为 3A 当时冻结的承诺，用来核对 3B 有没有走偏。
+
 - 3B 读取 `ACTIONS_READY` 的不可变动作和意图 revision；不得回读“当前树”重算旧 turn。
 - 3B 新增检索/工具结果表时引用 `turnId + subQuestionId + actionId`，不把结果塞回意图快照表。
 - 3C 新增 `taskId`、SSE 和唯一终态；`turnId` 仍是业务轮次，不能与可重试/可排队任务混为一谈。
@@ -418,3 +420,272 @@ app:
 - API 契约测试覆盖幂等、游标、ProblemDetail、revision 冲突和 Inspector 数据。
 - 浏览器按已确认的问答 A、意图树 C 完成 3A 状态走查。
 - 完整场景和编号见 [测试矩阵](test-matrix.md)。
+
+---
+
+# 3B — 检索 + 工具（draft，2026-08-08）
+
+> 本段是 Step C 草案，未经闸门确认前不写实现代码。产品语义冻结在
+> [PRD §12](../../docs/prd/2026-08-07-qa-pipeline-prd.md)，界面表达冻结在
+> [conversation ui-spec §13](conversation/ui-spec.md)，检索选型见
+> [ADR 0008](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)。
+> 三者与本段冲突时，产品语义以 PRD 为准、界面以 ui-spec 为准、选型理由以 ADR 为准。
+
+## 18. 3B 方案结论
+
+`ACTIONS_READY` 之后追加一个**检索与工具阶段**，产出两类结果：**来源**（用户可核验的证据）与
+**工具调用记录**。3B 仍不生成答案——它把"依据"备齐，交给 3C。
+
+```text
+ACTIONS_READY（3A 终态，不可变）
+   │
+   ├─ 每个子问题：按动作激活通道 → 有界并行检索 → RRF 融合 → 按 chunk_id 去重 → 截断 → Rerank
+   │                                                                          └─ 三态：真实/Noop/故障
+   ├─ 工具：原生 Function Calling 一次 Chat 调用 → 白名单与 Schema 复核 → 副作用工具等待用户确认
+   │
+   └─ RETRIEVED（3B 终态）：来源列表 + 工具记录 + 显式降级标记
+```
+
+三条不能松的边界：
+
+1. **3B 消费动作，不重新解释分数。** 通道激活、定向范围、是否兜底全部来自 3A 的
+   `qa_retrieval_action` 行。3B 不读意图分数，也不回读"当前树"。
+2. **降级一路显式到 API。** 未精排、部分知识库失败、工具不可用都是结果对象上的字段，
+   不是日志，也不靠条数倒推。
+3. **不可信内容不进调度诊断。** chunk 正文、工具参数值与工具返回一律不写 `com.app.ai` 的诊断表
+   （ADR 0005）；问答侧自己的表存什么见[数据模型](data-model.md) §13~§15。
+
+## 19. 检索编排
+
+### 19.1 模块与依赖
+
+```text
+com.app.qa
+├── retrieval          # 通道接口与三个实现、RRF 融合、去重截断、精排调用
+│   ├── channel        # SearchChannel、IntentTargetedChannel、GlobalVectorChannel、KeywordChannel
+│   └── fusion         # ReciprocalRankFusion、Deduplicator、TopKTruncator
+├── tool               # 工具白名单、Schema 复核、调用循环、确认状态机
+└── service            # RetrievalOrchestrator（在 QuestionUnderstandingService 之后串接）
+
+com.app.qa.retrieval ──> com.app.ai.model.RerankClient
+com.app.qa.retrieval ──> com.app.knowledge.repository.ChunkSearchPort（窄端口，只读）
+com.app.qa.tool      ──> com.app.ai.model.ChatClient
+```
+
+新增的窄端口 `ChunkSearchPort` 由知识库模块提供，暴露三个查询：定向向量、全局向量、关键词。
+**问答模块不拼 chunk 表的 SQL**，理由与 3A 的 `KnowledgeBaseLookup` 相同——跨模块直接写别人的
+表结构，等于把两个模块的迁移绑死。
+
+### 19.2 通道
+
+| 通道 | `priority` | 激活条件 | 作用域 | 排序依据 |
+|---|:---:|---|---|---|
+| `INTENT_TARGETED` | 1 | 该子问题有 `KB_TARGETED` 动作 | 动作里的 `knowledge_base_id` 集合 | 余弦距离 |
+| `KEYWORD` | 2 | 始终 | 与同轮向量通道一致 | `ts_rank_cd` |
+| `GLOBAL_VECTOR` | 3 | 该子问题有 `GLOBAL_FALLBACK` 动作 | 全库 | 余弦距离 |
+
+- **两个向量通道不同时激活**（ADR 0008 决策 2）。在 pgvector 单表下定向结果是全局的子集，
+  同时激活等于查两遍同一份数据。
+- `priority` **只有一套**，同时用于稳定排序与去重取舍。不设第二套按通道类型的优先级。
+- 检索用的是**改写后的问题**（3A `rewrite.rewrittenQuestion`），不是用户原话。
+
+### 19.3 并行与连接池硬约束
+
+每个检索任务独占一条只读事务连接（`ChunkVectorRepository.search` 需要
+`set local hnsw.iterative_scan = strict_order`）。因此：
+
+```text
+qa.retrieval.max-parallelism  <  spring.datasource.hikari.maximum-pool-size
+```
+
+- 池大小从"未配置默认 10"改为**显式配置**，基线 20。
+- 检索并行度基线 4，粒度是 **(子问题 × 通道)** 任务。
+- 启动时校验上式，不满足**直接失败**并打印两个实际值。理由与 Embedding 维度冲突同源：
+  放行只会把问题推迟成运行期的"检索变慢了"，而那个症状会把排查带到线程池而不是连接池。
+- 3C 的全局并发许可要与这里一起核算：`许可数 × 并行度` 也必须留在池内。这条写进 3C Step C 的输入。
+
+### 19.4 融合、去重与截断
+
+顺序固定，且**不可并行**（后一步依赖前一步）：
+
+```text
+各通道结果 → RRF 融合 → 按 chunk_id 去重 → 截断到 rerankInputSize → Rerank → 截断到 topN
+```
+
+- **RRF**：`score(c) = Σ_i 1/(60 + rank_i(c))`，`rank` 从 1 起。只吃排名，不吃分数。
+- **去重**：键是 `chunk_id`。同一 chunk 的 RRF 分数累加；来源归属取 `priority` 最小的通道。
+  **不写 `text.hashCode()` 兜底路径**——chunk 一定有主键，兜底只会带来静默丢证据的可能。
+- **两次截断不同性质**：第一次是喂给 Rerank 的输入上限（受 `RerankProfile.maxDocuments` 约束），
+  第二次是最终来源条数。
+- **去重是必需清洗，精排是可选增强**：去重失败 = 本轮检索失败；精排失败 = 降级继续。
+  不用同一个 try-catch 一视同仁地跳过。
+
+### 19.5 精排三态
+
+调用 `RerankClient`，把 `RerankResult` 的三态**原样**传导，不在问答侧重新发明：
+
+| 情形 | `rerankApplied` | 界面表现 |
+|---|:---:|---|
+| 真实精排 | `true` | 不加标记（默认状态不渲染成成就） |
+| Noop 降级（无 Key / 供应商故障 / 目录未配） | `false` + `degradationReason` | `未精排` + 一句解释 |
+| 调用抛错 | 视为降级 | 同上；成因只进处理详情与链路记录 |
+
+- **降级时 `relevanceScore` 必为 null**，这是端口的构造期不变量，问答侧不得回填假分数。
+- **返回不足 topN 不补齐**（PRD §12.5）。`未精排 · 3 条` 是完全正常的一屏。
+- 用稳定 ID 对齐，不用下标（`RerankCommand` 的既有纪律）。
+
+### 19.6 失败边界
+
+| 失败点 | 行为 | 用户可见 |
+|---|---|---|
+| 单个知识库目标检索失败 | 该目标标 `FAILED` + 归一化原因，其余照常 | 点名该库 + `结果不完整`，可重试 |
+| 全部目标失败 | 本轮标 `RETRIEVAL_FAILED` | 与"无结果"文案不同：一个没查成、一个查了没有 |
+| 关键词通道失败 | 该通道结果为空，向量通道照常 | 不单独提示（通道构成不对用户暴露） |
+| 融合/去重失败 | 本轮检索失败 | 同"全部目标失败" |
+| 精排失败 | 降级为未精排 | `未精排` |
+
+**部分失败必须是显式状态**，不得用 `results.length < expected` 倒推（PRD §12.4）。
+
+### 19.7 重试失败的知识库
+
+ui-spec §13.6 承诺"重试只重跑失败的那部分，不重走改写与意图"。实现上要求：
+
+- 检索结果按 `(turnId, subQuestionId, actionId)` 落库，重试是针对失败 action 的**幂等重放**；
+- 重放不新建 turn、不重新评分、不重问歧义；
+- 重放结果合并进同一 turn 的来源集合，`partial` 标记随之重算。
+
+## 20. 关键词通道
+
+### 20.1 派生表与写入点
+
+新建 `document_chunk_keyword`，形态与 `document_chunk_embedding` **完全对齐**（见
+[数据模型 §13](data-model.md)）：`chunk_id` 主键、物理删除、每行都对应一个未删除且启用的分块、
+所属文档也未删除且启用。
+
+写入点与向量写入是同一处（知识库入库链路）。**两张派生表必须同增同删**——任何一处漏写都会让
+关键词通道静默少召回，而这种缺失没有任何报错。契约测试要正面断言两张表在同一批分块上行集合一致。
+
+### 20.2 分词一致性
+
+索引期与查询期必须用**同一份切词代码和同一份词典**：
+
+```text
+入库： content ──切词──> "退货 政策 材料" ──> to_tsvector('simple', ...)
+查询： 改写后问题 ──同一套切词──> "退货 材料" ──> to_tsquery('simple', '退货 & 材料')
+```
+
+- 用 `'simple'` 配置：文本进库前已经切好词，不需要 Postgres 再做语言处理。
+- **换词典必须重建整列**。这条要进部署文档，不能只活在代码注释里——词典换了却不重建，
+  表现是关键词通道召回率悄悄下降，没有任何报错。
+- 切词器版本与词典摘要写进启动日志与配置指纹，便于事后判断某次召回异常是不是换词典造成的。
+
+### 20.3 存量回填
+
+应用侧分词决定了回填不能是纯 SQL 迁移。V9 只建表建索引，回填由一个**带 `enabled` 开关的批处理
+组件**完成（跨模块纪律：调度类组件都要有开关，ADR 0002 的单实例假设）：
+
+- 按 `chunk_id` 游标分批，只处理 `document_chunk_embedding` 有而 `document_chunk_keyword` 没有的行；
+- 幂等，可重复执行；
+- 未回填完成时关键词通道**照常工作**，只是召回不全——这属于已知降级，不是故障。
+
+## 21. 工具调用
+
+### 21.1 路线与边界
+
+采用**原生 Function Calling**（计划 D-03）：一次 Chat 调用同时完成"选哪个工具"与"参数是什么"，
+不再单独调一次 LLM 提参。可用工具来自**白名单配置**，不来自意图树——意图树不承担工具绑定，
+裁决与理由见 [conversation ui-spec §13.9](conversation/ui-spec.md)。
+
+接受的代价（D-03 已确认）：工具选择由模型决定，不如意图树可审计。补偿是把"模型请求了哪个工具、
+带了什么参数、结果如何"完整暴露到界面与链路记录。
+
+### 21.2 白名单与工具定义
+
+```yaml
+qa:
+  tools:
+    - name: submit-return-ticket
+      display-name: 提交退货工单
+      description: 在售后工单系统中新建一张退货工单，并把工单号回写到本次对话。
+      side-effect: true
+      timeout: 10s
+      input-schema: classpath:tools/submit-return-ticket.schema.json
+```
+
+- `description` 同时是**给模型的说明**与**给用户看的那句话**（ui-spec §13.7.2）。它来自配置，
+  **不能由模型生成**——否则模型既决定调什么工具，又决定怎么向用户描述它，确认就成了走过场。
+- `side-effect` 决定是否需要二次确认，是产品语义不是实现细节（PRD §12.7）。
+- 重复 `name` 视为配置错误，**启动失败**。理由与 Embedding 维度冲突同源；课程实现里"后注册的静默
+  覆盖、顺序取决于配置文件排列"是一个改一次配置顺序就能悄悄换掉后端的耦合。
+- 工具清单为空时不向模型发送 `tools` 字段，也不产生"工具不可用"提示——没有配置工具与配置了但不可用
+  是两回事。
+
+### 21.3 代码侧 Schema 复核（安全边界，不是防御性编程）
+
+`ToolCall.argumentsJson` 只经过"是合法 JSON"的校验，Provider 层不做任何 Schema 校验。因此在执行
+之前必须由代码复核，逐条对应 PRD §12.7：
+
+1. **字段名白名单**：遍历 Schema 声明的参数名，不遍历模型返回的 key。模型编造的字段直接丢弃。
+2. **类型校验**：Schema 声明 `integer` 而模型给 `10.5` 或字符串，拒绝。
+3. **枚举与取值校验**：字段名对但取值不在 `enum` 内同样拒绝——只校验字段名是"把约束告诉了模型
+   就当模型一定会遵守"。
+4. **必填校验**：缺任一必填参数**不得调用工具**，不存在"参数被过滤掉后照常执行"的路径。
+5. **禁止默认值兜底**：抽取失败即中止并请用户补充，绝不用默认值继续执行。
+
+任何一条不过 → 状态 `ABORTED`，界面点名缺什么或哪个值非法（给允许值，不给 Schema 原文）。
+
+### 21.4 状态机与副作用确认
+
+```text
+                       ┌─ side-effect=false ─→ RUNNING ─→ SUCCEEDED / FAILED
+REQUESTED ─ 复核通过 ─┤
+    │                  └─ side-effect=true ──→ PENDING_CONFIRM ─┬─ 用户确认 → RUNNING → …
+    │                                                            └─ 用户取消 → CANCELLED
+    ├─ 复核不通过 ────────────────────────────→ ABORTED
+    └─ 不在白名单 ────────────────────────────→ UNAVAILABLE
+```
+
+- **`PENDING_CONFIRM` 期间不发起任何外部调用。** "确认前一律不执行"是产品语义。
+- **确认不可复用**：失败后重试有副作用的工具要重新回到 `PENDING_CONFIRM`。
+- 确认状态持久化（见[数据模型 §15](data-model.md)），刷新页面后仍在等待，不会因为前端状态丢失
+  而变成"永远等不到确认"或"静默执行了"。
+- 3B **无中止能力**（停止属 3C）；`RUNNING` 的超时由工具配置的 deadline 决定，超时归一化为 `执行超时`。
+
+### 21.5 结果与失败文案
+
+- 工具返回是**不可信内容**：落库与传输都按纯文本，界面不解析 HTML/Markdown（ui-spec §13.7.3）。
+  3C 把它拼进 Prompt 时还要再做一次标签转义，那属于 D-08 的不可信内容隔离。
+- 失败只暴露**归一化文案**，绝不透传异常 message——它可能带内部主机名、端口和堆栈片段。
+  归一化闭集与 3A 的 `toQaUserMessage` 同源，新增码值在 [API 契约](api.md) 冻结。
+
+## 22. 3B 的配置、诊断与启动校验
+
+### 22.1 配置
+
+| 键 | 基线 | 校验 |
+|---|---|---|
+| `spring.datasource.hikari.maximum-pool-size` | 20 | 显式配置，不再用默认 10 |
+| `qa.retrieval.max-parallelism` | 4 | `< maximum-pool-size`，否则启动失败 |
+| `qa.retrieval.channel-top-k` | 50 | `>= topN` |
+| `qa.retrieval.rerank-input-size` | 30 | `<= RerankProfile.maxDocuments` |
+| `qa.retrieval.top-n` | 8 | `>0`；上限受 3C Prompt 预算倒推，Step C 只定基线 |
+| `qa.retrieval.rrf-k` | 60 | `>0` |
+| `qa.tools.*` | 见 §21.2 | `name` 唯一；Schema 可解析；有副作用工具必须有 `description` |
+
+`top-n` 的最终值应由 3C 的上下文预算倒推，而不是先拍一个数再看塞不塞得下。3B 先给可运行基线，
+在 3C Step C 复核。
+
+### 22.2 诊断边界
+
+- `com.app.ai` 的诊断表**只记模型调用**（Rerank、工具所在的 Chat 调用），不记 chunk 正文、
+  工具参数值与工具返回。ADR 0005 的分层不因 3B 松动。
+- 问答侧的检索漏斗（各通道命中数 → 去重后 → 精排后）落 `qa_turn_stage` 的**计数字段**，不落正文。
+  这正是课程实现里只存在于 `log.info` 的那份数据，落成结构化记录才能被查询和告警。
+- 漏斗与降级成因只出现在"处理详情"（验收信息），不进用户可见的来源区（ui-spec §13.3）。
+
+### 22.3 与并行会话的接口
+
+3B 依赖 DashScope 原生 Rerank adapter 落地（Phase 2 工单 23），但**不重复实现它**——
+X-1 核对结论与该依赖的处理见[计划 §8](../../docs/exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)。
+在它提交并闭环之前，3B 的 Step D 只能演示 Noop 降级路径；这不阻塞 Step C，也不阻塞除
+"真实精排演示"以外的任何验收项。

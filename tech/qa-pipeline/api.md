@@ -1,6 +1,6 @@
-# API 契约：AI 知识问答核心链路（Phase 3A）
+# API 契约：AI 知识问答核心链路（Phase 3A + 3B）
 
-- `status`: approved
+- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§9~§12）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
 - `base_path`: `/api/qa`
@@ -474,3 +474,135 @@ GROUP 接受 `NODE_ONLY` 或 `CONFIGURED_SUBTREE`；叶子只接受 `NODE_ONLY`�
 - 影响预览与实际命令在同 revision 下计数一致。
 - `WAITING_CLARIFICATION` 只有选项无动作；`ACTIONS_READY` 只有动作无澄清。
 - API 响应扫描不出现 Prompt、原始 Provider 错误、secret、完整 request ID、模型 reason 或内部 `ExecutionInfo`。
+
+---
+
+# 3B — 检索与工具（draft，2026-08-08）
+
+> 编排见[架构 §18~§22](architecture.md)，表见[数据模型 §13~§17](data-model.md)，
+> 界面表达见 [ui-spec §13](conversation/ui-spec.md)。
+
+## 9. 3B 对既有响应的扩展
+
+`POST /api/qa/turns` 与 `GET .../turns/{turnId}` 的响应体**新增两个可空块**，不改任何既有字段：
+
+```jsonc
+{
+  "turn": { "...": "3A 字段不变" },
+  "inspector": { "...": "3A 字段不变" },
+
+  "retrieval": {                      // turn 未进过 3B 时为 null
+    "status": "RETRIEVED",            // RETRIEVING | RETRIEVED | NO_RESULT | RETRIEVAL_FAILED
+    "partial": true,
+    "rerankApplied": false,
+    "degradation": "RERANK_UNAVAILABLE",
+    "sources": [
+      {
+        "ordinal": 0,
+        "chunkId": 88123,
+        "knowledgeBaseId": 12,
+        "knowledgeBaseName": "售后服务知识库",
+        "documentId": 517,
+        "documentName": "退货与退款操作手册 v3.docx",
+        "chunkIndex": 12,
+        "documentDeleted": false
+      }
+    ],
+    "failedTargets": [
+      { "knowledgeBaseId": 31, "knowledgeBaseName": "海外仓运营手册", "failureCode": "RETRIEVAL_TIMEOUT" }
+    ]
+  },
+
+  "tools": [
+    {
+      "toolCallId": "…",
+      "ordinal": 0,
+      "toolName": "submit-return-ticket",
+      "displayName": "提交退货工单",
+      "description": "在售后工单系统中新建一张退货工单，并把工单号回写到本次对话。",
+      "sideEffect": true,
+      "status": "PENDING_CONFIRM",
+      "parameters": [
+        { "name": "订单号", "value": "ORD-20260806-1183", "required": true }
+      ],
+      "resultText": null,
+      "failureCode": null,
+      "latencyMs": null
+    }
+  ]
+}
+```
+
+契约要点，逐条对应已冻结的产品语义：
+
+- **没有任何分数字段。** 不返回余弦距离、`ts_rank_cd`、RRF 分数或 `relevanceScore`。
+  顺序由 `ordinal` 表达（PRD §12.2）。数据库本来就不存（数据模型 §14.2），这里是第二道闸。
+- **不返回 chunk 正文。** 正文另经知识库既有接口按 `chunkId` 取，天然跟随逻辑删除。
+  `documentDeleted=true` 时界面显示 `文档已删除` 并禁用跳转（ui-spec §13.3）。
+- **不返回命中通道或命中次数。** `origin_channel` 只进处理详情，不进这里——避免"命中两次更可信"
+  的错误暗示。
+- **`partial` 是服务端算好的显式字段**，客户端不得用 `sources.length` 推断（PRD §12.4）。
+- **`rerankApplied=false` 时 `degradation` 非空**，反之亦然；与 `com.app.ai` 的 `RerankResult`
+  不变量同形。客户端据此显示 `未精排`，**不区分成因**。
+- **`description` 来自服务端白名单配置，不是模型生成的**（架构 §21.2）。
+- **`parameters` 是复核通过后的参数**，模型编造的字段不出现在这里。
+- **`failureCode` 是归一化闭集**，永不透传异常 message（PRD §12.6）。
+
+## 10. `POST /api/qa/turns/{turnId}/tool-calls/{toolCallId}/decision`
+
+有副作用的工具在用户裁决前不执行。确认与取消是同一个端点的两个取值——它们是同一个决定的两面，
+拆成两个端点会让"只允许决定一次"这条约束散落在两处。
+
+```jsonc
+// 请求
+{ "clientRequestId": "…uuid…", "decision": "CONFIRM" }   // CONFIRM | CANCEL
+
+// 响应 200：返回整个 turn 结果（与 §9 同形），调用方直接替换本地状态
+```
+
+- 只有 `status=PENDING_CONFIRM` 的工具可被裁决；其余返回 `409 TOOL_CALL_NOT_PENDING`。
+  这条同时挡住了重复确认与"取消后又确认"。
+- `CONFIRM` 同步执行工具并等待终态返回，与 3A 的 `POST /turns` 传输形态一致；
+  3B 不引入 SSE（属 3C）。
+- **确认不可复用**：工具失败后重试会产生一条新的 `toolCallId`，必须重新裁决（ui-spec §13.7.4）。
+- `clientRequestId` 幂等：同 key 重复提交返回同一结果，不会执行两次。**这条对有副作用的工具是
+  硬要求**——网络抖动导致的重试不该变成两张工单。
+
+## 11. `POST /api/qa/turns/{turnId}/retrieval/retry`
+
+只重跑失败的检索目标，不重走改写与意图（ui-spec §13.6）。
+
+```jsonc
+// 请求
+{ "clientRequestId": "…uuid…" }
+
+// 响应 200：整个 turn 结果（与 §9 同形），partial 随之重算
+```
+
+- 只有存在 `FAILED` 目标时可调用；否则 `409 NOTHING_TO_RETRY`。
+- **不新建 turn、不重新评分、不重问歧义。** 用户已经确认过的方向不能因为一次重试被重问。
+- 重放是幂等的：成功的目标不再查询，结果合并进同一 turn 的来源集合。
+
+## 12. 3B 错误码
+
+| HTTP | code | 何时 |
+|---|---|---|
+| 409 | `TOOL_CALL_NOT_PENDING` | 工具不在 `PENDING_CONFIRM`，含重复确认与取消后确认 |
+| 409 | `NOTHING_TO_RETRY` | 没有失败目标可重试 |
+| 404 | `TOOL_CALL_NOT_FOUND` | `toolCallId` 不属于该 turn |
+| 422 | `TOOL_ARGUMENTS_INVALID` | 参数复核不通过；`detail` 点名缺失/非法字段与允许值，不含 Schema 原文 |
+| 502 | `TOOL_EXECUTION_FAILED` | 工具执行失败；`detail` 是归一化文案 |
+| 504 | `TOOL_EXECUTION_TIMEOUT` | 超过工具配置的 deadline |
+| 502 | `RETRIEVAL_FAILED` | 全部检索目标失败 |
+
+`NO_RESULT` **不是错误**，它是 200 + `retrieval.status=NO_RESULT`。检索执行成功而没有命中，
+与检索没执行成功是两件事，HTTP 状态码上也要分开（PRD §12.3）。
+
+## 13. 3B 契约验收
+
+- 响应体扫描不出现任何分数字段、chunk 正文、通道名、Schema 原文与异常 message。
+- `partial`、`rerankApplied`、`status` 三者与数据库状态一致，且都不可由条数推断。
+- 同一 turn 的 `sources` 里 `chunkId` 不重复。
+- 有副作用的工具在未裁决时，任何路径都不产生外部调用；重复 `CONFIRM` 只执行一次。
+- 重试端点不改变 turn 的理解结果字段（子问题、意图、动作、歧义选择）。
+- 3A 既有响应在 turn 未进过 3B 时逐字段不变，`retrieval` 与 `tools` 为 null / 空数组。
