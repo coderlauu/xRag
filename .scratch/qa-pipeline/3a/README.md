@@ -1,9 +1,8 @@
 # Phase 3A 原子工单：记忆 + 改写 + 意图
 
 本目录把 [3A 分角色任务书](../../../docs/exec-plans/active/2026-08-07-qa-pipeline-3a-implementation-lanes.md)
-转成 17 张可独立验收的工单。Phase 3A Step C 已于 2026-08-07 获确认；01~15 已完成，当前第十前沿
-推进 16 的手工走查。130 条自动化用例已核对落点并回写结果，17 的实质工作亦已完成，
-两者都卡在同一个闸门：16 条 `M` 项需项目所有者统一验收。
+转成 17 张可独立验收的工单。Phase 3A Step C 已于 2026-08-07 获确认；**17 张工单全部 complete**，测试矩阵 146 条
+全部回写、无一条留在 `P`。剩余闸门是 Step G（复盘与里程碑状态）及其用户确认。
 
 ## 状态
 
@@ -24,8 +23,8 @@
 | 13 | [问答 A — Conversation + Inspector](issues/13-conversation-frontend.md) | 05, 10, 12 | complete |
 | 14 | [意图树 C — Route Canvas](issues/14-intent-canvas-frontend.md) | 11, 12 | complete |
 | 15 | [隐私审计、故障注入与跨 revision E2E](issues/15-privacy-failure-e2e.md) | 10, 11, 13, 14 | complete |
-| 16 | [矩阵执行与双界面浏览器验收](issues/16-matrix-browser-validation.md) | 01~15 | in_progress（130 条 A 项已回写；16 条 M 项待项目所有者统一走查） |
-| 17 | [CI、部署配置与 3A 门禁](issues/17-ci-deploy-gates.md) | 01~16 | in_progress（实质完成，待 16 关闭） |
+| 16 | [矩阵执行与双界面浏览器验收](issues/16-matrix-browser-validation.md) | 01~15 | complete |
+| 17 | [CI、部署配置与 3A 门禁](issues/17-ci-deploy-gates.md) | 01~16 | complete |
 
 ## 推进规则
 

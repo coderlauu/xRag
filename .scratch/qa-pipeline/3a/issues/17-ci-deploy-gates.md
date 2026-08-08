@@ -3,7 +3,7 @@
 **What to build:** 把 3A 的确定性自动化、前后端检查、文档链接和非敏感运行配置纳入现有 CI/部署说明；不引入收费 Key。
 
 **Blocked by:** 01~16
-**Status:** in_progress（实质工作已完成，按 Acceptance 需等 16 回写手工结果后才能关闭）
+**Status:** complete
 
 ## Slice
 
