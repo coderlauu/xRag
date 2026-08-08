@@ -217,6 +217,32 @@ class QaConversationApiIntegrationTests {
     }
 
     @Test
+    void api05_本轮不属于当前对话时返回404而不是泄露它存在() throws Exception {
+        String first = mvc.perform(post("/api/qa/turns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(questionRequest(
+                                "2b0f1d4e-9c33-4a71-8f52-4f0a1c7d9e10", null, "第一个对话")))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String second = mvc.perform(post("/api/qa/turns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(questionRequest(
+                                "7d5c2a10-3e84-4b09-9a6d-1c8b5f2e4a37", null, "第二个对话")))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        String foreignConversationId = json.readTree(first).at("/conversation/conversationId").asText();
+        String turnId = json.readTree(second).at("/turn/turnId").asText();
+
+        // 本轮真实存在，只是不属于这个对话。响应必须与"根本不存在"完全一致——
+        // 用 403 或带 detail 的 409 都会让调用方推断出"这个 turnId 是有效的"。
+        mvc.perform(get("/api/qa/conversations/{conversationId}/turns/{turnId}",
+                        foreignConversationId, turnId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("TURN_NOT_FOUND"));
+    }
+
+    @Test
     void conv10_活动本轮阻止删除且终态对话删除后全部普通读取为404() throws Exception {
         processor.holdNext();
         String activeBody = mvc.perform(post("/api/qa/turns")
