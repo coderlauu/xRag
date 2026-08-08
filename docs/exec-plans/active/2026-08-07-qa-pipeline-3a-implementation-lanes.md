@@ -68,7 +68,7 @@
 - 只实现已确认的问答 A、意图树 C；状态缺口先回规格/Decision Log。
 - 3A 聊天区不出现假答案、假来源、假停止/排队状态。
 - 歧义、无匹配、超过三主题、保存失败和 revision 冲突均有可恢复文案。
-- [ ] PRD 3A AC 可追溯到 API、实现和矩阵；两页浏览器演示经项目所有者确认。
+- [x] PRD 3A AC 可追溯到 API、实现和矩阵；两页浏览器演示经项目所有者确认（2026-08-08）。
 
 ### Lane 后端
 
@@ -85,7 +85,7 @@
 - 所有树写走 expected revision + 完整新快照，没有可变单节点 SQL 旁路。
 - 相同幂等 key 不重复创建消息或收费；终态 CAS 唯一。
 - `qa_turn_stage` 和日志无正文；问答业务不依赖 Provider 内部包。
-- [ ] 从保存消息到 action/guidance 的垂直链路、恢复、API 与迁移完成。
+- [x] 从保存消息到 action/guidance 的垂直链路、恢复、API 与迁移完成。
 
 ### Lane 前端
 
@@ -101,7 +101,7 @@
 - 与原型共享信息架构，不复制 throwaway 原型代码或内嵌假 fixture 到生产路径。
 - 服务端是 revision、父子校验和 effective enabled 的事实来源。
 - 版本冲突保留编辑表单；危险操作先预览，实际命令仍带同 revision。
-- [ ] 1440/720/375px、键盘、焦点与非仅颜色状态满足两个 approved ui-spec。
+- [x] 1440/720/375px、键盘、焦点与非仅颜色状态满足两个 approved ui-spec。
 
 ### Lane 测试
 
@@ -121,7 +121,7 @@
 
 **完成定义**
 
-- [ ] 所有 `A` 项有自动化并通过；`M` 项有实际日期/环境/证据，失败不伪装通过。
+- [x] 所有 `A` 项有自动化并通过（130 条）；`M` 项有实际日期/环境/证据（16 条，矩阵 §16）。
 
 ### Lane 运维
 
@@ -134,12 +134,13 @@
 
 - CI 使用确定性假 Chat，不持有 `DASHSCOPE_API_KEY`。
 - 登记阈值、8/12、Prompt 字节和 stale timeout；不把 Prompt 正文复制成环境变量。
-- [ ] backend verify、frontend build/lint/test、doc links 和整体 validate 纳入门禁。
+- [x] backend verify、frontend build/lint/test、doc links 和整体 validate 纳入门禁。
 
 ## 6. 依赖前沿
 
-Step C 已于 2026-08-07 获项目所有者确认；01~15 已完成，全部 `A` 项自动化就位，第十前沿推进 16。
-16 含两个只有项目所有者能签的闸门（Step D 浏览器演示确认、Step E 结果确认），17 在 16 回写后才解锁。
+**依赖前沿已走完：17 张工单全部 complete。** Step A~F 关闭，矩阵 146 条全部回写。
+剩余闸门是 Step G 产物（[里程碑状态](../../status/2026-08-08-phase-3a-qa-understanding.md)、
+[复盘](../../retro/2026-08-08-phase-3a-retrospective.md)）经项目所有者确认；确认后才进入 3B Step B。
 
 ```text
 01 配置/Prompt ─┬─> 06 摘要 ───────────────┐
