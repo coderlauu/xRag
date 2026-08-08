@@ -20,6 +20,8 @@ import com.app.ai.model.CancellationToken;
 import com.app.ai.model.Capability;
 import com.app.ai.model.ChatCommand;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.ChatProfile;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.DataRegion;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ModelCatalogSnapshot;
@@ -97,6 +99,10 @@ class RoutingChatClientTests {
         assertThat(result.execution().failoverCount()).isEqualTo(1);
         assertThat(fake.invocations()).extracting(ProgrammableFakeProvider.Invocation::deploymentId)
                 .containsExactly(CHAT_A, CHAT_B);
+        assertThat(fake.chatRequests()).extracting(request -> request.sampling().temperature())
+                .containsExactly(0.1, 0.2);
+        assertThat(fake.chatRequests()).extracting(request -> request.sampling().topP())
+                .containsExactly(0.3, 0.4);
 
         assertThat(diagnostics.calls).singleElement().satisfies(diagnostic -> {
             assertThat(diagnostic.outcome()).isEqualTo(CallOutcome.SUCCEEDED);
@@ -840,6 +846,8 @@ class RoutingChatClientTests {
 
     private static ModelDeployment deployment(
             DeploymentId id, ProviderId providerId, boolean defaultCandidate, int priority) {
+        double temperature = id.equals(CHAT_A) ? 0.1 : 0.2;
+        double topP = id.equals(CHAT_A) ? 0.3 : 0.4;
         return new ModelDeployment(
                 id,
                 providerId,
@@ -850,7 +858,11 @@ class RoutingChatClientTests {
                 defaultCandidate,
                 priority,
                 true,
-                null);
+                null,
+                Set.of(),
+                null,
+                new ChatProfile(Map.of(
+                        ServiceTier.BALANCED, new ChatSamplingParameters(temperature, topP))));
     }
 
     private static com.app.ai.model.ExecutionTarget target(

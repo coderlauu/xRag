@@ -114,7 +114,10 @@ public final class SingleCandidateChatClient implements ChatClient {
         try {
             providerResult = provider.complete(
                     deployment,
-                    new ProviderChatRequest(command.messages(), command.tools()),
+                    new ProviderChatRequest(
+                            command.messages(),
+                            command.tools(),
+                            deployment.chat().sampling(command.tier())),
                     context);
         } catch (ProviderFailureException failure) {
             throw completeFailure(

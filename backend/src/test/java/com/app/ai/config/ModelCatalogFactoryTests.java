@@ -28,6 +28,9 @@ class ModelCatalogFactoryTests {
         assertThat(snapshot.configFingerprint()).hasSize(64);
         assertThat(snapshot.providers()).containsKey(new ProviderId("provider-a"));
         assertThat(snapshot.deployments()).containsKey(new DeploymentId("chat-a"));
+        assertThat(snapshot.deployments().get(new DeploymentId("chat-a"))
+                        .chat().sampling(ServiceTier.BALANCED).temperature())
+                .isEqualTo(0.1);
         assertThat(snapshot.toString()).doesNotContain("top-secret-value");
         assertThatThrownBy(() -> snapshot.providers().clear())
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -189,6 +192,64 @@ class ModelCatalogFactoryTests {
     }
 
     @Test
+    void cfg18_Chat采样等级必须与Deployment等级完全一致() {
+        var missing = validProperties();
+        missing.getDeployments().get("chat-a").setChat(null);
+        assertInvalid(missing, "chat");
+
+        var mismatch = validProperties();
+        mismatch.getDeployments().get("chat-a").getChat().getSamplingByTier()
+                .put(ServiceTier.QUALITY, sampling(0.2, 0.5));
+        assertInvalid(mismatch, "keys must exactly match");
+
+        var nonChat = validProperties();
+        nonChat.getDeployments().get("embedding-a").setChat(chatProfile());
+        assertInvalid(nonChat, "only valid for Chat deployments");
+    }
+
+    @Test
+    void cfg19_Chat采样数值缺失或越界时失败() {
+        var missingTemperature = validProperties();
+        missingTemperature.getDeployments().get("chat-a").getChat()
+                .getSamplingByTier().get(ServiceTier.BALANCED).setTemperature(null);
+        assertInvalid(missingTemperature, "temperature");
+
+        var invalidTemperature = validProperties();
+        invalidTemperature.getDeployments().get("chat-a").getChat()
+                .getSamplingByTier().get(ServiceTier.BALANCED).setTemperature(2.1);
+        assertInvalid(invalidTemperature, "temperature");
+
+        var invalidTopP = validProperties();
+        invalidTopP.getDeployments().get("chat-a").getChat()
+                .getSamplingByTier().get(ServiceTier.BALANCED).setTopP(0.0);
+        assertInvalid(invalidTopP, "top-p");
+    }
+
+    @Test
+    void cfg20_Chat采样值进入稳定Fingerprint() {
+        var firstProperties = validProperties();
+        var secondProperties = validProperties();
+        secondProperties.getDeployments().get("chat-a").getChat()
+                .getSamplingByTier().get(ServiceTier.BALANCED).setTopP(0.4);
+
+        var first = ModelCatalogFactory.create(firstProperties, name -> "present");
+        var second = ModelCatalogFactory.create(secondProperties, name -> "present");
+
+        assertThat(first.configFingerprint()).isNotEqualTo(second.configFingerprint());
+        assertThatThrownBy(() -> first.deployments().get(new DeploymentId("chat-a"))
+                        .chat().samplingByTier().clear())
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void cfg21_不支持采样映射的ChatAdapter在启动时失败() {
+        var properties = validProperties();
+        properties.getProviders().get("provider-a").setAdapter("unknown-chat-adapter");
+
+        assertInvalid(properties, "does not support Chat sampling");
+    }
+
+    @Test
     void valueTypes在运行时仍保持不可混用身份() {
         assertThat(new ProviderId("same")).isNotEqualTo(new ModelIdentity("same"));
         assertThatThrownBy(() -> new DeploymentId("bad id"))
@@ -236,7 +297,23 @@ class ModelCatalogFactoryTests {
         deployment.setDefaultCandidate(defaultCandidate);
         deployment.setPriority(priority);
         deployment.setEnabled(true);
+        deployment.setChat(chatProfile());
         return deployment;
+    }
+
+    private static AiModelsProperties.ChatProperties chatProfile() {
+        var chat = new AiModelsProperties.ChatProperties();
+        chat.setSamplingByTier(new LinkedHashMap<>(Map.of(
+                ServiceTier.BALANCED, sampling(0.1, 0.3))));
+        return chat;
+    }
+
+    private static AiModelsProperties.ChatSamplingProperties sampling(
+            double temperature, double topP) {
+        var sampling = new AiModelsProperties.ChatSamplingProperties();
+        sampling.setTemperature(temperature);
+        sampling.setTopP(topP);
+        return sampling;
     }
 
     private static AiModelsProperties.DeploymentProperties embeddingDeployment(

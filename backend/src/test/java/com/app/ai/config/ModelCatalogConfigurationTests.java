@@ -25,6 +25,8 @@ class ModelCatalogConfigurationTests {
                     "app.ai.deployments.chat-a.model-identity=chat-v1",
                     "app.ai.deployments.chat-a.capabilities[0]=CHAT",
                     "app.ai.deployments.chat-a.tiers[0]=BALANCED",
+                    "app.ai.deployments.chat-a.chat.sampling-by-tier.BALANCED.temperature=0.1",
+                    "app.ai.deployments.chat-a.chat.sampling-by-tier.BALANCED.top-p=0.3",
                     "app.ai.deployments.chat-a.default-candidate=true",
                     "app.ai.deployments.chat-a.priority=10",
                     "app.ai.deployments.chat-a.enabled=true");

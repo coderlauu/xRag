@@ -8,6 +8,8 @@ import com.app.ai.model.Capability;
 import com.app.ai.model.CancellationToken;
 import com.app.ai.model.CancellationRegistration;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.ChatMessage;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ModelDeployment;
 import com.app.ai.model.ModelIdentity;
@@ -77,7 +79,7 @@ class OpenAiCompatibleChatProviderTests {
                 "test-api-key")) {
             var result = provider.complete(
                     deployment(),
-                    new ProviderChatRequest(
+                    request(
                             List.of(new UserMessage("请搜索")),
                             List.of(new ToolDefinition("search", "搜索", "{\"type\":\"object\"}"))),
                     new ProviderAttemptContext(
@@ -104,6 +106,8 @@ class OpenAiCompatibleChatProviderTests {
         assertThat(request.path("model").asText()).isEqualTo("chat-model");
         assertThat(request.path("messages").get(0).path("role").asText()).isEqualTo("user");
         assertThat(request.path("messages").get(0).path("content").asText()).isEqualTo("请搜索");
+        assertThat(request.path("temperature").asDouble()).isEqualTo(0.1);
+        assertThat(request.path("top_p").asDouble()).isEqualTo(0.3);
         assertThat(request.path("tools").get(0).path("type").asText()).isEqualTo("function");
         assertThat(request.path("tools").get(0).path("function").path("parameters").isObject()).isTrue();
     }
@@ -125,7 +129,7 @@ class OpenAiCompatibleChatProviderTests {
                     ProviderFailureException.class,
                     () -> provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -157,7 +161,7 @@ class OpenAiCompatibleChatProviderTests {
                     ProviderFailureException.class,
                     () -> provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -197,7 +201,7 @@ class OpenAiCompatibleChatProviderTests {
                     ProviderFailureException.class,
                     () -> provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -233,7 +237,7 @@ class OpenAiCompatibleChatProviderTests {
                 try {
                     provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -287,7 +291,7 @@ class OpenAiCompatibleChatProviderTests {
                 try {
                     return provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -346,7 +350,7 @@ class OpenAiCompatibleChatProviderTests {
                     ProviderFailureException.class,
                     () -> provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -388,7 +392,7 @@ class OpenAiCompatibleChatProviderTests {
                     ProviderFailureException.class,
                     () -> provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -432,7 +436,7 @@ class OpenAiCompatibleChatProviderTests {
                     ProviderFailureException.class,
                     () -> provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -470,7 +474,7 @@ class OpenAiCompatibleChatProviderTests {
                     ProviderFailureException.class,
                     () -> provider.complete(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             new ProviderAttemptContext(
                                     UUID.randomUUID(),
                                     1,
@@ -518,6 +522,12 @@ class OpenAiCompatibleChatProviderTests {
                 10,
                 true,
                 null);
+    }
+
+    private static ProviderChatRequest request(
+            List<? extends ChatMessage> messages, List<ToolDefinition> tools) {
+        return new ProviderChatRequest(
+                List.copyOf(messages), tools, new ChatSamplingParameters(0.1, 0.3));
     }
 
     @FunctionalInterface

@@ -281,7 +281,10 @@ public final class RoutingChatClient implements ChatClient {
                 try {
                     providerResult = chatProvider.complete(
                             deployment,
-                            new ProviderChatRequest(command.messages(), command.tools()),
+                            new ProviderChatRequest(
+                                    command.messages(),
+                                    command.tools(),
+                                    deployment.chat().sampling(command.tier())),
                             context);
                     if (!dispatched.get() || providerResult == null) {
                         throw ProviderFailureException.of(

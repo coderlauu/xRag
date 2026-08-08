@@ -10,7 +10,9 @@ import com.app.ai.model.CallOptions;
 import com.app.ai.model.Capability;
 import com.app.ai.model.ChatCommand;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.ChatProfile;
 import com.app.ai.model.ChatResult;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.DataRegion;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.EmbeddingCommand;
@@ -195,7 +197,8 @@ class DiagnosticBestEffortTests {
         var deployments = new LinkedHashMap<DeploymentId, ModelDeployment>();
         deployments.put(CHAT, new ModelDeployment(
                 CHAT, PROVIDER, "chat-model", new ModelIdentity("chat-a-v1"),
-                Set.of(Capability.CHAT), Set.of(ServiceTier.BALANCED), true, 10, true, null));
+                Set.of(Capability.CHAT), Set.of(ServiceTier.BALANCED), true, 10, true, null,
+                Set.of(), null, balancedChatProfile()));
         deployments.put(EMBED, new ModelDeployment(
                 EMBED, PROVIDER, "embed-model", EMBED_IDENTITY,
                 Set.of(Capability.EMBEDDING), Set.of(), false, 10, true,
@@ -212,7 +215,8 @@ class DiagnosticBestEffortTests {
         var deployments = new LinkedHashMap<DeploymentId, ModelDeployment>();
         deployments.put(CHAT, new ModelDeployment(
                 CHAT, PROVIDER, "chat-model", new ModelIdentity("chat-a-v1"),
-                Set.of(Capability.CHAT), Set.of(ServiceTier.BALANCED), true, 10, true, null));
+                Set.of(Capability.CHAT), Set.of(ServiceTier.BALANCED), true, 10, true, null,
+                Set.of(), null, balancedChatProfile()));
         return new ModelCatalogSnapshot(
                 "test-v1", "a".repeat(64), providerMap(), deployments, runtimePolicy());
     }
@@ -225,6 +229,11 @@ class DiagnosticBestEffortTests {
                 new DataRegion("CN_TEST"), new QuotaDomain("quota-a"),
                 ProviderConfigurationStatus.CONFIGURED));
         return providers;
+    }
+
+    private static ChatProfile balancedChatProfile() {
+        return new ChatProfile(Map.of(
+                ServiceTier.BALANCED, new ChatSamplingParameters(0.1, 0.3)));
     }
 
     private static AiRuntimePolicy runtimePolicy() {

@@ -2,6 +2,8 @@ package com.app.ai.config;
 
 import com.app.ai.model.AiRuntimePolicy;
 import com.app.ai.model.Capability;
+import com.app.ai.model.ChatProfile;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.DataRegion;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.EmbeddingProfile;
@@ -139,6 +141,12 @@ final class ModelCatalogFactory {
 
             EmbeddingProfile embedding = embeddingProfile(path, capabilities, source.getEmbedding());
             RerankProfile rerank = rerankProfile(path, capabilities, source.getRerank());
+            ChatProfile chat = chatProfile(
+                    path,
+                    capabilities,
+                    tiers,
+                    source.getChat(),
+                    providers.get(providerId).adapter());
             result.put(id, new ModelDeployment(
                     id,
                     providerId,
@@ -151,9 +159,68 @@ final class ModelCatalogFactory {
                     source.isEnabled(),
                     embedding,
                     features,
-                    rerank));
+                    rerank,
+                    chat));
         }
         return immutableOrdered(result);
+    }
+
+    private static ChatProfile chatProfile(
+            String deploymentPath,
+            Set<Capability> capabilities,
+            Set<ServiceTier> tiers,
+            AiModelsProperties.ChatProperties source,
+            String providerAdapter) {
+        boolean supportsChat = capabilities.contains(Capability.CHAT)
+                || capabilities.contains(Capability.STREAM_CHAT);
+        if (!supportsChat) {
+            if (source != null) {
+                throw invalid(deploymentPath + ".chat", "is only valid for Chat deployments");
+            }
+            return null;
+        }
+        if (source == null) {
+            throw invalid(deploymentPath + ".chat", "is required for Chat deployments");
+        }
+        if (!"openai-compatible".equals(providerAdapter)) {
+            throw invalid(deploymentPath + ".chat", "provider adapter does not support Chat sampling");
+        }
+        Map<ServiceTier, AiModelsProperties.ChatSamplingProperties> configured =
+                source.getSamplingByTier();
+        String path = deploymentPath + ".chat.sampling-by-tier";
+        if (configured == null || configured.isEmpty()) {
+            throw invalid(path, "must not be empty");
+        }
+        if (!configured.keySet().equals(tiers)) {
+            throw invalid(path, "keys must exactly match deployment tiers");
+        }
+        Map<ServiceTier, ChatSamplingParameters> sampling = new java.util.EnumMap<>(ServiceTier.class);
+        for (ServiceTier tier : ServiceTier.values()) {
+            if (!configured.containsKey(tier)) {
+                continue;
+            }
+            String tierPath = path + "." + tier;
+            AiModelsProperties.ChatSamplingProperties values = configured.get(tier);
+            if (values == null) {
+                throw invalid(tierPath, "configuration is required");
+            }
+            Double temperature = values.getTemperature();
+            if (temperature == null) {
+                throw invalid(tierPath + ".temperature", "is required");
+            }
+            if (!Double.isFinite(temperature) || temperature < 0 || temperature > 2) {
+                throw invalid(tierPath + ".temperature", "must be finite and between 0 and 2");
+            }
+            Double topP = values.getTopP();
+            if (topP == null) {
+                throw invalid(tierPath + ".top-p", "is required");
+            }
+            if (!Double.isFinite(topP) || topP <= 0 || topP > 1) {
+                throw invalid(tierPath + ".top-p", "must be finite and greater than 0 and at most 1");
+            }
+            sampling.put(tier, new ChatSamplingParameters(temperature, topP));
+        }
+        return new ChatProfile(sampling);
     }
 
     private static RerankProfile rerankProfile(
@@ -383,6 +450,18 @@ final class ModelCatalogFactory {
                         Integer.toString(embedding.maxBatchItems()),
                         Integer.toString(embedding.maxInputTokensPerItem()),
                         embedding.preprocessingFingerprint());
+            }
+            ChatProfile chat = deployment.chat();
+            if (chat != null) {
+                for (ServiceTier tier : ServiceTier.values()) {
+                    ChatSamplingParameters sampling = chat.samplingByTier().get(tier);
+                    if (sampling != null) {
+                        append(canonical,
+                                tier.name(),
+                                Double.toString(sampling.temperature()),
+                                Double.toString(sampling.topP()));
+                    }
+                }
             }
         }
         append(canonical,

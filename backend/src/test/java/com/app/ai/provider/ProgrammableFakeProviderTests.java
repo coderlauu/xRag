@@ -7,6 +7,8 @@ import com.app.ai.model.AssistantMessage;
 import com.app.ai.model.Capability;
 import com.app.ai.model.CancellationToken;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.ChatMessage;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ModelDeployment;
 import com.app.ai.model.ModelIdentity;
@@ -14,6 +16,7 @@ import com.app.ai.model.ProviderId;
 import com.app.ai.model.RerankCandidate;
 import com.app.ai.model.ServiceTier;
 import com.app.ai.model.TokenUsage;
+import com.app.ai.model.ToolDefinition;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -33,7 +36,7 @@ class ProgrammableFakeProviderTests {
         var fake = new ProgrammableFakeProvider(
                 ProgrammableFakeProvider.Script.chat((deployment, request, context) -> expected));
         ChatProvider provider = fake;
-        var request = new ProviderChatRequest(List.of(), List.of());
+        var request = request(List.of(), List.of());
 
         var first = provider.complete(deployment(), request, context(1));
         var second = provider.complete(deployment(), request, context(2));
@@ -54,7 +57,7 @@ class ProgrammableFakeProviderTests {
 
         var failure = catchThrowableOfType(
                 ProviderFailureException.class,
-                () -> fake.complete(deployment(), new ProviderChatRequest(List.of(), List.of()), context(1)));
+                () -> fake.complete(deployment(), request(List.of(), List.of()), context(1)));
 
         assertThat(failure.failureType()).isEqualTo(AttemptFailureType.AUTHENTICATION_REJECTED);
         assertThat(failure.httpStatus()).isEqualTo(401);
@@ -74,7 +77,7 @@ class ProgrammableFakeProviderTests {
         StreamingChatProvider provider = fake;
 
         var actual = provider.stream(
-                        deployment(), new ProviderChatRequest(List.of(), List.of()), context(1))
+                        deployment(), request(List.of(), List.of()), context(1))
                 .collectList()
                 .block();
 
@@ -133,7 +136,7 @@ class ProgrammableFakeProviderTests {
         var canceled = new ProgrammableFakeProvider(ProgrammableFakeProvider.Script.stream(
                 (deployment, request, context) -> Flux.never()));
         var subscription = canceled.stream(
-                        deployment(), new ProviderChatRequest(List.of(), List.of()), context(1))
+                        deployment(), request(List.of(), List.of()), context(1))
                 .subscribe();
 
         subscription.dispose();
@@ -147,7 +150,7 @@ class ProgrammableFakeProviderTests {
         var failure = catchThrowableOfType(
                 ProviderFailureException.class,
                 () -> malformed.stream(
-                                deployment(), new ProviderChatRequest(List.of(), List.of()), context(1))
+                                deployment(), request(List.of(), List.of()), context(1))
                         .blockLast());
 
         assertThat(failure.failureType()).isEqualTo(AttemptFailureType.PROVIDER_RESPONSE_INVALID);
@@ -175,5 +178,11 @@ class ProgrammableFakeProviderTests {
                 10,
                 true,
                 null);
+    }
+
+    private static ProviderChatRequest request(
+            List<? extends ChatMessage> messages, List<ToolDefinition> tools) {
+        return new ProviderChatRequest(
+                List.copyOf(messages), tools, new ChatSamplingParameters(0.1, 0.3));
     }
 }

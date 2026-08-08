@@ -278,6 +278,8 @@ public final class OpenAiCompatibleChatProvider
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", deployment.upstreamModel());
         body.put("messages", request.messages().stream().map(this::message).toList());
+        body.put("temperature", request.sampling().temperature());
+        body.put("top_p", request.sampling().topP());
         if (!request.tools().isEmpty()) {
             body.put("tools", request.tools().stream().map(this::tool).toList());
         }

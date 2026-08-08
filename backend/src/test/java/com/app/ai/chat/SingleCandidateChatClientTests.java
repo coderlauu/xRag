@@ -16,7 +16,9 @@ import com.app.ai.model.CancellationRegistration;
 import com.app.ai.model.CancellationToken;
 import com.app.ai.model.ChatCommand;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.ChatProfile;
 import com.app.ai.model.ChatResult;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.DataRegion;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ModelCatalogSnapshot;
@@ -265,7 +267,11 @@ class SingleCandidateChatClientTests {
                 true,
                 10,
                 true,
-                null);
+                null,
+                Set.of(),
+                null,
+                new ChatProfile(Map.of(
+                        ServiceTier.BALANCED, new ChatSamplingParameters(0.1, 0.3))));
         return new ModelCatalogSnapshot(
                 "test-v1",
                 "a".repeat(64),

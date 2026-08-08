@@ -119,6 +119,7 @@ public class AiModelsProperties {
         private boolean defaultCandidate;
         private int priority;
         private boolean enabled = true;
+        private ChatProperties chat;
         private EmbeddingProperties embedding;
         private RerankProperties rerank;
 
@@ -194,6 +195,14 @@ public class AiModelsProperties {
             this.enabled = enabled;
         }
 
+        public ChatProperties getChat() {
+            return chat;
+        }
+
+        public void setChat(ChatProperties chat) {
+            this.chat = chat;
+        }
+
         public EmbeddingProperties getEmbedding() {
             return embedding;
         }
@@ -222,6 +231,41 @@ public class AiModelsProperties {
 
         public void setMaxDocuments(int maxDocuments) {
             this.maxDocuments = maxDocuments;
+        }
+    }
+
+    public static class ChatProperties {
+
+        private Map<ServiceTier, ChatSamplingProperties> samplingByTier = new LinkedHashMap<>();
+
+        public Map<ServiceTier, ChatSamplingProperties> getSamplingByTier() {
+            return samplingByTier;
+        }
+
+        public void setSamplingByTier(Map<ServiceTier, ChatSamplingProperties> samplingByTier) {
+            this.samplingByTier = samplingByTier;
+        }
+    }
+
+    public static class ChatSamplingProperties {
+
+        private Double temperature;
+        private Double topP;
+
+        public Double getTemperature() {
+            return temperature;
+        }
+
+        public void setTemperature(Double temperature) {
+            this.temperature = temperature;
+        }
+
+        public Double getTopP() {
+            return topP;
+        }
+
+        public void setTopP(Double topP) {
+            this.topP = topP;
         }
     }
 

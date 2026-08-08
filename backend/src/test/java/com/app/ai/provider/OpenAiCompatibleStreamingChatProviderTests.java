@@ -5,14 +5,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.app.ai.model.CallOptions;
 import com.app.ai.model.Capability;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.ChatMessage;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ModelDeployment;
 import com.app.ai.model.ModelIdentity;
 import com.app.ai.model.ProviderId;
 import com.app.ai.model.ServiceTier;
 import com.app.ai.model.TokenUsage;
+import com.app.ai.model.ToolDefinition;
 import com.app.ai.model.UserMessage;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -27,6 +33,38 @@ import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 
 class OpenAiCompatibleStreamingChatProviderTests {
+
+    @Test
+    void str采样参数进入流式请求体() throws Exception {
+        var capturedBody = new AtomicReference<String>();
+        var server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/v1/chat/completions", exchange -> {
+            capturedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] response = ("data: {\"choices\":[{\"delta\":{\"content\":\"好\"},"
+                    + "\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        try (var provider = new OpenAiCompatibleChatProvider(
+                URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/v1"),
+                "test-api-key")) {
+            provider.stream(
+                            deployment(),
+                            request(List.of(new UserMessage("你好")), List.of()),
+                            context(new AtomicInteger()))
+                    .collectList()
+                    .block(Duration.ofSeconds(2));
+        } finally {
+            server.stop(0);
+        }
+
+        assertThat(capturedBody.get()).contains("\"temperature\":0.1", "\"top_p\":0.3");
+    }
 
     @Test
     void str01_Lf分隔的Sse在订阅后才发Http并归一文本与完成事件() throws Exception {
@@ -57,7 +95,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             Flux<ProviderChatEvent> events = provider.stream(
                     deployment(),
-                    new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                    request(List.of(new UserMessage("你好")), List.of()),
                     context(lifecycle));
 
             assertThat(requests).hasValue(0);
@@ -88,7 +126,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             assertThat(provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
@@ -122,7 +160,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             assertThat(provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
@@ -157,7 +195,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             assertThat(provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
@@ -187,7 +225,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             assertThat(provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)))
@@ -214,7 +252,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .collectList()
                     .block(Duration.ofSeconds(2)));
@@ -236,7 +274,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .blockLast(Duration.ofSeconds(2)));
 
@@ -257,7 +295,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .blockLast(Duration.ofSeconds(2)));
 
@@ -280,7 +318,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
             List<ProviderChatEvent> received = new java.util.ArrayList<>();
             Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .doOnNext(received::add)
                     .blockLast(Duration.ofSeconds(2)));
@@ -318,7 +356,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
             List<ProviderChatEvent> received = new java.util.ArrayList<>();
             Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .doOnNext(received::add)
                     .blockLast(Duration.ofSeconds(2)));
@@ -347,7 +385,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             Disposable subscription = provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .subscribe();
 
@@ -378,7 +416,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
         try (var provider = provider(server)) {
             Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .blockLast(Duration.ofSeconds(2)));
 
@@ -409,7 +447,7 @@ class OpenAiCompatibleStreamingChatProviderTests {
                 "test-api-key")) {
             Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() -> provider.stream(
                             deployment(),
-                            new ProviderChatRequest(List.of(new UserMessage("你好")), List.of()),
+                            request(List.of(new UserMessage("你好")), List.of()),
                             context(new AtomicInteger()))
                     .blockLast(Duration.ofSeconds(2)));
 
@@ -462,6 +500,12 @@ class OpenAiCompatibleStreamingChatProviderTests {
                 10,
                 true,
                 null);
+    }
+
+    private static ProviderChatRequest request(
+            List<? extends ChatMessage> messages, List<ToolDefinition> tools) {
+        return new ProviderChatRequest(
+                List.copyOf(messages), tools, new ChatSamplingParameters(0.1, 0.3));
     }
 
 }

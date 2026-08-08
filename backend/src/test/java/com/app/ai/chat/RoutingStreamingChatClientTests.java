@@ -16,6 +16,8 @@ import com.app.ai.model.CallOptions;
 import com.app.ai.model.Capability;
 import com.app.ai.model.ChatCommand;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.ChatProfile;
+import com.app.ai.model.ChatSamplingParameters;
 import com.app.ai.model.ChatStreamEvent;
 import com.app.ai.model.DataRegion;
 import com.app.ai.model.DeploymentId;
@@ -145,6 +147,8 @@ class RoutingStreamingChatClientTests {
         assertThat(fake.invocations())
                 .extracting(ProgrammableFakeProvider.Invocation::deploymentId)
                 .containsExactly(STREAM_A, STREAM_B);
+        assertThat(fake.chatRequests()).extracting(request -> request.sampling().temperature())
+                .containsExactly(0.1, 0.2);
         assertThat(diagnostics.calls).singleElement().satisfies(diagnostic -> {
             assertThat(diagnostic.outcome()).isEqualTo(CallOutcome.SUCCEEDED);
             assertThat(diagnostic.attempts()).extracting(attempt -> attempt.attemptKind())
@@ -777,6 +781,7 @@ class RoutingStreamingChatClientTests {
 
     private static ModelDeployment deployment(
             DeploymentId id, ProviderId providerId, boolean defaultCandidate, int priority) {
+        double temperature = id.equals(STREAM_A) ? 0.1 : 0.2;
         return new ModelDeployment(
                 id,
                 providerId,
@@ -787,7 +792,11 @@ class RoutingStreamingChatClientTests {
                 defaultCandidate,
                 priority,
                 true,
-                null);
+                null,
+                Set.of(),
+                null,
+                new ChatProfile(Map.of(
+                        ServiceTier.BALANCED, new ChatSamplingParameters(temperature, 0.3))));
     }
 
     private static ExecutionTarget target(DeploymentId deploymentId, ProviderId providerId) {

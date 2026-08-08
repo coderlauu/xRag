@@ -106,7 +106,10 @@ final class CandidateStreamAttempt {
         try {
             upstream = Objects.requireNonNull(provider.stream(
                     deployment,
-                    new ProviderChatRequest(command.messages(), command.tools()),
+                    new ProviderChatRequest(
+                            command.messages(),
+                            command.tools(),
+                            deployment.chat().sampling(command.tier())),
                     context));
         } catch (RuntimeException failure) {
             upstream = Flux.error(failure);

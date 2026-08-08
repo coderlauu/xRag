@@ -28,6 +28,11 @@ app:
         default-candidate: true
         priority: 10
         enabled: true
+        chat:
+          sampling-by-tier:
+            BALANCED:
+              temperature: 0.1
+              top-p: 0.3
       # Rerank 默认 **关闭**。打开它是两步动作：enabled: true + 注入 DASHSCOPE_API_KEY。
       # 只做前一步会让重排调用直接以 AUTHENTICATION 失败而不是静默降级——architecture.md §11
       # 明确要求区分"目录没声明能力"（可降级为 Noop）和"声明了却缺密钥"（配置故障）。
