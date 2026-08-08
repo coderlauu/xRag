@@ -17,7 +17,7 @@ bash -n "$repo_root/.agents/skills/lark-sync-project-docs/scripts/sync.sh"
 
 # build 在 test 之前：`tsc -b` 会把测试文件一起做类型检查，编译不过时先看到类型错误，
 # 比看到一堆运行期失败更容易定位。
-(cd frontend && corepack pnpm install --frozen-lockfile && corepack pnpm run build && corepack pnpm test)
+(cd frontend && corepack pnpm install --frozen-lockfile && corepack pnpm run build && corepack pnpm run lint && corepack pnpm test)
 
 # 本机跑集成测试之前，先确认没有另一个后端实例连着同一个库。
 #

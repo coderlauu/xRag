@@ -334,6 +334,79 @@ CI 全程使用 `ProgrammableFakeProvider`，不读取任何收费 Key，也不�
 也不算已合规准入的 Provider（architecture.md §13）。在拿到合规 Key 之前，
 诊断页的 `verifiedCapabilities` 恒为空数组——那是"尚未验证"，不是"不支持"。
 
+## 问答核心链路（Phase 3A）运维须知
+
+### 1. 没有模型 Key 时，系统不会报错——它会安静地不工作
+
+这是本阶段**最容易误判的一条**，已用 `QaNoApiKeyBehaviourTests` 断言住：在没有任何供应商密钥的
+环境里，应用照常启动，用户发问也照常返回 `201` 并走到稳定终态 `ACTIONS_READY`。区别只在细节里：
+
+| 观察点 | 有 Key | 无 Key |
+|---|---|---|
+| 本轮终态 | `ACTIONS_READY` | `ACTIONS_READY`（**相同**） |
+| `inspector.rewrite.mode` | `MODEL` | `NORMALIZED_FALLBACK` |
+| `turn.degradations` | `[]` | 含 `REWRITE_MODEL_UNAVAILABLE` |
+| 意图候选 | 有命中 | 空 |
+| 检索动作 | `KB_TARGETED` | `NO_MATCH` / `GLOBAL_FALLBACK` |
+
+成因是设计使然：未注入密钥的 Provider 标为 `UNCONFIGURED` 并在路由阶段被过滤，改写、摘要和评分
+三处各自捕获调用失败并降级（architecture §14）。**按"没配 Key 就该报错"的直觉去看监控，会把一个
+完全没在路由的系统当成正常的。** 判断依据应该是 `turn.degradations` 与动作类型，不是 HTTP 状态码。
+
+### 2. 非敏感运行配置（全部有默认值，可不设）
+
+以下变量已在 `application.properties` 中以 `${VAR:default}` 形式登记，**默认值即 Step C 冻结值**，
+改动前请回 [PRD](../docs/prd/2026-08-07-qa-pipeline-prd.md) 与 [architecture §13](../tech/qa-pipeline/architecture.md) 确认，
+启动时会做偏序与边界校验，不合法直接启动失败：
+
+| 变量 | 默认 | 含义 |
+|---|---|---|
+| `QA_MAX_SUB_QUESTIONS` | `3` | 一次提问最多拆几个子问题；超出即业务拒绝，不截断 |
+| `QA_MAX_TOTAL_INTENTS` | `3` | 全局意图候选封顶 |
+| `QA_HISTORY_KEEP_TURNS` | `8` | 保留多少个完整轮次的原文 |
+| `QA_SUMMARY_START_TURNS` | `12` | 达到多少个可摘要轮次才启动压缩 |
+| `QA_MAX_INTENT_PROMPT_BYTES` | `65536` | 评分 Prompt 的 UTF-8 字节预算；超出整轮显式失败 |
+| `QA_PROCESSING_STALE_AFTER` | `3m` | 启动回收把多久以前的 `PROCESSING` 判为中断 |
+| `QA_RETAIN_THRESHOLD` | `0.35` | 候选保留下限 |
+| `QA_TARGETED_THRESHOLD` | `0.40` | 形成定向检索动作的下限 |
+| `QA_FALLBACK_THRESHOLD` | `0.60` | 低于它补全局兜底 |
+| `QA_SUPPLEMENT_THRESHOLD` | `0.80` | 单候选低于它补全局 |
+| `QA_AMBIGUITY_MARGIN` | `0.15` | 歧义判定的分差 |
+
+必须满足 `retain ≤ targeted ≤ fallback ≤ supplement`、`summary-start > history-keep`、
+`max-total-intents ≥ max-sub-questions`，否则启动失败并指出完整配置路径。
+
+**Prompt 模板留在 classpath（`resources/prompts/qa/3a/`），不做环境变量。** 它们是需要评审的产物，
+复制成环境变量既会丢失 review，也会在部署面板里泄露给不该看到的人。改 Prompt 要重新发版。
+
+### 3. 单实例假设：意图树缓存与中断回收
+
+- **意图树快照是进程内缓存**（`IntentTreeStore`）。写命令提交后原子替换本进程的缓存；多实例部署时
+  **其他实例不会感知**，会继续用旧 revision 直到重启。横向扩容前必须先回 [ADR 0007](../docs/adr/0007-versioned-intent-tree.md) 重新决策。
+- **中断回收在启动时执行一次**：把超过 `QA_PROCESSING_STALE_AFTER` 的 `PROCESSING` 轮次标为
+  `FAILED/PROCESS_INTERRUPTED`，**不重放模型调用**。多实例同时启动会互相回收对方正在处理的轮次，
+  这与 [ADR 0002](../docs/adr/0002-knowledge-base-async-and-concurrency.md) 的单实例假设是同一条约束。
+
+### 4. Rollback
+
+`V7` / `V8` 只新增 `qa_*` 表，不改动既有对象。应用回退到上一版本后这些表仍在，用户对话不会丢失，
+只是新版本才认识的列不再被写入。**意图树没有"回滚 revision"操作**：已发布的 revision 不 update，
+业务级回退要靠创建一个新 revision 实现。
+
+### 5. 测试与真实 API 的边界（比 Embedding 那节更要小心）
+
+`backend/.env`（已 gitignore）里的密钥会被 `application.properties` 的
+`spring.config.import=optional:file:.env[.properties]` 读进 Spring `Environment`。
+
+**后果：开发机上任何不注入假 `ChatClient` 的 `@SpringBootTest` 都会打真实供应商并产生计费调用**——
+即使 `System.getenv("DASHSCOPE_API_KEY")` 是空的，因为密钥根本不在进程环境里。用
+`@EnabledIfEnvironmentVariable` 守门只挡得住进程环境，挡不住这条路径。
+
+CI 上没有 `.env` 也没有 Secret，所以 CI 始终是无 Key 环境；这个坑只在本地成立。要写"无 Key 行为"
+一类的测试，正确做法是用内联测试属性把密钥覆盖成空串（内联属性优先级高于全部 config data 文件），
+并在断言前守住 catalog 的 `UNCONFIGURED` 状态——覆盖 `spring.config.import` 是无效的，它写在
+`application.properties` 文档内部，外部再声明只是追加。参见 `QaNoApiKeyBehaviourTests`。
+
 ## Local Validation
 
 本地可通过以下方式验证部署基线：

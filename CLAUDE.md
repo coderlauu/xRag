@@ -62,7 +62,7 @@ scripts/infra-down.sh             # 默认只停容器、保留数据卷；加 -
 scripts/ci-validate.sh
 ```
 
-依次执行：`docker compose config` → `check-doc-links.mjs` → `check-deploy-contract.mjs` → `node --test publish-feishu-docs.test.mjs` → `bash -n` 校验 lark skill 脚本 → 3001 端口 preflight → frontend build → backend `mvnw verify`。
+依次执行：`docker compose config` → `check-doc-links.mjs` → `check-deploy-contract.mjs` → `node --test publish-feishu-docs.test.mjs` → `bash -n` 校验 lark skill 脚本 → frontend `build` + `lint` + `test` → 3001 端口 preflight → backend `mvnw verify`。
 
 `scripts/check-doc-links.mjs` 校验 `AGENTS.md` / `CLAUDE.md` / `README.md` 以及 `learning/` / `docs/` / `tech/` / `prototype/` / `deploy/` 下所有 Markdown 的内部链接，新增或挪动文档后务必跑一次；`.scratch/` 不在扫描范围内（工单是临时执行载体，不做链接保证）。`.github/workflows/ci.yml` 除 `validate` 外还有 `infra`、`build-images`、`deploy-staging`、`smoke-staging`、`deploy-production`、`smoke-production` 六个 job，本地脚本只等价于第一个。
 
