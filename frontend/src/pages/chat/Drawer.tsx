@@ -2,12 +2,16 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 interface DrawerProps {
   title: string;
+  /** 从哪一侧滑出。对话列表在左、本轮处理在右，与原型一致（ui-spec §5.3）。 */
+  side?: "left" | "right";
   onClose: () => void;
   children: ReactNode;
 }
 
 /**
- * 窄屏下的全高覆盖层（ui-spec §10）。
+ * 对话列表与本轮处理的覆盖层（ui-spec §2.2 / §10）。
+ *
+ * 选 C 之后它在**所有断点**上都是唯一形态，不再只是窄屏降级；≤720px 时铺满整宽。
  *
  * 用原生 `<dialog>` + `showModal()` 而不是自己画遮罩：焦点约束、背景不可交互和层叠都是
  * 浏览器给的。挂载 effect **不能加 cleanup 去 `close()`**，理由与 `components/Modal.tsx`
@@ -17,7 +21,7 @@ interface DrawerProps {
  * 不实现 UA 的 Esc→cancel，测试里必须有一条能走通的路径。两条都只是 `onClose()`，重复
  * 触发无副作用。
  */
-export function Drawer({ title, onClose, children }: DrawerProps) {
+export function Drawer({ title, side = "right", onClose, children }: DrawerProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
 
@@ -32,7 +36,7 @@ export function Drawer({ title, onClose, children }: DrawerProps) {
   return (
     <dialog
       ref={ref}
-      className="qa-drawer"
+      className={`qa-drawer qa-drawer-${side}`}
       aria-label={title}
       onCancel={onClose}
       onClose={onClose}

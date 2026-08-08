@@ -177,8 +177,14 @@ code {
   margin-bottom: 20px;
 }
 
+/*
+ * C — Focused Chat（ui-spec §2.2 / §12A）：单列，没有常驻侧栏，因此这里没有断点分栏规则。
+ * 两个面板都由 `<dialog>` 抽屉承载，开合是 JS 行为；CSS 只管宽度与铺满方式，
+ * 不再需要和 `useLayout` 对齐同一组断点——那正是选 C 省掉的那条维护成本。
+ */
 .qa-chat {
   display: grid;
+  grid-template-columns: 1fr;
   min-height: calc(100svh - 100px);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -186,25 +192,15 @@ code {
 }
 
 /*
- * 断点由 `useLayout` 判定后写在 class 上，这里不再重复一套 media query。
- * 抽屉的开合是 JS 行为（Esc 关闭、焦点返回、打开时不渲染常驻栏），断点定义分两处
- * 维护迟早会漂移——同一个 1024px，CSS 说该收起、JS 说还没到，就成了"看不见但仍可
- * Tab 到"的幽灵栏。
+ * 正文测量宽度上限 760px。用左右 padding 而不是 `width + margin:auto`：页头与输入区的
+ * 分隔线要继续通栏，只有内容居中——后者会把那两条线也缩到 760px，看起来像卡片而不是版面。
  */
-.qa-layout-wide { grid-template-columns: 260px minmax(420px, 1fr); }
-.qa-layout-wide.qa-inspector-docked { grid-template-columns: 260px minmax(420px, 1fr) 320px; }
-.qa-layout-medium { grid-template-columns: 240px minmax(0, 1fr); }
-.qa-layout-narrow { grid-template-columns: 1fr; }
-
-.qa-conversations,
-.qa-inspector {
-  padding: 18px;
-  background: var(--social-bg);
-  overflow-y: auto;
-}
-
-.qa-conversations { border-right: 1px solid var(--border); }
-.qa-inspector { border-left: 1px solid var(--border); }
+/*
+ * 正文测量宽度上限 760px，由 `--qa-gutter` 统一给消息区与输入区。用左右内边距而不是
+ * `width + margin:auto`：页头与输入区的分隔线要继续通栏，只有内容居中——后者会把那两条
+ * 线也缩到 760px，看起来像卡片而不是版面。
+ */
+.qa-chat { --qa-gutter: max(22px, calc((100% - 760px) / 2)); }
 
 .qa-list-pane { display: grid; gap: 12px; align-content: start; }
 .qa-new-conversation { width: 100%; }
@@ -235,7 +231,7 @@ code {
 }
 .qa-menu-items button { text-align: left; }
 
-.qa-messages { display: flex; flex-direction: column; gap: 14px; padding: 22px; overflow-y: auto; }
+.qa-messages { display: flex; flex-direction: column; gap: 14px; padding: 22px var(--qa-gutter); overflow-y: auto; }
 .qa-messages-list { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .qa-load-earlier { align-self: center; }
 .qa-welcome { margin: auto; max-width: 520px; text-align: center; }
@@ -257,9 +253,9 @@ code {
 .qa-clarification { display: grid; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
 .qa-clarification label { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
 .qa-clarification input { margin-top: 3px; accent-color: var(--accent); }
-.qa-inline-error { margin: 0 22px; font-size: 14px; color: var(--danger); }
+.qa-inline-error { margin: 0 var(--qa-gutter); font-size: 14px; color: var(--danger); }
 
-.qa-composer { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 16px 22px; border-top: 1px solid var(--border); }
+.qa-composer { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 16px var(--qa-gutter); border-top: 1px solid var(--border); }
 .qa-composer textarea { min-height: 58px; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; color: var(--text-h); background: var(--bg); }
 .qa-composer small { grid-column: 1 / -1; }
 
@@ -274,19 +270,22 @@ code {
 .qa-match, .qa-action { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .qa-match-path { color: var(--text-h); }
 
-/* 窄屏覆盖层。用原生 <dialog>，焦点约束与背景不可交互交给浏览器。 */
+/*
+ * 两个面板的覆盖层，所有断点通用（C 没有常驻侧栏）。用原生 <dialog>，
+ * 焦点约束与背景不可交互交给浏览器。
+ */
 .qa-drawer {
-  margin: 0 0 0 auto;
   width: min(420px, 100vw);
   max-width: 100vw;
   height: 100dvh;
   max-height: 100dvh;
   padding: 0;
   border: 0;
-  border-left: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
 }
+.qa-drawer-right { margin: 0 0 0 auto; border-left: 1px solid var(--border); }
+.qa-drawer-left { margin: 0 auto 0 0; border-right: 1px solid var(--border); }
 .qa-drawer::backdrop { background: rgb(0 0 0 / 0.35); }
 .qa-drawer-head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -304,6 +303,9 @@ code {
 @media (max-width: 720px) {
   .qa-message { max-width: 92%; }
   .qa-clarification label { padding: 12px; }
+  /* 窄屏抽屉铺满整宽（ui-spec §10）；两侧的边框此时没有意义。 */
+  .qa-drawer { width: 100vw; }
+  .qa-drawer-left, .qa-drawer-right { border: 0; }
 }
 
 /* ---- 意图树 C — Route Canvas ---- */

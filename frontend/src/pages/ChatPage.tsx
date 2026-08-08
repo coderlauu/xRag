@@ -17,7 +17,6 @@ import { ConversationListPane } from "./chat/ConversationListPane";
 import { DeleteConversationDialog, RenameConversationDialog } from "./chat/ConversationDialogs";
 import { Drawer } from "./chat/Drawer";
 import { TurnInspectorPane } from "./chat/TurnInspectorPane";
-import { useViewportLayout } from "../hooks/useLayout";
 import { relativeTime } from "./chat/labels";
 
 const COMPLETION_NOTICE =
@@ -30,19 +29,23 @@ const NEW_CONVERSATION = "";
 const NONE_OF_THE_ABOVE = "__none_of_the_above__";
 
 /**
- * 问答页（approved A — Conversation + Inspector）。
+ * 问答页（approved C — Focused Chat，2026-08-08 由 A 改判）。
  *
- * 三条不能松的纪律：
+ * 布局只有一种形态：**中央单列，对话列表与本轮处理都是抽屉**，桌面也不例外
+ * （ui-spec §2.2 / §12A）。因此这里不再消费 `useViewportLayout`——没有"常驻栏 vs 抽屉"
+ * 的分支要按断点切，剩下的宽度差异纯 CSS 就够。断点判定仍留给意图树页使用。
+ *
+ * 四条不能松的纪律：
  *
  * 1. **只展示真实 3A 状态**——没有伪答案、伪来源、停止或排队控件，3A 完成提示带
  *    `3A 验收` 标签且不进入历史助手消息。
  * 2. **同一次提交重试复用同一个 clientRequestId**，但正文一变就必须换新的：后端对
  *    "同 key 不同正文"返回 409 `IDEMPOTENCY_KEY_REUSED`，复用到底反而把用户卡死。
  * 3. **服务端是终态的唯一事实来源**——本地不推断"应该成功了"，一律以返回的 turn 为准。
+ * 4. **本轮处理默认关着，所以它不承担关键失败的传达**（ui-spec §6.1）。失败与降级都要
+ *    落在消息区，抽屉一次不开也不该丢信息。选 C 之后这条从保守设计变成唯一保险。
  */
 export function ChatPage() {
-  const layout = useViewportLayout();
-
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [listCursor, setListCursor] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(true);
@@ -62,7 +65,6 @@ export function ChatPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
   const [panel, setPanel] = useState<"list" | "inspector" | null>(null);
-  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
 
   const pending = useRef<{ signature: string; requestId: string } | null>(null);
   const panelTrigger = useRef<HTMLButtonElement | null>(null);
@@ -72,7 +74,7 @@ export function ChatPage() {
   const draft = drafts[draftKey] ?? "";
   const status = result?.turn.status;
   const active = submitting || status === "SAVED" || status === "PROCESSING";
-  const inspectorOpen = layout === "wide" ? !inspectorCollapsed : panel === "inspector";
+  const inspectorOpen = panel === "inspector";
 
   useEffect(() => {
     void loadConversations();
@@ -228,10 +230,6 @@ export function ChatPage() {
   }
 
   function toggleInspector(trigger: HTMLButtonElement) {
-    if (layout === "wide") {
-      setInspectorCollapsed((collapsed) => !collapsed);
-      return;
-    }
     if (panel === "inspector") {
       setPanel(null);
       return;
@@ -254,29 +252,17 @@ export function ChatPage() {
   );
 
   return (
-    <section
-      className={`qa-page qa-chat qa-layout-${layout}${
-        layout === "wide" && inspectorOpen ? " qa-inspector-docked" : ""
-      }`}
-      aria-labelledby="chat-title"
-    >
-      {layout === "narrow" ? null : (
-        <aside className="qa-conversations" aria-label="对话列表">
-          {listPane}
-        </aside>
-      )}
-
+    <section className="qa-page qa-chat" aria-labelledby="chat-title">
       <main className="qa-thread">
         <header className="qa-thread-heading">
           <div className="qa-thread-title">
-            {layout === "narrow" ? (
-              <button
-                type="button"
-                onClick={(event) => openPanel("list", event.currentTarget)}
-              >
-                对话列表
-              </button>
-            ) : null}
+            <button
+              type="button"
+              aria-expanded={panel === "list"}
+              onClick={(event) => openPanel("list", event.currentTarget)}
+            >
+              对话列表
+            </button>
             <div>
               <h1 id="chat-title">问答</h1>
               <h2>{current?.title ?? "新对话"}</h2>
@@ -474,14 +460,8 @@ export function ChatPage() {
         </div>
       </main>
 
-      {layout === "wide" && inspectorOpen ? (
-        <aside className="qa-inspector" aria-label="本轮处理">
-          <TurnInspectorPane result={result} />
-        </aside>
-      ) : null}
-
       {panel === "list" ? (
-        <Drawer title="对话列表" onClose={() => setPanel(null)}>
+        <Drawer title="对话列表" side="left" onClose={() => setPanel(null)}>
           {listPane}
         </Drawer>
       ) : null}

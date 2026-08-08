@@ -5,12 +5,35 @@ import { ChatPage } from "./ChatPage";
 import { setTestViewport } from "../test/viewport";
 
 /**
- * 问答 A — Conversation + Inspector 的组件用例，对应 3A-UI-01~08。
+ * 问答 C — Focused Chat 的组件用例，对应 3A-UI-01~08（2026-08-08 随布局改判从 A 迁来）。
  *
  * **mock 的边界是全局 `fetch`，不是 `api/qa.ts` 的导出函数**（同 DiagnosticsPage）。
  * 本工单要证明的恰恰是"翻页带了 before/cursor、重命名带了 expectedVersion、重试复用了
  * 同一个 clientRequestId"，把 `api/qa.ts` mock 掉就等于把被测逻辑一起 mock 掉了。
+ *
+ * 布局相关的断言只剩一条纪律：**本轮处理是抽屉，任何时候都得先点开**。用 `openInspector`
+ * 统一这一步，别在用例里各写各的。
  */
+
+type TestUser = ReturnType<typeof userEvent.setup>;
+
+/** 点开「对话列表」抽屉并返回它。C 布局下它也没有常驻形态。 */
+async function openList(user: TestUser) {
+  await user.click(screen.getByRole("button", { name: "对话列表" }));
+  return screen.findByRole("dialog", { name: "对话列表" });
+}
+
+/** 打开对话列表抽屉并取出其中一项，供点击。 */
+async function openListItem(user: TestUser, name: RegExp) {
+  const drawer = await openList(user);
+  return within(drawer).findByRole("button", { name });
+}
+
+/** 点开「本轮处理」抽屉并返回它。C 布局下它没有常驻形态（ui-spec §2.2）。 */
+async function openInspector(user: TestUser) {
+  await user.click(screen.getByRole("button", { name: "本轮处理" }));
+  return screen.findByRole("dialog", { name: "本轮处理" });
+}
 
 const CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
 const OTHER_ID = "22222222-2222-2222-2222-222222222222";
@@ -205,12 +228,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("问答 A — 首问与 3A 验收信息", () => {
+describe("问答 C — 首问与 3A 验收信息", () => {
   it("空态发送真实问题并展示 3A 验收信息而不伪造答案、来源或停止控件", async () => {
     const api = mockApi({ list: () => json({ items: [], nextCursor: null }) });
     const user = userEvent.setup();
     render(<ChatPage />);
-    expect(await screen.findByText("还没有对话")).toBeInTheDocument();
+    const list = await openList(user);
+    expect(within(list).getByText("还没有对话")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
 
     await user.type(screen.getByLabelText("输入你的问题"), "退货需要哪些材料？");
     await user.click(screen.getByRole("button", { name: "发送" }));
@@ -222,7 +247,7 @@ describe("问答 A — 首问与 3A 验收信息", () => {
     });
 
     expect(await screen.findByText(/当前里程碑尚未执行知识库检索或生成答案/)).toBeInTheDocument();
-    const inspector = screen.getByRole("complementary", { name: "本轮处理" });
+    const inspector = await openInspector(user);
     expect(within(inspector).getByText("已形成检索动作")).toBeInTheDocument();
     expect(within(inspector).getByText("售后服务 > 退货政策")).toBeInTheDocument();
     expect(within(inspector).getByText(/强匹配/)).toBeInTheDocument();
@@ -241,7 +266,7 @@ describe("问答 A — 首问与 3A 验收信息", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByText("还没有对话");
+    await screen.findByRole("button", { name: "对话列表" });
 
     const editor = screen.getByLabelText("输入你的问题");
     await user.type(editor, "退货需要哪些材料？");
@@ -261,17 +286,17 @@ describe("问答 A — 首问与 3A 验收信息", () => {
     const user = userEvent.setup();
     render(<ChatPage />);
 
-    await user.click(await screen.findByRole("button", { name: /退货要什么材料/ }));
+    await user.click(await openListItem(user, /退货要什么材料/));
 
     await waitFor(() => expect(api.of("GET", `/turns/t1`)).toHaveLength(1));
     expect(await screen.findByText("退货需要哪些材料？", { selector: ".qa-message-body" })).toBeInTheDocument();
-    const inspector = screen.getByRole("complementary", { name: "本轮处理" });
+    const inspector = await openInspector(user);
     expect(within(inspector).getByText("已形成检索动作")).toBeInTheDocument();
     expect(within(inspector).getByText(/使用摘要 · 近 6 轮完整历史/)).toBeInTheDocument();
   });
 });
 
-describe("问答 A — 稳定终态与歧义闭环", () => {
+describe("问答 C — 稳定终态与歧义闭环", () => {
   it("等待澄清时给出单选方向与都不是这些，并提交结构化选择", async () => {
     const api = mockApi({
       list: () => json({ items: [], nextCursor: null }),
@@ -280,7 +305,7 @@ describe("问答 A — 稳定终态与歧义闭环", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByText("还没有对话");
+    await screen.findByRole("button", { name: "对话列表" });
 
     await user.type(screen.getByLabelText("输入你的问题"), "退货政策是什么？");
     await user.click(screen.getByRole("button", { name: "发送" }));
@@ -324,13 +349,13 @@ describe("问答 A — 稳定终态与歧义闭环", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByText("还没有对话");
+    await screen.findByRole("button", { name: "对话列表" });
 
     await user.type(screen.getByLabelText("输入你的问题"), "四个问题一起问");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     expect(await screen.findByText(/请拆成更小的问题/)).toBeInTheDocument();
-    const inspector = screen.getByRole("complementary", { name: "本轮处理" });
+    const inspector = await openInspector(user);
     expect(within(inspector).getByText("主题过多，已请你拆分")).toBeInTheDocument();
     expect(within(inspector).getByText(/未展示被截断的结果/)).toBeInTheDocument();
     expect(within(inspector).queryByText(/子问题 1/)).not.toBeInTheDocument();
@@ -374,12 +399,12 @@ describe("问答 A — 稳定终态与歧义闭环", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByText("还没有对话");
+    await screen.findByRole("button", { name: "对话列表" });
 
     await user.type(screen.getByLabelText("输入你的问题"), "这个怎么弄");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
-    const inspector = await screen.findByRole("complementary", { name: "本轮处理" });
+    const inspector = await openInspector(user);
     expect(within(inspector).getByText("使用原问题：这个怎么弄")).toBeInTheDocument();
     expect(within(inspector).getByText("未匹配到方向")).toBeInTheDocument();
     expect(within(inspector).getByText("未使用摘要 · 近 0 轮完整历史")).toBeInTheDocument();
@@ -393,7 +418,7 @@ describe("问答 A — 稳定终态与歧义闭环", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByText("还没有对话");
+    await screen.findByRole("button", { name: "对话列表" });
 
     await user.type(screen.getByLabelText("输入你的问题"), "退货政策是什么？");
     await user.click(screen.getByRole("button", { name: "发送" }));
@@ -425,14 +450,14 @@ describe("问答 A — 稳定终态与歧义闭环", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByText("还没有对话");
+    await screen.findByRole("button", { name: "对话列表" });
 
     await user.type(screen.getByLabelText("输入你的问题"), "退货政策是什么？");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     expect(await screen.findByText(/本轮理解失败.*可以重新发送/)).toBeInTheDocument();
     expect(screen.getByText(/这一轮没能加载近期历史/)).toBeInTheDocument();
-    const inspector = screen.getByRole("complementary", { name: "本轮处理" });
+    const inspector = await openInspector(user);
     expect(within(inspector).getByText("近期历史加载失败，仅使用摘要与当前问题")).toBeInTheDocument();
     expect(within(inspector).getByText("问题改写不可用，使用原问题")).toBeInTheDocument();
   });
@@ -444,7 +469,7 @@ describe("问答 A — 稳定终态与歧义闭环", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByText("还没有对话");
+    await screen.findByRole("button", { name: "对话列表" });
 
     const editor = screen.getByLabelText("输入你的问题");
     await user.type(editor, "退货政策是什么？");
@@ -457,14 +482,14 @@ describe("问答 A — 稳定终态与歧义闭环", () => {
   });
 });
 
-describe("问答 A — 对话管理与分页", () => {
+describe("问答 C — 对话管理与分页", () => {
   it("重命名带 expectedVersion，版本冲突时保留表单不覆盖输入", async () => {
     const api = mockApi({
       rename: () => problem(409, "CONVERSATION_VERSION_CONFLICT", { currentVersion: 5 }),
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await user.click(await screen.findByRole("button", { name: /退货要什么材料/ }));
+    await user.click(await openListItem(user, /退货要什么材料/));
     await screen.findByText("退货需要哪些材料？", { selector: ".qa-message-body" });
 
     await user.click(screen.getByRole("button", { name: "对话操作" }));
@@ -488,7 +513,7 @@ describe("问答 A — 对话管理与分页", () => {
     const api = mockApi();
     const user = userEvent.setup();
     render(<ChatPage />);
-    await user.click(await screen.findByRole("button", { name: /退货要什么材料/ }));
+    await user.click(await openListItem(user, /退货要什么材料/));
     await screen.findByText("退货需要哪些材料？", { selector: ".qa-message-body" });
 
     await user.click(screen.getByRole("button", { name: "对话操作" }));
@@ -512,7 +537,7 @@ describe("问答 A — 对话管理与分页", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await user.click(await screen.findByRole("button", { name: /退货要什么材料/ }));
+    await user.click(await openListItem(user, /退货要什么材料/));
     await screen.findByText("退货需要哪些材料？", { selector: ".qa-message-body" });
 
     await user.click(screen.getByRole("button", { name: "加载更早的消息" }));
@@ -533,13 +558,15 @@ describe("问答 A — 对话管理与分页", () => {
     });
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByRole("button", { name: /退货要什么材料/ });
+    // 翻页发生在抽屉里，抽屉不会因为加载更多而关闭，所以整段都在同一个容器里断言。
+    const list = await openList(user);
+    await within(list).findByRole("button", { name: /退货要什么材料/ });
 
-    await user.click(screen.getByRole("button", { name: "加载更多对话" }));
+    await user.click(within(list).getByRole("button", { name: "加载更多对话" }));
 
     await waitFor(() => expect(api.of("GET", "cursor=cursor-2")).toHaveLength(1));
-    expect(await screen.findByRole("button", { name: /清关材料/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /退货要什么材料/ })).toBeInTheDocument();
+    expect(await within(list).findByRole("button", { name: /清关材料/ })).toBeInTheDocument();
+    expect(within(list).getByRole("button", { name: /退货要什么材料/ })).toBeInTheDocument();
   });
 
   it("切换对话后回到原对话仍保留未发送的草稿", async () => {
@@ -553,30 +580,56 @@ describe("问答 A — 对话管理与分页", () => {
     const user = userEvent.setup();
     render(<ChatPage />);
 
-    await user.click(await screen.findByRole("button", { name: /退货要什么材料/ }));
+    // 选中一项就关抽屉，所以每次切换都要重新打开——这本身也是 C 的行为断言。
+    await user.click(await openListItem(user, /退货要什么材料/));
     await user.type(screen.getByLabelText("输入你的问题"), "还没发出去的草稿");
 
-    await user.click(screen.getByRole("button", { name: /清关材料/ }));
+    await user.click(await openListItem(user, /清关材料/));
     await waitFor(() => expect(screen.getByLabelText("输入你的问题")).toHaveValue(""));
 
-    await user.click(screen.getByRole("button", { name: /退货要什么材料/ }));
+    await user.click(await openListItem(user, /退货要什么材料/));
     await waitFor(() =>
       expect(screen.getByLabelText("输入你的问题")).toHaveValue("还没发出去的草稿"),
     );
   });
 });
 
-describe("问答 A — 响应式与键盘", () => {
-  it("375px 下对话列表与本轮处理是覆盖层，Esc 关闭后焦点回到触发按钮", async () => {
-    setTestViewport(375, 812);
+describe("问答 C — 响应式与键盘", () => {
+  // 改判为 C 之后这一组验的不再是"哪一档收起哪一栏"，而是**每一档都没有常驻栏**：
+  // 三档跑同一套断言，任何一档冒出常驻面板都算回归（ui-spec §2.2 / §10）。
+  it.each([
+    ["1440px", 1440, 900],
+    ["1024px", 1024, 768],
+    ["375px", 375, 812],
+  ])("%s 下两侧面板都是抽屉，没有常驻栏", async (_name, width, height) => {
+    setTestViewport(width, height);
     mockApi();
     const user = userEvent.setup();
     render(<ChatPage />);
     await screen.findByRole("button", { name: "对话列表" });
 
-    expect(screen.queryByRole("complementary", { name: "本轮处理" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    const trigger = screen.getByRole("button", { name: "对话列表" });
+    const toggle = screen.getByRole("button", { name: "本轮处理" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(await screen.findByRole("dialog", { name: "本轮处理" })).toBeInTheDocument();
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(toggle);
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "本轮处理" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("对话列表抽屉可开可关，Esc 关闭后焦点回到触发按钮", async () => {
+    setTestViewport(375, 812);
+    mockApi();
+    const user = userEvent.setup();
+    render(<ChatPage />);
+
+    const trigger = await screen.findByRole("button", { name: "对话列表" });
     await user.click(trigger);
     expect(await screen.findByRole("button", { name: "新对话" })).toBeInTheDocument();
 
@@ -585,18 +638,12 @@ describe("问答 A — 响应式与键盘", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("1024px 下对话列表常驻而本轮处理降级为抽屉", async () => {
-    setTestViewport(1024, 768);
+  it("本轮处理抽屉 Esc 关闭后焦点回到触发按钮", async () => {
     mockApi();
     const user = userEvent.setup();
     render(<ChatPage />);
-    await screen.findByRole("button", { name: /退货要什么材料/ });
 
-    expect(screen.getByRole("complementary", { name: "对话列表" })).toBeInTheDocument();
-    expect(screen.queryByRole("complementary", { name: "本轮处理" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "对话列表" })).not.toBeInTheDocument();
-
-    const trigger = screen.getByRole("button", { name: "本轮处理" });
+    const trigger = await screen.findByRole("button", { name: "本轮处理" });
     await user.click(trigger);
     expect(await screen.findByRole("heading", { name: "本轮处理" })).toBeInTheDocument();
 
@@ -605,22 +652,5 @@ describe("问答 A — 响应式与键盘", () => {
       expect(screen.queryByRole("heading", { name: "本轮处理" })).not.toBeInTheDocument(),
     );
     expect(trigger).toHaveFocus();
-  });
-
-  it("1440px 下常驻 Inspector 可收起并恢复", async () => {
-    mockApi();
-    const user = userEvent.setup();
-    render(<ChatPage />);
-    await screen.findByRole("button", { name: /退货要什么材料/ });
-
-    const toggle = screen.getByRole("button", { name: "本轮处理" });
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-
-    await user.click(toggle);
-    expect(screen.queryByRole("complementary", { name: "本轮处理" })).not.toBeInTheDocument();
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-
-    await user.click(toggle);
-    expect(screen.getByRole("complementary", { name: "本轮处理" })).toBeInTheDocument();
   });
 });
