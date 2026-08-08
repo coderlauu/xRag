@@ -1,7 +1,7 @@
 # 复盘：Phase 3A 记忆 + 改写 + 意图
 
 - `date`: 2026-08-08
-- `status`: 待项目所有者确认
+- `status`: **已确认**（2026-08-08）
 - `milestone`: [3A 里程碑状态](../status/2026-08-08-phase-3a-qa-understanding.md)
 
 只记真正改变了判断的事。顺利的部分不重复叙述。

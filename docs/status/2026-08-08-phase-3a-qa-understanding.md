@@ -2,7 +2,7 @@
 
 - `phase`: Phase 3 / AI 知识问答核心链路 / 3A
 - `date`: 2026-08-08
-- `status`: 待项目所有者确认关闭
+- `status`: **已确认关闭**（2026-08-08）
 - `plan`: [Phase 3 执行计划](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
 - `lanes`: [3A 分角色任务书](../exec-plans/active/2026-08-07-qa-pipeline-3a-implementation-lanes.md)
 - `matrix`: [测试矩阵](../../tech/qa-pipeline/test-matrix.md)（146 条全部回写）
@@ -50,9 +50,10 @@
    明确不能以 `enabled: true` 单个配置值顶替。当前由并行会话推进。
 3. **检索策略尚无 ADR**。3B Step C 冻结通道构成、粗排、去重、截断与精排选型时，
    若构成关键偏离需随方案补 ADR，不能假设已有定论。
-4. **3B 是否需要独立 ui-spec 与原型，需要显式裁决**：3B 不新增页面，但会给问答页 Inspector
-   增加来源与工具区（conversation ui-spec §5.1 已预留）。按主计划闸门表，
-   "有没有界面"这个判断本身要说出来让用户否决，不能默默省掉。
+4. ~~3B 是否需要独立 ui-spec 与原型~~ **已裁决（2026-08-08）：不单出**。3B 不新增页面，
+   界面变化以增量形式并入 [conversation ui-spec](../../tech/qa-pipeline/conversation/ui-spec.md)
+   与既有原型（§5.1 已为来源/工具预留右栏位置）。裁决理由记录在此以免日后被当成"又一次静默跳过"：
+   这是项目所有者对"有没有新界面"的显式否决，不是省略闸门本身——增量仍要经确认后才写前端代码。
 
 ## 5. 冻结的契约
 

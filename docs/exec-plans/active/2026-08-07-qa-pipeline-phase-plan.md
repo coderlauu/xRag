@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 3 / AI 知识问答核心链路
-- `status`: active（3A Step A~F 完成，Step G 产物待项目所有者确认；确认后进入 3B Step B）
+- `status`: active（**3A 已关闭**；当前前沿 3B Step B）
 - `created`: 2026-08-07
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -429,6 +429,14 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 - **文档回滚**：移动、新增或改名后立即运行链接检查；阶段计划仅在 Phase 3 关闭后移动到 completed。
 
 ## 8. Decision Log
+
+- `2026-08-08`: 项目所有者确认 3A Step G 产物，**3A 正式关闭**。17 张工单 complete，
+  测试矩阵 146 条全部回写（130 条 `A` 自动化 + 16 条 `M` 真实 Key 走查），无一条留在 `P`。
+  进入 3B Step B。
+- `2026-08-08`: **3B 不单独出 ui-spec 与可点击原型**——它不新增页面，界面变化以增量并入
+  conversation ui-spec 与既有原型。这是项目所有者对"有没有新界面"的显式否决，按主计划闸门表
+  该判断必须说出来让用户裁决，此处留痕以免日后被误读为又一次静默跳过；增量本身仍需确认后
+  才写前端代码。
 
 - `2026-08-07` / **D-01**：Phase 3 拆成 3A（2~9）、3B（10~13）、3C（14~18）；三段各走
   A~G，Step A 共用已关闭检查点，不重开。
