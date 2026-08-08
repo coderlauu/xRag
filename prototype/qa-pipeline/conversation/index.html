@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>问答对话页 · Phase 3A 原型</title>
+  <!-- Three variants of the Phase 3A conversation page, switchable via ?variant=, on a throwaway prototype route. -->
+  <style>
+    :root {
+      --bg:#f5f7f7; --surface:#fff; --surface-2:#f8faf9; --surface-3:#edf3f1;
+      --ink:#132321; --ink-2:#50625f; --ink-3:#82908e; --line:#dde6e3; --line-2:#c7d4d0;
+      --accent:#0d7a72; --accent-2:#075d58; --accent-soft:#e4f3f0;
+      --ok:#247451; --ok-bg:#e7f5ed; --warn:#9c5c09; --warn-bg:#fff3da;
+      --bad:#b4232a; --bad-bg:#fdebed; --blue:#2b63a3; --blue-bg:#eaf1fa;
+      --shadow:0 18px 48px rgba(16,43,39,.12);
+      --sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    }
+    *{box-sizing:border-box} html{min-width:320px} body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.55 var(--sans);padding-bottom:70px;-webkit-font-smoothing:antialiased}#app{padding-top:52px}
+    button,input,textarea{font:inherit;color:inherit} button{cursor:pointer} button:focus-visible,input:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    .muted{color:var(--ink-3)} .subtle{color:var(--ink-2)} .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}.hidden{display:none!important}
+    .app-header{height:58px;padding:0 26px;display:flex;align-items:center;gap:24px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.95);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px)}
+    .brand{font-size:19px;font-weight:750;letter-spacing:-.03em}.main-nav{display:flex;gap:5px}.main-nav a{color:var(--ink-2);text-decoration:none;padding:6px 10px;border-radius:7px;font-size:13.5px}.main-nav a.active{color:var(--accent);background:var(--accent-soft);font-weight:650}
+    .proto-mark{margin-left:auto;border:1px solid #d7b85d;color:#725307;background:#fff9e5;padding:3px 9px;border-radius:999px;font:650 10px/1.5 var(--mono);letter-spacing:.06em}
+    .btn{border:1px solid var(--line-2);background:var(--surface);padding:7px 11px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px}.btn:hover{border-color:var(--ink-3);background:var(--surface-2)}.btn.primary{background:var(--accent);border-color:var(--accent);color:white}.btn.primary:hover{background:var(--accent-2)}.btn.ghost{border-color:transparent;background:transparent;color:var(--accent)}.btn.small{padding:5px 8px;font-size:11.5px}.btn:disabled{cursor:not-allowed;opacity:.48}
+    .icon-btn{width:34px;height:34px;padding:0}.tag{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:650;background:var(--surface-3);color:var(--ink-2)}.tag.ok{background:var(--ok-bg);color:var(--ok)}.tag.warn{background:var(--warn-bg);color:var(--warn)}.tag.blue{background:var(--blue-bg);color:var(--blue)}.tag.bad{background:var(--bad-bg);color:var(--bad)}
+    .scenario-dock{position:fixed;left:18px;right:18px;top:66px;z-index:60;background:#112824;color:#dce8e5;border:1px solid #284a44;border-radius:11px;padding:8px 10px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;box-shadow:0 14px 40px rgba(5,27,23,.18)}
+    .scenario-dock .label{font:700 10px var(--mono);letter-spacing:.08em;color:#80a29b;margin:0 3px}.scenario-dock button{border:1px solid #31544e;color:#a9bbb7;background:#17332e;border-radius:6px;padding:5px 8px;font-size:11.5px}.scenario-dock button.active{color:#c6fff4;background:#146359;border-color:#3e9c8e}.scenario-dock .hint{margin-left:auto;color:#789991;font-size:11px}
+    .switcher{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:70;background:#0c1f1b;color:#fff;border:1px solid #3f5b55;border-radius:999px;padding:7px;display:flex;align-items:center;gap:8px;box-shadow:0 14px 36px rgba(0,0,0,.28)}.switcher button{width:34px;height:30px;border:0;border-radius:999px;background:#183a33;color:#cce1dc;font-size:17px}.switcher button:hover{background:#23574d}.variant-label{min-width:220px;text-align:center;font-size:12px}.variant-label b{color:#8be0d0}
+    .toast{position:fixed;top:72px;right:22px;z-index:80;background:#153b34;color:white;padding:10px 13px;border-radius:8px;box-shadow:var(--shadow);opacity:0;transform:translateY(-8px);pointer-events:none;transition:.2s}.toast.show{opacity:1;transform:none}
+    .empty-welcome{text-align:center;padding:72px 24px;max-width:620px;margin:auto}.empty-welcome .spark{width:48px;height:48px;border-radius:15px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin:0 auto 16px;font-size:24px}.empty-welcome h1{font-size:25px;margin:0 0 8px;letter-spacing:-.03em}.examples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:24px;text-align:left}.example{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 12px;color:var(--ink-2);cursor:pointer}.example:hover{border-color:var(--accent);color:var(--ink)}
+    .message{display:flex;gap:10px;margin:18px 0;max-width:820px}.message.user{margin-left:auto;flex-direction:row-reverse}.avatar{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:750}.message.user .avatar{background:#203834;color:#d9ece8}.bubble{border:1px solid var(--line);background:var(--surface);border-radius:13px;padding:11px 13px;min-width:90px}.message.user .bubble{background:#153f38;color:#edf8f5;border-color:#153f38}.bubble p{margin:0}.message-meta{margin-top:5px;font:10.5px var(--mono);color:var(--ink-3)}.message.user .message-meta{color:#a8c1bc}
+    .guidance{margin-top:11px;display:grid;gap:7px}.guidance button{text-align:left;border:1px solid var(--line-2);background:var(--surface-2);padding:9px 10px;border-radius:8px;color:var(--ink-2)}.guidance button:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+    .acceptance-note{margin:14px auto;border:1px dashed #9dbaaf;background:#f2faf7;border-radius:9px;padding:10px 12px;color:#37615a;font-size:12px;max-width:760px}.acceptance-note b{color:var(--accent)}
+    .composer{border:1px solid var(--line-2);background:var(--surface);border-radius:13px;padding:10px;box-shadow:0 8px 28px rgba(15,50,44,.07)}.composer textarea{width:100%;min-height:58px;max-height:140px;resize:vertical;border:0;background:transparent;outline:0;padding:2px 4px}.composer-foot{display:flex;align-items:center;gap:9px;margin-top:7px}.composer-foot .hint{color:var(--ink-3);font-size:11px}.composer-foot .btn{margin-left:auto}
+    .steps{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.step{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3)}.step:after{content:"›";color:var(--line-2);margin-left:2px}.step:last-child:after{display:none}.step-dot{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:var(--surface-3);font-size:9px;font-weight:750}.step.done{color:var(--ok)}.step.done .step-dot{background:var(--ok-bg)}.step.active{color:var(--accent);font-weight:700}.step.active .step-dot{background:var(--accent-soft)}.step.warn{color:var(--warn)}.step.warn .step-dot{background:var(--warn-bg)}
+    .inspector-section{padding:14px 15px;border-bottom:1px solid var(--line)}.inspector-section:last-child{border-bottom:0}.inspector-section h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}.question-box{padding:9px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;margin-top:7px;font-size:12.5px}.intent-row{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line)}.intent-row:last-child{border:0}.score{font:700 11px var(--mono);padding-top:2px;color:var(--accent)}.intent-path{font-size:12.5px}.intent-reason{font-size:11px;color:var(--ink-3);margin-top:2px}.degrade{padding:8px 9px;border-radius:7px;background:var(--warn-bg);color:#78500f;font-size:11.5px}
+    /* A — three-pane conversation */
+    .layout-a{height:calc(100vh - 58px);min-height:620px;display:grid;grid-template-columns:270px minmax(480px,1fr) 340px;overflow:hidden}.layout-a.no-inspector{grid-template-columns:270px minmax(480px,1fr)}.layout-a.no-inspector .a-inspector{display:none}.a-sidebar{border-right:1px solid var(--line);background:#f9fbfa;padding:14px 10px;overflow:auto}.side-head{display:flex;align-items:center;justify-content:space-between;padding:0 5px 10px}.side-title{font-size:12px;font-weight:750;color:var(--ink-2)}.conversation-list{display:grid;gap:4px}.conversation-item{width:100%;text-align:left;border:0;background:transparent;border-radius:9px;padding:10px;color:var(--ink-2)}.conversation-item:hover{background:var(--surface-3)}.conversation-item.active{background:var(--accent-soft);color:var(--ink)}.conversation-item b{display:block;font-size:12.5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation-item span{display:block;font-size:10.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.conversation-item .pending{color:var(--warn)}
+    .a-main{min-width:0;background:var(--surface);display:flex;flex-direction:column}.chat-head{height:58px;border-bottom:1px solid var(--line);padding:0 18px;display:flex;align-items:center;gap:10px}.chat-head h1{font-size:15px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chat-head .actions{margin-left:auto;display:flex;gap:6px}.chat-scroll{flex:1;overflow:auto;padding:22px max(22px,calc((100% - 780px)/2))}.a-composer{padding:12px max(22px,calc((100% - 780px)/2)) 18px;border-top:1px solid var(--line)}.a-inspector{border-left:1px solid var(--line);background:#fbfcfc;overflow:auto}.inspector-head{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 15px;gap:8px}.inspector-head b{font-size:13px}.inspector-head .tag{margin-left:auto}
+    /* B — pipeline workbench */
+    .layout-b{min-height:calc(100vh - 58px);padding:20px 24px 34px;max-width:1480px;margin:auto}.b-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}.b-head h1{font-size:23px;margin:0 0 4px}.b-pipeline{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:14px;box-shadow:0 8px 28px rgba(16,43,39,.05)}.b-pipeline .steps{justify-content:space-between}.b-grid{display:grid;grid-template-columns:220px minmax(0,1.2fr) minmax(360px,.8fr);gap:14px}.panel{background:var(--surface);border:1px solid var(--line);border-radius:11px;overflow:hidden}.panel-title{padding:11px 13px;border-bottom:1px solid var(--line);font-size:12px;font-weight:750;display:flex;align-items:center;gap:8px}.panel-body{padding:13px}.b-conversations .conversation-item{border-radius:7px}.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.compare-card{border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:11px}.compare-card h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin:0 0 7px}.b-chat{margin-top:14px}.b-chat .panel-body{max-height:300px;overflow:auto}.b-composer{margin-top:10px}
+    /* C — focused chat */
+    .layout-c{min-height:calc(100vh - 58px);display:flex;flex-direction:column}.c-toolbar{height:54px;padding:0 22px;display:flex;align-items:center;border-bottom:1px solid var(--line);background:var(--surface)}.c-toolbar h1{font-size:14px;margin:0 auto}.c-focus{width:min(780px,calc(100% - 32px));margin:0 auto;flex:1;display:flex;flex-direction:column}.c-scroll{flex:1;padding:36px 0 22px}.c-composer{position:sticky;bottom:0;padding:12px 0 22px;background:linear-gradient(transparent,var(--bg) 22%)}.drawer{position:fixed;inset:58px 0 0 auto;width:min(430px,100%);background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:50;overflow:auto}.drawer .drawer-head{height:54px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 15px}.drawer .drawer-head button{margin-left:auto}.scrim{position:fixed;inset:58px 0 0;background:rgba(10,28,24,.22);z-index:45}.conversation-drawer{left:0;right:auto;border-left:0;border-right:1px solid var(--line);width:min(330px,92%);padding:14px 10px}
+    @media(max-width:1100px){.layout-a{grid-template-columns:240px minmax(0,1fr)}.a-inspector{display:none}.layout-b{padding:16px}.b-grid{grid-template-columns:190px 1fr}.b-grid>.panel:last-child{grid-column:1/-1}.scenario-dock .hint{display:none}}
+    @media(max-width:720px){body{padding-bottom:68px}#app{padding-top:86px}.app-header{padding:0 14px;gap:12px}.main-nav a:not(.active){display:none}.proto-mark{font-size:9px}.layout-a{display:block;height:auto;min-height:calc(100vh - 58px)}.a-sidebar{display:none}.a-main{min-height:calc(100vh - 58px)}.chat-scroll{padding:16px}.a-composer{padding:10px 12px 82px}.chat-head{padding:0 12px}.layout-b{padding:12px}.b-head{display:block}.b-grid{display:block}.b-grid>.panel{margin-bottom:10px}.b-conversations{display:none}.compare-grid{grid-template-columns:1fr}.b-pipeline .steps{justify-content:flex-start}.c-toolbar{padding:0 12px}.c-focus{width:calc(100% - 24px)}.c-scroll{padding-top:18px}.c-composer{padding-bottom:82px}.examples{grid-template-columns:1fr}.scenario-dock{left:8px;right:8px;top:62px;bottom:auto;max-height:78px;overflow:auto}.switcher{bottom:12px}.variant-label{min-width:168px}.message{max-width:95%}}
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <span class="brand">xrag</span>
+    <nav class="main-nav" aria-label="主导航">
+      <a class="active" href="#">问答</a><a href="#">知识库</a><a href="#">意图树</a><a href="#">诊断</a>
+    </nav>
+    <span class="proto-mark">PROTOTYPE · 3A</span>
+  </header>
+  <main id="app"></main>
+  <div class="scenario-dock" id="scenarioDock" aria-label="原型场景控制"></div>
+  <div class="switcher" aria-label="原型方案切换">
+    <button id="prevVariant" aria-label="上一个方案">←</button>
+    <div class="variant-label" id="variantLabel"></div>
+    <button id="nextVariant" aria-label="下一个方案">→</button>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const variants = {
+      A: "Conversation + Inspector",
+      B: "Pipeline Workbench",
+      C: "Focused Chat"
+    };
+    const scenarios = {
+      empty: "新对话",
+      followup: "追问改写",
+      compound: "复合问题",
+      ambiguous: "歧义引导",
+      fallback: "改写降级",
+      overflow: "问题超限"
+    };
+    let variant = new URLSearchParams(location.search).get("variant") || "A";
+    if (!variants[variant]) variant = "A";
+    let scenario = "followup";
+    let inspectorOpen = variant === "A" && innerWidth > 1100;
+    let leftOpen = false;
+
+    const conversations = [
+      ["海外仓入库时效", "那超时了怎么办？", "刚刚"],
+      ["退货政策", "等待你确认具体品类", "12 分钟", "pending"],
+      ["退款材料与到账时间", "问题已拆成 2 个方向", "昨天"],
+      ["发票开具规则", "已形成检索动作", "周二"]
+    ];
+
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"})[c]);
+    }
+    function showToast(text) {
+      const el = document.getElementById("toast"); el.textContent = text; el.classList.add("show");
+      clearTimeout(showToast.timer); showToast.timer = setTimeout(() => el.classList.remove("show"), 1800);
+    }
+    function updateVariant(next) {
+      variant = next; inspectorOpen = variant === "A" && innerWidth > 1100; leftOpen = false;
+      const params = new URLSearchParams(location.search); params.set("variant", variant);
+      history.replaceState(null, "", `?${params}`); render();
+    }
+    function cycle(delta) {
+      const keys = Object.keys(variants); const i = keys.indexOf(variant); updateVariant(keys[(i + delta + keys.length) % keys.length]);
+    }
+    function conversationList() {
+      return `<div class="side-head"><span class="side-title">最近对话</span><button class="btn small primary" data-action="new">＋ 新对话</button></div>
+        <div class="conversation-list">${conversations.map((c,i)=>`<button class="conversation-item ${i===0&&scenario!=="empty"?"active":""}" data-action="select-conversation"><b>${c[0]}</b><span class="${c[3]||""}">${c[1]}</span><span>${c[2]}</span></button>`).join("")}</div>`;
+    }
+    function steps() {
+      const ambiguous = scenario === "ambiguous";
+      const overflow = scenario === "overflow";
+      const fallback = scenario === "fallback";
+      const items = [
+        ["保存", "done"], ["历史", "done"], ["改写", overflow?"warn":"done"],
+        ["意图", overflow?"":"done"], ["澄清", ambiguous?"warn":"done"], ["动作", ambiguous||overflow?"":"active"]
+      ];
+      return `<div class="steps">${items.map((x,i)=>`<span class="step ${x[1]}"><span class="step-dot">${x[1]==="done"?"✓":i+1}</span>${x[0]}</span>`).join("")}</div>`;
+    }
+    function userMessage(text) { return `<div class="message user"><div class="avatar">你</div><div class="bubble"><p>${esc(text)}</p><div class="message-meta">10:42 · 已保存</div></div></div>`; }
+    function assistantMessage(inner) { return `<div class="message"><div class="avatar">AI</div><div class="bubble">${inner}<div class="message-meta">xrag · 方向引导</div></div></div>`; }
+    function baseMessages() {
+      if (scenario === "empty") return `<section class="empty-welcome"><div class="spark">✦</div><h1>从你的知识库开始提问</h1><p class="subtle">我会结合对话历史理解问题；方向不明确时会先请你确认。</p><div class="examples"><button class="example" data-example="海外仓入库超时后怎么处理？">海外仓入库超时后怎么处理？</button><button class="example" data-example="退货需要哪些材料？">退货需要哪些材料？</button><button class="example" disabled>比较两个知识库的退款规则 <span class="tag">3B 后可用</span></button></div></section>`;
+      if (scenario === "compound") return userMessage("退货要什么材料，退款多久能到账？") + `<div class="acceptance-note"><b>3A 验收</b> · 已拆成 2 个子问题并分别形成意图；尚未执行检索或生成答案。</div>`;
+      if (scenario === "ambiguous") return userMessage("退货政策是什么？") + assistantMessage(`<p>这个问题可能涉及以下几个方向。请选择最接近的一项，或补充具体产品/业务范围。</p><div class="guidance"><button data-guidance="3C 数码">商品服务 › 3C 数码 › 退货政策</button><button data-guidance="家电">商品服务 › 家电 › 退换货规则</button><button data-guidance="服装">商品服务 › 服装 › 退货政策</button><button data-guidance="都不是这些">都不是这些</button></div>`);
+      if (scenario === "overflow") return userMessage("退货材料、退款到账、物流时效、发票和保修都讲一下") + assistantMessage(`<p>这个问题包含较多主题，请拆成不超过 3 个问题后重试。</p>`);
+      if (scenario === "fallback") return userMessage("它超时了怎么办？") + `<div class="acceptance-note"><b>3A 验收</b> · 查询改写暂时不可用，本轮使用最小归一化原问题继续；未伪造历史指代。</div>`;
+      return userMessage("海外仓的入库时效是什么？") + assistantMessage(`<p>当前 3A 里程碑已完成问题理解。检索与答案将在后续里程碑接入。</p>`) + userMessage("那超时了怎么办？") + `<div class="acceptance-note"><b>3A 验收</b> · 已改写为独立问题并形成后续检索动作；这不是助手答案。</div>`;
+    }
+    function composer() {
+      return `<div class="composer"><textarea id="questionInput" aria-label="输入问题" placeholder="输入你的问题…"></textarea><div class="composer-foot"><span class="hint">Enter 发送 · Shift+Enter 换行</span><button class="btn primary" data-action="send">发送 ↑</button></div></div>`;
+    }
+    function inspector() {
+      let normalized = "海外仓入库超过时效后如何处理？";
+      let content = `<div class="inspector-section"><h3>处理阶段</h3>${steps()}</div>`;
+      if (scenario === "empty") return content + `<div class="inspector-section"><h3>本轮处理</h3><p class="muted">发送问题后，这里显示规范化问题和路由结果，不展示模型思维链。</p></div>`;
+      if (scenario === "compound") return content + `<div class="inspector-section"><h3>子问题 · 2</h3><div class="question-box">1. 办理退货需要准备哪些材料？</div><div class="question-box">2. 退款通常多长时间到账？</div></div><div class="inspector-section"><h3>意图与动作</h3><div class="intent-row"><span class="score">强</span><div><div class="intent-path">售后服务 › 退货办理</div><div class="intent-reason">定向知识库 · topK 待 3B</div></div></div><div class="intent-row"><span class="score">强</span><div><div class="intent-path">财务结算 › 退款到账</div><div class="intent-reason">定向知识库 · 需要全局兜底</div></div></div></div>`;
+      if (scenario === "ambiguous") return content + `<div class="inspector-section"><h3>规范化问题</h3><div class="question-box">当前问题已独立，无需改写</div></div><div class="inspector-section"><h3>短路点</h3><div class="degrade">3 个跨品类 KB 意图接近，等待用户选择；尚未执行知识库检索。</div></div>`;
+      if (scenario === "overflow") return content + `<div class="inspector-section"><h3>问题数量</h3><div class="degrade">识别到 5 个主题，超过产品上限 3。本轮未截断、未进入意图匹配。</div></div>`;
+      if (scenario === "fallback") return content + `<div class="inspector-section"><h3>降级</h3><div class="degrade">改写调用失败，使用最小归一化原问题：“它超时了怎么办？”；因为指代不完整，意图置信度低。</div></div><div class="inspector-section"><h3>动作</h3><p class="muted">请用户补充产品或业务范围，不猜测知识库。</p></div>`;
+      return content + `<div class="inspector-section"><h3>原问题</h3><div class="question-box">那超时了怎么办？</div><h3 style="margin-top:12px">规范化问题</h3><div class="question-box">${normalized}</div></div><div class="inspector-section"><h3>最高意图</h3><div class="intent-row"><span class="score">强</span><div><div class="intent-path">物流与配送 › 跨境物流 › 海外仓</div><div class="intent-reason">问题明确包含“海外仓”上下文</div></div></div></div><div class="inspector-section"><h3>后续动作</h3><span class="tag blue">定向知识库</span> <span class="tag">单意图补充兜底</span><p class="muted" style="margin-top:8px">3A 只形成动作，不执行检索。</p></div>`;
+    }
+    function title() {
+      return scenario === "empty" ? "新对话" : scenario === "ambiguous" ? "退货政策" : scenario === "compound" ? "退款材料与到账时间" : "海外仓入库时效";
+    }
+    function renderA() {
+      const overlay = leftOpen ? `<div class="scrim" data-action="close-drawers"></div><aside class="drawer conversation-drawer"><div class="drawer-head"><b>最近对话</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${conversationList()}</aside>` : inspectorOpen && innerWidth <= 1100 ? `<div class="scrim" data-action="close-drawers"></div><aside class="drawer"><div class="drawer-head"><b>本轮处理 · 3A 验收信息</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${inspector()}</aside>` : "";
+      return `<div class="layout-a ${inspectorOpen?"":"no-inspector"}"><aside class="a-sidebar">${conversationList()}</aside><section class="a-main"><div class="chat-head"><button class="btn icon-btn small" data-action="open-left" aria-label="打开对话列表">☰</button><h1>${title()}</h1><div class="actions"><button class="btn small" data-action="toggle-inspector">本轮处理</button><button class="btn icon-btn small" data-action="more" aria-label="对话操作">•••</button></div></div><div class="chat-scroll">${baseMessages()}</div><div class="a-composer">${composer()}</div></section>${inspectorOpen?`<aside class="a-inspector"><div class="inspector-head"><b>本轮处理</b><span class="tag">3A 验收信息</span></div>${inspector()}</aside>`:""}${overlay}</div>`;
+    }
+    function renderB() {
+      return `<div class="layout-b"><div class="b-head"><div><h1>问题理解工作台</h1><p class="subtle">同时核对原问题、规范化问题和路由动作；不展示模型思维链。</p></div><button class="btn primary" data-action="new">＋ 新对话</button></div><section class="b-pipeline"><div class="panel-title">本轮阶段 <span class="tag">3A 验收信息</span></div>${steps()}</section><div class="b-grid"><aside class="panel b-conversations"><div class="panel-title">对话</div><div class="panel-body">${conversationList()}</div></aside><section><div class="panel"><div class="panel-title">原问题与规范化结果</div><div class="panel-body"><div class="compare-grid"><div class="compare-card"><h3>对话消息</h3>${baseMessages()}</div><div class="compare-card"><h3>本轮处理</h3>${inspector()}</div></div></div></div><div class="b-chat">${composer()}</div></section><aside class="panel"><div class="panel-title">处理详情</div><div class="panel-body"><p class="subtle">Workbench 把流水线放在主视觉，适合开发验收，但最终答案接入后会争夺注意力。</p></div>${inspector()}</aside></div></div>`;
+    }
+    function renderC() {
+      return `<div class="layout-c"><div class="c-toolbar"><button class="btn icon-btn small" data-action="open-left" aria-label="打开对话列表">☰</button><h1>${title()}</h1><button class="btn small" data-action="toggle-inspector">本轮处理</button></div><section class="c-focus"><div class="c-scroll">${baseMessages()}</div><div class="c-composer">${composer()}</div></section>${leftOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer conversation-drawer"><div class="drawer-head"><b>最近对话</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${conversationList()}</aside>`:""}${inspectorOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer"><div class="drawer-head"><b>本轮处理 · 3A 验收信息</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${inspector()}</aside>`:""}</div>`;
+    }
+    function renderDock() {
+      document.getElementById("scenarioDock").innerHTML = `<span class="label">SCENARIO</span>${Object.entries(scenarios).map(([k,v])=>`<button class="${scenario===k?"active":""}" data-scenario="${k}">${v}</button>`).join("")}<span class="hint">场景控制不是产品界面</span>`;
+    }
+    function bind() {
+      document.querySelectorAll("[data-scenario]").forEach(el=>el.onclick=()=>{scenario=el.dataset.scenario; inspectorOpen=variant!=="C"; render();});
+      document.querySelectorAll("[data-guidance]").forEach(el=>el.onclick=()=>{showToast(el.dataset.guidance==="都不是这些"?"已选择：都不是，请补充范围":"已确认方向："+el.dataset.guidance); scenario="followup"; render();});
+      document.querySelectorAll("[data-example]").forEach(el=>el.onclick=()=>{scenario="followup"; render(); showToast("示例已发送");});
+      document.querySelectorAll("[data-action]").forEach(el=>el.onclick=()=>{
+        const a=el.dataset.action;
+        if(a==="new"){scenario="empty";render()} else if(a==="toggle-inspector"){inspectorOpen=!inspectorOpen;render()} else if(a==="open-left"){leftOpen=true;inspectorOpen=false;render()} else if(a==="close-drawers"){leftOpen=false;inspectorOpen=false;render()} else if(a==="send"){const q=document.getElementById("questionInput")?.value.trim(); if(!q){showToast("请输入问题");return} scenario=q.includes("退货")?"ambiguous":"followup";render();showToast("消息已保存并开始理解")} else if(a==="select-conversation"){scenario="followup";leftOpen=false;render()} else if(a==="more"){showToast("对话操作：重命名 / 逻辑删除")}
+      });
+      const input=document.getElementById("questionInput"); if(input) input.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();document.querySelector('[data-action="send"]')?.click();}};
+    }
+    function render() {
+      document.getElementById("app").innerHTML = variant==="A"?renderA():variant==="B"?renderB():renderC();
+      document.getElementById("variantLabel").innerHTML=`<b>${variant}</b> — ${variants[variant]}`; renderDock(); bind();
+    }
+    document.getElementById("prevVariant").onclick=()=>cycle(-1); document.getElementById("nextVariant").onclick=()=>cycle(1);
+    document.addEventListener("keydown",e=>{const t=e.target;if(t.matches("input,textarea,[contenteditable]"))return;if(e.key==="ArrowLeft")cycle(-1);if(e.key==="ArrowRight")cycle(1);if(e.key==="Escape"&&(leftOpen||inspectorOpen)&&variant==="C"){leftOpen=false;inspectorOpen=false;render();}});
+    render();
+  </script>
+</body>
+</html>

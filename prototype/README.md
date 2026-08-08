@@ -5,6 +5,9 @@
 | 模块 | 原型 | 对应规格 |
 |---|---|---|
 | AI 知识库建设 | [knowledge-base/index.html](knowledge-base/index.html) | [tech/knowledge-base/ui-spec.md](../tech/knowledge-base/ui-spec.md) |
+| 模型调度诊断 | [model-scheduling/index.html](model-scheduling/index.html) | [tech/model-scheduling/ui-spec.md](../tech/model-scheduling/ui-spec.md) |
+| AI 知识问答 · 对话页 | [qa-pipeline/conversation/index.html](qa-pipeline/conversation/index.html) | [tech/qa-pipeline/conversation/ui-spec.md](../tech/qa-pipeline/conversation/ui-spec.md) |
+| AI 知识问答 · 意图树 | [qa-pipeline/intent-tree/index.html](qa-pipeline/intent-tree/index.html) | [tech/qa-pipeline/intent-tree/ui-spec.md](../tech/qa-pipeline/intent-tree/ui-spec.md) |
 
 ## 原型和 ui-spec 的分工
 

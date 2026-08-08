@@ -56,7 +56,7 @@
 | Phase 0 基础学习与 Bootstrap | completed | 40/40 篇与环境检查点完成 |
 | Phase 1 AI 知识库建设 | completed | 已于 2026-07-28 归档；[里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md) |
 | Phase 2 大模型调度引擎 | completed | 已于 2026-08-07 关闭；工单 01~22 done，23 因缺合规 Key 带 blocked 状态一同关闭；P2-02 已解除；Embedding 真实链路的实测失败已查明为本仓库解析代码过严（非缺 Key）并修复；[里程碑状态](../../status/2026-08-07-phase-2-model-scheduling.md)与[复盘](../../retro/2026-08-07-phase-2-model-scheduling-retrospective.md) |
-| Phase 3 AI 知识问答核心链路 | pending | Phase 2 已提供四个稳定能力端口，准入条件见[里程碑状态 §9](../../status/2026-08-07-phase-2-model-scheduling.md) |
+| Phase 3 AI 知识问答核心链路 | active | 3A Step C 已确认；Step D 第一前沿 01/02/12 已解锁，见[Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md) |
 | Phase 4 RAG 评测体系 | pending | 等待 Phase 3 形成可评测链路 |
 | Phase 5 面试专题与系统说明书 | pending | 最终汇总阶段 |
 
@@ -81,6 +81,10 @@
 | G | 复盘 + 里程碑状态 | `docs/retro/`、`docs/status/` | 是（阶段对齐检查点） |
 
 无用户界面的模块（如纯后端能力）可以没有 `ui-spec.md` 与原型，但**"有没有界面"这个判断本身要说出来让用户否决**，不能默默省掉。Phase 1 已首次产出 `docs/retro/` 与 `docs/status/`；后续阶段继续按 Step G 按需新增，不预建空文件。
+
+闸门按 **Step 的完整产物**确认，不按工单或内部节点逐个确认。同一 Step 的取舍应先合成一组，确认后
+可连续完成该 Step 内的任务拆分、实现或验证；只有范围/安全边界升级、不可逆数据操作、新外部依赖、证据
+推翻既有裁决或并行文件冲突才提前升级。B/C/D/E/G 仍各自确认实际产物，不能跨过尚未产生的验收证据。
 
 ## 7. Validation
 
@@ -145,3 +149,29 @@
 - `2026-08-03`: **Phase 2 Step D 同步恢复链完成。** 工单 03/04/07/08 提供 Provider seam、完成态诊断、RoutePlan 与 Deadline/error policy，工单 06/09 提供单候选同步 Chat 与 breaker permission，工单 10 完成有界原地重试、跨候选故障转移、429 独立配额边界及真实 route event。`./mvnw -B verify` 通过（281 tests，0 failures，2 skipped）；当前 05、11、14、16、19 为 ready。
 - `2026-08-03`: **Phase 2 Step D 工单 11 完成。** WebClient/Reactor Netty client 在 Servlet/Tomcat 服务端边界内打通单 deployment SSE adapter；STR-01~09、文本/工具/拒答/usage/done/error、64KiB 上限、HTTP 失败分类、断流与取消传播均已自动化。`./mvnw -B verify` 通过（294 tests，0 failures，2 skipped）；工单 12 解锁，当前 05、12、14、16、19 为 ready。
 - `2026-08-03`: **Phase 2 Step D 工单 12 完成。** 公共流端口落地单次订阅守卫、PROBING/COMMITTED/唯一终态、有界探测、六阶段超时、取消传播和完成态诊断；STR-10~13、15~27、29、30、35 已自动化，50 轮取消/完成竞态无重复结算。`./scripts/ci-validate.sh` 通过（backend 318 tests，0 failures，2 skipped）；工单 13 解锁，当前 05、13、14、16、19 为 ready。
+- `2026-08-07`: **Phase 3 执行计划获确认，3A Step B 草案进入双界面硬闸门。** 新建
+  [Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)，按 3A（记忆+改写+意图）、
+  3B（检索+工具）、3C（生成+流式+管控+限流）各走 A~G，三段共用已关闭 Step A。
+  [Phase 3 PRD](../../prd/2026-08-07-qa-pipeline-prd.md)、问答对话页与意图树管理页的独立规格及
+  两套 A/B/C 可点击原型已起草；当前等待项目所有者同时确认 PRD、两页交互方向和 7 项产品裁决，
+  未写 Phase 3 前端业务代码，也未进入 D-06 端口前置或 3A Step C。
+- `2026-08-07`: **Phase 3A Step B 经项目所有者确认。** 问答页最终确认 A — Conversation + Inspector，意图树选择
+  C — Route Canvas；3A 不伪造答案、最多 3 个子问题、歧义最多 3 个单选方向、父节点操作覆盖整个子树、
+  默认入口到 Phase 3 完整交付后再切 `/chat` 等 P-03~P-07 全部按推荐确认。PRD 与两份界面规格转为
+  approved，问答原型默认 A、意图树原型默认 C；当前下一节点是 D-06 端口前置 ADR + 独立工单，尚未进入 3A Step C。
+- `2026-08-07`: **Phase 3 调整为 Step 内批量授权。** 项目所有者要求减少逐节点确认；后续把一个 Step
+  的产品或技术取舍合并确认，随后连续推进，不再逐工单停顿。§6.1 的 B/C/D/E/G 产出物确认仍保留，
+  不能用提前授权替代尚未完成的实际验收。
+- `2026-08-07`: **Phase 3A Step C 技术默认项批量确认。** 项目所有者一次确认单档 `BALANCED`、
+  PostgreSQL 历史、8/12 摘要水位、UUID 邻接意图树与整树 revision 快照、有界线程池、classpath
+  Prompt、统一阈值配置、Prompt 预算和业务/调度 ID 边界。先完成 D-06 端口前置，再连续产出 Step C
+  技术方案、ADR、测试矩阵、任务书和原子工单；最终实际产物仍需按 §6.1 统一确认。
+- `2026-08-07`: **D-06 前置与 3A Step C 草案完成。** `com.app.ai` 已按 ADR 0006 把显式 Chat 采样绑定
+  到 deployment/tier profile，同步、流式和故障转移均发送目标 deployment 的参数；与 DashScope 原生
+  Rerank 改动无损合并后，全量后端 `verify` 通过（415 tests，0 failures，0 errors，5 skipped）。随后完成
+  3A [架构](../../../tech/qa-pipeline/architecture.md)、[数据模型](../../../tech/qa-pipeline/data-model.md)、
+  [API](../../../tech/qa-pipeline/api.md)、[ADR 0007](../../adr/0007-versioned-intent-tree.md)、138 条
+  [测试矩阵](../../../tech/qa-pipeline/test-matrix.md)、[分角色任务书](2026-08-07-qa-pipeline-3a-implementation-lanes.md)
+  和 17 张原子工单。当前停在 Step C 产出物确认硬闸门，未开始 Phase 3 业务代码。
+- `2026-08-07`: **Phase 3A Step C 经项目所有者确认。** 技术三件套与测试矩阵转为 approved，ADR 0007
+  转为 accepted；第一前沿工单 01/02/12 解锁，进入 Step D，其余工单继续按依赖图阻塞。
