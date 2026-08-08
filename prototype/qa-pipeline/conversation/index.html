@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <link rel="icon" href="data:,">
-  <title>问答对话页 · Phase 3A 原型</title>
-  <!-- Three variants of the Phase 3A conversation page, switchable via ?variant=, on a throwaway prototype route. -->
+  <title>问答对话页 · Phase 3A 基线 + 3B 增量原型</title>
+  <!-- Three variants of the Phase 3A conversation page, switchable via ?variant=, on a throwaway prototype route.
+       3B (sources + tools, ui-spec §13) only extends the selected variant A. -->
   <style>
     :root {
       --bg:#f5f7f7; --surface:#fff; --surface-2:#f8faf9; --surface-3:#edf3f1;
@@ -18,7 +19,7 @@
       --sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
       --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
     }
-    *{box-sizing:border-box} html{min-width:320px} body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.55 var(--sans);padding-bottom:70px;-webkit-font-smoothing:antialiased}#app{padding-top:52px}
+    *{box-sizing:border-box} html{min-width:320px} body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.55 var(--sans);padding-bottom:70px;-webkit-font-smoothing:antialiased}#app{padding-top:88px}
     button,input,textarea{font:inherit;color:inherit} button{cursor:pointer} button:focus-visible,input:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     .muted{color:var(--ink-3)} .subtle{color:var(--ink-2)} .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}.hidden{display:none!important}
     .app-header{height:58px;padding:0 26px;display:flex;align-items:center;gap:24px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.95);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px)}
@@ -44,8 +45,61 @@
     .layout-b{min-height:calc(100vh - 58px);padding:20px 24px 34px;max-width:1480px;margin:auto}.b-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}.b-head h1{font-size:23px;margin:0 0 4px}.b-pipeline{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:14px;box-shadow:0 8px 28px rgba(16,43,39,.05)}.b-pipeline .steps{justify-content:space-between}.b-grid{display:grid;grid-template-columns:220px minmax(0,1.2fr) minmax(360px,.8fr);gap:14px}.panel{background:var(--surface);border:1px solid var(--line);border-radius:11px;overflow:hidden}.panel-title{padding:11px 13px;border-bottom:1px solid var(--line);font-size:12px;font-weight:750;display:flex;align-items:center;gap:8px}.panel-body{padding:13px}.b-conversations .conversation-item{border-radius:7px}.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.compare-card{border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:11px}.compare-card h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin:0 0 7px}.b-chat{margin-top:14px}.b-chat .panel-body{max-height:300px;overflow:auto}.b-composer{margin-top:10px}
     /* C — focused chat */
     .layout-c{min-height:calc(100vh - 58px);display:flex;flex-direction:column}.c-toolbar{height:54px;padding:0 22px;display:flex;align-items:center;border-bottom:1px solid var(--line);background:var(--surface)}.c-toolbar h1{font-size:14px;margin:0 auto}.c-focus{width:min(780px,calc(100% - 32px));margin:0 auto;flex:1;display:flex;flex-direction:column}.c-scroll{flex:1;padding:36px 0 22px}.c-composer{position:sticky;bottom:0;padding:12px 0 22px;background:linear-gradient(transparent,var(--bg) 22%)}.drawer{position:fixed;inset:58px 0 0 auto;width:min(430px,100%);background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:50;overflow:auto}.drawer .drawer-head{height:54px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 15px}.drawer .drawer-head button{margin-left:auto}.scrim{position:fixed;inset:58px 0 0;background:rgba(10,28,24,.22);z-index:45}.conversation-drawer{left:0;right:auto;border-left:0;border-right:1px solid var(--line);width:min(330px,92%);padding:14px 10px}
+    /* 3B — 来源、工具、非阻塞提示（ui-spec §13） */
+    .inspector-group{border-bottom:2px solid var(--line-2)}.inspector-group:last-child{border-bottom:0}
+    .group-head{display:flex;align-items:center;gap:8px;padding:13px 15px 0}.group-head b{font-size:12.5px}.group-head .tag{margin-left:auto}
+    .sec-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px}.sec-head h3{margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}.sec-head .count{font:11px var(--mono);color:var(--ink-3)}
+    .state{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:650;border:1px solid transparent}
+    .state .glyph{font:700 10px var(--mono)}
+    .state.neutral{background:var(--surface-3);color:var(--ink-2);border-color:var(--line-2)}
+    .state.ok{background:var(--ok-bg);color:var(--ok);border-color:#b7dfc9}
+    .state.warn{background:var(--warn-bg);color:var(--warn);border-color:#e8cf95}
+    .state.bad{background:var(--bad-bg);color:var(--bad);border-color:#eeb9bd}
+    .state.busy{background:var(--blue-bg);color:var(--blue);border-color:#b9cfe9}
+    .state-note{font-size:11px;color:var(--ink-2);margin:6px 0 0}
+    .src-list{display:grid;gap:8px}
+    .src{border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:9px 10px}
+    .src-kb{font-size:10.5px;font-weight:700;color:var(--accent);letter-spacing:.02em}
+    .src-doc{font-size:12.5px;margin:2px 0 1px;overflow-wrap:anywhere}
+    .src-doc.gone{color:var(--ink-3);text-decoration:line-through}
+    .src-pos{font:11px var(--mono);color:var(--ink-3)}
+    .src-foot{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+    .src details summary{font-size:11.5px;color:var(--ink-2);cursor:pointer;list-style:none}.src details summary::-webkit-details-marker{display:none}.src details summary:before{content:"▸ ";color:var(--ink-3)}.src details[open] summary:before{content:"▾ "}
+    .src-quote{margin-top:6px;padding:8px 9px;background:var(--surface-2);border-left:3px solid var(--line-2);border-radius:0 6px 6px 0;font-size:11.5px;color:var(--ink-2)}
+    .src-link{font-size:11.5px;color:var(--accent);background:none;border:0;padding:0;text-decoration:underline}.src-link:disabled{color:var(--ink-3);text-decoration:none;cursor:not-allowed}
+    .fail-list{display:grid;gap:6px;margin-top:10px;border-top:1px dashed var(--line-2);padding-top:10px}
+    .fail-item{display:flex;align-items:center;gap:8px;font-size:11.5px}.fail-item b{font-weight:650}.fail-item .why{color:var(--ink-3);margin-left:auto;font-size:11px}
+    .inspector-empty{border:1px dashed var(--line-2);border-radius:8px;padding:12px;color:var(--ink-3);font-size:11.5px;text-align:center}
+    .tool-item{border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:9px 10px}
+    .tool-item .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.tool-item .name{font-size:12.5px;font-weight:650}.tool-item .ms{margin-left:auto;font:10.5px var(--mono);color:var(--ink-3)}
+    .tool-item details{margin-top:7px}.tool-item summary{font-size:11.5px;color:var(--ink-2);cursor:pointer}
+    .banner{display:flex;gap:9px;align-items:flex-start;border:1px solid #e6cf9a;background:var(--warn-bg);border-radius:10px;padding:10px 12px;margin:14px auto;max-width:820px;font-size:12.5px;color:#6f4a08}
+    .banner .glyph{font:700 12px var(--mono);line-height:1.4}.banner .acts{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
+    .source-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px auto 16px;max-width:820px;padding-left:38px}
+    .source-strip .open{border:1px solid var(--line-2);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:11.5px;color:var(--ink-2)}.source-strip .open:hover{border-color:var(--accent);color:var(--accent)}
+    .next-steps{margin:9px 0 0;padding-left:18px;display:grid;gap:3px;font-size:12.5px;color:var(--ink-2)}
+    .compare-note{margin:12px auto;max-width:760px;border:1px dashed var(--line-2);border-radius:9px;padding:9px 11px;font-size:11.5px;color:var(--ink-3);background:var(--surface-2)}.compare-note b{color:var(--ink-2)}
+    .tool-card{border:1px solid var(--line-2);background:var(--surface);border-radius:12px;padding:12px 13px;margin-top:11px;box-shadow:0 6px 20px rgba(15,50,44,.06)}
+    .tool-card.danger{border-color:#e3b3b6;background:#fffbfb}
+    .tool-card .tc-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.tool-card .tc-head b{font-size:13px}
+    .tool-card .tc-what{margin:7px 0 0;font-size:12.5px;color:var(--ink-2)}
+    .tool-card .tc-src{margin:9px 0 5px;font:10.5px var(--mono);color:var(--ink-3);letter-spacing:.02em}
+    .params{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+    .params th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);background:var(--surface-2);padding:6px 9px;font-weight:650}
+    .params td{padding:7px 9px;border-top:1px solid var(--line);vertical-align:top}
+    .params td.k{width:38%;color:var(--ink-2)}.params td.v{font-family:var(--mono);font-size:11.5px;overflow-wrap:anywhere}
+    .params tr.bad-row{background:var(--bad-bg)}.params tr.bad-row td.v{color:var(--bad)}
+    .req{font-size:10px;color:var(--bad);margin-left:4px}
+    .allowed{font-size:11px;color:var(--ink-3);margin-top:5px}
+    .tc-actions{display:flex;gap:9px;margin-top:12px;align-items:center}.tc-actions .btn.danger{background:var(--bad);border-color:var(--bad);color:#fff;margin-left:auto}.tc-actions .btn.danger:hover{background:#9a1c23}
+    .tc-result{margin-top:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:9px 10px}
+    .tc-result pre{margin:6px 0 0;font:11.5px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink-2)}
+    .plain-note{font-size:10.5px;color:var(--ink-3);margin-top:6px}
+    .scenario-dock{flex-direction:column;align-items:stretch;gap:6px}
+    .dock-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.dock-row button{white-space:nowrap;flex:none}.dock-row .tier,.dock-row .hint{flex:none}
+    .dock-row .tier{font:700 10px var(--mono);letter-spacing:.06em;color:#cfe9e2;background:#1d4740;border:1px solid #31544e;border-radius:5px;padding:3px 7px}
     @media(max-width:1100px){.layout-a{grid-template-columns:240px minmax(0,1fr)}.a-inspector{display:none}.layout-b{padding:16px}.b-grid{grid-template-columns:190px 1fr}.b-grid>.panel:last-child{grid-column:1/-1}.scenario-dock .hint{display:none}}
-    @media(max-width:720px){body{padding-bottom:68px}#app{padding-top:86px}.app-header{padding:0 14px;gap:12px}.main-nav a:not(.active){display:none}.proto-mark{font-size:9px}.layout-a{display:block;height:auto;min-height:calc(100vh - 58px)}.a-sidebar{display:none}.a-main{min-height:calc(100vh - 58px)}.chat-scroll{padding:16px}.a-composer{padding:10px 12px 82px}.chat-head{padding:0 12px}.layout-b{padding:12px}.b-head{display:block}.b-grid{display:block}.b-grid>.panel{margin-bottom:10px}.b-conversations{display:none}.compare-grid{grid-template-columns:1fr}.b-pipeline .steps{justify-content:flex-start}.c-toolbar{padding:0 12px}.c-focus{width:calc(100% - 24px)}.c-scroll{padding-top:18px}.c-composer{padding-bottom:82px}.examples{grid-template-columns:1fr}.scenario-dock{left:8px;right:8px;top:62px;bottom:auto;max-height:78px;overflow:auto}.switcher{bottom:12px}.variant-label{min-width:168px}.message{max-width:95%}}
+    @media(max-width:720px){body{padding-bottom:68px}#app{padding-top:120px}.dock-row{flex-wrap:nowrap;overflow-x:auto}.source-strip{padding-left:0}.tc-actions{flex-direction:column;align-items:stretch;gap:12px}.tc-actions .btn{margin-left:0;width:100%}.params td.k{width:auto}.params,.params tbody,.params tr,.params td{display:block;width:100%}.params thead{display:none}.params tr{border-top:1px solid var(--line)}.params tr:first-child{border-top:0}.params td{border-top:0;padding:6px 9px}.params td.k{padding-bottom:0;font-size:11px;color:var(--ink-3)}.app-header{padding:0 14px;gap:12px}.main-nav a:not(.active){display:none}.proto-mark{font-size:9px}.layout-a{display:block;height:auto;min-height:calc(100vh - 58px)}.a-sidebar{display:none}.a-main{min-height:calc(100vh - 58px)}.chat-scroll{padding:16px}.a-composer{padding:10px 12px 82px}.chat-head{padding:0 12px}.layout-b{padding:12px}.b-head{display:block}.b-grid{display:block}.b-grid>.panel{margin-bottom:10px}.b-conversations{display:none}.compare-grid{grid-template-columns:1fr}.b-pipeline .steps{justify-content:flex-start}.c-toolbar{padding:0 12px}.c-focus{width:calc(100% - 24px)}.c-scroll{padding-top:18px}.c-composer{padding-bottom:82px}.examples{grid-template-columns:1fr}.scenario-dock{left:8px;right:8px;top:62px;bottom:auto;max-height:104px;overflow:auto}.switcher{bottom:12px}.variant-label{min-width:168px}.message{max-width:95%}}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -55,7 +109,7 @@
     <nav class="main-nav" aria-label="主导航">
       <a class="active" href="#">问答</a><a href="#">知识库</a><a href="#">意图树</a><a href="#">诊断</a>
     </nav>
-    <span class="proto-mark">PROTOTYPE · 3A</span>
+    <span class="proto-mark">PROTOTYPE · 3A + 3B DRAFT</span>
   </header>
   <main id="app"></main>
   <div class="scenario-dock" id="scenarioDock" aria-label="原型场景控制"></div>
@@ -71,7 +125,7 @@
       B: "Pipeline Workbench",
       C: "Focused Chat"
     };
-    const scenarios = {
+    const scenarios3A = {
       empty: "新对话",
       followup: "追问改写",
       compound: "复合问题",
@@ -79,11 +133,27 @@
       fallback: "改写降级",
       overflow: "问题超限"
     };
+    // 3B 增量场景（ui-spec §13.11）。产品语义冻结在 PRD §12，这里只演示界面表达。
+    const scenarios3B = {
+      sources: "来源展示",
+      norerank: "未精排",
+      partial: "部分库失败",
+      noresult: "无结果",
+      toolConfirm: "工具确认",
+      toolCancel: "工具取消",
+      toolFailed: "工具失败",
+      toolUnavailable: "工具不可用",
+      toolAbort: "参数抽取中止"
+    };
+    const scenarios = { ...scenarios3A, ...scenarios3B };
+    const is3B = key => key in scenarios3B;
     let variant = new URLSearchParams(location.search).get("variant") || "A";
     if (!variants[variant]) variant = "A";
     let scenario = "followup";
     let inspectorOpen = variant === "A" && innerWidth > 1100;
     let leftOpen = false;
+    /** 工具状态覆盖值；null 表示用当前场景的默认状态。切换场景时清空。 */
+    let toolState = null;
 
     const conversations = [
       ["海外仓入库时效", "那超时了怎么办？", "刚刚"],
@@ -92,6 +162,98 @@
       ["发票开具规则", "已形成检索动作", "周二"]
     ];
 
+    // ——— 3B 演示数据 ———
+    // 来源只有三项对外字段：知识库 / 文档 / 片段位置。没有分数、没有名次、没有命中通道（ui-spec §13.3）。
+    const SOURCES = [
+      ["售后服务知识库", "退货与退款操作手册 v3.docx", "#12", "签收后 7 日内可发起退货；生鲜、定制类商品除外。发起后系统生成退货单号，用户需在 5 个工作日内寄回。"],
+      ["售后服务知识库", "退货与退款操作手册 v3.docx", "#13", "退货商品需保持吊牌完整、包装未拆封；已拆封仅在存在质量问题时受理。"],
+      ["财务结算知识库", "退款到账时效说明.md", "#4", "原路退回：微信/支付宝 1~3 个工作日，银行卡 3~7 个工作日，信用卡以发卡行账单周期为准。"],
+      ["商品服务知识库", "3C 数码品类特殊约定.pdf", "#31", "3C 数码类商品激活后不支持无理由退货，仅支持质量问题的换修流程。"],
+      ["售后服务知识库", "（源文档已删除）", "#7", "本条来源对应的源文档已被逻辑删除，正文仍在本轮上下文中使用过。"]
+    ].map(([kb, doc, pos, text]) => ({ kb, doc, pos, text, gone: doc.startsWith("（") }));
+
+    const TOOL = {
+      name: "提交退货工单",
+      // 这句话来自白名单配置，不是模型生成的——否则确认就成了走过场（ui-spec §13.7.2）。
+      what: "在售后工单系统中新建一张退货工单，并把工单号回写到本次对话。",
+      sideEffect: true,
+      params: [
+        { k: "订单号", v: "ORD-20260806-1183", required: true },
+        { k: "退货原因", v: "商品与描述不符", required: true },
+        { k: "联系电话", v: "138****4521", required: false }
+      ],
+      badParams: [
+        { k: "订单号", v: "未能从对话中确定", required: true, bad: "缺少必填参数" },
+        { k: "退货原因", v: "无理由", required: true, bad: "不在允许值内" },
+        { k: "联系电话", v: "138****4521", required: false }
+      ],
+      allowed: "商品与描述不符 / 质量问题 / 物流破损 / 尺码不合适",
+      result: "工单号：RT-20260808-0417\n状态：待客服受理\n预计响应：4 小时内"
+    };
+
+    // 场景 → 3B 数据。partial 的失败判断来自显式状态，不是"条数少"（ui-spec §13.6）。
+    function data3B() {
+      const base = { sources: [], reranked: true, failed: [], tool: null, hitCount: 0, dedup: 0 };
+      if (!is3B(scenario)) return base;
+      switch (scenario) {
+        case "sources": return { ...base, sources: SOURCES.slice(0, 5), hitCount: 26, dedup: 19 };
+        case "norerank": return { ...base, sources: SOURCES.slice(0, 3), reranked: false, hitCount: 21, dedup: 16 };
+        case "partial": return { ...base, sources: SOURCES.slice(0, 2), hitCount: 11, dedup: 9,
+          failed: [["海外仓运营手册", "检索超时"], ["历史归档知识库", "知识库暂不可用"]] };
+        case "noresult": return { ...base, hitCount: 0, dedup: 0 };
+        default: return { ...base, sources: SOURCES.slice(0, 2), hitCount: 9, dedup: 7, tool: toolStatus() };
+      }
+    }
+    function toolStatus() {
+      if (toolState) return toolState;
+      return { toolConfirm: "PENDING", toolCancel: "CANCELLED", toolFailed: "FAILED",
+        toolUnavailable: "UNAVAILABLE", toolAbort: "ABORTED" }[scenario] || null;
+    }
+    const TOOL_STATE = {
+      PENDING: ["warn", "?", "待确认"], RUNNING: ["busy", "~", "执行中"], SUCCEEDED: ["ok", "✓", "已完成"],
+      FAILED: ["bad", "✕", "失败"], CANCELLED: ["neutral", "—", "已取消"],
+      UNAVAILABLE: ["bad", "!", "不可用"], ABORTED: ["warn", "!", "已中止"]
+    };
+    /** 状态标签：图标形状 + 文字，去掉颜色也能区分（ui-spec §13.10）。 */
+    function state(kind, glyph, text) {
+      return `<span class="state ${kind}"><span class="glyph" aria-hidden="true">${glyph}</span>${esc(text)}</span>`;
+    }
+    function toolStateTag(code) {
+      const [kind, glyph, text] = TOOL_STATE[code]; return state(kind, glyph, text);
+    }
+    function sourceMarks(d) {
+      return (d.reranked ? "" : state("warn", "≈", "未精排")) + (d.failed.length ? state("bad", "!", "结果不完整") : "");
+    }
+    function paramTable(rows, allowed) {
+      return `<table class="params"><thead><tr><th>参数（由模型从对话中抽取）</th><th>值</th></tr></thead><tbody>${rows.map(p => `
+        <tr class="${p.bad ? "bad-row" : ""}"><td class="k">${esc(p.k)}${p.required ? '<span class="req">必填</span>' : ""}</td><td class="v">${esc(p.v)}${p.bad ? ` — ${esc(p.bad)}` : ""}</td></tr>`).join("")}</tbody></table>${
+        allowed ? `<p class="allowed">「退货原因」允许值：${esc(allowed)}</p>` : ""}`;
+    }
+    /** 消息区的工具卡。只有有副作用的工具才出现按钮，且确认卡不抢焦点（ui-spec §13.7.2）。 */
+    function toolCard(code) {
+      const abort = code === "ABORTED";
+      const rows = abort ? TOOL.badParams : TOOL.params;
+      const head = `<div class="tc-head"><b>${abort ? "无法执行：" : code === "PENDING" ? "需要你确认：" : ""}${esc(TOOL.name)}</b>${state("bad", "!", "有副作用")}${toolStateTag(code)}</div>`;
+      let body = `<p class="tc-what">${esc(TOOL.what)}</p><p class="tc-src">参数由模型从对话中抽取，执行前请核对</p>${paramTable(rows, abort ? TOOL.allowed : null)}`;
+      let foot = "";
+      if (code === "PENDING") {
+        foot = `<div class="tc-actions"><button class="btn" data-tool="cancel">取消</button><button class="btn danger" data-tool="confirm">确认执行</button></div>
+          <p class="plain-note">Tab 先到「取消」；卡片出现时不抢焦点，Esc 不等于取消。参数不可就地编辑，要改请取消后重说。</p>`;
+      } else if (code === "RUNNING") {
+        foot = `<div class="tc-actions"><span class="subtle">执行中…（3B 无中止能力，不摆一个点了没用的按钮）</span></div>`;
+      } else if (code === "SUCCEEDED") {
+        foot = `<div class="tc-result"><b style="font-size:12px">工具返回</b><pre>${esc(TOOL.result)}</pre><p class="plain-note">工具返回按纯文本渲染：不解析 HTML、不渲染链接与图片。</p></div>`;
+      } else if (code === "FAILED") {
+        foot = `<div class="tc-actions"><span class="subtle">执行超时</span><button class="btn" data-tool="retry">重试</button></div>
+          <p class="plain-note">只展示归一化文案，绝不透传异常 message（可能带内部主机名与堆栈片段）。</p>`;
+      } else if (code === "CANCELLED") {
+        foot = `<p class="plain-note">你取消了这次执行，工单没有被创建。可以补充信息后重新提出。</p>`;
+      } else if (code === "ABORTED") {
+        body = `<p class="tc-what">我还需要「订单号」才能提交这张工单；另外「退货原因」只能填 ${esc(TOOL.allowed)}，“无理由”不在范围内。请补充后再说一次。</p>${paramTable(rows, TOOL.allowed)}`;
+        foot = `<p class="plain-note">参数抽取失败一律中止，禁止用默认值继续执行（PRD §12.7）。</p>`;
+      }
+      return `<div class="tool-card danger" role="status">${head}${body}${foot}</div>`;
+    }
     function esc(value) {
       return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"})[c]);
     }
@@ -115,15 +277,59 @@
       const ambiguous = scenario === "ambiguous";
       const overflow = scenario === "overflow";
       const fallback = scenario === "fallback";
-      const items = [
+      let items = [
         ["保存", "done"], ["历史", "done"], ["改写", overflow?"warn":"done"],
         ["意图", overflow?"":"done"], ["澄清", ambiguous?"warn":"done"], ["动作", ambiguous||overflow?"":"active"]
       ];
+      if (is3B(scenario)) {
+        const d = data3B();
+        const toolStep = { PENDING:"active", RUNNING:"active", SUCCEEDED:"done", FAILED:"warn",
+          UNAVAILABLE:"warn", CANCELLED:"warn", ABORTED:"warn" }[toolStatus()] || "";
+        items = [["保存","done"], ["历史","done"], ["改写","done"], ["意图","done"], ["动作","done"],
+          ["检索", d.failed.length ? "warn" : "done"],
+          // 没有候选就没有精排可做，别把"没执行"画成"已完成"。
+          ["精排", !d.sources.length ? "" : d.reranked ? "done" : "warn"], ["工具", toolStep]];
+      }
       return `<div class="steps">${items.map((x,i)=>`<span class="step ${x[1]}"><span class="step-dot">${x[1]==="done"?"✓":i+1}</span>${x[0]}</span>`).join("")}</div>`;
     }
     function userMessage(text) { return `<div class="message user"><div class="avatar">你</div><div class="bubble"><p>${esc(text)}</p><div class="message-meta">10:42 · 已保存</div></div></div>`; }
-    function assistantMessage(inner) { return `<div class="message"><div class="avatar">AI</div><div class="bubble">${inner}<div class="message-meta">xrag · 方向引导</div></div></div>`; }
+    function assistantMessage(inner, meta) { return `<div class="message"><div class="avatar">AI</div><div class="bubble">${inner}<div class="message-meta">xrag · ${esc(meta || "方向引导")}</div></div></div>`; }
+    function sourceStrip(d) {
+      if (!d.sources.length) return "";
+      return `<div class="source-strip"><button class="open" data-action="open-sources">依据 ${d.sources.length} 条来源 ›</button>${sourceMarks(d)}</div>`;
+    }
+    /** 3B 消息区。右栏可以是收起的，所以无结果／部分失败／工具确认都必须落在这里（ui-spec §13.1）。 */
+    function messages3B() {
+      const d = data3B();
+      const question = {
+        sources: "退货政策和退款到账时间是怎么规定的？",
+        norerank: "退货政策和退款到账时间是怎么规定的？",
+        partial: "海外仓的退货流程和国内一样吗？",
+        noresult: "公司年会的差旅报销标准是多少？"
+      }[scenario] || "帮我给订单 ORD-20260806-1183 提交一张退货工单";
+      const done = `<div class="acceptance-note"><b>3B 验收</b> · 已完成知识库检索。当前里程碑尚未生成答案，下面是本轮拿到的依据。</div>`;
+      if (scenario === "noresult") {
+        return userMessage(question)
+          + assistantMessage(`<p>没有在你的知识库里找到相关内容。</p><ul class="next-steps"><li>换个说法再问一次</li><li>指定要查的知识库</li><li>确认这份资料是否已经入库</li></ul>`, "检索结果")
+          + `<div class="compare-note"><b>对照 3A：</b>方向不明时是另一句——「我还不能确定应该从哪个方向查找，请补充产品或业务范围。」一个是方向不明该改问法，一个是方向明确但库里没有该补资料，两句必须能被区分。</div>`
+          + `<div class="acceptance-note"><b>3B 验收</b> · 检索已执行且返回 0 条；不会用模型常识补一段看起来像答案的话。</div>`;
+      }
+      if (scenario === "partial") {
+        return userMessage(question)
+          + `<div class="banner"><span class="glyph" aria-hidden="true">!</span><div><b>「海外仓运营手册」「历史归档知识库」本轮没有查成，下面的结果不完整。</b>
+             <div class="acts"><button class="btn small primary" data-action="retry-kb">重试失败的知识库</button><button class="btn small" data-action="keep-partial">就现有结果继续</button></div></div></div>`
+          + done + sourceStrip(d);
+      }
+      if (scenario === "toolUnavailable") {
+        return userMessage(question) + sourceStrip(d)
+          + assistantMessage(`<p>系统判断需要调用「退款申请」，但它不在当前可用工具清单中，本轮未执行。</p><p class="muted" style="font-size:12px;margin-top:6px">这是配置缺失，不是不支持——静默跳过会让你以为系统做不到这件事。</p>`, "工具");
+      }
+      const code = toolStatus();
+      if (code) return userMessage(question) + sourceStrip(d) + toolCard(code);
+      return userMessage(question) + done + sourceStrip(d);
+    }
     function baseMessages() {
+      if (is3B(scenario)) return messages3B();
       if (scenario === "empty") return `<section class="empty-welcome"><div class="spark">✦</div><h1>从你的知识库开始提问</h1><p class="subtle">我会结合对话历史理解问题；方向不明确时会先请你确认。</p><div class="examples"><button class="example" data-example="海外仓入库超时后怎么处理？">海外仓入库超时后怎么处理？</button><button class="example" data-example="退货需要哪些材料？">退货需要哪些材料？</button><button class="example" disabled>比较两个知识库的退款规则 <span class="tag">3B 后可用</span></button></div></section>`;
       if (scenario === "compound") return userMessage("退货要什么材料，退款多久能到账？") + `<div class="acceptance-note"><b>3A 验收</b> · 已拆成 2 个子问题并分别形成意图；尚未执行检索或生成答案。</div>`;
       if (scenario === "ambiguous") return userMessage("退货政策是什么？") + assistantMessage(`<p>这个问题可能涉及以下几个方向。请选择最接近的一项，或补充具体产品/业务范围。</p><div class="guidance"><button data-guidance="3C 数码">商品服务 › 3C 数码 › 退货政策</button><button data-guidance="家电">商品服务 › 家电 › 退换货规则</button><button data-guidance="服装">商品服务 › 服装 › 退货政策</button><button data-guidance="都不是这些">都不是这些</button></div>`);
@@ -132,11 +338,66 @@
       return userMessage("海外仓的入库时效是什么？") + assistantMessage(`<p>当前 3A 里程碑已完成问题理解。检索与答案将在后续里程碑接入。</p>`) + userMessage("那超时了怎么办？") + `<div class="acceptance-note"><b>3A 验收</b> · 已改写为独立问题并形成后续检索动作；这不是助手答案。</div>`;
     }
     function composer() {
-      return `<div class="composer"><textarea id="questionInput" aria-label="输入问题" placeholder="输入你的问题…"></textarea><div class="composer-foot"><span class="hint">Enter 发送 · Shift+Enter 换行</span><button class="btn primary" data-action="send">发送 ↑</button></div></div>`;
+      // 活动本轮期间输入与发送禁用（ui-spec §4.4）；3B 里"工具执行中"是第一个真会出现的活动态。
+      const busy = is3B(scenario) && toolStatus() === "RUNNING";
+      return `<div class="composer"><textarea id="questionInput" aria-label="输入问题" ${busy?"disabled":""} placeholder="${busy?"正在执行工具，请稍候…":"输入你的问题…"}"></textarea><div class="composer-foot"><span class="hint">${busy?"工具执行中，本轮尚未结束":"Enter 发送 · Shift+Enter 换行"}</span><button class="btn primary" data-action="send" ${busy?"disabled":""}>发送 ↑</button></div></div>`;
     }
+    function srcItem(s) {
+      return `<article class="src"><div class="src-kb">${esc(s.kb)}</div><div class="src-doc ${s.gone?"gone":""}">${esc(s.doc)}</div>
+        <span class="src-pos">片段 ${esc(s.pos)}</span>
+        <details><summary>原文片段</summary><div class="src-quote">${esc(s.text)}</div></details>
+        <div class="src-foot"><button class="src-link" data-action="open-chunk" ${s.gone?"disabled":""}>${s.gone?"源文档已删除，无法跳转":"打开分块页"}</button></div></article>`;
+    }
+    /** 来源区：只有知识库/文档/片段位置三项，没有分数、名次和命中通道（ui-spec §13.3）。 */
+    function sourcesSection() {
+      const d = data3B();
+      const head = `<div class="sec-head"><h3>来源</h3>${d.sources.length?`<span class="count">${d.sources.length} 条</span>`:""}${sourceMarks(d)}</div>`;
+      let body;
+      if (!is3B(scenario)) body = `<div class="inspector-empty">本轮未执行检索</div>`;
+      else if (!d.sources.length) body = `<div class="inspector-empty">本轮没有召回任何来源</div>`;
+      else body = `<div class="src-list">${d.sources.map(srcItem).join("")}</div>`;
+      const note = is3B(scenario) && !d.reranked ? `<p class="state-note">本轮重排不可用，结果按检索相关度排序。不用原始候选补齐条数。</p>` : "";
+      const fails = d.failed.length
+        ? `<div class="fail-list">${d.failed.map(([kb, why]) => `<div class="fail-item">${state("bad","✕","未查成")}<b>${esc(kb)}</b><span class="why">${esc(why)}</span></div>`).join("")}</div>`
+        : "";
+      return `<div class="inspector-section">${head}${body}${note}${fails}</div>`;
+    }
+    function toolsSection() {
+      const code = is3B(scenario) ? toolStatus() : null;
+      const head = `<div class="sec-head"><h3>工具</h3></div>`;
+      if (!code) return `<div class="inspector-section">${head}<div class="inspector-empty">本轮没有调用工具</div></div>`;
+      const name = code === "UNAVAILABLE" ? "退款申请" : TOOL.name;
+      const ms = code === "SUCCEEDED" ? "1.2s" : code === "RUNNING" ? "…" : "";
+      const why = { FAILED:"执行超时", UNAVAILABLE:"未注册或不在白名单，本轮未执行",
+        ABORTED:"参数抽取失败，未执行", CANCELLED:"用户取消，未执行" }[code] || "";
+      const params = code === "UNAVAILABLE" ? ""
+        : `<details><summary>参数</summary>${paramTable(code === "ABORTED" ? TOOL.badParams : TOOL.params, null)}</details>`;
+      return `<div class="inspector-section">${head}<div class="tool-item" aria-live="polite"><div class="row"><span class="name">${esc(name)}</span>${state("bad","!","有副作用")}${toolStateTag(code)}${ms?`<span class="ms">${esc(ms)}</span>`:""}</div>${why?`<p class="state-note">${esc(why)}</p>`:""}${params}</div></div>`;
+    }
+    /** 右栏拆两组：本轮结果（长期产品内容）在上，处理详情（3A 验收信息）在下（ui-spec §13.2）。 */
     function inspector() {
+      if (scenario === "empty") return inspectorDetails();
+      return `<section class="inspector-group"><div class="group-head"><b>本轮结果</b></div>${sourcesSection()}${toolsSection()}</section>
+        <section class="inspector-group"><div class="group-head"><b>处理详情</b><span class="tag">3A 验收信息</span></div>${inspectorDetails()}</section>`;
+    }
+    function inspectorDetails() {
       let normalized = "海外仓入库超过时效后如何处理？";
       let content = `<div class="inspector-section"><h3>处理阶段</h3>${steps()}</div>`;
+      if (is3B(scenario)) {
+        const d = data3B();
+        return content
+          + `<div class="inspector-section"><h3>规范化问题</h3><div class="question-box">${esc({
+              sources: "退货政策的规定，以及退款到账需要多长时间？",
+              norerank: "退货政策的规定，以及退款到账需要多长时间？",
+              partial: "海外仓的退货流程与国内退货流程有何差异？",
+              noresult: "公司年会的差旅报销标准是多少？"
+            }[scenario] || "为订单 ORD-20260806-1183 提交一张退货工单。")}</div></div>`
+          + `<div class="inspector-section"><h3>意图与动作</h3><div class="intent-row"><span class="score">${scenario==="noresult"?"中":"强"}</span><div><div class="intent-path">${esc({
+              partial: "物流与配送 › 跨境物流 › 海外仓",
+              noresult: "行政制度 › 费用报销"
+            }[scenario] || "售后服务 › 退货办理")}</div><div class="intent-reason">定向知识库 · 已执行</div></div></div><span class="tag blue">定向知识库</span> <span class="tag">全局兜底</span></div>`
+          + `<div class="inspector-section"><h3>检索漏斗</h3><p class="muted">三路命中 ${d.hitCount} → 去重 ${d.dedup} → ${d.reranked ? `精排 ${d.sources.length}` : "精排未执行"}</p><p class="muted" style="margin-top:6px">漏斗、通道构成与降级成因只出现在验收信息里，不进用户可见的来源区；全页不展示原始分数。</p></div>`;
+      }
       if (scenario === "empty") return content + `<div class="inspector-section"><h3>本轮处理</h3><p class="muted">发送问题后，这里显示规范化问题和路由结果，不展示模型思维链。</p></div>`;
       if (scenario === "compound") return content + `<div class="inspector-section"><h3>子问题 · 2</h3><div class="question-box">1. 办理退货需要准备哪些材料？</div><div class="question-box">2. 退款通常多长时间到账？</div></div><div class="inspector-section"><h3>意图与动作</h3><div class="intent-row"><span class="score">强</span><div><div class="intent-path">售后服务 › 退货办理</div><div class="intent-reason">定向知识库 · topK 待 3B</div></div></div><div class="intent-row"><span class="score">强</span><div><div class="intent-path">财务结算 › 退款到账</div><div class="intent-reason">定向知识库 · 需要全局兜底</div></div></div></div>`;
       if (scenario === "ambiguous") return content + `<div class="inspector-section"><h3>规范化问题</h3><div class="question-box">当前问题已独立，无需改写</div></div><div class="inspector-section"><h3>短路点</h3><div class="degrade">3 个跨品类 KB 意图接近，等待用户选择；尚未执行知识库检索。</div></div>`;
@@ -145,11 +406,15 @@
       return content + `<div class="inspector-section"><h3>原问题</h3><div class="question-box">那超时了怎么办？</div><h3 style="margin-top:12px">规范化问题</h3><div class="question-box">${normalized}</div></div><div class="inspector-section"><h3>最高意图</h3><div class="intent-row"><span class="score">强</span><div><div class="intent-path">物流与配送 › 跨境物流 › 海外仓</div><div class="intent-reason">问题明确包含“海外仓”上下文</div></div></div></div><div class="inspector-section"><h3>后续动作</h3><span class="tag blue">定向知识库</span> <span class="tag">单意图补充兜底</span><p class="muted" style="margin-top:8px">3A 只形成动作，不执行检索。</p></div>`;
     }
     function title() {
+      if (is3B(scenario)) {
+        return { partial: "海外仓退货流程", noresult: "年会报销标准" }[scenario]
+          || (toolStatus() ? "提交退货工单" : "退货政策与退款时效");
+      }
       return scenario === "empty" ? "新对话" : scenario === "ambiguous" ? "退货政策" : scenario === "compound" ? "退款材料与到账时间" : "海外仓入库时效";
     }
     function renderA() {
-      const overlay = leftOpen ? `<div class="scrim" data-action="close-drawers"></div><aside class="drawer conversation-drawer"><div class="drawer-head"><b>最近对话</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${conversationList()}</aside>` : inspectorOpen && innerWidth <= 1100 ? `<div class="scrim" data-action="close-drawers"></div><aside class="drawer"><div class="drawer-head"><b>本轮处理 · 3A 验收信息</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${inspector()}</aside>` : "";
-      return `<div class="layout-a ${inspectorOpen?"":"no-inspector"}"><aside class="a-sidebar">${conversationList()}</aside><section class="a-main"><div class="chat-head"><button class="btn icon-btn small" data-action="open-left" aria-label="打开对话列表">☰</button><h1>${title()}</h1><div class="actions"><button class="btn small" data-action="toggle-inspector">本轮处理</button><button class="btn icon-btn small" data-action="more" aria-label="对话操作">•••</button></div></div><div class="chat-scroll">${baseMessages()}</div><div class="a-composer">${composer()}</div></section>${inspectorOpen?`<aside class="a-inspector"><div class="inspector-head"><b>本轮处理</b><span class="tag">3A 验收信息</span></div>${inspector()}</aside>`:""}${overlay}</div>`;
+      const overlay = leftOpen ? `<div class="scrim" data-action="close-drawers"></div><aside class="drawer conversation-drawer"><div class="drawer-head"><b>最近对话</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${conversationList()}</aside>` : inspectorOpen && innerWidth <= 1100 ? `<div class="scrim" data-action="close-drawers"></div><aside class="drawer"><div class="drawer-head"><b>本轮处理</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${inspector()}</aside>` : "";
+      return `<div class="layout-a ${inspectorOpen?"":"no-inspector"}"><aside class="a-sidebar">${conversationList()}</aside><section class="a-main"><div class="chat-head"><button class="btn icon-btn small" data-action="open-left" aria-label="打开对话列表">☰</button><h1>${title()}</h1><div class="actions"><button class="btn small" data-action="toggle-inspector">本轮处理</button><button class="btn icon-btn small" data-action="more" aria-label="对话操作">•••</button></div></div><div class="chat-scroll">${baseMessages()}</div><div class="a-composer">${composer()}</div></section>${inspectorOpen?`<aside class="a-inspector"><div class="inspector-head"><b>本轮处理</b></div>${inspector()}</aside>`:""}${overlay}</div>`;
     }
     function renderB() {
       return `<div class="layout-b"><div class="b-head"><div><h1>问题理解工作台</h1><p class="subtle">同时核对原问题、规范化问题和路由动作；不展示模型思维链。</p></div><button class="btn primary" data-action="new">＋ 新对话</button></div><section class="b-pipeline"><div class="panel-title">本轮阶段 <span class="tag">3A 验收信息</span></div>${steps()}</section><div class="b-grid"><aside class="panel b-conversations"><div class="panel-title">对话</div><div class="panel-body">${conversationList()}</div></aside><section><div class="panel"><div class="panel-title">原问题与规范化结果</div><div class="panel-body"><div class="compare-grid"><div class="compare-card"><h3>对话消息</h3>${baseMessages()}</div><div class="compare-card"><h3>本轮处理</h3>${inspector()}</div></div></div></div><div class="b-chat">${composer()}</div></section><aside class="panel"><div class="panel-title">处理详情</div><div class="panel-body"><p class="subtle">Workbench 把流水线放在主视觉，适合开发验收，但最终答案接入后会争夺注意力。</p></div>${inspector()}</aside></div></div>`;
@@ -158,15 +423,40 @@
       return `<div class="layout-c"><div class="c-toolbar"><button class="btn icon-btn small" data-action="open-left" aria-label="打开对话列表">☰</button><h1>${title()}</h1><button class="btn small" data-action="toggle-inspector">本轮处理</button></div><section class="c-focus"><div class="c-scroll">${baseMessages()}</div><div class="c-composer">${composer()}</div></section>${leftOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer conversation-drawer"><div class="drawer-head"><b>最近对话</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${conversationList()}</aside>`:""}${inspectorOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer"><div class="drawer-head"><b>本轮处理 · 3A 验收信息</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${inspector()}</aside>`:""}</div>`;
     }
     function renderDock() {
-      document.getElementById("scenarioDock").innerHTML = `<span class="label">SCENARIO</span>${Object.entries(scenarios).map(([k,v])=>`<button class="${scenario===k?"active":""}" data-scenario="${k}">${v}</button>`).join("")}<span class="hint">场景控制不是产品界面</span>`;
+      const row = (tier, map, hint) => `<div class="dock-row"><span class="tier">${tier}</span>${
+        Object.entries(map).map(([k,v])=>`<button class="${scenario===k?"active":""}" data-scenario="${k}">${v}</button>`).join("")
+      }${hint?`<span class="hint">${hint}</span>`:""}</div>`;
+      document.getElementById("scenarioDock").innerHTML =
+        row("3A", scenarios3A, "场景控制不是产品界面")
+        + row("3B", scenarios3B, "3B 增量只在已选定的 A 方案上演示");
     }
     function bind() {
-      document.querySelectorAll("[data-scenario]").forEach(el=>el.onclick=()=>{scenario=el.dataset.scenario; inspectorOpen=variant!=="C"; render();});
+      document.querySelectorAll("[data-scenario]").forEach(el=>el.onclick=()=>{
+        scenario=el.dataset.scenario; toolState=null;
+        if(is3B(scenario)&&variant!=="A"){variant="A"; const p=new URLSearchParams(location.search); p.set("variant","A"); history.replaceState(null,"",`?${p}`); showToast("3B 增量只在已选定的 A 方案上演示，已切到 A");}
+        // 窄屏下右栏是抽屉，切场景时别用它盖住对话区——先看消息，再自己打开抽屉。
+        inspectorOpen=variant!=="C"&&innerWidth>1100; render();
+      });
+      document.querySelectorAll("[data-tool]").forEach(el=>el.onclick=()=>{
+        const a=el.dataset.tool;
+        if(a==="cancel"){toolState="CANCELLED"; render(); showToast("已取消，工单没有被创建");}
+        else if(a==="confirm"){
+          toolState="RUNNING"; render(); showToast("已确认，正在执行");
+          setTimeout(()=>{ if(toolState==="RUNNING"){toolState="SUCCEEDED"; render();} }, 1100);
+        } else if(a==="retry"){
+          toolState="PENDING"; render();
+          showToast("有副作用的工具重试要重新确认，上一次的确认不能复用");
+        }
+      });
       document.querySelectorAll("[data-guidance]").forEach(el=>el.onclick=()=>{showToast(el.dataset.guidance==="都不是这些"?"已选择：都不是，请补充范围":"已确认方向："+el.dataset.guidance); scenario="followup"; render();});
       document.querySelectorAll("[data-example]").forEach(el=>el.onclick=()=>{scenario="followup"; render(); showToast("示例已发送");});
       document.querySelectorAll("[data-action]").forEach(el=>el.onclick=()=>{
         const a=el.dataset.action;
-        if(a==="new"){scenario="empty";render()} else if(a==="toggle-inspector"){inspectorOpen=!inspectorOpen;render()} else if(a==="open-left"){leftOpen=true;inspectorOpen=false;render()} else if(a==="close-drawers"){leftOpen=false;inspectorOpen=false;render()} else if(a==="send"){const q=document.getElementById("questionInput")?.value.trim(); if(!q){showToast("请输入问题");return} scenario=q.includes("退货")?"ambiguous":"followup";render();showToast("消息已保存并开始理解")} else if(a==="select-conversation"){scenario="followup";leftOpen=false;render()} else if(a==="more"){showToast("对话操作：重命名 / 逻辑删除")}
+        if(a==="open-sources"){inspectorOpen=true;render()}
+        else if(a==="open-chunk"){showToast("原型不跳转：定位到具体分块的参数由 Step C 与 api.md 冻结")}
+        else if(a==="retry-kb"){scenario="sources";render();showToast("只重跑失败的知识库，不重走改写与意图")}
+        else if(a==="keep-partial"){showToast("保留不完整结果继续；界面上的『结果不完整』标记不会消失")}
+        else if(a==="new"){scenario="empty";toolState=null;render()} else if(a==="toggle-inspector"){inspectorOpen=!inspectorOpen;render()} else if(a==="open-left"){leftOpen=true;inspectorOpen=false;render()} else if(a==="close-drawers"){leftOpen=false;inspectorOpen=false;render()} else if(a==="send"){const q=document.getElementById("questionInput")?.value.trim(); if(!q){showToast("请输入问题");return} scenario=q.includes("退货")?"ambiguous":"followup";render();showToast("消息已保存并开始理解")} else if(a==="select-conversation"){scenario="followup";toolState=null;leftOpen=false;render()} else if(a==="more"){showToast("对话操作：重命名 / 逻辑删除")}
       });
       const input=document.getElementById("questionInput"); if(input) input.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();document.querySelector('[data-action="send"]')?.click();}};
     }
