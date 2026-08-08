@@ -45,6 +45,15 @@
     .layout-b{min-height:calc(100vh - 58px);padding:20px 24px 34px;max-width:1480px;margin:auto}.b-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}.b-head h1{font-size:23px;margin:0 0 4px}.b-pipeline{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:14px;box-shadow:0 8px 28px rgba(16,43,39,.05)}.b-pipeline .steps{justify-content:space-between}.b-grid{display:grid;grid-template-columns:220px minmax(0,1.2fr) minmax(360px,.8fr);gap:14px}.panel{background:var(--surface);border:1px solid var(--line);border-radius:11px;overflow:hidden}.panel-title{padding:11px 13px;border-bottom:1px solid var(--line);font-size:12px;font-weight:750;display:flex;align-items:center;gap:8px}.panel-body{padding:13px}.b-conversations .conversation-item{border-radius:7px}.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.compare-card{border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:11px}.compare-card h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin:0 0 7px}.b-chat{margin-top:14px}.b-chat .panel-body{max-height:300px;overflow:auto}.b-composer{margin-top:10px}
     /* C — focused chat */
     .layout-c{min-height:calc(100vh - 58px);display:flex;flex-direction:column}.c-toolbar{height:54px;padding:0 22px;display:flex;align-items:center;border-bottom:1px solid var(--line);background:var(--surface)}.c-toolbar h1{font-size:14px;margin:0 auto}.c-focus{width:min(780px,calc(100% - 32px));margin:0 auto;flex:1;display:flex;flex-direction:column}.c-scroll{flex:1;padding:36px 0 22px}.c-composer{position:sticky;bottom:0;padding:12px 0 22px;background:linear-gradient(transparent,var(--bg) 22%)}.drawer{position:fixed;inset:58px 0 0 auto;width:min(430px,100%);background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:50;overflow:auto}.drawer .drawer-head{height:54px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 15px}.drawer .drawer-head button{margin-left:auto}.scrim{position:fixed;inset:58px 0 0;background:rgba(10,28,24,.22);z-index:45}.conversation-drawer{left:0;right:auto;border-left:0;border-right:1px solid var(--line);width:min(330px,92%);padding:14px 10px}
+    /* C 是已选方案，两侧都是抽屉；把抽屉压到场景控制条下面，否则抽屉头上的关闭按钮点不到。
+       这是原型脚手架造成的几何问题，不是产品规则。 */
+    :root{--chrome-top:146px} /* 58px 页头 + #app 为场景控制条让出的 88px */
+    .drawer,.scrim{top:var(--chrome-top)}
+    /* C 的输入区是 sticky 的：主区必须自己滚，否则整页滚动会把输入区推走、也会盖住工具卡的按钮。 */
+    .layout-c{height:calc(100vh - var(--chrome-top));min-height:520px}
+    .layout-c .c-focus{min-height:0}
+    .layout-c .c-scroll{overflow:auto;min-height:0}
+    .toast{top:calc(var(--chrome-top) + 10px)} /* 别盖住场景控制条上的说明文字 */
     /* 3B — 来源、工具、非阻塞提示（ui-spec §13） */
     .inspector-group{border-bottom:2px solid var(--line-2)}.inspector-group:last-child{border-bottom:0}
     .group-head{display:flex;align-items:center;gap:8px;padding:13px 15px 0}.group-head b{font-size:12.5px}.group-head .tag{margin-left:auto}
@@ -99,7 +108,7 @@
     .dock-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.dock-row button{white-space:nowrap;flex:none}.dock-row .tier,.dock-row .hint{flex:none}
     .dock-row .tier{font:700 10px var(--mono);letter-spacing:.06em;color:#cfe9e2;background:#1d4740;border:1px solid #31544e;border-radius:5px;padding:3px 7px}
     @media(max-width:1100px){.layout-a{grid-template-columns:240px minmax(0,1fr)}.a-inspector{display:none}.layout-b{padding:16px}.b-grid{grid-template-columns:190px 1fr}.b-grid>.panel:last-child{grid-column:1/-1}.scenario-dock .hint{display:none}}
-    @media(max-width:720px){body{padding-bottom:68px}#app{padding-top:120px}.dock-row{flex-wrap:nowrap;overflow-x:auto}.source-strip{padding-left:0}.tc-actions{flex-direction:column;align-items:stretch;gap:12px}.tc-actions .btn{margin-left:0;width:100%}.params td.k{width:auto}.params,.params tbody,.params tr,.params td{display:block;width:100%}.params thead{display:none}.params tr{border-top:1px solid var(--line)}.params tr:first-child{border-top:0}.params td{border-top:0;padding:6px 9px}.params td.k{padding-bottom:0;font-size:11px;color:var(--ink-3)}.app-header{padding:0 14px;gap:12px}.main-nav a:not(.active){display:none}.proto-mark{font-size:9px}.layout-a{display:block;height:auto;min-height:calc(100vh - 58px)}.a-sidebar{display:none}.a-main{min-height:calc(100vh - 58px)}.chat-scroll{padding:16px}.a-composer{padding:10px 12px 82px}.chat-head{padding:0 12px}.layout-b{padding:12px}.b-head{display:block}.b-grid{display:block}.b-grid>.panel{margin-bottom:10px}.b-conversations{display:none}.compare-grid{grid-template-columns:1fr}.b-pipeline .steps{justify-content:flex-start}.c-toolbar{padding:0 12px}.c-focus{width:calc(100% - 24px)}.c-scroll{padding-top:18px}.c-composer{padding-bottom:82px}.examples{grid-template-columns:1fr}.scenario-dock{left:8px;right:8px;top:62px;bottom:auto;max-height:104px;overflow:auto}.switcher{bottom:12px}.variant-label{min-width:168px}.message{max-width:95%}}
+    @media(max-width:720px){body{padding-bottom:68px}#app{padding-top:120px}:root{--chrome-top:178px}.dock-row{flex-wrap:nowrap;overflow-x:auto}.source-strip{padding-left:0}.tc-actions{flex-direction:column;align-items:stretch;gap:12px}.tc-actions .btn{margin-left:0;width:100%}.params td.k{width:auto}.params,.params tbody,.params tr,.params td{display:block;width:100%}.params thead{display:none}.params tr{border-top:1px solid var(--line)}.params tr:first-child{border-top:0}.params td{border-top:0;padding:6px 9px}.params td.k{padding-bottom:0;font-size:11px;color:var(--ink-3)}.app-header{padding:0 14px;gap:12px}.main-nav a:not(.active){display:none}.proto-mark{font-size:9px}.layout-a{display:block;height:auto;min-height:calc(100vh - 58px)}.a-sidebar{display:none}.a-main{min-height:calc(100vh - 58px)}.chat-scroll{padding:16px}.a-composer{padding:10px 12px 82px}.chat-head{padding:0 12px}.layout-b{padding:12px}.b-head{display:block}.b-grid{display:block}.b-grid>.panel{margin-bottom:10px}.b-conversations{display:none}.compare-grid{grid-template-columns:1fr}.b-pipeline .steps{justify-content:flex-start}.c-toolbar{padding:0 12px}.c-focus{width:calc(100% - 24px)}.c-scroll{padding-top:18px}.c-composer{padding-bottom:82px}.examples{grid-template-columns:1fr}.scenario-dock{left:8px;right:8px;top:62px;bottom:auto;max-height:104px;overflow:auto}.switcher{bottom:12px}.variant-label{min-width:168px}.message{max-width:95%}}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
   </style>
 </head>
@@ -123,8 +132,10 @@
     const variants = {
       A: "Conversation + Inspector",
       B: "Pipeline Workbench",
-      C: "Focused Chat"
+      C: "Focused Chat（已选择）"
     };
+    /** 3B 增量只在已选定的方案上演示；A/B 只是 3A 的决策留档（ui-spec §13.11）。 */
+    const SELECTED = "C";
     const scenarios3A = {
       empty: "新对话",
       followup: "追问改写",
@@ -147,8 +158,8 @@
     };
     const scenarios = { ...scenarios3A, ...scenarios3B };
     const is3B = key => key in scenarios3B;
-    let variant = new URLSearchParams(location.search).get("variant") || "A";
-    if (!variants[variant]) variant = "A";
+    let variant = new URLSearchParams(location.search).get("variant") || SELECTED;
+    if (!variants[variant]) variant = SELECTED;
     let scenario = "followup";
     let inspectorOpen = variant === "A" && innerWidth > 1100;
     let leftOpen = false;
@@ -420,7 +431,7 @@
       return `<div class="layout-b"><div class="b-head"><div><h1>问题理解工作台</h1><p class="subtle">同时核对原问题、规范化问题和路由动作；不展示模型思维链。</p></div><button class="btn primary" data-action="new">＋ 新对话</button></div><section class="b-pipeline"><div class="panel-title">本轮阶段 <span class="tag">3A 验收信息</span></div>${steps()}</section><div class="b-grid"><aside class="panel b-conversations"><div class="panel-title">对话</div><div class="panel-body">${conversationList()}</div></aside><section><div class="panel"><div class="panel-title">原问题与规范化结果</div><div class="panel-body"><div class="compare-grid"><div class="compare-card"><h3>对话消息</h3>${baseMessages()}</div><div class="compare-card"><h3>本轮处理</h3>${inspector()}</div></div></div></div><div class="b-chat">${composer()}</div></section><aside class="panel"><div class="panel-title">处理详情</div><div class="panel-body"><p class="subtle">Workbench 把流水线放在主视觉，适合开发验收，但最终答案接入后会争夺注意力。</p></div>${inspector()}</aside></div></div>`;
     }
     function renderC() {
-      return `<div class="layout-c"><div class="c-toolbar"><button class="btn icon-btn small" data-action="open-left" aria-label="打开对话列表">☰</button><h1>${title()}</h1><button class="btn small" data-action="toggle-inspector">本轮处理</button></div><section class="c-focus"><div class="c-scroll">${baseMessages()}</div><div class="c-composer">${composer()}</div></section>${leftOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer conversation-drawer"><div class="drawer-head"><b>最近对话</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${conversationList()}</aside>`:""}${inspectorOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer"><div class="drawer-head"><b>本轮处理 · 3A 验收信息</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${inspector()}</aside>`:""}</div>`;
+      return `<div class="layout-c"><div class="c-toolbar"><button class="btn icon-btn small" data-action="open-left" aria-label="打开对话列表">☰</button><h1>${title()}</h1><button class="btn small" data-action="toggle-inspector">本轮处理</button></div><section class="c-focus"><div class="c-scroll">${baseMessages()}</div><div class="c-composer">${composer()}</div></section>${leftOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer conversation-drawer"><div class="drawer-head"><b>最近对话</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${conversationList()}</aside>`:""}${inspectorOpen?`<div class="scrim" data-action="close-drawers"></div><aside class="drawer"><div class="drawer-head"><b>本轮处理</b><button class="btn icon-btn small" data-action="close-drawers">×</button></div>${inspector()}</aside>`:""}</div>`;
     }
     function renderDock() {
       const row = (tier, map, hint) => `<div class="dock-row"><span class="tier">${tier}</span>${
@@ -428,14 +439,14 @@
       }${hint?`<span class="hint">${hint}</span>`:""}</div>`;
       document.getElementById("scenarioDock").innerHTML =
         row("3A", scenarios3A, "场景控制不是产品界面")
-        + row("3B", scenarios3B, "3B 增量只在已选定的 A 方案上演示");
+        + row("3B", scenarios3B, `3B 增量只在已选定的 ${SELECTED} 方案上演示`);
     }
     function bind() {
       document.querySelectorAll("[data-scenario]").forEach(el=>el.onclick=()=>{
         scenario=el.dataset.scenario; toolState=null;
-        if(is3B(scenario)&&variant!=="A"){variant="A"; const p=new URLSearchParams(location.search); p.set("variant","A"); history.replaceState(null,"",`?${p}`); showToast("3B 增量只在已选定的 A 方案上演示，已切到 A");}
-        // 窄屏下右栏是抽屉，切场景时别用它盖住对话区——先看消息，再自己打开抽屉。
-        inspectorOpen=variant!=="C"&&innerWidth>1100; render();
+        if(is3B(scenario)&&variant!==SELECTED){variant=SELECTED; const p=new URLSearchParams(location.search); p.set("variant",SELECTED); history.replaceState(null,"",`?${p}`); showToast(`3B 增量只在已选定的 ${SELECTED} 方案上演示，已切到 ${SELECTED}`);}
+        // 本轮处理是默认关着的抽屉：切场景时别自动弹开，那正是这一版要验的"关着也不丢信息"。
+        inspectorOpen=variant==="A"&&innerWidth>1100; render();
       });
       document.querySelectorAll("[data-tool]").forEach(el=>el.onclick=()=>{
         const a=el.dataset.tool;
@@ -463,6 +474,10 @@
     function render() {
       document.getElementById("app").innerHTML = variant==="A"?renderA():variant==="B"?renderB():renderC();
       document.getElementById("variantLabel").innerHTML=`<b>${variant}</b> — ${variants[variant]}`; renderDock(); bind();
+      // 像真实聊天一样停在最新一条。C 的输入区是 sticky 的，不滚到底时它会盖住工具卡的按钮，
+      // 看起来像"这张卡没有操作"。
+      const scroller=document.querySelector(".chat-scroll, .c-scroll");
+      if(scroller) scroller.scrollTop=scroller.scrollHeight;
     }
     document.getElementById("prevVariant").onclick=()=>cycle(-1); document.getElementById("nextVariant").onclick=()=>cycle(1);
     document.addEventListener("keydown",e=>{const t=e.target;if(t.matches("input,textarea,[contenteditable]"))return;if(e.key==="ArrowLeft")cycle(-1);if(e.key==="ArrowRight")cycle(1);if(e.key==="Escape"&&(leftOpen||inspectorOpen)&&variant==="C"){leftOpen=false;inspectorOpen=false;render();}});

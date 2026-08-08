@@ -4,7 +4,8 @@
 - `owner`: liuqiang（产品决策）+ AI（起草）
 - `created`: 2026-08-07
 - `3a_approved_at`: 2026-08-07
-- `ui_decision`: 问答页 A — Conversation + Inspector；意图树 C — Route Canvas
+- `ui_decision`: 问答页 **C — Focused Chat**（2026-08-08 改判，原为 A — Conversation + Inspector）；
+  意图树 C — Route Canvas（不变）
 - `current_increment`: 3A — 记忆 + 改写 + 意图（第 2~9 篇）
 - `phase_plan`: [Phase 3 执行计划](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
 - `learning_checkpoint`: [Phase 3 Step A 学习检查点](../../learning/ragent-column/PHASE-3-STEP-A-CHECKPOINT.md)
@@ -262,7 +263,7 @@ Phase 1 已能把文档转成可检索的分块和向量，Phase 2 已提供 Cha
 
 | # | 决策事项 | **确认结果** | 接受的代价 |
 |---|---|---|---|
-| P-01 | 问答页信息架构 | **A — Conversation + Inspector**：对话列表 + 消息主区 + 可收起本轮处理面板 | 桌面三栏需要做好窄屏抽屉降级，完整交付后处理面板默认收起 |
+| P-01 | 问答页信息架构 | ~~**A — Conversation + Inspector**~~ → **2026-08-08 改判为 C — Focused Chat**，见下方说明 | 桌面三栏需要做好窄屏抽屉降级，完整交付后处理面板默认收起 |
 | P-02 | 意图树信息架构 | **C — Route Canvas**：关系画布 + 节点检查器 | 大树、键盘操作和窄屏适配成本高于树形导航，须在 Step C/测试矩阵正面覆盖 |
 | P-03 | 3A 无最终答案时如何验收 | 只在明确标记的“3A 验收信息”展示中间结果，不生成假助手答案 | 3A 不是可发布的完整问答产品 |
 | P-04 | 子问题数量 | 最多 3 个；超过则请用户拆分，不截断 | 多一步交互，但不会静默漏答 |
@@ -272,6 +273,20 @@ Phase 1 已能把文档转成可检索的分块和向量，Phase 2 已提供 Cha
 
 3A Step B 至此关闭。3B/3C 后续增量不能借 3A 批准自动越过自己的 Step B；当前下一节点是执行计划
 §5.3 的 D-06 采样参数端口前置 ADR 与独立工单，然后才进入 3A Step C。
+
+### 11.1 P-01 改判：问答页改为 C — Focused Chat（2026-08-08）
+
+项目所有者在 3B Step B 审阅增量原型后，把问答页信息架构从 A 改为 **C — Focused Chat**：
+中央单列 760px，对话列表与「本轮处理」在所有断点上都是抽屉，桌面不再有常驻侧栏。
+
+- 变的只是**信息怎么摆**。本 PRD 的功能需求、降级矩阵与 §12 的 3B 产品语义一条未改——
+  它们说的是"什么时候必须让用户看见什么"，与分栏方式无关。
+- P-02~P-07 不受影响；意图树仍是 C — Route Canvas。
+- 代价：`3A-UI-07`（1440/720/375 三栏收起与抽屉）那次手工走查随之作废，需在 3B Step E 按 C 重走。
+- 一个被这次改判提升了重要性的既有约束：**「本轮处理」默认关闭，因此它绝不能承担关键失败的传达**。
+  §12 的无结果、部分知识库失败、未重排、工具确认全部必须在消息区可见，这在 A 下是保守设计，
+  在 C 下是唯一保险。界面表达见
+  [conversation ui-spec §12A / §13.1](../../tech/qa-pipeline/conversation/ui-spec.md)。
 
 ## 12. 3B 范围与产品语义（Step B，2026-08-08）
 
