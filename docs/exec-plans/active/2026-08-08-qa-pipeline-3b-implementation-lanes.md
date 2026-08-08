@@ -91,7 +91,7 @@
 
 ### Lane 运维
 
-- 显式配置 Hikari 池大小，登记检索并行度、topK、rerank 输入上限与工具超时。
+- 显式声明 Hikari 池大小（10，与 Postgres `max_connections` 联动才可调大），登记检索并行度、topK、rerank 输入上限与工具超时。
 - **换分词词典 = 重建 `document_chunk_keyword` 全表**，写进部署文档而不是代码注释。
 - CI 默认假检索、假 Rerank、假工具；真实链路不进默认 CI。
 - 回填批处理的开关与运行方式登记在部署 README。

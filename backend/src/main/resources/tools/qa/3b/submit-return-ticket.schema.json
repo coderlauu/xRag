@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "orderNo": {
+      "type": "string",
+      "title": "订单号",
+      "description": "要退货的订单编号，形如 ORD-20260806-1183。"
+    },
+    "reason": {
+      "type": "string",
+      "title": "退货原因",
+      "enum": ["商品与描述不符", "质量问题", "物流破损", "尺码不合适"]
+    },
+    "contactPhone": {
+      "type": "string",
+      "title": "联系电话",
+      "description": "可选；缺省时使用订单上的联系方式。"
+    }
+  },
+  "required": ["orderNo", "reason"],
+  "additionalProperties": false
+}

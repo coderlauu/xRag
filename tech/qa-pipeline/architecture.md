@@ -498,7 +498,10 @@ com.app.qa.tool      ──> com.app.ai.model.ChatClient
 qa.retrieval.max-parallelism  <  spring.datasource.hikari.maximum-pool-size
 ```
 
-- 池大小从"未配置默认 10"改为**显式配置**，基线 20。
+- 池大小从"未配置默认 10"改为**显式声明 10**——显式化是为了校验与可见性，不是为了调大。
+  取更大的值会被测试环境放大：每个 Spring 测试上下文各建一个池，Postgres 默认
+  `max_connections=100`，实测 20 就会打穿（工单 01 期间验证）。要调大必须同时抬高
+  `max_connections`。
 - 检索并行度基线 4，粒度是 **(子问题 × 通道)** 任务。
 - 启动时校验上式，不满足**直接失败**并打印两个实际值。理由与 Embedding 维度冲突同源：
   放行只会把问题推迟成运行期的"检索变慢了"，而那个症状会把排查带到线程池而不是连接池。
@@ -664,7 +667,7 @@ REQUESTED ─ 复核通过 ─┤
 
 | 键 | 基线 | 校验 |
 |---|---|---|
-| `spring.datasource.hikari.maximum-pool-size` | 20 | 显式配置，不再用默认 10 |
+| `spring.datasource.hikari.maximum-pool-size` | 10 | 显式声明；调大必须与 Postgres `max_connections` 一起改 |
 | `qa.retrieval.max-parallelism` | 4 | `< maximum-pool-size`，否则启动失败 |
 | `qa.retrieval.channel-top-k` | 50 | `>= topN` |
 | `qa.retrieval.rerank-input-size` | 30 | `<= RerankProfile.maxDocuments` |

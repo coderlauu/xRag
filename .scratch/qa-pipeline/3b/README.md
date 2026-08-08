@@ -1,14 +1,14 @@
 # Phase 3B 原子工单：检索 + 工具
 
 本目录把 [3B 分角色任务书](../../../docs/exec-plans/active/2026-08-08-qa-pipeline-3b-implementation-lanes.md)
-转成 16 张可独立验收的工单。**Step C 尚未确认，16 张全部 blocked**，不得开始实现。
+转成 16 张可独立验收的工单。Step C 已于 **2026-08-08 获确认**；第一前沿 **01、02** 已解锁，其余按依赖图逐批解锁。
 
 ## 状态
 
 | # | 工单 | Blocked by | 状态 |
 |---:|---|---|---|
-| 01 | [3B 配置对象与启动校验](issues/01-retrieval-config.md) | — | blocked |
-| 02 | [V9 迁移与 3B DDL 约束](issues/02-v9-schema.md) | — | blocked |
+| 01 | [3B 配置对象与启动校验](issues/01-retrieval-config.md) | — | complete |
+| 02 | [V9 迁移与 3B DDL 约束](issues/02-v9-schema.md) | — | complete |
 | 03 | [中文切词器与关键词索引写入点](issues/03-keyword-indexing.md) | 02 | blocked |
 | 04 | [关键词存量回填批处理](issues/04-keyword-backfill.md) | 03 | blocked |
 | 05 | [`ChunkSearchPort` 与三个通道](issues/05-search-channels.md) | 01 | blocked |
@@ -33,7 +33,7 @@
      └─> 09
 ```
 
-Step C 获确认后第一前沿是 **01、02**。
+第一前沿 **01、02** 已完成（2026-08-08），解锁 **03、05、09**。
 
 ## 推进规则
 

@@ -102,6 +102,12 @@
    `application.properties` 当前未配 Hikari 池大小，默认为 10；而 `ChunkVectorRepository.search`
    带 `@Transactional(readOnly = true)`（需要 `set local hnsw.iterative_scan`），每个并行任务独占
    一条连接。因此显式配置池大小，并令 `检索并行度 < 池大小`，不满足直接启动失败。
+
+   **池大小取 10（= 原隐式默认值），不取更大。** 起草时定的 20 在实现工单 01 时被实测推翻：
+   一次 `verify` 会起十几个 Spring 测试上下文，每个各建一个池，而 Postgres 默认
+   `max_connections=100`，20×N 直接打穿，症状是成片的 `FATAL: sorry, too many clients already`
+   ——看起来像数据库坏了，实际是池大小乘上了上下文数量。显式化的价值在于校验与可见性，
+   不在于数字变大；要调大必须与 Postgres 的 `max_connections` 一起改。
    理由与"Embedding 维度与 `vector(1024)` 不一致时启动失败"同源：放行只会把问题推迟成运行期的
    "检索变慢了"，而那个症状会把排查带到完全错误的方向。
 

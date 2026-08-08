@@ -32,7 +32,13 @@ class QaSchemaMigrationTests {
             "qa_turn_stage",
             "qa_intent_tree_head",
             "qa_intent_tree_revision",
-            "qa_intent_node_snapshot");
+            "qa_intent_node_snapshot",
+            // V9（3B）新增。本集合是"迁移到最新版本后 qa_* 应有的全部表"，随分区扩展；
+            // 3B 各表的约束由 Qa3bSchemaMigrationTests 覆盖，这里只登记存在性。
+            "qa_turn_retrieval",
+            "qa_retrieval_source",
+            "qa_retrieval_target",
+            "qa_tool_call");
 
     private final String baseUrl = withoutQuery(System.getProperty(
             "spring.datasource.url", "jdbc:postgresql://127.0.0.1:5432/app"));
