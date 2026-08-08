@@ -114,8 +114,14 @@ public class KnowledgeBaseRepository {
 
     // ---- 级联逻辑删除（data-model.md §4）。四条按依赖顺序执行，由调用方包在一个事务里。 ----
 
-    /** 向量是派生索引，**物理删除**（PRD §7.6 例外 1）。 */
+    /**
+     * 两张派生索引都是**物理删除**（PRD §7.6 例外 1）。
+     *
+     * <p>关键词表跟着一起删：它与向量表的行集合必须一致，漏掉这里会留下指向已删知识库的
+     * 关键词行，而关键词通道不带 `kb_id` 过滤时就会把它们召回来。
+     */
     public int deleteEmbeddingsByKbId(long kbId) {
+        jdbc.update("delete from document_chunk_keyword where kb_id = ?", kbId);
         return jdbc.update("delete from document_chunk_embedding where kb_id = ?", kbId);
     }
 

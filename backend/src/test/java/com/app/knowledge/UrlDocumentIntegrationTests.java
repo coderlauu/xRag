@@ -106,6 +106,9 @@ class UrlDocumentIntegrationTests {
 
     @AfterEach
     void cleanUp() {
+        // 关键词派生表与向量表同增同删，且它对 document_chunk 有外键——
+        // 不先删它，后面物理删分块会被 FK 挡住。
+        jdbc.update("delete from document_chunk_keyword where kb_id = ?", kbId);
         jdbc.update("delete from document_chunk_embedding where kb_id = ?", kbId);
         jdbc.update("delete from ingestion_run where kb_id = ?", kbId);
         jdbc.update("delete from document_chunk where kb_id = ?", kbId);

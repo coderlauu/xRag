@@ -1,5 +1,6 @@
 package com.app.knowledge.vector;
 
+import com.app.knowledge.keyword.ChunkKeywordRepository;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -8,13 +9,19 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * {@code document_chunk_embedding} 的唯一入口。
+ * 分块**派生索引**的唯一入口：{@code document_chunk_embedding} 与
+ * {@code document_chunk_keyword}（3B 新增，ADR 0008）。
  *
- * <p>这张表是五张表里**唯一不做逻辑删除**的（PRD §7.6 例外 1）：它是派生索引不是主数据，
+ * <p>这两张表是唯一不做逻辑删除的（PRD §7.6 例外 1）：它们是派生索引不是主数据，
  * 逻辑删除既没有业务意义，又会污染召回、拖慢检索。
  *
- * <p>Phase 3 检索侧依赖一条不变量：**本表中存在的每一行，都对应一个未删除且已启用的分块**。
- * 所以任何让分块失效的操作（删除、禁用、重新分块）都必须在同一事务里物理删掉对应向量。
+ * <p>Phase 3 检索侧依赖一条不变量：**表中存在的每一行，都对应一个未删除且已启用的分块**。
+ * 所以任何让分块失效的操作（删除、禁用、重新分块）都必须在同一事务里物理删掉对应索引。
+ *
+ * <p><b>关键词索引写在这里而不是各调用点，是为了让"漏写一张"不可能发生。</b>
+ * 向量的插入/删除有十来个调用点（入库、重新分块、单块增删改、批量启停）。如果关键词索引
+ * 需要在每一处各补一次，早晚会漏——而漏写没有任何报错，症状只是关键词通道悄悄少召回。
+ * 把两张表绑在同一批方法里，行集合一致就成了结构性事实，测试只需要正面确认它。
  */
 @Repository
 public class ChunkVectorRepository {
@@ -22,9 +29,11 @@ public class ChunkVectorRepository {
     public record SearchHit(long chunkId, long docId, double distance) {}
 
     private final JdbcTemplate jdbc;
+    private final ChunkKeywordRepository keywords;
 
-    public ChunkVectorRepository(JdbcTemplate jdbc) {
+    public ChunkVectorRepository(JdbcTemplate jdbc, ChunkKeywordRepository keywords) {
         this.jdbc = jdbc;
+        this.keywords = keywords;
     }
 
     /**
@@ -44,9 +53,11 @@ public class ChunkVectorRepository {
                     values (?, ?, ?, ?::vector)
                     """, chunkIds.get(i), kbId, docId, toVectorLiteral(vectors.get(i)));
         }
+        keywords.indexAll(kbId, docId, chunkIds);
     }
 
     public int deleteByDocId(long docId) {
+        keywords.deleteByDocId(docId);
         return jdbc.update("delete from document_chunk_embedding where doc_id = ?", docId);
     }
 
@@ -55,6 +66,7 @@ public class ChunkVectorRepository {
      * 删完再插同一个 id 不会产生重复行（本类注释的不变量 3）。
      */
     public int deleteByChunkId(long chunkId) {
+        keywords.deleteByChunkId(chunkId);
         return jdbc.update("delete from document_chunk_embedding where chunk_id = ?", chunkId);
     }
 
@@ -62,6 +74,7 @@ public class ChunkVectorRepository {
         if (chunkIds.isEmpty()) {
             return 0;
         }
+        keywords.deleteByChunkIds(chunkIds);
         String placeholders = String.join(",", Collections.nCopies(chunkIds.size(), "?"));
         return jdbc.update("delete from document_chunk_embedding where chunk_id in ("
                 + placeholders + ")", chunkIds.toArray());

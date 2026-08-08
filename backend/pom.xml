@@ -81,6 +81,17 @@
       <artifactId>tika-parsers-standard-package</artifactId>
       <version>3.0.0</version>
     </dependency>
+    <!-- 中文分词（ADR 0008）。关键词通道在应用侧切词，把切好的词写进 tsvector('simple')，
+         这样数据库镜像仍是现成的 pgvector/pgvector:pg16——不需要 zhparser/pg_jieba，
+         也就不需要自建 Postgres 镜像。
+         代价是切词一致性成了应用侧的责任：索引期与查询期必须用同一个 Bean，换词典要重建
+         document_chunk_keyword 全表。前者由 ChunkSearchPort 在知识库侧统一切词来结构性保证
+         （问答模块传原始查询串，自己不分词），后者写在 deploy/README。 -->
+    <dependency>
+      <groupId>com.huaban</groupId>
+      <artifactId>jieba-analysis</artifactId>
+      <version>1.0.2</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

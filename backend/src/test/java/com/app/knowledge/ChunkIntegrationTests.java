@@ -87,6 +87,9 @@ class ChunkIntegrationTests {
 
     @AfterEach
     void cleanUp() {
+        // 关键词派生表与向量表同增同删，且它对 document_chunk 有外键——
+        // 不先删它，后面物理删分块会被 FK 挡住。
+        jdbc.update("delete from document_chunk_keyword where kb_id = ?", kbId);
         jdbc.update("delete from document_chunk_embedding where kb_id = ?", kbId);
         jdbc.update("delete from ingestion_run where kb_id = ?", kbId);
         jdbc.update("delete from document_chunk where kb_id = ?", kbId);
@@ -186,8 +189,10 @@ class ChunkIntegrationTests {
     void 编辑禁用的分块不会写入向量() throws Exception {
         long chunkId = firstChunkId();
         jdbc.update("update document_chunk set enabled = false where id = ?", chunkId);
+        // 关键词派生表与向量表同增同删，且它对 document_chunk 有外键——
+        // 不先删它，后面物理删分块会被 FK 挡住。
+        jdbc.update("delete from document_chunk_keyword where chunk_id = ?", chunkId);
         jdbc.update("delete from document_chunk_embedding where chunk_id = ?", chunkId);
-
         int callsBefore = FakeEmbeddingConfig.CALLS.get();
         mvc.perform(put("/api/v1/chunks/{chunkId}", chunkId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -420,6 +425,9 @@ class ChunkIntegrationTests {
         long enabledChunk = firstChunkId();
         long disabledChunk = chunkIdOfIndex(1);
         jdbc.update("update document_chunk set enabled = false where id = ?", disabledChunk);
+        // 关键词派生表与向量表同增同删，且它对 document_chunk 有外键——
+        // 不先删它，后面物理删分块会被 FK 挡住。
+        jdbc.update("delete from document_chunk_keyword where chunk_id = ?", disabledChunk);
         jdbc.update("delete from document_chunk_embedding where chunk_id = ?", disabledChunk);
         jdbc.update("update source_document set enabled = false where id = ?", docId);
 

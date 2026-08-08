@@ -9,13 +9,13 @@
 |---:|---|---|---|
 | 01 | [3B 配置对象与启动校验](issues/01-retrieval-config.md) | — | complete |
 | 02 | [V9 迁移与 3B DDL 约束](issues/02-v9-schema.md) | — | complete |
-| 03 | [中文切词器与关键词索引写入点](issues/03-keyword-indexing.md) | 02 | blocked |
+| 03 | [中文切词器与关键词索引写入点](issues/03-keyword-indexing.md) | 02 | complete |
 | 04 | [关键词存量回填批处理](issues/04-keyword-backfill.md) | 03 | blocked |
-| 05 | [`ChunkSearchPort` 与三个通道](issues/05-search-channels.md) | 01 | blocked |
+| 05 | [`ChunkSearchPort` 与三个通道](issues/05-search-channels.md) | 01 | complete |
 | 06 | [RRF 融合、去重与两段截断](issues/06-fusion-dedup.md) | 05 | blocked |
 | 07 | [精排调用与三态传导](issues/07-rerank-tri-state.md) | 06 | blocked |
 | 08 | [检索编排、部分失败与重试](issues/08-retrieval-orchestration.md) | 05, 06, 07 | blocked |
-| 09 | [工具白名单、Schema 复核与状态机](issues/09-tool-registry-validation.md) | 02 | blocked |
+| 09 | [工具白名单、Schema 复核与状态机](issues/09-tool-registry-validation.md) | 02 | complete |
 | 10 | [工具调用循环与副作用确认 API](issues/10-tool-loop-confirmation.md) | 09 | blocked |
 | 11 | [3B API 契约与隐私边界](issues/11-3b-api-contract.md) | 08, 10 | blocked |
 | 12 | [前端来源区与降级表达](issues/12-frontend-sources.md) | 11 | blocked |
@@ -33,7 +33,7 @@
      └─> 09
 ```
 
-第一前沿 **01、02** 已完成（2026-08-08），解锁 **03、05、09**。
+01、02、03、05、09 已完成（2026-08-08），解锁 **04、06、10**。
 
 ## 推进规则
 
