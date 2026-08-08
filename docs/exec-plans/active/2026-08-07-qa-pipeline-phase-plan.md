@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 3 / AI 知识问答核心链路
-- `status`: active（3A Step D 第三前沿 05/06/08/11 已解锁）
+- `status`: active（3A Step A~F 完成，Step G 产物待项目所有者确认；确认后进入 3B Step B）
 - `created`: 2026-08-07
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)

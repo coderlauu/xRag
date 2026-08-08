@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 
-- `status`: active / Step D closed, Step E tenth frontier (16 ready)
+- `status`: Step A~F 完成；17 张工单全部 complete，Step G 产物待确认
 - `created`: 2026-08-07
 - `owner`: liuqiang
 - `parent`: [Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)
@@ -204,6 +204,7 @@ node scripts/check-doc-links.mjs
 - `2026-08-08`: 09 完成歧义三区间、灰区保守复核、固定引导、结构化选择闭环和声明式动作；后端全量 488 项通过，解锁 10。
 - `2026-08-08`: 10 完成真实 3A 理解编排、稳定终态、Inspector 持久化恢复与跨阶段组合故障验证；后端全量 496 项通过，前沿推进 11。
 - `2026-08-08`: 11 完成意图树完整快照、全部管理命令、影响预览、expected revision 冲突与 bindable KB API；QA 全集 86 项通过，解锁 13/14。
+- `2026-08-08`: 16/17 完成，3A 全部工单关闭。130 条 `A` 项逐条核对落点后回写 passed（核对揪出 `3A-API-05` 跨归属 turn 404 无任何断言，已补）；16 条 `M` 项由项目所有者在 Chrome + 1440/720/375px、真实 DashScope Key 下走查全部 passed。矩阵 146 条无一留在 `P`。CI workflow 无需改动（`validate` job 直接调用 `ci-validate.sh`），`ci-validate.sh` 补上了一直缺失的 `pnpm lint`。Step G 产物（里程碑状态 + 复盘）已产出待确认。
 - `2026-08-08`: 15 完成标记串隐私审计、故障注入与跨 revision E2E：七类正文各有自己的禁区表（一刀切会得到永远绿的假审计），扫 `qa_turn_stage` 全部文本列、六个 `/api/qa` 端点和全量日志，并有一例反向断言证明扫描确实会命中。发现并修复一个真实缺陷——阶段诊断写失败会被理解编排的 catch 当成理解失败，把已算完的 turn 判成 `FAILED`；best-effort 保证上移到 `TurnStageSink.recordBestEffort()`，四个调用点全部改走它，已同步 architecture §14。`com.app.qa` 92 项通过，后端全量 506 项仅剩既有知识库异步串扰（单独复跑 14/14 通过）。解锁 16。
 - `2026-08-08`: 14 完成意图树 C — Route Canvas：完整快照画布（tree/treeitem 语义 + 缩放/滚动平移）、三种角色表单、KB 选择器与失效绑定阻塞、dirty guard、先 impact 后命令、两种 enable scope、revision 冲突保留表单并刷新当前版本供比较。成功后一律用服务端返回的整套 `nodes` 原子替换，不做本地单节点 patch。前端 51 项通过。画布不做拖拽换父：那会废掉键盘树语义，且 3A 本就不支持换父。解锁 15。
 - `2026-08-08`: 13 完成问答 A 正式页面——对话增删改查与双游标翻页、幂等签名重试、三档响应式（常驻/抽屉/覆盖层）与 Esc 焦点返回、四种稳定终态与歧义单选闭环；前端 36 项通过。组件测试统一在全局 `fetch` 层 mock（沿用 CLAUDE.md 的既定纪律），并给 jsdom 补了 `<dialog>.showModal` 的最小实现——那是环境缺口，不改生产代码去迁就它。前沿推进 14。
