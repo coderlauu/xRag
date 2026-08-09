@@ -12,11 +12,11 @@
 | 03 | [中文切词器与关键词索引写入点](issues/03-keyword-indexing.md) | 02 | complete |
 | 04 | [关键词存量回填批处理](issues/04-keyword-backfill.md) | 03 | blocked |
 | 05 | [`ChunkSearchPort` 与三个通道](issues/05-search-channels.md) | 01 | complete |
-| 06 | [RRF 融合、去重与两段截断](issues/06-fusion-dedup.md) | 05 | blocked |
+| 06 | [RRF 融合、去重与两段截断](issues/06-fusion-dedup.md) | 05 | complete |
 | 07 | [精排调用与三态传导](issues/07-rerank-tri-state.md) | 06 | blocked |
 | 08 | [检索编排、部分失败与重试](issues/08-retrieval-orchestration.md) | 05, 06, 07 | blocked |
 | 09 | [工具白名单、Schema 复核与状态机](issues/09-tool-registry-validation.md) | 02 | complete |
-| 10 | [工具调用循环与副作用确认 API](issues/10-tool-loop-confirmation.md) | 09 | blocked |
+| 10 | [工具调用循环与副作用确认 API](issues/10-tool-loop-confirmation.md) | 09 | complete |
 | 11 | [3B API 契约与隐私边界](issues/11-3b-api-contract.md) | 08, 10 | blocked |
 | 12 | [前端来源区与降级表达](issues/12-frontend-sources.md) | 11 | blocked |
 | 13 | [前端工具区与确认卡](issues/13-frontend-tools.md) | 10, 12 | blocked |
@@ -33,7 +33,7 @@
      └─> 09
 ```
 
-01、02、03、05、09 已完成（2026-08-08），解锁 **04、06、10**。
+01、02、03、05、06、09、10 已完成（2026-08-08~09），解锁 **04、07、13**。
 
 ## 推进规则
 
