@@ -387,13 +387,41 @@ CI 全程使用 `ProgrammableFakeProvider`，不读取任何收费 Key，也不�
   `FAILED/PROCESS_INTERRUPTED`，**不重放模型调用**。多实例同时启动会互相回收对方正在处理的轮次，
   这与 [ADR 0002](../docs/adr/0002-knowledge-base-async-and-concurrency.md) 的单实例假设是同一条约束。
 
-### 4. Rollback
+### 4. 检索与工具（Phase 3B）运维须知
+
+| 变量 | 默认 | 含义 |
+|---|---|---|
+| `DATABASE_MAX_POOL_SIZE` | `10` | Hikari 连接池。**调大必须与 Postgres `max_connections` 一起改**——实测 20 会被测试上下文数量放大，成片 `FATAL: sorry, too many clients already` |
+| `QA_RETRIEVAL_MAX_PARALLELISM` | `4` | 检索并行度。必须**严格小于**连接池：每个任务独占一条只读事务连接，超了会阻塞在获取连接上，症状看起来像"向量检索变慢了" |
+| `QA_RETRIEVAL_CHANNEL_TOP_K` | `50` | 单通道召回上限 |
+| `QA_RETRIEVAL_RERANK_INPUT_SIZE` | `30` | 喂给精排的候选数；还受目录里最小的 rerank `max-documents` 约束 |
+| `QA_RETRIEVAL_TOP_N` | `8` | 最终来源条数。这是可运行基线不是质量结论，3C 会按 Prompt 预算倒推复核 |
+| `QA_RETRIEVAL_RRF_K` | `60` | RRF 的 k |
+
+以上四条交叉约束在启动时校验，不满足**直接启动失败**并打印两个实际值。
+
+**换分词词典 = 重建 `document_chunk_keyword` 全表。** 关键词通道在应用侧切词
+（[ADR 0008](../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)），索引期与查询期必须用同一份词典。
+换了词典却不重建，历史行里的 token 与新查询切法不再匹配——**没有任何报错**，症状只是关键词
+召回率悄悄下降。`ChineseTokenizer.dictionaryFingerprint()` 会进启动日志，用它对账。
+
+**存量回填**（`app.knowledge.keyword-backfill.enabled`，默认 `false`）：V9 只建表不回填，
+因为应用侧切词决定了回填不能是纯 SQL。开启后按 `chunk_id` 游标分批补齐"向量表有、关键词表没有"
+的行，幂等可重跑。它是调度类组件，默认关闭遵守 [ADR 0002](../docs/adr/0002-knowledge-base-async-and-concurrency.md)
+的单实例假设。**未回填完成时关键词通道照常工作，只是召回不全**——这是已知降级不是故障。
+
+**工具白名单**（`app.qa.tools.whitelist[*]`）默认为空。空清单时不向模型发送 `tools` 字段，
+也不产生任何"工具不可用"提示——"没有配置工具"与"配置了但不可用"是两回事。
+配置了工具却没有对应的 `ToolExecutor` Bean 时**启动失败**：放行只会把问题推迟到用户点了
+"确认执行"之后，那时界面上和真正的工具故障看起来一模一样。
+
+### 5. Rollback
 
 `V7` / `V8` 只新增 `qa_*` 表，不改动既有对象。应用回退到上一版本后这些表仍在，用户对话不会丢失，
 只是新版本才认识的列不再被写入。**意图树没有"回滚 revision"操作**：已发布的 revision 不 update，
 业务级回退要靠创建一个新 revision 实现。
 
-### 5. 测试与真实 API 的边界（比 Embedding 那节更要小心）
+### 6. 测试与真实 API 的边界（比 Embedding 那节更要小心）
 
 `backend/.env`（已 gitignore）里的密钥会被 `application.properties` 的
 `spring.config.import=optional:file:.env[.properties]` 读进 Spring `Environment`。
