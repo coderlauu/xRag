@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * 打真实 Embedding API 的验证（测试矩阵 M-06）。
@@ -28,6 +29,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  */
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "EMBEDDING_API_KEY", matches = ".+")
+@TestPropertySource(properties = "app.knowledge.ingestion.enabled=false")
 class RealEmbeddingApiTests {
 
     /** 同一段文本"算出来是不是同一个向量"的判据。取值依据见下方用例的表格。 */

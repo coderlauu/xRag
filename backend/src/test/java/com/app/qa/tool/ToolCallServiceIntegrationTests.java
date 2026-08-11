@@ -29,6 +29,7 @@ import org.springframework.test.context.TestPropertySource;
 @Import(ToolCallServiceIntegrationTests.Tools.class)
 @TestPropertySource(
         properties = {
+            "app.knowledge.ingestion.enabled=false",
             "app.qa.tools.whitelist[0].name=submit-return-ticket",
             "app.qa.tools.whitelist[0].display-name=提交退货工单",
             "app.qa.tools.whitelist[0].description=在售后工单系统中新建一张退货工单。",

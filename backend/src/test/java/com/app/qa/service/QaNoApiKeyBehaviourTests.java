@@ -43,7 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 就会处理自己的 import，外部再声明一次只是**追加**。内联测试属性的优先级高于全部 config data
  * 文件，所以直接把属性值覆盖成空串才是有效的那一手。
  */
-@SpringBootTest(properties = {"DASHSCOPE_API_KEY=", "EMBEDDING_API_KEY="})
+@SpringBootTest(properties = {
+    "DASHSCOPE_API_KEY=", "EMBEDDING_API_KEY=", "app.knowledge.ingestion.enabled=false"})
 @AutoConfigureMockMvc
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)

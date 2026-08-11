@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * 打真实 Rerank API 的准入验证（工单 23）。守门方式同 {@link RealChatApiTests}，另加一道
@@ -36,6 +37,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  */
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "DASHSCOPE_API_KEY", matches = ".+")
+@TestPropertySource(properties = "app.knowledge.ingestion.enabled=false")
 class RealRerankApiTests {
 
     @Autowired

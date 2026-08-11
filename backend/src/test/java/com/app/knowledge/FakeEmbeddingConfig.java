@@ -30,6 +30,27 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <p>生产环境是单实例、单上下文，不存在这个问题；但它恰好演示了 ADR 0002 里"启动回收依赖
  * 单实例假设"这条约束一旦被破坏会怎样——症状不是报错，是别人的任务被莫名其妙杀掉。
+ *
+ * <h2>另一种更隐蔽的后果：任务被"真实" Embedding 处理掉（`2026-08-11` 查明）</h2>
+ *
+ * <p>上面说的是"任务被判僵尸"。实测还有一条方向相反、更难查的路径：<b>没有导入本类的上下文，
+ * 它的 {@code EmbeddingClient} 是真实的</b>。问答链路那批测试（`Qa*`、`ToolCall*`、`Real*`）
+ * 不需要假 Embedding，于是都没导入本类，而它们的 {@code IngestionDispatcher} 默认是开的
+ * （{@code matchIfMissing = true}）。本机 {@code backend/.env} 里有真实的
+ * {@code EMBEDDING_API_KEY}，所以那些调度器抢到入库任务后<b>真的调通了阿里云并成功</b>。
+ *
+ * <p>于是 {@link #SHOULD_FAIL} / {@link #SHOULD_THROW_ERROR} 这类开关<b>形同虚设</b>——它们只
+ * 影响本类的实例，管不到别的上下文。症状是"期望失败"的用例拿到 {@code SUCCESS}：
+ * {@code expected: "FAILED" but was: "SUCCESS"}。判据很清楚：<b>只有断言失败态的用例会 flaky，
+ * 断言成功态的从来不会</b>（真实调用成功恰好符合它们的期望）。
+ *
+ * <p><b>诊断时走过的弯路</b>：先按"上下文变体 × Hikari 池逼近 {@code max_connections}"去查，
+ * 连接峰值确实到过 88/100，把测试池压到 6 后峰值降到 62——<b>而 flaky 照旧</b>。连接紧张是
+ * 真的，但不是这条 flaky 的原因。压池的改动保留，理由只是给后续工单新增上下文留余量。
+ *
+ * <p>因此纪律有两条，不是一条：<b>要用假 Embedding 的测试导入本类；不测入库链路的测试显式
+ * 关掉派发器</b>（{@code app.knowledge.ingestion.enabled=false}，形如
+ * {@code UploadLimitIntegrationTests}）。新增集成测试类时对着这两条各问一遍。
  */
 @TestConfiguration
 public class FakeEmbeddingConfig {

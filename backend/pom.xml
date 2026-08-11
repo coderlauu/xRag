@@ -117,6 +117,21 @@
           <systemPropertyVariables>
             <app.storage.bucket>app-test</app.storage.bucket>
             <app.storage.maintenance.grace-period>0s</app.storage.maintenance.grace-period>
+            <!--
+              测试期间的连接池上限，压到远低于生产默认的 10。
+
+              Spring TestContext 按注解组合缓存 ApplicationContext，每个上下文带一条自己的
+              Hikari 池。这个套件有十余个变体，按默认 10 算就逼近 Postgres 的
+              max_connections=100：实测连接峰值到过 88/100，压到 6 之后降为 62。
+
+              这条改动只是给后续工单新增上下文留余量，**不是任何已知 flaky 的修复**——入库测试
+              的 awaitStatus 随机超时在压池前后一样出现，根因是别的上下文用真实 Embedding 处理
+              了任务，说明见 FakeEmbeddingConfig 的类注释。
+
+              下限受 app.qa.retrieval.max-parallelism（默认 4，启动时校验必须严格小于池上限）
+              约束，所以不能低于 5；取 6 是为了给并行检索之外留一条余量。
+            -->
+            <spring.datasource.hikari.maximum-pool-size>6</spring.datasource.hikari.maximum-pool-size>
             <spring.datasource.url>jdbc:postgresql://127.0.0.1:5432/app?currentSchema=xrag_test,public</spring.datasource.url>
             <spring.flyway.default-schema>xrag_test</spring.flyway.default-schema>
             <spring.flyway.schemas>xrag_test</spring.flyway.schemas>

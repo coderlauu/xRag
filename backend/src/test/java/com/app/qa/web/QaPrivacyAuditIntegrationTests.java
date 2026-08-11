@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -65,6 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Import(QaPrivacyAuditIntegrationTests.MarkedChatConfiguration.class)
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@TestPropertySource(properties = "app.knowledge.ingestion.enabled=false")
 class QaPrivacyAuditIntegrationTests {
 
     /** 每个标记串对应一类正文。名字要能一眼看出泄漏源。 */
