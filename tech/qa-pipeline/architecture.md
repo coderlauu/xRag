@@ -484,8 +484,9 @@ com.app.qa.tool      ──> com.app.ai.model.ChatClient
 | `KEYWORD` | 2 | 始终 | 与同轮向量通道一致 | `ts_rank_cd` |
 | `GLOBAL_VECTOR` | 3 | 该子问题有 `GLOBAL_FALLBACK` 动作 | 全库 | 余弦距离 |
 
-- **两个向量通道不同时激活**（ADR 0008 决策 2）。在 pgvector 单表下定向结果是全局的子集，
-  同时激活等于查两遍同一份数据。
+- **激活只看动作**（ADR 0008 决策 2）。只有定向动作时 3A 不产出 `GLOBAL_FALLBACK`，全局通道
+  自然不激活；而"单个 KB 候选且分数 <0.8"时 3A 会同时产出两者（§9.4 的低置信度补充），
+  此时两个通道都要跑——压掉全局等于让意图层明确要求的补充从不发生。
 - `priority` **只有一套**，同时用于稳定排序与去重取舍。不设第二套按通道类型的优先级。
 - 检索用的是**改写后的问题**（3A `rewrite.rewrittenQuestion`），不是用户原话。
 

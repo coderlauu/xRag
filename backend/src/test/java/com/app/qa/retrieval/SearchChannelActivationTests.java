@@ -57,13 +57,23 @@ class SearchChannelActivationTests {
     }
 
     @Test
-    void ch03_定向存在时全局通道不执行任何查询() {
-        // 定向 ⊂ 全局，同时激活等于查两遍同一份数据（ADR 0008 决策 2）。
-        var scope = new RetrievalScope("退货政策", Set.of(12L), true);
+    void ch03_只有定向动作时全局通道不执行任何查询() {
+        // 3A 只给定向动作 → 不产出 GLOBAL_FALLBACK → 全局通道不激活，不会重复查同一份数据。
+        var scope = new RetrievalScope("退货政策", Set.of(12L), false);
 
         assertThat(targeted.isActive(scope)).isTrue();
         assertThat(global.isActive(scope)).isFalse();
         assertThat(port.calls).isEmpty();
+    }
+
+    @Test
+    void ch03_动作要求补全局时两个向量通道都跑() {
+        // 架构 §9.4：单个 KB 候选且分数 <0.8 时 3A 同时产出 KB_TARGETED 与 GLOBAL_FALLBACK，
+        // 那是意图层在说"这个定向匹配不够有把握，再全局找一遍"。压掉全局等于让补充从不发生。
+        var scope = new RetrievalScope("退货政策", Set.of(12L), true);
+
+        assertThat(targeted.isActive(scope)).isTrue();
+        assertThat(global.isActive(scope)).isTrue();
     }
 
     @Test

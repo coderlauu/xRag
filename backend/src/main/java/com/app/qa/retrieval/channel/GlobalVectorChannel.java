@@ -11,9 +11,14 @@ import org.springframework.stereotype.Component;
 /**
  * 全局向量通道：3A 给出 GLOBAL_FALLBACK 时激活，不带 kb 过滤。
  *
- * <p><b>与定向通道互斥</b>（ADR 0008 决策 2）。在 pgvector 单表下定向结果是全局结果的子集，
- * 两个都跑等于查两遍同一份数据、去重后白白多占一条连接。互斥判据不是这里自己发明的，
- * 而是 3A 的动作模型已经定好的：GLOBAL_FALLBACK 只在"无候选 / 最高分 &lt;0.6 / 单候选 &lt;0.8"时产生。
+ * <p><b>激活条件只看动作，不看有没有定向</b>。ADR 0008 决策 2 起初写了"两个向量通道不同时激活"，
+ * 理由是 pgvector 单表下定向 ⊂ 全局、两个都跑是重复劳动。实现工单 08 时发现那条与 3A 的动作模型
+ * 冲突：架构 §9.4 规定"只有一个 KB 候选且分数 &lt;0.8"时会**同时**产出 KB_TARGETED 与
+ * GLOBAL_FALLBACK——那正是意图层在说"这个定向匹配不够有把握，再全局找一遍"。压掉全局通道等于
+ * 让这个补充从不发生，还会把一个从未执行的目标记成成功。
+ *
+ * <p>"别重复查"这件事由动作模型本身保证：只有定向动作时 3A 不会产出 GLOBAL_FALLBACK，
+ * 本通道也就不激活，不需要再加一道守卫。
  */
 @Component
 public class GlobalVectorChannel implements SearchChannel {
@@ -33,7 +38,7 @@ public class GlobalVectorChannel implements SearchChannel {
 
     @Override
     public boolean isActive(RetrievalScope scope) {
-        return scope.globalFallback() && scope.targetedKbIds().isEmpty();
+        return scope.globalFallback();
     }
 
     @Override
