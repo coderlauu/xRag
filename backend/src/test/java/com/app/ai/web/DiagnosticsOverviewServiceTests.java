@@ -180,8 +180,14 @@ class DiagnosticsOverviewServiceTests {
         assertThat(json).doesNotContainIgnoringCase("secret");
     }
 
+    /**
+     * 纪律：没有成功记录可读时 {@code verifiedCapabilities} 必须为空，绝不退化成 catalog 的
+     * {@code capabilities}。这里 {@code jdbc = null}（诊断库读不到），而 chat-a 在配置里声明了
+     * CHAT + STREAM_CHAT——一旦有人图省事让它 fallback 到理论能力，这条就会红。
+     * "有成功记录时按能力填充"必须对着真库验，在 {@code DiagnosticsOverviewIntegrationTests}。
+     */
     @Test
-    void verifiedCapabilities在验证记录就绪前保持为空且不拿理论能力顶替() {
+    void verifiedCapabilities没有成功记录时为空且不拿理论能力顶替() {
         var catalog = catalog();
 
         AiDiagnosticsOverview overview = service(catalog, breakers(catalog), null).overview();

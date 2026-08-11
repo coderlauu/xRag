@@ -45,7 +45,51 @@ REAL-05/07 未做。**不是 blocked 了**：合规 `sk-` 通用 Key 已注入 `
 | REAL-05 429 观察 | **未做** | 本次未制造或观察到限流 |
 | REAL-06 凭据检查 | **通过** | 通用 `sk-` Key；未动火山 Coding Plan 的 `EMBEDDING_API_KEY`（architecture §13.2 禁止扩展用途） |
 | REAL-07 费用检查 | **部分通过** | 调用量远低于上限：CHAT 6 / STREAM_CHAT 3 / RERANK 2 次链路调用，另 6 次 curl 探针；合计输出 token 个位数。**控制台费用告警未开启** |
-| REAL-08 能力矩阵 | **机制未实现** | `DiagnosticsOverviewService` 仍把 `verifiedCapabilities` 硬编码成 `List.of()`；本次准入结果只落在本文件、`ai-models.yml` 注释与 `Real*ApiTests` 里，诊断页尚不反映 |
+| REAL-08 能力矩阵 | **机制已实现（`2026-08-11`）**，前端未展示 | 见下方「REAL-08 落地记录」 |
+
+## REAL-08 落地记录（`2026-08-11`）
+
+`DiagnosticsOverviewService.verifiedCapabilities()` 不再返回硬编码的 `List.of()`。
+
+**数据来源**：`ai_attempt`（取 `provider_id` / `deployment_id` / `outcome`）内连接父
+`ai_logical_call`（取 `capability`）——`ai_attempt` 没有 capability 列，能力名只能从父表拿。
+按 (providerId, deploymentId) 归集成能力集合，再填进 overview 的每个 deployment。
+
+**成功判据**：`ai_attempt.outcome = 'SUCCEEDED'`，即"这一次真的把请求打到了这个 deployment
+并拿回合法响应"。三处刻意的选择：
+
+1. **不用 `outcome not in ('FAILED', 'STREAM_FAILED')`**（那是总览两个 24 小时聚合的口径）。
+   差集里的 `RATE_LIMITED / TIMED_OUT / CANCELED / EMPTY_STREAM` 都不是失败，但更不是"调通了"。
+2. **不读 `ai_logical_call.actual_deployment_id`**。约束 `ck_ai_call_execution_summary` 规定它只在
+   `contributing_deployment_count = 1` 时有值，一次跨 deployment 的 mixed execution Embedding
+   即使整通成功，`actual_*` 三列也全是 null——用它统计会把这类成功调用整通漏掉。反过来，
+   一通最终成功的调用里那些 FAILED 的 failover attempt 也不该记功。attempt 级判据同时解决两面。
+3. **不与目录的 `capabilities` 求交集或兜底**。那份是 adapter 理论能力；"这个部署理论上支持
+   RERANK"与"我们真的成功调通过它的 RERANK"是两件事，用前者顶替后者会让准入结论凭空成立。
+   两列不一致本身就是要看的信息。读取失败时返回空集（fail closed）——总览的计数用 null 表达
+   "读不到"是因为 0 会被读成"一切正常"，而验证记录是准入证据，缺证据时少声称一项能力是安全的。
+
+**语义边界（新引入的，需要知道）**：诊断记录有保留窗口（ADR 0005：7 天或最近 10,000 次逻辑调用
+后物理删除，`ai_attempt` 随 `on delete cascade` 一起没）。所以这个字段准确的含义是
+**"在现存诊断记录里调通过"**，长期不调用的能力会自然掉出列表。它不是一张持久的准入登记表；
+真要那个语义得单独建表 + 写入路径，不在本次范围。
+
+**测试**：`DiagnosticsOverviewServiceTests.verifiedCapabilities没有成功记录时为空且不拿理论能力顶替`
+（原用例改形，纪律不变）；`DiagnosticsOverviewIntegrationTests` 新增两条真库用例——
+`verifiedCapabilities只登记attempt级成功的deployment而不是整通调用的参与者`
+（chat-a 声明 CHAT+STREAM_CHAT 但只有 STREAM_CHAT 调通；chat-a/chat-b 在一通最终成功的调用里
+失败过，只有 chat-c 记功；成功记录刻意放在 24 小时窗口外）与
+`记录存在但没有attempt级成功时verifiedCapabilities为空`（覆盖 STREAM_FAILED / FAILED /
+RATE_LIMITED）。三条都做了变异验证：改成理论能力兜底 → 3 条红；改成 `not in (FAILED,
+STREAM_FAILED)` → RATE_LIMITED 那条红；加上 24 小时窗口 → 窗口外那条红。
+`-Dtest='DiagnosticsOverviewServiceTests,DiagnosticsOverviewIntegrationTests,DiagnosticCallQueryIntegrationTests,DiagnosticPrivacyAuditIntegrationTests'`
+共 30 tests / 0 failures（含隐私审计，确认新字段不带出任何秘密）。
+
+**还差什么**：① **前端未展示**——`GET /api/v1/ai/diagnostics/overview` 现在返回真实值了，但
+`frontend/src/pages/diagnostics/OverviewBar.tsx` 的候选表只渲染 `capabilities` 一列，页面上仍看不到
+已验证能力。加这一列属于界面变更，按 CLAUDE.md 的产出物闸门要先动 `tech/model-scheduling/ui-spec.md`
+（目前完全没提这个字段）和原型并经用户确认，本次没做。② `tech/model-scheduling/test-matrix.md`
+§14.7 的 REAL-08 行仍写着"机制未实现"，按矩阵图例的证据纪律留给回写环节处理。
 
 **Rerank 曾经的缺口与修复**：根因从来不是凭据。`OpenAiCompatibleRerankProvider` 打
 `{base}/reranks`，而百炼 compatible-mode 下 `/reranks` 与单数 `/rerank` **均返回 404 且响应体为空**；
@@ -75,7 +119,8 @@ EXIT=0 且真实用例自动跳过，工单 22 的假 Provider CI 门禁不受�
 
 **剩余待办**：① 控制台开费用告警；② 按当日官方文档核对 embedding 批次上限与 rerank 文档上限
 （`ai-models.yml` 的 `max-documents: 100` 仍是占位值，architecture §13.1 记的官方上限是 500）；
-③ `verifiedCapabilities` 的登记机制；④ 阿里云 Embedding 走一次完整链路；
+③ ~~`verifiedCapabilities` 的登记机制~~ 后端已做（`2026-08-11`），**前端展示未做**；
+④ 阿里云 Embedding 走一次完整链路；
 ⑤ 流式链路补 `provider_request_id_masked`；⑥ 404 归一化成 INVALID_REQUEST 的措辞。
 
 **Design:** [architecture §13](../../../tech/model-scheduling/architecture.md#13-真实-provider-准入)

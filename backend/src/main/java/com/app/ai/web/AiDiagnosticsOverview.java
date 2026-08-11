@@ -46,8 +46,13 @@ public record AiDiagnosticsOverview(
     }
 
     /**
-     * {@code verifiedCapabilities} 只来自真实验证记录，不拿 adapter 理论能力顶替；
-     * 工单 23 的 Provider 准入补齐验证记录之前它恒为空。
+     * {@code verifiedCapabilities} 只来自真实验证记录，不拿 adapter 理论能力顶替：它的唯一来源是
+     * {@code ai_attempt.outcome = 'SUCCEEDED'} 的诊断记录（能力名取自父 {@code ai_logical_call}），
+     * 表示"我们真的把请求打到这个 deployment 的这个能力上并拿回了合法响应"，与 {@code capabilities}
+     * 那份"这个部署理论上支持什么"是两件事，两者可以不一致，不一致本身就是要看的信息。
+     *
+     * <p>空数组是"在现存诊断记录里尚未验证"，不是"不支持"。诊断记录有保留窗口（ADR 0005：
+     * 7 天或最近 10,000 次逻辑调用后物理删除），所以长期不调用的能力会自然掉出这个列表。
      */
     public record Deployment(
             String providerId,

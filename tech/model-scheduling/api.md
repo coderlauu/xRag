@@ -553,7 +553,7 @@ interface Deadline {
 规则：
 
 - `configurationStatus`: `CONFIGURED / UNCONFIGURED`；秘密值永远不返回。结构非法的模型配置会阻止应用启动，因此不会在已启动实例的 overview 中伪造一个 `INVALID` 运行态。
-- `verifiedCapabilities` 只来自明确配置和真实验证记录，不把 adapter 理论能力当已验证。
+- `verifiedCapabilities` 只来自明确配置和真实验证记录，不把 adapter 理论能力当已验证。唯一来源是 `ai_attempt.outcome = 'SUCCEEDED'` 的诊断记录（能力名取自父 `ai_logical_call.capability`），成功判据必须是 `SUCCEEDED` 本身，不能写成"不在 `FAILED / STREAM_FAILED` 里"——`RATE_LIMITED / TIMED_OUT / CANCELED / EMPTY_STREAM` 都不是失败也都不是调通。它与 `capabilities` 允许不一致，不一致本身是要看的信息；不与后者求交集或兜底。空数组是"在现存诊断记录里尚未验证"，不是"不支持"，且受诊断保留窗口约束（ADR 0005），长期不调用的能力会掉出列表；它不是持久的准入登记表。
 - breaker 可返回主状态 `CLOSED / OPEN / HALF_OPEN`，以及 Resilience4j 的 `DISABLED`；配置禁用只体现在 deployment `enabled=false`，不能映射成 breaker OPEN。
 - 当前状态以 JVM registry 为准，应用重启后会回到 CLOSED。
 - `eligibleCandidates` 的口径是生成快照时 `enabled + CONFIGURED` 且对应 capability breaker 允许调用的 deployment-capability 单元数；它不是脱离具体命令后臆造的 RoutePlan 候选数。下钻时只过滤本响应的 deployment/capability 视图。

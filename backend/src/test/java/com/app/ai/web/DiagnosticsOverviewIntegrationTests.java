@@ -1,6 +1,7 @@
 package com.app.ai.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.app.ai.breaker.Resilience4jModelBreakerRegistry;
 import com.app.ai.diagnostic.AttemptDiagnostic;
@@ -20,15 +21,20 @@ import com.app.ai.diagnostic.UsageDiagnostic;
 import com.app.ai.model.AiRuntimePolicy;
 import com.app.ai.model.Capability;
 import com.app.ai.model.ChatFinishReason;
+import com.app.ai.model.DataRegion;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ExecutionTarget;
 import com.app.ai.model.ModelCatalogSnapshot;
+import com.app.ai.model.ModelDeployment;
 import com.app.ai.model.ModelErrorType;
 import com.app.ai.model.ModelIdentity;
+import com.app.ai.model.ModelProvider;
+import com.app.ai.model.ProviderConfigurationStatus;
 import com.app.ai.model.ProviderId;
 import com.app.ai.model.QuotaDomain;
 import com.app.ai.model.ServiceTier;
 import com.app.ai.model.TerminationReason;
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -37,8 +43,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterEach;
@@ -49,12 +57,14 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 /**
- * 总览里两条 {@code ai_logical_call} 查询的真库验证。
+ * 总览里几条诊断查询的真库验证：两条 {@code ai_logical_call} 聚合，以及
+ * {@code verifiedCapabilities} 的 {@code ai_attempt × ai_logical_call} 归集。
  *
- * <p>单元测试全程传 {@code jdbc = null}，只覆盖"读不到"分支；聚合口径本身
- * （数调用数而不是把切换次数求和、窗口边界、最早记录取全表）只能对着真实 Schema 验。
- * 记录一律走真实的 {@link JdbcDiagnosticStore} 写入，这样 {@code failover_count}
- * 是由 FAILOVER attempt 推导出来的真实值，而不是测试自己拍进去的数字。
+ * <p>单元测试全程传 {@code jdbc = null}，只覆盖"读不到"分支；口径本身
+ * （数调用数而不是把切换次数求和、窗口边界、最早记录取全表、哪种 attempt 才算调通）
+ * 只能对着真实 Schema 验。记录一律走真实的 {@link JdbcDiagnosticStore} 写入，这样
+ * {@code failover_count} 与 {@code actual_deployment_id} 都是由 attempt 推导出来的真实值，
+ * 而不是测试自己拍进去的数字。
  */
 class DiagnosticsOverviewIntegrationTests {
 
@@ -129,9 +139,64 @@ class DiagnosticsOverviewIntegrationTests {
         assertThat(overview.retention().oldestAvailableAt()).isNull();
     }
 
+    /**
+     * REAL-08 的核心口径：登记的是"哪个 deployment 真的调通了哪个能力"，不是"哪些 deployment
+     * 参与过一通成功的调用"。chat-a 与 chat-b 都在 callId(1) 里被试过并 FAILED，只有 chat-c
+     * 成功——它们三个的 {@code verifiedCapabilities} 必须区分得开。
+     *
+     * <p>chat-a 同时是最能说明"理论能力 ≠ 已验证"的例子：配置里声明 CHAT + STREAM_CHAT，
+     * 但只有 STREAM_CHAT 真的调通过。
+     */
+    @Test
+    void verifiedCapabilities只登记attempt级成功的deployment而不是整通调用的参与者() {
+        var store = new JdbcDiagnosticStore(jdbc, new DataSourceTransactionManager(dataSource));
+        // 最终成功的 CHAT：chat-a → chat-b 都失败，chat-c 才是真正调通的那个。
+        store.write(succeededAfterTwoFailovers(callId(1), NOW.minusHours(1)));
+        // chat-a 上成功的流式 CHAT，刻意放在 24 小时窗口之外：验证记录不是 24 小时统计，
+        // 复用聚合那条 since 参数会让这条断言变红。
+        store.write(streamChatSucceeded(callId(2), NOW.minusHours(30)));
+
+        AiDiagnosticsOverview overview = service(catalogWithDeployments()).overview();
+
+        assertThat(overview.deployments())
+                .extracting(
+                        AiDiagnosticsOverview.Deployment::deploymentId,
+                        AiDiagnosticsOverview.Deployment::capabilities,
+                        AiDiagnosticsOverview.Deployment::verifiedCapabilities)
+                .containsExactly(
+                        tuple("chat-a",
+                                List.of(Capability.CHAT, Capability.STREAM_CHAT),
+                                List.of(Capability.STREAM_CHAT)),
+                        tuple("chat-b", List.of(Capability.CHAT), List.of()),
+                        tuple("chat-c", List.of(Capability.CHAT), List.of(Capability.CHAT)));
+    }
+
+    /**
+     * 成功的判据必须是 attempt 级 {@code SUCCEEDED} 本身，不能写成"不在 FAILED / STREAM_FAILED
+     * 里"——那是两个 24 小时聚合的口径。这里的 RATE_LIMITED attempt 正好落在两种写法的差集上：
+     * 它不算失败，但更不算调通。
+     */
+    @Test
+    void 记录存在但没有attempt级成功时verifiedCapabilities为空() {
+        var store = new JdbcDiagnosticStore(jdbc, new DataSourceTransactionManager(dataSource));
+        store.write(streamFailedWithoutFailover(callId(1), NOW.minusHours(1)));
+        store.write(failedAfterTwoFailovers(callId(2), NOW.minusHours(2)));
+        store.write(rateLimitedWithoutSuccess(callId(3), NOW.minusHours(3)));
+
+        AiDiagnosticsOverview overview = service(catalogWithDeployments()).overview();
+
+        assertThat(overview.deployments())
+                .hasSize(3)
+                .allSatisfy(deployment ->
+                        assertThat(deployment.verifiedCapabilities()).isEmpty());
+    }
+
     private DiagnosticsOverviewService service() {
-        var catalog = new ModelCatalogSnapshot(
-                "test-v1", "a".repeat(64), Map.of(), Map.of(), runtimePolicy());
+        return service(new ModelCatalogSnapshot(
+                "test-v1", "a".repeat(64), Map.of(), Map.of(), runtimePolicy()));
+    }
+
+    private DiagnosticsOverviewService service(ModelCatalogSnapshot catalog) {
         return new DiagnosticsOverviewService(
                 catalog,
                 new Resilience4jModelBreakerRegistry(
@@ -201,6 +266,37 @@ class DiagnosticsOverviewIntegrationTests {
                 List.of());
     }
 
+    private static CompletedCallDiagnostic streamChatSucceeded(
+            UUID callId, OffsetDateTime startedAt) {
+        return new CompletedCallDiagnostic(
+                callId, "request-" + callId, Capability.STREAM_CHAT, ServiceTier.BALANCED, null, true,
+                "test-v1", "a".repeat(64),
+                CallOutcome.SUCCEEDED, null, null, TerminationReason.COMPLETED,
+                null, ChatFinishReason.STOP, true, null, null,
+                new UsageDiagnostic(2, 1, null, null, null, null, null, 4),
+                timing(startedAt),
+                List.of(candidate(0, TARGET_A, Capability.STREAM_CHAT)),
+                List.of(routeCompleted(1)),
+                List.of(attempt(1, AttemptKind.INITIAL, TARGET_A, 0, AttemptOutcome.SUCCEEDED)),
+                List.of());
+    }
+
+    private static CompletedCallDiagnostic rateLimitedWithoutSuccess(
+            UUID callId, OffsetDateTime startedAt) {
+        return new CompletedCallDiagnostic(
+                callId, "request-" + callId, Capability.CHAT, ServiceTier.BALANCED, null, false,
+                "test-v1", "a".repeat(64),
+                CallOutcome.FAILED, ModelErrorType.RATE_LIMITED, null,
+                TerminationReason.ALL_CANDIDATES_EXHAUSTED,
+                429, null, false, null, null,
+                new UsageDiagnostic(null, null, null, null, null, null, null, null),
+                timing(startedAt),
+                List.of(candidate(0, TARGET_B, Capability.CHAT)),
+                List.of(routeCompleted(1)),
+                List.of(attempt(1, AttemptKind.INITIAL, TARGET_B, 0, AttemptOutcome.RATE_LIMITED)),
+                List.of());
+    }
+
     private static AttemptDiagnostic attempt(
             int attemptNo,
             AttemptKind kind,
@@ -210,6 +306,7 @@ class DiagnosticsOverviewIntegrationTests {
         ModelErrorType errorType = switch (outcome) {
             case SUCCEEDED -> null;
             case STREAM_FAILED -> ModelErrorType.STREAM_INTERRUPTED;
+            case RATE_LIMITED -> ModelErrorType.RATE_LIMITED;
             default -> ModelErrorType.SERVER_ERROR;
         };
         return new AttemptDiagnostic(
@@ -246,6 +343,32 @@ class DiagnosticsOverviewIntegrationTests {
 
     private static UUID callId(int ordinal) {
         return UUID.fromString("00000000-0000-0000-0000-0000000005%02d".formatted(ordinal));
+    }
+
+    /**
+     * 三个 deployment 都挂在同一个 Provider 上，与 {@link #TARGET_A} 等三个执行目标一一对应。
+     * chat-a 刻意多声明一个 STREAM_CHAT，用来体现"配置声明的能力"与"真的调通过的能力"是两列。
+     */
+    private static ModelCatalogSnapshot catalogWithDeployments() {
+        var providerId = new ProviderId("provider-a");
+        var providers = Map.of(providerId, new ModelProvider(
+                providerId, "openai-compatible", "供应商甲",
+                URI.create("http://127.0.0.1:1/v1"), "PROVIDER_A_API_KEY",
+                new DataRegion("CN_TEST"), QUOTA, ProviderConfigurationStatus.CONFIGURED));
+        var deployments = new LinkedHashMap<DeploymentId, ModelDeployment>();
+        deployments.put(TARGET_A.deploymentId(), deployment(
+                TARGET_A, Set.of(Capability.CHAT, Capability.STREAM_CHAT)));
+        deployments.put(TARGET_B.deploymentId(), deployment(TARGET_B, Set.of(Capability.CHAT)));
+        deployments.put(TARGET_C.deploymentId(), deployment(TARGET_C, Set.of(Capability.CHAT)));
+        return new ModelCatalogSnapshot(
+                "test-v1", "a".repeat(64), providers, deployments, runtimePolicy());
+    }
+
+    private static ModelDeployment deployment(ExecutionTarget target, Set<Capability> capabilities) {
+        return new ModelDeployment(
+                target.deploymentId(), target.providerId(),
+                target.deploymentId().value() + "-model", target.modelIdentity(),
+                capabilities, Set.of(ServiceTier.BALANCED), true, 10, true, null);
     }
 
     private static AiRuntimePolicy runtimePolicy() {

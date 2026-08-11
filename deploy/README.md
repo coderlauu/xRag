@@ -331,8 +331,13 @@ CI 全程使用 `ProgrammableFakeProvider`，不读取任何收费 Key，也不�
 
 现有 `EMBEDDING_API_KEY` 是火山方舟 Coding Plan 凭据，官方条款禁止用于直接 API 调用；
 它只被允许维持 Phase 1 既有的 Embedding 回归，**不得扩展到 Chat、流式 Chat 或 Rerank**，
-也不算已合规准入的 Provider（architecture.md §13）。在拿到合规 Key 之前，
-诊断页的 `verifiedCapabilities` 恒为空数组——那是"尚未验证"，不是"不支持"。
+也不算已合规准入的 Provider（architecture.md §13）。
+
+`verifiedCapabilities` 从 `2026-08-11` 起有真实值，来源是 `ai_attempt.outcome = 'SUCCEEDED'`
+的诊断记录，即"这个 deployment 的这个能力真的调通过"，与 `capabilities`（配置声明的理论能力）
+是两列，可以不一致。**空数组是"在现存诊断记录里尚未验证"，不是"不支持"。** 注意它受诊断保留窗口
+约束（7 天或最近 10,000 次逻辑调用后物理删除），长期不调用的能力会自然掉出列表——想确认某个
+Provider 是否合规准入，看的是 architecture.md §13.3 的清单，不是这个字段。
 
 ## 问答核心链路（Phase 3A）运维须知
 
