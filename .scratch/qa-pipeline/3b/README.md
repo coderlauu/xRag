@@ -14,7 +14,7 @@
 | 05 | [`ChunkSearchPort` 与三个通道](issues/05-search-channels.md) | 01 | complete |
 | 06 | [RRF 融合、去重与两段截断](issues/06-fusion-dedup.md) | 05 | complete |
 | 07 | [精排调用与三态传导](issues/07-rerank-tri-state.md) | 06 | complete |
-| 08 | [检索编排、部分失败与重试](issues/08-retrieval-orchestration.md) | 05, 06, 07 | blocked |
+| 08 | [检索编排、部分失败与重试](issues/08-retrieval-orchestration.md) | 05, 06, 07 | complete |
 | 09 | [工具白名单、Schema 复核与状态机](issues/09-tool-registry-validation.md) | 02 | complete |
 | 10 | [工具调用循环与副作用确认 API](issues/10-tool-loop-confirmation.md) | 09 | complete |
 | 11 | [3B API 契约与隐私边界](issues/11-3b-api-contract.md) | 08, 10 | blocked |
@@ -33,8 +33,8 @@
      └─> 09
 ```
 
-01~07、09、10 已完成（2026-08-08~09），解锁 **08**（检索编排）。
-11 需要 08；12/13 需要 11。
+01~07、09、10 已完成（2026-08-08~09），08 已完成（2026-08-11），解锁 **11**（API 契约与隐私边界）。
+12 需要 11；13 需要 10 与 12。
 
 ## 推进规则
 
