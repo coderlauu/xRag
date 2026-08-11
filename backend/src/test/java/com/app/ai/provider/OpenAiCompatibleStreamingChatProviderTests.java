@@ -27,10 +27,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
+import reactor.test.StepVerifier;
 
 class OpenAiCompatibleStreamingChatProviderTests {
 
@@ -373,25 +373,25 @@ class OpenAiCompatibleStreamingChatProviderTests {
     @Test
     void 取消Provider订阅会关闭上游响应订阅() throws Exception {
         var requests = new AtomicInteger();
-        var bodySubscribed = new CountDownLatch(1);
         var bodyCancelled = new CountDownLatch(1);
         Flux<String> body = Flux.concat(
                         Flux.just(": keep-alive\n\n"),
                         Flux.<String>never())
-                .doOnSubscribe(ignored -> bodySubscribed.countDown())
                 .doOnCancel(bodyCancelled::countDown);
         DisposableServer server = server(body, requests);
 
         try (var provider = provider(server)) {
-            Disposable subscription = provider.stream(
+            // 先收到心跳归一出的 ProbeSignal，才证明上游响应订阅已经建立、可被关闭；
+            // 取消发生在这个事件之后由信号序列保证，不靠真实时钟抢赢建连与响应头往返。
+            StepVerifier.create(provider.stream(
                             deployment(),
                             request(List.of(new UserMessage("你好")), List.of()),
-                            context(new AtomicInteger()))
-                    .subscribe();
+                            context(new AtomicInteger())))
+                    .expectNext(new ProviderChatEvent.ProbeSignal(0))
+                    .thenCancel()
+                    .verify(Duration.ofSeconds(5));
 
-            assertThat(bodySubscribed.await(2, TimeUnit.SECONDS)).isTrue();
-            subscription.dispose();
-            assertThat(bodyCancelled.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(bodyCancelled.await(5, TimeUnit.SECONDS)).isTrue();
             assertThat(requests).hasValue(1);
         } finally {
             server.disposeNow();
