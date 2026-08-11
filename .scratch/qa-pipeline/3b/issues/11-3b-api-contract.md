@@ -39,18 +39,20 @@
 
 ## 遗留
 
-- **七个错误码里四个没有抛出点**：`TOOL_ARGUMENTS_INVALID`、`TOOL_EXECUTION_FAILED`、
-  `TOOL_EXECUTION_TIMEOUT`、`RETRIEVAL_FAILED`。前三个的触发路径在工单 10 的工具执行链路里，
-  第四个依赖"检索接进 turn 处理流程"（见下）。没有硬造抛出点——为不可达的场景写错误处理，
-  下次读代码的人会以为那条路走得通。
-- **契约 §10 与 §12 有张力**：§10 说 CONFIRM「响应 200：返回整个 turn 结果，调用方直接替换本地
-  状态」，§12 又把工具执行失败列为 502 `TOOL_EXECUTION_FAILED` / 504 超时。502 时调用方拿不到
-  turn，两条不能同时成立。对照 `NO_RESULT` 那条明确的裁决（「不是错误，是 200 + status」），
-  工具失败大概也该是 200 + `status=FAILED`，但这需要产品裁决，不由实现决定。
-- **`RetrievalOrchestrator` 仍然没有业务调用方**：工单 08 建了编排组件，但没有任何工单负责把它
-  接进 turn 处理流程（`TurnProcessor`）。依赖图里 08 → 11 之间缺这一环。本工单因此用 seed 落库
-  结果验契约——那本就是"落库的东西怎么变成响应"的正确测法——但真实链路上 `retrieval` 至今只会
-  是 null（除非显式调 retry 端点）。**这是依赖图的缺口，不是某张工单的疏漏**，按推进规则"发现
-  隐藏依赖先改本图"应补一张工单。
+- ~~**七个错误码里四个没有抛出点**~~ → **已裁决（`2026-08-11`）**：其中三个
+  （`TOOL_ARGUMENTS_INVALID`、`TOOL_EXECUTION_FAILED`、`TOOL_EXECUTION_TIMEOUT`）**本来就不该有
+  抛出点**——它们是 `ToolFailureCode` 的枚举值，落在 `qa_tool_call.failure_code` 上，不是 HTTP
+  错误码。工具失败按 200 + `tools[].status=FAILED` 返回，与 `NO_RESULT` 同源。契约 §12 已按裁决
+  重写（新增 §12.1 记录理由），实现自工单 10 起就是对的，本次是文档跟上实现。
+  "没有抛出点"这个观察是对的，但当时的结论（缺实现）搞错了方向——是契约把状态机的终态
+  搬到了 HTTP 层。
+- **`RETRIEVAL_FAILED`（502）仍待裁决**，它是上面那条的同源问题：检索全失败现在落成
+  `qa_turn_retrieval.status = RETRIEVAL_FAILED`（200 + 状态），而 §12 原先把它列为 502。
+  按同一条裁决精神它也该留在状态里，但**产品尚未明确表态**，所以 §12 的表格暂时保留原状之外
+  没有替它下结论。见[工单 08b 的遗留](08b-retrieval-wiring.md)。
+- ~~**`RetrievalOrchestrator` 仍然没有业务调用方**~~ → **已补** [工单 08b](08b-retrieval-wiring.md)
+  （`2026-08-11`）。本工单发现依赖图在 08 与 11 之间缺一环，按推进规则"发现隐藏依赖先改本图"
+  补成 08b 而不是塞进本工单。本工单用 seed 落库结果验契约的做法不受影响——那本就是"落库的
+  东西怎么变成响应"的正确测法。
 - **工具端点的响应外壳仍是 `ToolCallsResponse`**（只有 tools），契约 §10 要求整个 turn。
   tools 块的**形态**已在本工单统一到契约，外壳形态属于工单 10 的产出，未动。

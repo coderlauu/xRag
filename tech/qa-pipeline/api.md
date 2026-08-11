@@ -590,13 +590,32 @@ GROUP 接受 `NODE_ONLY` 或 `CONFIGURED_SUBTREE`；叶子只接受 `NODE_ONLY`�
 | 409 | `TOOL_CALL_NOT_PENDING` | 工具不在 `PENDING_CONFIRM`，含重复确认与取消后确认 |
 | 409 | `NOTHING_TO_RETRY` | 没有失败目标可重试 |
 | 404 | `TOOL_CALL_NOT_FOUND` | `toolCallId` 不属于该 turn |
-| 422 | `TOOL_ARGUMENTS_INVALID` | 参数复核不通过；`detail` 点名缺失/非法字段与允许值，不含 Schema 原文 |
-| 502 | `TOOL_EXECUTION_FAILED` | 工具执行失败；`detail` 是归一化文案 |
-| 504 | `TOOL_EXECUTION_TIMEOUT` | 超过工具配置的 deadline |
-| 502 | `RETRIEVAL_FAILED` | 全部检索目标失败 |
 
 `NO_RESULT` **不是错误**，它是 200 + `retrieval.status=NO_RESULT`。检索执行成功而没有命中，
 与检索没执行成功是两件事，HTTP 状态码上也要分开（PRD §12.3）。
+
+### 12.1 工具执行失败不是 HTTP 错误（裁决 `2026-08-11`）
+
+**工具这一次没成，返回 200 + `tools[].status=FAILED` + `failureCode`**，不返回 4xx/5xx。
+
+本节起草时把 `TOOL_ARGUMENTS_INVALID`(422) / `TOOL_EXECUTION_FAILED`(502) /
+`TOOL_EXECUTION_TIMEOUT`(504) 列进了上面那张表，那是错的，两处矛盾：
+
+1. **与 §10 冲突。** §10 承诺"响应 200：返回整个 turn 结果，调用方直接替换本地状态"。
+   502 时调用方拿不到 turn，两条不能同时成立。
+2. **它们本来就不是 HTTP 错误码，而是 `ToolFailureCode` 的枚举值**
+   （`ARGUMENTS_INVALID` / `NOT_WHITELISTED` / `EXECUTION_TIMEOUT` / `EXECUTION_FAILED`），
+   落在 `qa_tool_call.failure_code` 上。把状态机里的一个终态搬到 HTTP 层，等于要求调用方
+   从状态码反推工具状态。
+
+裁决与 `NO_RESULT` 同源：**"这一次没成"是结果的一部分，不是请求失败**。用户要看到的是那张
+确认卡变成失败态、带一句归一化原因、可以重试；而不是一个 502 把整个 turn 的其余内容
+（来源、其他工具）一起吞掉。
+
+HTTP 错误只保留"请求本身不该被处理"的情况——裁决时机不对（409）、资源不属于该 turn（404）。
+
+实现自工单 10 起就是这样（`ToolCallService.executeOutsideTransaction` 把异常包成
+`ToolExecutionResult.failure`，controller 返回 `ok`）。本次是**文档跟上实现**，不是改行为。
 
 ## 13. 3B 契约验收
 
