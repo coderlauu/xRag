@@ -20,7 +20,7 @@
 | 10 | [工具调用循环与副作用确认 API](issues/10-tool-loop-confirmation.md) | 09 | complete |
 | 11 | [3B API 契约与隐私边界](issues/11-3b-api-contract.md) | 08, 10 | complete |
 | 12 | [前端来源区与降级表达](issues/12-frontend-sources.md) | 11 | complete |
-| 13 | [前端工具区与确认卡](issues/13-frontend-tools.md) | 10, 12 | blocked |
+| 13 | [前端工具区与确认卡](issues/13-frontend-tools.md) | 10, 12 | complete |
 | 14 | [隐私审计、故障注入与 3B E2E](issues/14-privacy-e2e.md) | 11, 13 | blocked |
 | 15 | [矩阵执行与浏览器验收](issues/15-matrix-validation.md) | 01~14 | blocked |
 | 16 | [CI、部署配置与 3B 门禁](issues/16-ci-deploy.md) | 01~15 | blocked |
@@ -38,7 +38,7 @@
 把两者接起来——`RetrievalOrchestrator` 一直没有业务调用方，真实链路上 `retrieval` 恒为 null。
 按推进规则"发现隐藏依赖先改本图"补的这一环，它同时解锁了 3B 的全部手工走查。
 
-01~07、09、10 已完成（2026-08-08~09），08、08b、11、12 已完成（2026-08-11），解锁 **13**（前端工具区与确认卡）。
+01~07、09、10 已完成（2026-08-08~09），08、08b、11、12、13 已完成（2026-08-11），解锁 **14**（隐私审计、故障注入与 3B E2E）。
 
 **图里缺一环**：没有工单负责把 `RetrievalOrchestrator` 接进 turn 处理流程（`TurnProcessor`）。
 08 建了编排组件、11 建了响应契约，但真实链路上没人调用检索，`retrieval` 至今只会是 null。

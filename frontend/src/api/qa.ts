@@ -280,6 +280,42 @@ export function retryQaRetrieval(input: { clientRequestId: QaId; turnId: QaId })
   });
 }
 
+/**
+ * 裁决一次有副作用的工具调用（api.md §10）。
+ *
+ * **响应只有 tools，不是整个 turn。** 契约 §10 要求返回整个 turn 结果，但工单 10 实现的外壳
+ * 是 `{tools}`，工单 11 记录了这处未改。调用方因此只能更新工具那一块——这是现状而不是设计，
+ * 别据此假设 turn 的其余部分也刷新了。
+ */
+export function decideQaToolCall(input: {
+  clientRequestId: QaId;
+  turnId: QaId;
+  toolCallId: QaId;
+  decision: "CONFIRM" | "CANCEL";
+}) {
+  return qaRequest<{ tools: TurnTool[] }>(
+    `/turns/${input.turnId}/tool-calls/${input.toolCallId}/decision`,
+    { method: "POST", body: { clientRequestId: input.clientRequestId, decision: input.decision } },
+  );
+}
+
+/**
+ * 重试一次失败的工具调用（ui-spec §13.7.4）。
+ *
+ * 有副作用的工具重试会产生一条**新的** toolCallId 并回到 `PENDING_CONFIRM`——上一次的确认
+ * 不能被复用，"确认前一律不执行"对每一次执行都成立。
+ */
+export function retryQaToolCall(input: {
+  clientRequestId: QaId;
+  turnId: QaId;
+  toolCallId: QaId;
+}) {
+  return qaRequest<{ tools: TurnTool[] }>(
+    `/turns/${input.turnId}/tool-calls/${input.toolCallId}/retry`,
+    { method: "POST", body: { clientRequestId: input.clientRequestId } },
+  );
+}
+
 export function submitQaQuestion(input: {
   clientRequestId: QaId;
   conversationId: QaId | null;

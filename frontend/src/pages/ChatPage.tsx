@@ -3,8 +3,10 @@ import {
   listQaConversations,
   listQaMessages,
   readQaConversation,
+  decideQaToolCall,
   readQaTurn,
   retryQaRetrieval,
+  retryQaToolCall,
   submitQaClarification,
   submitQaQuestion,
   toQaUserMessage,
@@ -19,7 +21,8 @@ import { DeleteConversationDialog, RenameConversationDialog } from "./chat/Conve
 import { Drawer } from "./chat/Drawer";
 import { TurnResultPane } from "./chat/TurnResultPane";
 import { PartialMark, RerankMark } from "./chat/TurnSourcesPane";
-import { relativeTime } from "./chat/labels";
+import { ToolConfirmCard } from "./chat/ToolConfirmCard";
+import { relativeTime, toolFailureLabel } from "./chat/labels";
 
 const COMPLETION_NOTICE =
   "已完成问题理解并形成后续检索动作。当前里程碑尚未执行知识库检索或生成答案。";
@@ -68,6 +71,8 @@ export function ChatPage() {
   const [choice, setChoice] = useState<string | null>(null);
 
   const [retrying, setRetrying] = useState(false);
+  /** 正在裁决/重试的 toolCallId。同一时刻只允许一个，避免重复确认。 */
+  const [toolBusy, setToolBusy] = useState<string | null>(null);
   /**
    * `就现有结果继续` 只收起提示，**不改服务端状态**——用户说的是"我知道了、别再挡我"，
    * 不是"把这轮标记成完整的"。partial 仍然是 true，来源区的 `结果不完整` 标记照旧。
@@ -91,6 +96,27 @@ export function ChatPage() {
    * 失败库名拼给提示文案。**只取库名，不取 failureCode 的原始值**——消息区那句是给用户看的，
    * 归一化原因留在抽屉的失败项列表里（ui-spec §13.6）。
    */
+  const tools = result?.tools ?? [];
+  /**
+   * 等待裁决的有副作用工具。只可能有一个——工具按顺序执行，前一个没裁决完不会产生下一个。
+   */
+  const pendingTool = tools.find(
+    (tool) => tool.status === "PENDING_CONFIRM" && tool.sideEffect,
+  );
+  const unavailableTools = tools.filter((tool) => tool.status === "UNAVAILABLE");
+  const abortedTools = tools.filter((tool) => tool.status === "ABORTED");
+  /**
+   * 工具执行中要禁用输入区（ui-spec §13.7.1）。**不提供中止入口**——3B 没有停止能力，
+   * 摆一个点了没用的按钮比没有按钮更糟（§13.1 不变量 4）。
+   */
+  const toolRunning = tools.some((tool) => tool.status === "RUNNING");
+  /**
+   * 输入区的禁用条件比 `active` 多一项工具执行中。
+   *
+   * 待确认**不禁用**——那一态在等用户，沿用歧义等待的惯例，用户还可以用自然语言补充
+   * （ui-spec §13.7.1 的状态表里那一行写得很明确）。只有真的在跑才禁用。
+   */
+  const composerLocked = active || toolRunning;
   const failedNames = (retrieval?.failedTargets ?? [])
     .map((target) => target.knowledgeBaseName)
     .filter((name): name is string => Boolean(name))
@@ -194,6 +220,53 @@ export function ChatPage() {
    * 服务端只重跑失败目标并把结果合并进同一轮，所以这里直接用返回的 turn 替换本地状态——
    * 前端不自己做合并，也不重新拉整个会话（改写与意图都没变，重拉只会让界面闪一下）。
    */
+  /**
+   * 裁决一次工具调用。
+   *
+   * 响应只回 tools（契约 §10 要求整个 turn，工单 10 的外壳没改），所以这里只合并那一块。
+   * 直接整体替换 result 会把 retrieval 抹掉。
+   */
+  async function decideTool(toolCallId: string, decision: "CONFIRM" | "CANCEL") {
+    if (!result || toolBusy) return;
+    setToolBusy(toolCallId);
+    setThreadError(null);
+    try {
+      const next = await decideQaToolCall({
+        clientRequestId: requestIdFor(`tool-decision|${toolCallId}|${decision}`),
+        turnId: result.turn.turnId,
+        toolCallId,
+        decision,
+      });
+      setResult((prev) => (prev ? { ...prev, tools: next.tools } : prev));
+    } catch (cause) {
+      setThreadError(toQaUserMessage(cause));
+    } finally {
+      setToolBusy(null);
+    }
+  }
+
+  /**
+   * 重试失败的工具。有副作用的工具会得到一条**新的** toolCallId 并回到待确认——
+   * 上一次的确认不可复用（ui-spec §13.7.4）。
+   */
+  async function retryTool(toolCallId: string) {
+    if (!result || toolBusy) return;
+    setToolBusy(toolCallId);
+    setThreadError(null);
+    try {
+      const next = await retryQaToolCall({
+        clientRequestId: requestIdFor(`tool-retry|${toolCallId}`),
+        turnId: result.turn.turnId,
+        toolCallId,
+      });
+      setResult((prev) => (prev ? { ...prev, tools: next.tools } : prev));
+    } catch (cause) {
+      setThreadError(toQaUserMessage(cause));
+    } finally {
+      setToolBusy(null);
+    }
+  }
+
   async function retryRetrieval() {
     if (!result || retrying) return;
     setRetrying(true);
@@ -463,6 +536,68 @@ export function ChatPage() {
             </p>
           ) : null}
 
+          {/*
+            确认卡在消息区，与 3A 的歧义引导卡同一位置——确认需要用户动作，藏进默认关闭的
+            抽屉等于没有确认（ui-spec §13.1 不变量 2 / §13.7.2）。
+          */}
+          {pendingTool ? (
+            <ToolConfirmCard
+              tool={pendingTool}
+              busy={toolBusy === pendingTool.toolCallId}
+              onConfirm={() => void decideTool(pendingTool.toolCallId, "CONFIRM")}
+              onCancel={() => void decideTool(pendingTool.toolCallId, "CANCEL")}
+            />
+          ) : null}
+
+          {/*
+            不可用不能静默跳过（ui-spec §13.7.3）：静默会让用户以为系统不支持这件事，
+            而真相是配置缺失——这是用户无法自助的情况，所以只说明、不给动作。
+          */}
+          {unavailableTools.map((tool) => (
+            <p className="qa-system-notice" role="status" key={tool.toolCallId}>
+              系统判断需要调用「{tool.displayName ?? tool.toolName}」，但它不在当前可用工具清单中，本轮未执行。
+            </p>
+          ))}
+
+          {/*
+            参数抽取失败即中止，**禁止用默认值继续**（PRD §12.7）。界面上不存在
+            "跳过这个参数继续"的路径，所以这里只有说明，没有按钮。
+          */}
+          {abortedTools.map((tool) => (
+            <p className="qa-system-notice" role="status" key={tool.toolCallId}>
+              「{tool.displayName ?? tool.toolName}」还缺必要信息，本轮未执行。请补充后再说一次。
+            </p>
+          ))}
+
+          {/*
+            失败给归一化文案 + 重试。有副作用的工具重试会重新出确认卡（服务端产生新的
+            toolCallId），所以这里不需要额外提示"将再次确认"——卡片自己会出现。
+          */}
+          {tools
+            .filter((tool) => tool.status === "FAILED")
+            .map((tool) => (
+              <div className="qa-system-notice" role="status" key={tool.toolCallId}>
+                <p>
+                  「{tool.displayName ?? tool.toolName}」执行失败：{toolFailureLabel(tool.failureCode)}。
+                </p>
+                <div className="qa-notice-actions">
+                  <button
+                    type="button"
+                    disabled={toolBusy === tool.toolCallId}
+                    onClick={() => void retryTool(tool.toolCallId)}
+                  >
+                    {toolBusy === tool.toolCallId ? "正在重试…" : "重试"}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+          {toolRunning ? (
+            <p className="qa-system-notice" role="status" aria-live="polite">
+              正在执行工具…
+            </p>
+          ) : null}
+
           {status === "ACTIONS_READY" ? (
             <p className="qa-system-notice">
               <strong className="qa-tag">{retrieval ? "3B 验收" : "3A 验收"}</strong>{" "}
@@ -532,7 +667,7 @@ export function ChatPage() {
           <textarea
             ref={editor}
             value={draft}
-            disabled={active}
+            disabled={composerLocked}
             maxLength={20000}
             placeholder="输入你的问题…"
             aria-label="输入你的问题"
@@ -549,7 +684,7 @@ export function ChatPage() {
           <button
             className="primary"
             type="button"
-            disabled={active || !draft.trim()}
+            disabled={composerLocked || !draft.trim()}
             onClick={() => void sendQuestion()}
           >
             {submitting ? "发送中…" : "发送"}

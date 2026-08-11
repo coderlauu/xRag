@@ -1,6 +1,7 @@
 import type { TurnResult } from "../../api/qa";
 import { TurnInspectorPane } from "./TurnInspectorPane";
 import { TurnSourcesPane } from "./TurnSourcesPane";
+import { TurnToolsPane } from "./TurnToolsPane";
 
 /**
  * 本轮处理抽屉的两个分组（ui-spec §13.2）。
@@ -12,7 +13,6 @@ import { TurnSourcesPane } from "./TurnSourcesPane";
  * （ui-spec §9.2：正式交付后删除）；继续挂在整个面板上，3B 的来源就会被读成验收脚手架，
  * Phase 3 收尾时被连带删掉——而来源恰恰是要长期留下的东西。
  *
- * 工具区属工单 13，本组件暂不渲染它。
  */
 export function TurnResultPane({ result }: { result: TurnResult | null }) {
   return (
@@ -20,6 +20,7 @@ export function TurnResultPane({ result }: { result: TurnResult | null }) {
       <section className="qa-drawer-group" aria-labelledby="qa-group-result">
         <h3 id="qa-group-result">本轮结果</h3>
         <TurnSourcesPane retrieval={result?.retrieval} />
+        <TurnToolsPane tools={result?.tools ?? []} />
       </section>
 
       <section className="qa-drawer-group" aria-labelledby="qa-group-detail">

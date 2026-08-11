@@ -51,6 +51,45 @@ export function retrievalFailureLabel(code: string | null): string {
   return RETRIEVAL_FAILURE_LABEL[code] ?? code;
 }
 
+/**
+ * 工具状态文案（ui-spec §13.7.1 的状态闭集）。
+ *
+ * 七个状态各有自己的一句话，**不合并**：`已取消`/`不可用`/`已中止` 对用户意味着三件不同的事
+ * ——一个是自己取消的、一个是配置缺失（无法自助）、一个是参数没抽出来（补充后重问）。
+ */
+export const TOOL_STATUS_LABEL: Record<string, string> = {
+  PENDING_CONFIRM: "待确认",
+  RUNNING: "执行中",
+  SUCCEEDED: "已完成",
+  FAILED: "失败",
+  CANCELLED: "已取消",
+  UNAVAILABLE: "不可用",
+  ABORTED: "已中止",
+};
+
+export function toolStatusLabel(status: string): string {
+  return TOOL_STATUS_LABEL[status] ?? status;
+}
+
+/**
+ * 工具失败原因的用户文案（ui-spec §13.7.3：只展示归一化文案，绝不透传异常 message）。
+ *
+ * 未知码值原样显示——编一句"未知错误"会掩盖"后端加了新码值而前端没跟上"。
+ */
+const TOOL_FAILURE_LABEL: Record<string, string> = {
+  EXECUTION_TIMEOUT: "执行超时",
+  EXECUTION_FAILED: "执行失败",
+  ARGUMENTS_INVALID: "参数不合法",
+  NOT_WHITELISTED: "不在可用工具清单中",
+};
+
+export function toolFailureLabel(code: string | null): string {
+  if (!code) {
+    return "原因未记录";
+  }
+  return TOOL_FAILURE_LABEL[code] ?? code;
+}
+
 export const ACTION_LABEL: Record<RetrievalActionType, string> = {
   KB_TARGETED: "定向检索知识库",
   GLOBAL_FALLBACK: "全局兜底检索",

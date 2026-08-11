@@ -215,6 +215,8 @@ interface Routes {
   rename: (body: Record<string, unknown> | undefined) => Response;
   remove: () => Response;
   retryRetrieval: (body: Record<string, unknown> | undefined) => Response;
+  toolDecision: (body: Record<string, unknown> | undefined) => Response;
+  toolRetry: (body: Record<string, unknown> | undefined) => Response;
 }
 
 const defaultRoutes: Routes = {
@@ -228,6 +230,8 @@ const defaultRoutes: Routes = {
   rename: (body) => json({ conversationId: CONVERSATION_ID, title: String(body?.title), version: 3 }),
   remove: () => json(null, 204),
   retryRetrieval: () => json(resultWith({ ...retrievedBlock, partial: false, failedTargets: [] })),
+  toolDecision: () => json({ tools: [] }),
+  toolRetry: () => json({ tools: [] }),
 };
 
 function mockApi(overrides: Partial<Routes> = {}) {
@@ -241,6 +245,12 @@ function mockApi(overrides: Partial<Routes> = {}) {
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined;
     calls.push({ url, method, body });
 
+    if (method === "POST" && url.includes("/decision")) {
+      return Promise.resolve(routes.toolDecision(body));
+    }
+    if (method === "POST" && url.includes("/tool-calls/") && url.includes("/retry")) {
+      return Promise.resolve(routes.toolRetry(body));
+    }
     if (method === "POST" && url.includes("/retrieval/retry")) {
       return Promise.resolve(routes.retryRetrieval(body));
     }
@@ -866,5 +876,189 @@ describe("问答 C — 3B 来源与降级", () => {
     // 两种空态必须分开：这是"没检索过"，不是"没召回"。
     expect(within(inspector).getByText("本轮未执行检索")).toBeInTheDocument();
     expect(within(inspector).queryByText("本轮没有召回任何来源")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * 工单 13 的组件用例，对应 3B-UI-05 / 06 / 08 的自动化部分（那三条本身是 M — 手工走查）。
+ *
+ * 重点在三条最容易写错、而且错了在评审里看不出来的规则：确认卡不抢焦点、Tab 先到取消、
+ * Esc 不等于取消。它们都是"某个东西**不该**发生"，只有测试能守住。
+ */
+describe("问答 C — 3B 工具区与确认卡", () => {
+  const pendingTool = {
+    toolCallId: "tc-1",
+    ordinal: 0,
+    toolName: "submit-return-ticket",
+    displayName: "提交退货工单",
+    description: "在售后工单系统中新建一张退货工单，并把工单号回写到本次对话。",
+    sideEffect: true,
+    status: "PENDING_CONFIRM",
+    parameters: [
+      { name: "订单号", value: "ORD-20260806-1183", required: true },
+      { name: "联系电话", value: null, required: false },
+    ],
+    resultText: null,
+    failureCode: null,
+    latencyMs: null,
+  };
+
+  function resultWithTools(tools: unknown[]) {
+    return { ...actionsReadyResult, retrieval: null, tools };
+  }
+
+  async function askWithTools(tools: unknown[], overrides: Partial<Routes> = {}) {
+    const api = mockApi({ submit: () => json(resultWithTools(tools), 201), ...overrides });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    await user.type(screen.getByLabelText("输入你的问题"), "帮我提交退货工单");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await waitFor(() => expect(api.of("POST", "/turns")).toHaveLength(1));
+    return { api, user };
+  }
+
+  it("确认卡不抢焦点、Tab 先到取消、Esc 不取消工具", async () => {
+    const { api, user } = await askWithTools([pendingTool]);
+
+    const card = await screen.findByRole("status", { name: /需要你确认：提交退货工单/ });
+    // 不抢焦点：危险确认的默认焦点不该落在危险按钮上。
+    expect(within(card).getByRole("button", { name: "确认执行" })).not.toHaveFocus();
+    expect(within(card).getByRole("button", { name: "取消" })).not.toHaveFocus();
+
+    // Tab 先到取消。
+    await user.tab();
+    let guard = 0;
+    while (
+      document.activeElement !== within(card).getByRole("button", { name: "取消" }) &&
+      document.activeElement !== within(card).getByRole("button", { name: "确认执行" }) &&
+      guard++ < 30
+    ) {
+      await user.tab();
+    }
+    expect(within(card).getByRole("button", { name: "取消" })).toHaveFocus();
+
+    // Esc 不等于取消：误触不该丢掉一份已抽取好的参数。
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("status", { name: /需要你确认/ })).toBeInTheDocument();
+    expect(api.calls.filter((call) => call.url.includes("/decision"))).toHaveLength(0);
+  });
+
+  it("说明与参数来自服务端且不出现Schema原文或参数不可编辑的输入框", async () => {
+    await askWithTools([pendingTool]);
+    const card = await screen.findByRole("status", { name: /需要你确认/ });
+
+    expect(within(card).getByText(/在售后工单系统中新建一张退货工单/)).toBeInTheDocument();
+    expect(within(card).getByText("由模型从对话中抽取")).toBeInTheDocument();
+    expect(within(card).getByText("订单号")).toBeInTheDocument();
+    expect(within(card).getByText("ORD-20260806-1183")).toBeInTheDocument();
+    // 可选参数缺省时条目仍在，显示"未提供"而不是消失。
+    expect(within(card).getByText("联系电话")).toBeInTheDocument();
+    expect(within(card).getByText("未提供")).toBeInTheDocument();
+
+    // 参数在 3B 不可就地编辑（P-3B-02）：卡片里不该有任何输入控件。
+    expect(within(card).queryByRole("textbox")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("combobox")).not.toBeInTheDocument();
+    // Schema 原文与属性名都不出去。
+    expect(card.textContent).not.toContain("orderNo");
+    expect(card.textContent).not.toContain("additionalProperties");
+  });
+
+  it("确认走裁决端点且执行中禁用输入区并且没有中止入口", async () => {
+    const running = { ...pendingTool, status: "RUNNING" };
+    const { api, user } = await askWithTools([pendingTool], {
+      // 裁决后返回执行中，用来验输入区禁用与"没有中止按钮"。
+      toolDecision: () => json({ tools: [running] }),
+    });
+
+    await user.click(await screen.findByRole("button", { name: "确认执行" }));
+
+    await waitFor(() => expect(api.of("POST", "/decision")).toHaveLength(1));
+    expect(api.of("POST", "/decision")[0]?.body).toMatchObject({ decision: "CONFIRM" });
+
+    // 执行中：输入区禁用。
+    await waitFor(() => expect(screen.getByLabelText("输入你的问题")).toBeDisabled());
+    // 3B 没有停止能力，也不摆一个点了没用的按钮（ui-spec §13.1 不变量 4）。
+    expect(screen.queryByRole("button", { name: /中止|停止|取消执行/ })).not.toBeInTheDocument();
+  });
+
+  it("取消走同一个端点的另一个取值", async () => {
+    const cancelled = { ...pendingTool, status: "CANCELLED" };
+    const { api, user } = await askWithTools([pendingTool], {
+      toolDecision: () => json({ tools: [cancelled] }),
+    });
+
+    await user.click(await screen.findByRole("button", { name: "取消" }));
+
+    await waitFor(() => expect(api.of("POST", "/decision")).toHaveLength(1));
+    expect(api.of("POST", "/decision")[0]?.body).toMatchObject({ decision: "CANCEL" });
+    // 卡片就地转为静态记录：按钮消失，不从时间线里抹掉。
+    expect(screen.queryByRole("button", { name: "确认执行" })).not.toBeInTheDocument();
+  });
+
+  it("工具返回按纯文本渲染不产生可点击目标", async () => {
+    const succeeded = {
+      ...pendingTool,
+      status: "SUCCEEDED",
+      resultText: '工单号 RT-1 <a href="https://evil.example">点我</a> [看这里](https://evil.example)',
+      latencyMs: 120,
+    };
+    const { user } = await askWithTools([succeeded]);
+    const inspector = await openInspector(user);
+
+    await user.click(within(inspector).getByRole("button", { name: "展开参数" }));
+    // 原样显示成文本，而不是被解析成链接。
+    expect(within(inspector).getByText(/evil\.example/)).toBeInTheDocument();
+    expect(within(inspector).queryByRole("link", { name: "点我" })).not.toBeInTheDocument();
+    expect(within(inspector).queryByRole("link", { name: "看这里" })).not.toBeInTheDocument();
+    expect(within(inspector).getByText("120 ms")).toBeInTheDocument();
+  });
+
+  it("失败给归一化原因与重试且不透传异常message", async () => {
+    const failed = {
+      ...pendingTool,
+      status: "FAILED",
+      failureCode: "EXECUTION_TIMEOUT",
+      latencyMs: 10000,
+    };
+    const { api, user } = await askWithTools([failed], {
+      toolRetry: () => json({ tools: [{ ...pendingTool, toolCallId: "tc-2" }] }),
+    });
+
+    expect(await screen.findByText(/执行失败：执行超时/)).toBeInTheDocument();
+    // 闭集码值不直接示人。
+    expect(screen.queryByText("EXECUTION_TIMEOUT")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "重试" }));
+
+    await waitFor(() => expect(api.of("POST", "/retry")).toHaveLength(1));
+    // 有副作用的工具重试后重新出确认卡——上一次的确认不可复用（ui-spec §13.7.4）。
+    expect(await screen.findByRole("status", { name: /需要你确认/ })).toBeInTheDocument();
+  });
+
+  it("不可用与已中止各自有克制的提示且没有继续执行入口", async () => {
+    await askWithTools([
+      { ...pendingTool, toolCallId: "tc-u", status: "UNAVAILABLE", parameters: [] },
+      { ...pendingTool, toolCallId: "tc-a", status: "ABORTED", ordinal: 1 },
+    ]);
+
+    expect(await screen.findByText(/不在当前可用工具清单中，本轮未执行/)).toBeInTheDocument();
+    expect(screen.getByText(/还缺必要信息，本轮未执行/)).toBeInTheDocument();
+    // 禁止用默认值继续（PRD §12.7）：界面上不存在这条路径。
+    expect(screen.queryByRole("button", { name: /继续执行|跳过|使用默认值/ })).not.toBeInTheDocument();
+    // 两句必须不同——一个是配置缺失、一个是参数没抽出来。
+    expect(screen.queryByText(/不在当前可用工具清单中.*还缺必要信息/)).not.toBeInTheDocument();
+  });
+
+  it("没有工具调用时抽屉里是专门的空态", async () => {
+    const { user } = await askWithTools([]);
+    const inspector = await openInspector(user);
+
+    expect(within(inspector).getByText("本轮没有调用工具")).toBeInTheDocument();
+    // 与"工具不可用"不是同一句。
+    expect(within(inspector).queryByText(/不在当前可用工具清单/)).not.toBeInTheDocument();
   });
 });

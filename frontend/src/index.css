@@ -301,6 +301,50 @@ code {
 .qa-notice-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .qa-next-steps { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 2px; }
 
+/* 工具区（ui-spec §13.7.5）。 */
+.qa-tools { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.qa-tools h4 { margin: 0; font-size: 14px; color: var(--text-h); }
+.qa-tools-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.qa-tool { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.qa-tool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; }
+.qa-tool-name { font-weight: 600; color: var(--text-h); }
+.qa-tool-latency { font-variant-numeric: tabular-nums; }
+.qa-tool-failure { margin: 0; font-size: 14px; color: var(--danger); }
+/* 工具返回按纯文本渲染，所以保留换行、不做任何富文本处理（ui-spec §13.7.3）。 */
+.qa-tool-result { margin: 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/*
+ * 工具确认卡（ui-spec §13.7.2）。在消息区，与歧义引导卡同一位置、同一心智。
+ */
+.qa-tool-card { align-self: center; width: 100%; max-width: 620px; display: grid; gap: 10px; padding: 14px; border: 1px solid var(--danger); border-radius: 8px; }
+.qa-tool-card h4 { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 15px; color: var(--text-h); }
+.qa-tool-desc { margin: 0; font-size: 14px; }
+.qa-tool-params-head { margin: 0 0 4px; font-size: 13px; }
+.qa-tool-params dl { margin: 0; display: grid; gap: 6px; }
+.qa-tool-param { display: grid; grid-template-columns: minmax(88px, auto) 1fr; gap: 4px 12px; font-size: 14px; }
+.qa-tool-param dt { font-weight: 600; color: var(--text-h); display: flex; align-items: baseline; gap: 6px; }
+.qa-tool-param dd { margin: 0; overflow-wrap: anywhere; }
+.qa-required { font-size: 12px; color: var(--danger); }
+.qa-tag-danger { border-color: var(--danger); color: var(--danger); }
+
+/* DOM 顺序是「取消、确认执行」（Tab 先到取消）；宽屏视觉上确认在右，用 row-reverse 实现。 */
+.qa-tool-actions { display: flex; flex-direction: row-reverse; justify-content: flex-start; gap: 8px; }
+
+@media (max-width: 720px) {
+  /* 参数表由两列改为纵向键值堆叠。 */
+  .qa-tool-param { grid-template-columns: 1fr; }
+  .qa-tool-card { max-width: none; }
+}
+
+@media (max-width: 375px) {
+  /*
+   * 确认卡按钮纵向堆叠，`取消` 在上、`确认执行` 在下，间距不小于 12px 防误触
+   * （ui-spec §13.10）。DOM 顺序本来就是取消在前，所以这里用正向 column 即可。
+   */
+  .qa-tool-actions { flex-direction: column; gap: 12px; }
+  .qa-tool-actions button { width: 100%; }
+}
+
 .qa-inspector-body { display: grid; gap: 12px; align-content: start; }
 .qa-inspector-body dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 14px; margin: 0; }
 .qa-inspector-body dt { font-weight: 600; color: var(--text-h); }
