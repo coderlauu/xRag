@@ -2,6 +2,7 @@ package com.app.qa.web;
 
 import com.app.qa.conversation.ConversationBusyException;
 import com.app.qa.conversation.ConversationPersistenceService;
+import com.app.qa.retrieval.RetrievalOrchestrator;
 import com.app.qa.conversation.TurnProcessor;
 import com.app.qa.model.MessageRole;
 import com.app.qa.model.MessageType;
@@ -40,11 +41,18 @@ public final class QaConversationController {
 
     private final ConversationPersistenceService conversations;
     private final ObjectProvider<TurnProcessor> processors;
+    private final TurnResultViewAssembler results;
+    private final RetrievalOrchestrator retrieval;
 
     public QaConversationController(
-            ConversationPersistenceService conversations, ObjectProvider<TurnProcessor> processors) {
+            ConversationPersistenceService conversations,
+            ObjectProvider<TurnProcessor> processors,
+            TurnResultViewAssembler results,
+            RetrievalOrchestrator retrieval) {
         this.conversations = conversations;
         this.processors = processors;
+        this.results = results;
+        this.retrieval = retrieval;
     }
 
     @GetMapping("/conversations")
@@ -117,8 +125,44 @@ public final class QaConversationController {
                 .filter(found -> found.conversationId().equals(conversationId))
                 .orElseThrow(QaConversationController::turnNotFound);
         var extras = turnExtras(turn.turnId());
+        return lookupResponse(turn, extras);
+    }
+
+    /**
+     * 只重跑失败的检索目标（契约 §11）。
+     *
+     * <p>响应是整个 turn 结果，与 §9 同形——调用方直接替换本地状态，不必自己把
+     * "重试返回的那部分"并进已有来源。合并发生在服务端（架构 §19.7）。
+     */
+    @PostMapping("/turns/{turnId}/retrieval/retry")
+    public TurnLookupResponse retryRetrieval(
+            @PathVariable UUID turnId, @RequestBody RetryRetrievalRequest request) {
+        request.validate();
+        var turn = conversations.findTurn(turnId).orElseThrow(QaConversationController::turnNotFound);
+        try {
+            retrieval.retryFailed(turnId);
+        } catch (IllegalStateException exception) {
+            if ("NOTHING_TO_RETRY".equals(exception.getMessage())) {
+                throw new QaRequestException(
+                        HttpStatus.CONFLICT,
+                        "没有可重试的检索目标",
+                        "NOTHING_TO_RETRY",
+                        "本轮没有失败的知识库，无需重试。");
+            }
+            throw exception;
+        }
+        return lookupResponse(turn, turnExtras(turnId));
+    }
+
+    private TurnLookupResponse lookupResponse(
+            ConversationPersistenceService.TurnView turn, TurnExtras extras) {
         return new TurnLookupResponse(
-                turnResponse(turn), extras.inspector(), extras.assistantMessage(), extras.clarification());
+                turnResponse(turn),
+                extras.inspector(),
+                extras.assistantMessage(),
+                extras.clarification(),
+                results.retrieval(turn.turnId()),
+                results.tools(turn.turnId()));
     }
 
     @PatchMapping("/conversations/{conversationId}")
@@ -215,7 +259,9 @@ public final class QaConversationController {
                 turnResponse(turn),
                 extras.inspector(),
                 extras.assistantMessage(),
-                extras.clarification());
+                extras.clarification(),
+                results.retrieval(turn.turnId()),
+                results.tools(turn.turnId()));
         return ResponseEntity.status(submission.replayed() ? HttpStatus.OK : HttpStatus.CREATED).body(response);
     }
 
@@ -485,13 +531,35 @@ public final class QaConversationController {
             TurnResponseBody turn,
             InspectorResponse inspector,
             MessageResponse assistantMessage,
-            ClarificationResponse clarification) {}
+            ClarificationResponse clarification,
+            TurnResultView.Retrieval retrieval,
+            List<TurnResultView.Tool> tools) {}
 
     public record TurnLookupResponse(
             TurnResponseBody turn,
             InspectorResponse inspector,
             MessageResponse assistantMessage,
-            ClarificationResponse clarification) {}
+            ClarificationResponse clarification,
+            TurnResultView.Retrieval retrieval,
+            List<TurnResultView.Tool> tools) {}
+
+    public record RetryRetrievalRequest(UUID clientRequestId) {
+
+        @JsonAnySetter
+        public void rejectUnknownField(String name, Object value) {
+            throw new IllegalArgumentException("unknown field: " + name);
+        }
+
+        void validate() {
+            if (clientRequestId == null) {
+                throw new QaRequestException(
+                        HttpStatus.BAD_REQUEST,
+                        "请求不合法",
+                        "INVALID_REQUEST",
+                        "clientRequestId 不能为空。");
+            }
+        }
+    }
 
     public record RenameConversationRequest(String title, Long expectedVersion) {
 

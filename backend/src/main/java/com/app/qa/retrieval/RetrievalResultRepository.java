@@ -223,6 +223,72 @@ public class RetrievalResultRepository {
         }
     }
 
+    /**
+     * 一轮检索的落库快照，供 API 组装 {@code retrieval} 块（契约 §9）。
+     *
+     * <p><b>只有 id 和序号，没有分数、没有正文、没有通道名。</b>来源表本来就不存分数
+     * （数据模型 §14.2），{@code origin_channel} 存了但刻意不读出来——它只进处理详情，
+     * 不进这里，避免"命中两次更可信"的错误暗示。展示用的库名/文档名由知识库侧的
+     * {@code ChunkDisplayLookup} 另取，问答模块不拼 chunk 表 SQL。
+     */
+    public record RetrievalView(
+            RetrievalStatus status,
+            boolean partial,
+            boolean rerankApplied,
+            String degradation,
+            List<SourceRow> sources,
+            List<FailedTargetRow> failedTargets) {}
+
+    public record SourceRow(int ordinal, long chunkId) {}
+
+    public record FailedTargetRow(Long knowledgeBaseId, String failureCode) {}
+
+    /**
+     * 读取该 turn 的检索结果；turn 未进过 3B 时返回 empty（契约 §9：此时 {@code retrieval=null}）。
+     *
+     * <p>失败目标按知识库去重：一个库可能对应多条动作（多个子问题都定向它），但对用户而言
+     * "这个库没查成"是一条信息，列两遍只是噪声。
+     */
+    public Optional<RetrievalView> findView(UUID turnId) {
+        var head = jdbc.query(
+                """
+                select status, partial, rerank_applied, degradation
+                  from qa_turn_retrieval where turn_id = ?
+                """,
+                (rs, rowNum) -> new Object[] {
+                    RetrievalStatus.valueOf(rs.getString("status")),
+                    rs.getBoolean("partial"),
+                    rs.getBoolean("rerank_applied"),
+                    rs.getString("degradation")
+                },
+                turnId);
+        if (head.isEmpty()) {
+            return Optional.empty();
+        }
+        var row = head.get(0);
+        var sources = jdbc.query(
+                "select ordinal, chunk_id from qa_retrieval_source where turn_id = ? order by ordinal",
+                (rs, rowNum) -> new SourceRow(rs.getInt("ordinal"), rs.getLong("chunk_id")),
+                turnId);
+        var failedTargets = jdbc.query(
+                """
+                select distinct kb_id, failure_code
+                  from qa_retrieval_target
+                 where turn_id = ? and status = 'FAILED'
+                 order by kb_id
+                """,
+                (rs, rowNum) -> new FailedTargetRow(
+                        rs.getObject("kb_id", Long.class), rs.getString("failure_code")),
+                turnId);
+        return Optional.of(new RetrievalView(
+                (RetrievalStatus) row[0],
+                (boolean) row[1],
+                (boolean) row[2],
+                (String) row[3],
+                sources,
+                failedTargets));
+    }
+
     public Optional<RetrievalStatus> findStatus(UUID turnId) {
         return jdbc
                 .query(

@@ -1,5 +1,6 @@
 package com.app.qa.config;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.InitializingBean;
@@ -57,6 +59,9 @@ public class QaToolProperties implements InitializingBean {
         /** 启动时读出并缓存的 Schema 正文。工具定义启动后不变，没必要每次调用重拼。 */
         private String inputSchemaJson;
 
+        /** 启动时从 Schema 解析出的参数展示元信息，同样只解析一次。 */
+        private List<ParameterMeta> parameterMetas = List.of();
+
         private void validate() {
             requireText(name, "name");
             requireText(displayName, "display-name");
@@ -69,7 +74,47 @@ public class QaToolProperties implements InitializingBean {
                         "app.qa.tools.whitelist[" + name + "].timeout must be positive");
             }
             inputSchemaJson = readSchema();
+            parameterMetas = readParameterMetas();
         }
+
+        /**
+         * 从 Schema 里解析出参数的展示元信息（契约 §9 的 {@code parameters} 块）。
+         *
+         * <p>启动时解析一次，与 {@link #inputSchemaJson} 同理——工具定义启动后不变。
+         *
+         * <p>展示名取 Schema 的 {@code title}，缺省回落到属性名：ui-spec §13.7.2 要的是
+         * "Schema 声明的名称"，而 {@code title} 就是那个给人看的声明。<b>Schema 原文不进 API</b>
+         * （契约 §12），这里只取名字与必填标记两项，够渲染参数表、不够重建 Schema。
+         */
+        private List<ParameterMeta> readParameterMetas() {
+            JsonNode schema;
+            try {
+                schema = MAPPER.readTree(inputSchemaJson);
+            } catch (IOException exception) {
+                throw new IllegalStateException("schema already validated as JSON", exception);
+            }
+            var required = new LinkedHashSet<String>();
+            JsonNode requiredNode = schema.path("required");
+            if (requiredNode.isArray()) {
+                requiredNode.forEach(node -> required.add(node.asText()));
+            }
+            var metas = new ArrayList<ParameterMeta>();
+            JsonNode properties = schema.path("properties");
+            properties.fieldNames().forEachRemaining(key -> {
+                String title = properties.path(key).path("title").asText(null);
+                metas.add(new ParameterMeta(
+                        key, title == null || title.isBlank() ? key : title, required.contains(key)));
+            });
+            return List.copyOf(metas);
+        }
+
+        /**
+         * 一个参数的展示元信息。
+         *
+         * @param key         Schema 里的属性名，用来从复核通过的参数 JSON 里取值
+         * @param displayName 给用户看的名字（Schema 的 {@code title}）
+         */
+        public record ParameterMeta(String key, String displayName, boolean required) {}
 
         private String readSchema() {
             Resource resource = RESOURCE_LOADER.getResource(inputSchema);
@@ -153,6 +198,10 @@ public class QaToolProperties implements InitializingBean {
 
         public String getInputSchemaJson() {
             return inputSchemaJson;
+        }
+
+        public List<ParameterMeta> getParameterMetas() {
+            return parameterMetas;
         }
     }
 }
