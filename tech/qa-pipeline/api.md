@@ -617,6 +617,26 @@ HTTP 错误只保留"请求本身不该被处理"的情况——裁决时机不�
 实现自工单 10 起就是这样（`ToolCallService.executeOutsideTransaction` 把异常包成
 `ToolExecutionResult.failure`，controller 返回 `ok`）。本次是**文档跟上实现**，不是改行为。
 
+### 12.2 检索全失败同样不是 HTTP 错误（裁决 `2026-08-11`）
+
+**全部检索目标失败，返回 200 + `retrieval.status=RETRIEVAL_FAILED`**，不返回 502。
+
+本节起草时把它列为 502 `RETRIEVAL_FAILED`，与 §12.1 的三条同源同错：`RETRIEVAL_FAILED` 是
+`qa_turn_retrieval.status` 的取值（与 `RETRIEVING` / `RETRIEVED` / `NO_RESULT` 同一个闭集），
+不是 HTTP 码。
+
+用 502 表达它会立刻撞上一个自相矛盾：`NO_RESULT` 是 200（本节开头那条早就定了），而
+`RETRIEVAL_FAILED` 与它是**同一个状态字段的两个取值**、也是同一条产品语义要求区分的两件事
+（PRD §12.3：一个"查了但没有"该改问法，一个"没查成"可重试）。让其中一个走状态、另一个走
+HTTP 码，客户端就得从两个地方拼出同一个字段。
+
+还有一层与工具那条相同的代价：`RETRIEVAL_FAILED` 时这一轮的**工具结果、理解结果都还在**，
+502 会把它们一起吞掉。而 `partial=true` 那种"部分知识库失败"本来就是 200 + 状态——
+"全都没查成"只是同一根轴上更极端的一点，不该在某个阈值上突然换成另一种传输语义。
+
+实现已经是这样（`RetrievalOrchestrator` 把目标全失败算成 `RETRIEVAL_FAILED` 写进
+`qa_turn_retrieval`，工单 08b 的接入点不把它上升成 turn 的 FAILED）。同样是文档跟上实现。
+
 ## 13. 3B 契约验收
 
 - 响应体扫描不出现任何分数字段、chunk 正文、通道名、Schema 原文与异常 message。
