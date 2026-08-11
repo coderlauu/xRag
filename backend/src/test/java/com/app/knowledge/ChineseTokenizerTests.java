@@ -48,9 +48,11 @@ class ChineseTokenizerTests {
 
     @Test
     void tsquery语法字符不会漏进表达式() {
-        String tsquery = tokenizer.toTsqueryInput("退货 & 退款 | (发票)");
+        String tsquery = tokenizer.toTsqueryInput("退货 & 退款 (发票)");
         assertThat(tsquery).isNotNull();
-        assertThat(tsquery).doesNotContain("|").doesNotContain("(").doesNotContain(")");
+        // 只应有我们自己插入的 | 分隔符；用户输入里的语法字符必须被剥掉。
+        assertThat(tsquery).doesNotContain("&").doesNotContain("(").doesNotContain(")");
+        assertThat(tsquery.split(" \\| ")).hasSizeGreaterThan(1);
     }
 
     @Test
