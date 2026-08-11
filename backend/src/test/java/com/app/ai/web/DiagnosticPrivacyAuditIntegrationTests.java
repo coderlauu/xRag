@@ -416,7 +416,7 @@ class DiagnosticPrivacyAuditIntegrationTests {
         deployments.put(RERANK, new ModelDeployment(
                 RERANK, PROVIDER, "rerank-model", new ModelIdentity("rerank-a-v1"),
                 Set.of(Capability.RERANK), Set.of(ServiceTier.BALANCED), true, 10, true,
-                null, Set.of(), new RerankProfile(50)));
+                null, Set.of(), new RerankProfile(50, "openai-compatible")));
         return new ModelCatalogSnapshot(
                 "test-v1", "a".repeat(64), providers, deployments, runtimePolicy());
     }

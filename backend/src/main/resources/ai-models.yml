@@ -37,6 +37,13 @@ app:
       # 只做前一步会让重排调用直接以 AUTHENTICATION 失败而不是静默降级——architecture.md §11
       # 明确要求区分"目录没声明能力"（可降级为 Noop）和"声明了却缺密钥"（配置故障）。
       # max-documents 是占位值，必须在工单 23 的 Provider 准入里按当天官方文档核实后改成真实上限。
+      #
+      # rerank.adapter 覆盖了 Provider 的 openai-compatible，原因是 2026-08-07 实测：
+      # 百炼**没有** OpenAI 风格的 Rerank 端点——{base}/reranks 与单数 /rerank 都返回 404
+      # 空响应体，而同一把 Key 打 DashScope 原生
+      # /api/v1/services/rerank/text-rerank/text-rerank 返回 200 与真实 relevance_score。
+      # 同一个 Provider 的 Chat 与 Embedding 确实是 OpenAI 兼容的，唯独 Rerank 不是，
+      # 所以 adapter 只能按 deployment 覆盖，不能按 Provider 整体切换。
       aliyun-qwen3-rerank-cn:
         provider-id: aliyun-model-studio
         upstream-model: qwen3-rerank
@@ -45,9 +52,10 @@ app:
         tiers: [BALANCED]
         default-candidate: true
         priority: 10
-        enabled: false
+        enabled: true
         rerank:
           max-documents: 100
+          adapter: dashscope-native
       aliyun-text-embedding-v3-cn:
         provider-id: aliyun-model-studio
         upstream-model: text-embedding-v3

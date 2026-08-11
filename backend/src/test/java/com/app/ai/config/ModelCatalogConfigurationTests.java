@@ -54,13 +54,18 @@ class ModelCatalogConfigurationTests {
                     assertThat(snapshot.policyVersion()).isEqualTo("phase2-v1");
                     assertThat(snapshot.providers()).hasSize(2);
                     assertThat(snapshot.deployments()).hasSize(4);
-                    // Rerank deployment 默认关闭：打开它必须与注入 DASHSCOPE_API_KEY 同时做，
-                    // 只开一半会让重排以 AUTHENTICATION 直接失败（architecture.md §11）。
+                    // Rerank deployment 于 2026-08-07 通过真实准入后开启（工单 23）。缺
+                    // DASHSCOPE_API_KEY 的环境下重排调用会直接失败而不是静默降级，这是
+                    // architecture.md §11 要的语义："声明了却缺密钥"属配置故障。
                     var rerank = snapshot.deployments().get(
                             new com.app.ai.model.DeploymentId("aliyun-qwen3-rerank-cn"));
                     assertThat(rerank).isNotNull();
-                    assertThat(rerank.enabled()).isFalse();
+                    assertThat(rerank.enabled()).isTrue();
                     assertThat(rerank.rerank().maxDocuments()).isEqualTo(100);
+                    // 百炼没有 OpenAI 风格的 rerank 端点（/reranks 与 /rerank 实测均 404），
+                    // 必须走 deployment 级 adapter 覆盖；掉回 Provider 的 openai-compatible
+                    // 就是 2026-08-07 之前那个打不通的状态。
+                    assertThat(rerank.rerank().adapter()).isEqualTo("dashscope-native");
                 });
     }
 }

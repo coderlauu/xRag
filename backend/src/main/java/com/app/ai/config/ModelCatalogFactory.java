@@ -140,7 +140,8 @@ final class ModelCatalogFactory {
             }
 
             EmbeddingProfile embedding = embeddingProfile(path, capabilities, source.getEmbedding());
-            RerankProfile rerank = rerankProfile(path, capabilities, source.getRerank());
+            RerankProfile rerank = rerankProfile(
+                    path, capabilities, source.getRerank(), providers.get(providerId).adapter());
             ChatProfile chat = chatProfile(
                     path,
                     capabilities,
@@ -226,7 +227,8 @@ final class ModelCatalogFactory {
     private static RerankProfile rerankProfile(
             String deploymentPath,
             Set<Capability> capabilities,
-            AiModelsProperties.RerankProperties source) {
+            AiModelsProperties.RerankProperties source,
+            String providerAdapter) {
         if (!capabilities.contains(Capability.RERANK)) {
             if (source != null) {
                 throw invalid(deploymentPath + ".rerank", "is only valid for RERANK deployments");
@@ -239,7 +241,12 @@ final class ModelCatalogFactory {
         if (source.getMaxDocuments() <= 0) {
             throw invalid(deploymentPath + ".rerank.max-documents", "must be positive");
         }
-        return new RerankProfile(source.getMaxDocuments());
+        String adapter = source.getAdapter();
+        if (adapter != null && adapter.isBlank()) {
+            throw invalid(deploymentPath + ".rerank.adapter", "must not be blank when present");
+        }
+        return new RerankProfile(
+                source.getMaxDocuments(), adapter == null ? providerAdapter : adapter.trim());
     }
 
     private static EmbeddingProfile embeddingProfile(

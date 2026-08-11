@@ -370,9 +370,13 @@ Step E 关闭前：
 | UI-10 | A+M | 自动化已完成 | 三态渲染由 §14.6 覆盖（两计数 >0、=0、读取失败）；**在真实后端上人为制造 dropped/write-failure 仍未做** |
 | DIA-18 | M | **未执行** | 需 kill 进程后重启核对页面不伪造记录 |
 | EMB-16 | A+M | 自动化部分已完成 | catalog 侧由 `cfg16` 守、调用侧由工单 14 的 `emb19` 守；真实环境核验未做 |
-| REAL-01~08 | M | **blocked** | 见 §14.4 |
+| REAL-01~08 | M | **部分完成**（`2026-08-07`） | 原 blocked 前提已消失，逐条结果见 §14.7；§14.4 保留为历史记录 |
 
-### 14.4 REAL — 真实 Provider 准入：blocked
+### 14.4 REAL — 真实 Provider 准入：blocked（历史记录，`2026-08-07` 已解除）
+
+> **本节描述的是 `2026-08-07` 之前的状态，保留作为历史。** 合规通用 `sk-` Key 当日注入后
+> 前提消失，实际执行结果见 [§14.7](#147-real--真实-provider-准入执行结果2026-08-07)。
+> 下面"三条纪律"中的第 1、2 条仍然有效，第 3 条的解除条件已部分满足。
 
 **状态：blocked，原因是缺少合规凭据，不是测试失败。**
 
@@ -532,3 +536,70 @@ REAL-01~08 的 blocked 状态与 §14.4 的三条纪律一律不变。
 
 另外确认 `tsc -b` 会连测试文件一起做类型检查（故意写一个 `const x: number = "s"` 可让
 `pnpm build` 以 TS2322 失败），所以 `ci-validate.sh` 里 build 排在 test 之前是有意义的。
+
+### 14.7 REAL — 真实 Provider 准入执行结果（`2026-08-07`）
+
+**执行环境**：本机 macOS，`backend/.env` 注入 `DASHSCOPE_API_KEY`；测试经 surefire 指向
+`currentSchema=xrag_test`。**核对真实调用证据要查 `xrag_test.ai_logical_call`，不是
+`public`**——查错 schema 会得到"一条都没写"的假象。
+
+**凭据**：百炼通用 API Key（`sk-` 开头，非 `sk-sp-` 套餐、非 Coding Plan）。实测该 Key 在专属
+实例端点 `https://llm-<实例 id>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1` 与公共端点
+`https://dashscope.aliyuncs.com/compatible-mode/v1` 返回**完全相同**的 236 个模型，因此
+`ai-models.yml` 的 `base-url` 未改。火山 `EMBEDDING_API_KEY` 全程未动，未扩展到任何新能力。
+
+**前置修复**：`RoutingChatClient` / `RoutingStreamingChatClient` 此前没有任何 `@Configuration`
+把它们暴露成 bean，`@Autowired ChatClient` 直接 `NoSuchBeanDefinitionException`。也就是说
+"缺 Key"并非 CHAT 零真实调用的唯一原因——**当时即使有 Key 也调不通**。已补
+`com.app.ai.config.ChatClientConfiguration`，与 Embedding / Rerank 两个配置同形。
+
+| 用例 | 结果 | 证据 |
+|---|---|---|
+| REAL-01 固定版本 Chat | **通过** | 6 次成功。`actual_model_identity=qwen-plus-2025-12-01`、`provider_request_id_masked=3dce****a479`（脱敏生效）、usage 18/1、`finish_reason=STOP`、`attempt_count=1` 均已入库 |
+| REAL-02 流式 Chat | **部分通过** | 3 次成功，事件序列 `StreamStarted → TextDelta+ → Completed`，usage 已记录。**取消行为未验**；**流式链路 `provider_request_id_masked` 为空**（同步链路有值），属诊断缺口 |
+| REAL-03 Embedding 1024 维 | **部分通过** | `text-embedding-v3` 打 `/compatible-mode/v1/embeddings` 返回 200 与 1024 维，与 `vector(1024)` 一致。**但只验到 curl 层**：阿里云 Embedding 从未走过 xrag 完整链路，现有 6 次成功 EMBEDDING 全部走火山 `doubao-embedding-vision`。批次上限与价格快照未按当日官方文档核对 |
+| REAL-04 `qwen3-rerank` | **通过**（补适配器后）| 走完整链路：`SUCCEEDED` / `rerank_applied=t` / `degraded_reason` 空 / `http_status=200` / `attempt_count=1`，`provider_request_id_masked=3473****c803`，相关文档排第一。详见下方 |
+| REAL-05 429 观察 | **未做** | 本次未制造或观察到限流 |
+| REAL-06 凭据检查 | **通过** | 通用 `sk-` Key；未动 Coding Plan 凭据 |
+| REAL-07 费用检查 | **部分通过** | CHAT 6 / STREAM_CHAT 3 / RERANK 2 次链路调用，另 6 次 curl 探针，均远低于 20 次/能力上限，输出 token 合计个位数。**控制台费用告警未开启** |
+| REAL-08 能力矩阵 | **机制未实现** | `DiagnosticsOverviewService` 仍把 `verifiedCapabilities` 硬编码成 `List.of()`；准入结果目前只落在文档、`ai-models.yml` 注释与 `Real*ApiTests`，诊断页尚不反映 |
+
+**REAL-04 的根因与修复：从来不是凭据，是适配器打错了端点。** `OpenAiCompatibleRerankProvider`
+请求 `{base}/reranks`，而百炼 compatible-mode 下 `/reranks` 与单数 `/rerank` **均返回 404 且响应体
+为空**；同一把 Key 打 DashScope 原生 `/api/v1/services/rerank/text-rerank/text-rerank` 返回 200 与
+真实 `relevance_score`（相关 0.859 / 无关 0.196，排序正确）。即模型与配额都可用。
+
+修复前把 `aliyun-qwen3-rerank-cn` 临时 `enabled: true` 走链路实测，两种状态都符合 §11 的语义划分
+——这组对照本身值得留档，它验证了"声明了却打不通"与"目录未声明"确实是两种不同的记录：
+
+| 目录状态 | outcome | 诊断记录 |
+|---|---|---|
+| `enabled: true`（声明了却打不通）| `FAILED` | `INVALID_REQUEST` / `RESPONSE_HEADERS` / `http_status=404` / `NON_RECOVERABLE_ERROR`，attempt 打到 `aliyun-qwen3-rerank-cn` |
+| `enabled: false`（目录未声明该能力）| `DEGRADED` | `NOOP_DEGRADED`，无 attempt |
+
+**修复（同日完成）**：新增 `DashScopeNativeRerankProvider`，并给目录加 deployment 级 adapter 覆盖
+（`rerank.adapter`）。不能按 Provider 整体切换的原因是同一个百炼 Provider 的 Chat 与 Embedding
+确实是 OpenAI 兼容的，唯独 Rerank 不是。协议三处实质差异：请求体 `input`/`parameters` 嵌套、
+响应体结果在 `output.results` 下、**request id 在响应体而非 `x-request-id` 响应头**。
+契约由 `DashScopeNativeRerankProviderTests` 覆盖（7 条，本地 HTTP server），并做过变异验证：
+把请求体改回 OpenAI 平铺形状，只有"请求体使用 input 与 parameters 嵌套结构"一条变红。
+
+修复后 `aliyun-qwen3-rerank-cn` 已 `enabled: true`。缺 `DASHSCOPE_API_KEY` 的环境里重排调用会
+**直接失败而不是静默降级**，这正是 §11 要的语义。另注意 **404 被归一化成 `INVALID_REQUEST`
+（"模型调用参数无效"）的措辞会把排查往"请求参数写错了"上带**，仍值得跟进。
+
+**测试载体**：`RealChatApiTests`（同步 + 流式，按 `logicalCallId` 精确断言诊断落库）、
+`RealRerankApiTests`（目录无启用的 RERANK deployment 时 skip），两者均以
+`@EnabledIfEnvironmentVariable(DASHSCOPE_API_KEY)` 守门。**§14.4 的纪律 2 不变**：注入 Key 时
+`mvnw verify` 为 409 tests / 0 failures / 0 skipped；不注入时真实用例自动跳过、`ci-validate.sh`
+EXIT=0，CI 继续跑假 Provider。
+
+一个容易踩的不一致：`@EnabledIfEnvironmentVariable` 读的是**真正的环境变量**，而
+`RerankClientConfiguration` 等装配代码读的是 **Spring Environment**，后者经
+`spring.config.import=optional:file:.env` 把 `backend/.env` 也算进去。于是本机只要存在 `.env`，
+即使没 `export`，Provider 也会照常装配、而真实用例照常跳过。这不是 bug，但解读日志时要分清。
+
+**剩余待办**：① 控制台开费用告警；② 按当日官方文档核对 embedding 批次上限与 rerank 文档上限
+（`ai-models.yml` 的 `max-documents: 100` 仍是占位值，architecture §13.1 记的官方上限为 500）；
+③ `verifiedCapabilities` 登记机制；④ 阿里云 Embedding 走一次完整链路；
+⑤ 流式链路补 `provider_request_id_masked`；⑥ 404 归一化成 INVALID_REQUEST 的措辞。

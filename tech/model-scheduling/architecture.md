@@ -154,9 +154,26 @@ app:
           max-batch-items: 10
           max-input-tokens-per-item: 8192
           preprocessing-fingerprint: RAW_UTF8_V1
+      aliyun-qwen3-rerank-cn:
+        provider-id: aliyun-model-studio
+        upstream-model: qwen3-rerank
+        model-identity: qwen3-rerank
+        capabilities: [RERANK]
+        tiers: [BALANCED]
+        priority: 10
+        enabled: true
+        rerank:
+          max-documents: 100
+          adapter: dashscope-native   # 覆盖 Provider 的 openai-compatible
 ```
 
 示例 Embedding deployment 没有可证明的固定 artifact version，因此显式标为 `legacy-single-deployment`，不能加入第二个等价 deployment。新 identity 或需要故障转移的 identity 必须另填已验证的 `artifact-version`，不能用浮动模型别名冒充版本证据。
+
+**`rerank.adapter` 是 deployment 级的协议适配器覆盖，缺省继承 Provider 的 `adapter`。** 它存在的理由是一条实测事实（`2026-08-07`）：同一个 Provider 的不同能力可以走不同协议——阿里云百炼的 Chat 与 Embedding 确实是 OpenAI 兼容的，唯独 Rerank 只有 DashScope 原生端点，`{base}/reranks` 与单数 `/rerank` 都返回 404 空响应体。所以 adapter 不能按 Provider 整体切换。
+
+取值的合法性**不在目录层校验**（与 `providers.*.adapter` 一致），认不认得出由装配层决定，未知取值在启动时失败。当前 `RerankClientConfiguration` 认识 `openai-compatible` 与 `dashscope-native` 两个值。
+
+一条当前限制：`RoutedRerankClient` 按 `providerId` 解析 Rerank 适配器，因此**同一 Provider 下的多个 RERANK deployment 必须声明同一个 adapter**，否则启动失败并指出冲突。真要支持同 Provider 多协议时再引入按 deployment 分发的适配器，现在不预先抽象。
 
 示例 URL 中的 workspace 必须由部署环境替换。`secret-property` 保存的是 Spring Environment 属性名，不是密钥值；诊断 DTO 从类型上就不包含解析后的秘密。
 
@@ -593,7 +610,7 @@ Phase 2 推荐用一把**通用按量计费**的阿里云百炼 Model Studio Key
 
 ### 13.2 凭据状态与禁止事项
 
-当前工作区没有 `DASHSCOPE_API_KEY`；真实 Provider 工单开始前由项目所有者创建中国区通用 `sk-...` Key，并只写入忽略的本地 `.env` 或部署秘密。
+`2026-08-07` 起工作区已有 `DASHSCOPE_API_KEY`：项目所有者创建了中国区通用 `sk-...` Key（非 `sk-sp-` 套餐、非 Coding Plan），写入被忽略的 `backend/.env`。同日实测该 Key 在专属实例端点 `https://llm-<实例 id>.cn-beijing.maas.aliyuncs.com/compatible-mode/v1` 与公共端点 `https://dashscope.aliyuncs.com/compatible-mode/v1` 返回**完全相同**的模型列表，因此 `ai-models.yml` 的 `base-url` 不需要改。准入执行结果见 [test-matrix §14.7](test-matrix.md)。
 
 现有 `EMBEDDING_API_KEY` 是 Phase 1 遗留凭据，已知用途受限。迁移期间允许它仅维持原 Embedding 回归，不把它扩展到 Chat、流式 Chat 或 Rerank，也不把它标为已合规 Provider。
 

@@ -100,14 +100,17 @@
 1. **`RoutingChatClient` / `RoutingStreamingChatClient` 此前没有任何 `@Configuration` 把它们暴露成
    bean**（`ChatClientConfiguration` 是 `2026-08-07` 才补的）。根因是 Phase 2 没有 Chat 的业务消费者，
    接线缺失一直没被发现——**Phase 3 是第一个消费者，Step C 拆工单时不能假设"调度层已经可直接注入"。**
-2. **Rerank 打不通的原因不是凭据而是适配器。** `OpenAiCompatibleRerankProvider` 打
+2. **Rerank 打不通的原因不是凭据而是适配器——已于同日修复。** `OpenAiCompatibleRerankProvider` 打
    `{base}/reranks`，百炼 compatible-mode 下该端点 404；同一把 Key 打 DashScope 原生
-   `/api/v1/services/rerank/text-rerank/text-rerank` 返回 200 与真实分数。因此
-   `aliyun-qwen3-rerank-cn` 维持 `enabled: false`——**是"尚未通过准入"，不是"供应商不支持"**。
-   需要一个 DashScope 原生 rerank 适配器，属新实现工作（见 §5.1 阶段 6c 的待决策）。
+   `/api/v1/services/rerank/text-rerank/text-rerank` 返回 200 与真实分数。修复方式是新增
+   `DashScopeNativeRerankProvider` + 目录的 **deployment 级 adapter 覆盖**（`rerank.adapter`）——
+   同一个 Provider 的 Chat 与 Embedding 确实是 OpenAI 兼容的，唯独 Rerank 不是，所以 adapter
+   不能按 Provider 整体切换。`aliyun-qwen3-rerank-cn` 现为 `enabled: true`，走完整链路实测
+   `SUCCEEDED` / `rerank_applied=t`。归属已定：算 Phase 2 工单 23 的范围内，不新开 Phase 3 工单。
 
-**剩余影响**：Step D 的答案生成不再受限于假 Provider；但**阶段 6c 的精排若确定要用 rerank，则被上述
-适配器缺口阻塞**，该缺口归属（Phase 2 遗留工单 23 还是 Phase 3 新工单）需在 Step A 闸门一并裁决。
+**剩余影响**：Step D 的答案生成不再受限于假 Provider；**阶段 6c 的精排也不再被适配器缺口阻塞**，
+可以按真实可用的 rerank 来设计。仍需注意缺 `DASHSCOPE_API_KEY` 的环境里重排会直接失败而非降级
+（architecture §11 的有意语义），Step C 拆工单时要明确该场景的产品表现。
 
 ## 5. 与 xrag 现状的对照
 

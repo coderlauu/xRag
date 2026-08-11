@@ -410,7 +410,7 @@ class RoutedRerankClientTests {
         return new ModelDeployment(
                 id, providerId, id.value() + "-model", new ModelIdentity(id.value() + "-v1"),
                 Set.of(Capability.RERANK), Set.of(ServiceTier.BALANCED),
-                true, priority, true, null, Set.of(), new RerankProfile(maxDocuments));
+                true, priority, true, null, Set.of(), new RerankProfile(maxDocuments, "openai-compatible"));
     }
 
     private static ModelProvider provider(ProviderId id, ProviderConfigurationStatus status) {

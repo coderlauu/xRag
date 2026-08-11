@@ -220,10 +220,13 @@ public class AiModelsProperties {
         }
     }
 
-    /** Rerank deployment 的调用上限，只对声明了 RERANK 能力的 deployment 有效。 */
+    /** Rerank deployment 的调用上限与协议适配器覆盖，只对声明了 RERANK 能力的 deployment 有效。 */
     public static class RerankProperties {
 
         private int maxDocuments;
+
+        /** 留空则继承所属 Provider 的 adapter；理由见 {@link com.app.ai.model.RerankProfile}。 */
+        private String adapter;
 
         public int getMaxDocuments() {
             return maxDocuments;
@@ -231,6 +234,14 @@ public class AiModelsProperties {
 
         public void setMaxDocuments(int maxDocuments) {
             this.maxDocuments = maxDocuments;
+        }
+
+        public String getAdapter() {
+            return adapter;
+        }
+
+        public void setAdapter(String adapter) {
+            this.adapter = adapter;
         }
     }
 
