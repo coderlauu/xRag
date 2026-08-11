@@ -15,6 +15,7 @@
 | 06 | [RRF 融合、去重与两段截断](issues/06-fusion-dedup.md) | 05 | complete |
 | 07 | [精排调用与三态传导](issues/07-rerank-tri-state.md) | 06 | complete |
 | 08 | [检索编排、部分失败与重试](issues/08-retrieval-orchestration.md) | 05, 06, 07 | complete |
+| 08b | [把检索接进 turn 处理流程](issues/08b-retrieval-wiring.md) | 08 | complete |
 | 09 | [工具白名单、Schema 复核与状态机](issues/09-tool-registry-validation.md) | 02 | complete |
 | 10 | [工具调用循环与副作用确认 API](issues/10-tool-loop-confirmation.md) | 09 | complete |
 | 11 | [3B API 契约与隐私边界](issues/11-3b-api-contract.md) | 08, 10 | complete |
@@ -27,13 +28,17 @@
 ## 依赖图
 
 ```text
-01 ──┬─> 05 ──> 06 ──> 07 ──> 08 ──> 11 ──> 12 ─┐
-     │                          ↑                ├─> 14 ──> 15 ──> 16
-02 ──┼─> 03 ──> 04             09 ──> 10 ──> 13 ─┘
+01 ──┬─> 05 ──> 06 ──> 07 ──> 08 ──> 08b ──> 11 ──> 12 ─┐
+     │                          ↑                        ├─> 14 ──> 15 ──> 16
+02 ──┼─> 03 ──> 04             09 ──> 10 ──────> 13 ─────┘
      └─> 09
 ```
 
-01~07、09、10 已完成（2026-08-08~09），08、11、12 已完成（2026-08-11），解锁 **13**（前端工具区与确认卡）。
+**08b 是补进来的**（`2026-08-11`）：原图里 08 建了编排组件、11 建了响应契约，却没有工单负责
+把两者接起来——`RetrievalOrchestrator` 一直没有业务调用方，真实链路上 `retrieval` 恒为 null。
+按推进规则"发现隐藏依赖先改本图"补的这一环，它同时解锁了 3B 的全部手工走查。
+
+01~07、09、10 已完成（2026-08-08~09），08、08b、11、12 已完成（2026-08-11），解锁 **13**（前端工具区与确认卡）。
 
 **图里缺一环**：没有工单负责把 `RetrievalOrchestrator` 接进 turn 处理流程（`TurnProcessor`）。
 08 建了编排组件、11 建了响应契约，但真实链路上没人调用检索，`retrieval` 至今只会是 null。

@@ -63,7 +63,15 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(QaPrivacyAuditIntegrationTests.MarkedChatConfiguration.class)
+/*
+ * 检索接进 turn 处理流程后，走到 ACTIONS_READY 的用例会真的执行一次检索——而检索要算查询
+ * 向量。本类原先没有假 Embedding，那次调用会打到真实的阿里云接口上：**跑一次测试就是一次
+ * 真实计费**，而且离线时会失败。导入 FakeEmbeddingConfig 把它按住。
+ *
+ * 顺带说明为什么不是关掉派发器就够了：那条属性只管入库派发器，管不到检索——检索是同步的，
+ * 就在请求线程里跑。
+ */
+@Import({QaPrivacyAuditIntegrationTests.MarkedChatConfiguration.class, com.app.knowledge.FakeEmbeddingConfig.class})
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @TestPropertySource(properties = "app.knowledge.ingestion.enabled=false")

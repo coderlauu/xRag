@@ -24,6 +24,7 @@ import com.app.qa.model.SubQuestionSource;
 import com.app.qa.model.TurnStatus;
 import com.app.qa.rewrite.QueryRewriteService;
 import com.app.qa.rewrite.RewriteDisposition;
+import com.app.qa.retrieval.RetrievalOrchestrator;
 import com.app.qa.rewrite.RewriteResult;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ class QuestionUnderstandingServiceTests {
     private IntentScoringService scoring;
     private AmbiguityActionService decisions;
     private List<TurnStageSink.StageEvent> stages;
+    private RetrievalOrchestrator retrieval;
     private QuestionUnderstandingService service;
 
     @BeforeEach
@@ -53,8 +55,11 @@ class QuestionUnderstandingServiceTests {
         scoring = mock(IntentScoringService.class);
         decisions = mock(AmbiguityActionService.class);
         stages = new ArrayList<>();
+        // 检索是 3A 之后的下一段，本类只验理解编排——给个假的就够，检索自己的行为由
+        // RetrievalOrchestratorIntegrationTests 验。
+        retrieval = mock(RetrievalOrchestrator.class);
         service = new QuestionUnderstandingService(
-                conversations, memory, rewrite, trees, scoring, decisions, stages::add);
+                conversations, memory, rewrite, trees, scoring, decisions, stages::add, retrieval);
     }
 
     @Test

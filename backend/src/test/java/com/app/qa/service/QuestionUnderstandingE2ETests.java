@@ -19,6 +19,7 @@ import com.app.ai.model.ProviderId;
 import com.app.ai.model.RequestId;
 import com.app.ai.model.TokenUsage;
 import com.app.ai.model.SystemMessage;
+import com.app.knowledge.FakeEmbeddingConfig;
 import com.app.qa.conversation.ConversationPersistenceService;
 import com.app.qa.model.TurnStatus;
 import java.util.List;
@@ -43,7 +44,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(QuestionUnderstandingE2ETests.FakeChatConfiguration.class)
+/*
+ * 检索接进 turn 处理流程后，走到 ACTIONS_READY 的用例会真的执行一次检索——而检索要算查询
+ * 向量。本类原先没有假 Embedding，那次调用会打到真实的阿里云接口上：**跑一次测试就是一次
+ * 真实计费**，而且离线时会失败。导入 FakeEmbeddingConfig 把它按住。
+ *
+ * 顺带说明为什么不是关掉派发器就够了：那条属性只管入库派发器，管不到检索——检索是同步的，
+ * 就在请求线程里跑。
+ */
+@Import({QuestionUnderstandingE2ETests.FakeChatConfiguration.class, com.app.knowledge.FakeEmbeddingConfig.class})
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @TestPropertySource(properties = "app.knowledge.ingestion.enabled=false")
@@ -226,6 +235,53 @@ class QuestionUnderstandingE2ETests {
                         .value("NO_MATCH"));
 
         assertThat(chat.calls()).isEqualTo(3);
+    }
+
+    @Test
+    void 理解完成后接着执行检索且检索失败不改变本轮终态() throws Exception {
+        String request = """
+                {
+                  "clientRequestId":"%s",
+                  "conversationId":null,
+                  "message":{"type":"QUESTION","text":"退款多久到账？"}
+                }
+                """.formatted(UUID.randomUUID());
+
+        // 正常路径：走到 ACTIONS_READY 就该有 retrieval 块。库里没有内容，所以是 NO_RESULT
+        // ——"查了但没有"，与"没查过"（retrieval=null）是两个不同的事实。
+        //
+        // 反向的那半（WAITING_CLARIFICATION / TOO_MANY_TOPICS 时不检索）由
+        // `completed && decision.status() == ACTIONS_READY` 这个显式守卫保证，两条短路路径
+        // 本身已由 e2e05 与 e2e01_四主题 覆盖。单独为它造一次歧义要 seed 第二个意图节点
+        // （见 e2e05 开头那三十行），成本远超收益。
+        mvc.perform(post("/api/qa/turns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.turn.status").value("ACTIONS_READY"))
+                .andExpect(jsonPath("$.retrieval").exists())
+                .andExpect(jsonPath("$.retrieval.status").value("NO_RESULT"));
+
+        // 失败路径：查询向量算不出来，检索整体失败。**本轮终态必须还是 ACTIONS_READY**
+        // ——理解已经成功了，把检索的失败写成 turn 的 FAILED 会让用户以为"问题没读懂"，
+        // 而实际是"库没查成"，两者的下一步完全不同（PRD §12.3）。
+        FakeEmbeddingConfig.SHOULD_FAIL.set(true);
+        try {
+            mvc.perform(post("/api/qa/turns")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "clientRequestId":"%s",
+                                      "conversationId":null,
+                                      "message":{"type":"QUESTION","text":"退款多久到账？"}
+                                    }
+                                    """.formatted(UUID.randomUUID())))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.turn.status").value("ACTIONS_READY"))
+                    .andExpect(jsonPath("$.turn.terminalReason").value("ACTIONS_MAPPED"));
+        } finally {
+            FakeEmbeddingConfig.SHOULD_FAIL.set(false);
+        }
     }
 
     @Test

@@ -122,19 +122,30 @@ public class RetrievalOrchestrator {
         int channelHits = 0;
 
         for (TaskResult result : results) {
-            // **只有向量通道产生目标行。** 一条动作就是一个目标，而关键词通道与向量通道覆盖同一批
-            // 动作——两个都记会撞 uq_qa_target。选向量通道是因为它定义了这个目标：架构 §19.6 规定
-            // 关键词通道失败不影响向量通道、也不单独提示用户，那它就不该把目标判成失败。
-            if (result.plan().channel().type() != SearchChannelType.KEYWORD) {
-                for (var action : result.plan().actions()) {
-                    targets.add(new RetrievalOutcome.TargetOutcome(
-                            action.actionId(),
-                            action.subQuestionId(),
-                            action.knowledgeBaseId(),
-                            result.failure() == null,
-                            result.failure(),
-                            result.latencyMs()));
+            // **一条动作只由执行它的那个通道产生目标行。**
+            //
+            // 两层去重，各挡一种重复：
+            //   ① 关键词通道不产生目标。它与向量通道覆盖同一批动作，两个都记会撞 uq_qa_target；
+            //      选向量通道是因为它定义了这个目标——架构 §19.6 规定关键词失败不影响向量通道、
+            //      也不单独提示用户，那它就不该把目标判成失败。
+            //   ② 两个向量通道各只认自己那类动作。架构 §9.4 规定"单个 KB 候选且分数 <0.8"时 3A
+            //      **同时**产出 KB_TARGETED 与 GLOBAL_FALLBACK，此时两个向量通道都激活、而每个
+            //      任务持有该子问题的全部动作——按动作平铺就会把同一条动作记两次。
+            //
+            // 第 ② 条只有真实链路才触发（3A 得真的产出那个组合），所以它在工单 08 阶段完全不可见，
+            // 是把检索接进 TurnProcessor 之后才以 DuplicateKeyException 暴露的。
+            SearchChannelType channelType = result.plan().channel().type();
+            for (var action : result.plan().actions()) {
+                if (!producesTarget(channelType, action.actionType())) {
+                    continue;
                 }
+                targets.add(new RetrievalOutcome.TargetOutcome(
+                        action.actionId(),
+                        action.subQuestionId(),
+                        action.knowledgeBaseId(),
+                        result.failure() == null,
+                        result.failure(),
+                        result.latencyMs()));
             }
             if (result.failure() != null) {
                 continue;
@@ -275,6 +286,21 @@ public class RetrievalOrchestrator {
                     classify(exception),
                     elapsedMs(startedAt));
         }
+    }
+
+    /**
+     * 这个通道是否为这类动作产生目标行。
+     *
+     * <p>目标 = 一条 3A 动作，而动作类型本身就指定了执行它的通道：{@code KB_TARGETED} 由定向
+     * 向量通道执行，{@code GLOBAL_FALLBACK} 由全局向量通道执行。关键词通道不执行任何动作，
+     * 它的作用域是跟着向量通道走的。
+     */
+    private static boolean producesTarget(SearchChannelType channelType, String actionType) {
+        return switch (channelType) {
+            case INTENT_TARGETED -> "KB_TARGETED".equals(actionType);
+            case GLOBAL_VECTOR -> "GLOBAL_FALLBACK".equals(actionType);
+            case KEYWORD -> false;
+        };
     }
 
     private static RetrievalFailureCode classify(RuntimeException exception) {

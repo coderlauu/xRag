@@ -402,6 +402,30 @@ class RetrievalOrchestratorIntegrationTests {
     }
 
     @Test
+    void 同一子问题同时有定向与全局动作时每条动作只记一个目标() {
+        // 架构 §9.4：单个 KB 候选且分数 <0.8 时，3A **同时**产出 KB_TARGETED 与
+        // GLOBAL_FALLBACK（低置信度补充）。ADR 0008 修正后两个向量通道都会激活，于是
+        // 一个子问题下有两个通道任务，而每个任务都持有该子问题的全部动作——按动作平铺
+        // 记目标就会把同一条动作记两次，撞 uq_qa_target。
+        //
+        // 这个组合只有真实链路才产生，所以工单 08 阶段没被任何用例覆盖；把检索接进
+        // TurnProcessor 之后它立刻以 DuplicateKeyException 暴露出来。
+        var kb = seedKb("编排双动作", "退款到账时间说明");
+        var turn = seedTurn();
+        var subQuestion = seedSubQuestion(turn, "退款多久到账");
+        var targeted = seedAction(turn, subQuestion, "KB_TARGETED", kb.kbId());
+        var fallback = seedAction(turn, subQuestion, "GLOBAL_FALLBACK", null);
+
+        var outcome = orchestrator.retrieve(turn);
+
+        // 一条动作一个目标，不多不少。
+        assertThat(rowCount("qa_retrieval_target", turn)).isEqualTo(2);
+        assertThat(outcome.targets()).hasSize(2);
+        assertThat(targetStatus(turn, targeted)).isEqualTo("SUCCEEDED");
+        assertThat(targetStatus(turn, fallback)).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
     void 检索发生在事务外() {
         var kb = seedKb("编排事务边界", "退货政策说明");
         var turn = seedTurn();
