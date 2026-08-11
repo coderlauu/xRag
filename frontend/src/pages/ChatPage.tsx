@@ -4,6 +4,7 @@ import {
   listQaMessages,
   readQaConversation,
   readQaTurn,
+  retryQaRetrieval,
   submitQaClarification,
   submitQaQuestion,
   toQaUserMessage,
@@ -16,11 +17,15 @@ import type { UserFacingMessage } from "../api/errors";
 import { ConversationListPane } from "./chat/ConversationListPane";
 import { DeleteConversationDialog, RenameConversationDialog } from "./chat/ConversationDialogs";
 import { Drawer } from "./chat/Drawer";
-import { TurnInspectorPane } from "./chat/TurnInspectorPane";
+import { TurnResultPane } from "./chat/TurnResultPane";
+import { PartialMark, RerankMark } from "./chat/TurnSourcesPane";
 import { relativeTime } from "./chat/labels";
 
 const COMPLETION_NOTICE =
   "已完成问题理解并形成后续检索动作。当前里程碑尚未执行知识库检索或生成答案。";
+
+/** 进过 3B 的轮次改用这句（ui-spec §13.5）。两句都带阶段标签，正式交付后一起删除。 */
+const RETRIEVAL_COMPLETION_NOTICE = "已完成知识库检索。当前里程碑尚未生成答案。";
 
 /** 新对话在草稿表里的键。用空串而不是 null，省掉一层 `Map | null` 的分支。 */
 const NEW_CONVERSATION = "";
@@ -62,6 +67,13 @@ export function ChatPage() {
   const [submitting, setSubmitting] = useState(false);
   const [choice, setChoice] = useState<string | null>(null);
 
+  const [retrying, setRetrying] = useState(false);
+  /**
+   * `就现有结果继续` 只收起提示，**不改服务端状态**——用户说的是"我知道了、别再挡我"，
+   * 不是"把这轮标记成完整的"。partial 仍然是 true，来源区的 `结果不完整` 标记照旧。
+   */
+  const [partialDismissed, setPartialDismissed] = useState(false);
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
   const [panel, setPanel] = useState<"list" | "inspector" | null>(null);
@@ -74,6 +86,15 @@ export function ChatPage() {
   const draft = drafts[draftKey] ?? "";
   const status = result?.turn.status;
   const active = submitting || status === "SAVED" || status === "PROCESSING";
+  const retrieval = result?.retrieval ?? null;
+  /**
+   * 失败库名拼给提示文案。**只取库名，不取 failureCode 的原始值**——消息区那句是给用户看的，
+   * 归一化原因留在抽屉的失败项列表里（ui-spec §13.6）。
+   */
+  const failedNames = (retrieval?.failedTargets ?? [])
+    .map((target) => target.knowledgeBaseName)
+    .filter((name): name is string => Boolean(name))
+    .join("」「");
   const inspectorOpen = panel === "inspector";
 
   useEffect(() => {
@@ -165,6 +186,30 @@ export function ChatPage() {
     const requestId = crypto.randomUUID();
     pending.current = { signature, requestId };
     return requestId;
+  }
+
+  /**
+   * 重试失败的知识库（ui-spec §13.6 / api.md §11）。
+   *
+   * 服务端只重跑失败目标并把结果合并进同一轮，所以这里直接用返回的 turn 替换本地状态——
+   * 前端不自己做合并，也不重新拉整个会话（改写与意图都没变，重拉只会让界面闪一下）。
+   */
+  async function retryRetrieval() {
+    if (!result || retrying) return;
+    setRetrying(true);
+    setThreadError(null);
+    try {
+      const next = await retryQaRetrieval({
+        clientRequestId: requestIdFor(`retry-retrieval|${result.turn.turnId}`),
+        turnId: result.turn.turnId,
+      });
+      setResult(next);
+      setPartialDismissed(false);
+    } catch (cause) {
+      setThreadError(toQaUserMessage(cause));
+    } finally {
+      setRetrying(false);
+    }
   }
 
   async function sendQuestion() {
@@ -362,9 +407,66 @@ export function ChatPage() {
             </p>
           ) : null}
 
+          {/*
+            来源摘要行是 C 布局下**来源的主入口**（ui-spec §13.3）：抽屉默认关着，绝大多数
+            用户只会看到这一行，所以它必须自己说清三件事——有几条依据、精排了没有、结果全不全。
+          */}
+          {retrieval && retrieval.sources.length > 0 ? (
+            <p className="qa-sources-summary">
+              <button type="button" onClick={() => setPanel("inspector")}>
+                依据 {retrieval.sources.length} 条来源 ›
+              </button>
+              {!retrieval.rerankApplied ? <RerankMark /> : null}
+              {retrieval.partial ? <PartialMark /> : null}
+            </p>
+          ) : null}
+
+          {/*
+            部分知识库失败：非阻塞提示 + 点名失败库 + 两个动作（ui-spec §13.6）。判断依据是
+            服务端的 partial，**不是 sources.length**——用条数倒推会把"库里本来就少"说成不完整。
+          */}
+          {retrieval?.partial && !partialDismissed ? (
+            <div className="qa-system-notice" role="status">
+              <p>
+                {failedNames ? `「${failedNames}」这个知识库本轮没有查成，下面的结果不完整。`
+                  : "部分知识库本轮没有查成，下面的结果不完整。"}
+              </p>
+              <div className="qa-notice-actions">
+                <button type="button" onClick={() => void retryRetrieval()} disabled={retrying}>
+                  {retrying ? "正在重试…" : "重试失败的知识库"}
+                </button>
+                <button type="button" className="secondary" onClick={() => setPartialDismissed(true)}>
+                  就现有结果继续
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {/*
+            无结果与 3A 的 NO_MATCH 必须可区分：一个是方向明确但库里没有，一个是方向不明。
+            **不提供任何"用通用知识回答"的入口**（PRD §12.3）。
+          */}
+          {retrieval?.status === "NO_RESULT" ? (
+            <div className="qa-system-notice" role="status">
+              <p>没有在你的知识库里找到相关内容。</p>
+              <ul className="qa-next-steps">
+                <li>换个说法再问一次</li>
+                <li>指定要查的知识库</li>
+                <li>检查这份资料是否已入库</li>
+              </ul>
+            </div>
+          ) : null}
+
+          {retrieval?.status === "RETRIEVAL_FAILED" ? (
+            <p className="qa-system-notice qa-notice-error" role="status">
+              本轮检索没有查成，这与"查了但没有"不是一回事。可以重试失败的知识库。
+            </p>
+          ) : null}
+
           {status === "ACTIONS_READY" ? (
             <p className="qa-system-notice">
-              <strong className="qa-tag">3A 验收</strong> {COMPLETION_NOTICE}
+              <strong className="qa-tag">{retrieval ? "3B 验收" : "3A 验收"}</strong>{" "}
+              {retrieval ? RETRIEVAL_COMPLETION_NOTICE : COMPLETION_NOTICE}
             </p>
           ) : null}
 
@@ -468,7 +570,7 @@ export function ChatPage() {
 
       {panel === "inspector" ? (
         <Drawer title="本轮处理" onClose={() => setPanel(null)}>
-          <TurnInspectorPane result={result} />
+          <TurnResultPane result={result} />
         </Drawer>
       ) : null}
 

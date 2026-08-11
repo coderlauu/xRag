@@ -17,8 +17,8 @@
 | 08 | [检索编排、部分失败与重试](issues/08-retrieval-orchestration.md) | 05, 06, 07 | complete |
 | 09 | [工具白名单、Schema 复核与状态机](issues/09-tool-registry-validation.md) | 02 | complete |
 | 10 | [工具调用循环与副作用确认 API](issues/10-tool-loop-confirmation.md) | 09 | complete |
-| 11 | [3B API 契约与隐私边界](issues/11-3b-api-contract.md) | 08, 10 | blocked |
-| 12 | [前端来源区与降级表达](issues/12-frontend-sources.md) | 11 | blocked |
+| 11 | [3B API 契约与隐私边界](issues/11-3b-api-contract.md) | 08, 10 | complete |
+| 12 | [前端来源区与降级表达](issues/12-frontend-sources.md) | 11 | complete |
 | 13 | [前端工具区与确认卡](issues/13-frontend-tools.md) | 10, 12 | blocked |
 | 14 | [隐私审计、故障注入与 3B E2E](issues/14-privacy-e2e.md) | 11, 13 | blocked |
 | 15 | [矩阵执行与浏览器验收](issues/15-matrix-validation.md) | 01~14 | blocked |
@@ -33,8 +33,11 @@
      └─> 09
 ```
 
-01~07、09、10 已完成（2026-08-08~09），08 已完成（2026-08-11），解锁 **11**（API 契约与隐私边界）。
-12 需要 11；13 需要 10 与 12。
+01~07、09、10 已完成（2026-08-08~09），08、11、12 已完成（2026-08-11），解锁 **13**（前端工具区与确认卡）。
+
+**图里缺一环**：没有工单负责把 `RetrievalOrchestrator` 接进 turn 处理流程（`TurnProcessor`）。
+08 建了编排组件、11 建了响应契约，但真实链路上没人调用检索，`retrieval` 至今只会是 null。
+按推进规则"发现隐藏依赖先改本图"，这里应补一张工单，位置在 08 与 11 之间。
 
 ## 推进规则
 

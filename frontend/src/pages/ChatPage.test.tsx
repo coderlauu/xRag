@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router";
 import { ChatPage } from "./ChatPage";
 import { setTestViewport } from "../test/viewport";
 
@@ -133,6 +134,44 @@ const actionsReadyResult = {
   clarification: null,
 };
 
+/**
+ * 3B 检索块（api.md §9）。**没有任何分数字段**——fixture 里就不该有，否则"界面不出现分数"
+ * 这条断言会因为数据里没有分数而假绿。
+ */
+const retrievedBlock = {
+  status: "RETRIEVED",
+  partial: false,
+  rerankApplied: true,
+  degradation: null,
+  sources: [
+    {
+      ordinal: 0,
+      chunkId: 88123,
+      knowledgeBaseId: 12,
+      knowledgeBaseName: "售后服务知识库",
+      documentId: 517,
+      documentName: "退货与退款操作手册 v3.docx",
+      chunkIndex: 12,
+      documentDeleted: false,
+    },
+    {
+      ordinal: 1,
+      chunkId: 88124,
+      knowledgeBaseId: 12,
+      knowledgeBaseName: "售后服务知识库",
+      documentId: 518,
+      documentName: null,
+      chunkIndex: 4,
+      documentDeleted: true,
+    },
+  ],
+  failedTargets: [],
+};
+
+function resultWith(retrieval: unknown) {
+  return { ...actionsReadyResult, retrieval, tools: [] };
+}
+
 const waitingClarificationResult = {
   conversation: { conversationId: CONVERSATION_ID, title: "退货政策", version: 0, created: true },
   turn: { ...actionsReadyTurn, status: "WAITING_CLARIFICATION", terminalReason: "AMBIGUOUS_SCORE_GAP" },
@@ -175,6 +214,7 @@ interface Routes {
   submit: (body: Record<string, unknown> | undefined, index: number) => Response | Promise<Response>;
   rename: (body: Record<string, unknown> | undefined) => Response;
   remove: () => Response;
+  retryRetrieval: (body: Record<string, unknown> | undefined) => Response;
 }
 
 const defaultRoutes: Routes = {
@@ -187,6 +227,7 @@ const defaultRoutes: Routes = {
   submit: () => json(actionsReadyResult, 201),
   rename: (body) => json({ conversationId: CONVERSATION_ID, title: String(body?.title), version: 3 }),
   remove: () => json(null, 204),
+  retryRetrieval: () => json(resultWith({ ...retrievedBlock, partial: false, failedTargets: [] })),
 };
 
 function mockApi(overrides: Partial<Routes> = {}) {
@@ -200,6 +241,9 @@ function mockApi(overrides: Partial<Routes> = {}) {
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined;
     calls.push({ url, method, body });
 
+    if (method === "POST" && url.includes("/retrieval/retry")) {
+      return Promise.resolve(routes.retryRetrieval(body));
+    }
     if (method === "POST" && url.endsWith("/api/qa/turns")) {
       return Promise.resolve(routes.submit(body, submits++)).then((response) => response);
     }
@@ -652,5 +696,175 @@ describe("问答 C — 响应式与键盘", () => {
       expect(screen.queryByRole("heading", { name: "本轮处理" })).not.toBeInTheDocument(),
     );
     expect(trigger).toHaveFocus();
+  });
+});
+
+/**
+ * 工单 12 的组件用例，对应 3B-UI-01~04 的自动化部分（那四条本身是 M — 手工走查）。
+ *
+ * 贯穿全组的一条纪律来自 ui-spec §13.1 不变量 2：**抽屉默认关着，所以凡是影响结果可信度
+ * 或需要用户决定的事实都必须在消息区有落点**。因此这里的断言大多刻意**不打开抽屉**——
+ * 一条事实只在抽屉里可见，就等于绝大多数用户看不到它。
+ */
+describe("问答 C — 3B 来源与降级", () => {
+  /**
+   * 来源条目里有指向分块页的 `<Link>`，它要 Router context——所以本组的 render 必须包
+   * MemoryRouter。既有几组不受影响：没有 retrieval 就不渲染来源区，也就没有 Link。
+   */
+  async function askWith(retrieval: unknown, overrides: Partial<Routes> = {}) {
+    const api = mockApi({ submit: () => json(resultWith(retrieval), 201), ...overrides });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ChatPage />
+      </MemoryRouter>,
+    );
+    await user.type(screen.getByLabelText("输入你的问题"), "退货需要哪些材料？");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await waitFor(() => expect(api.of("POST", "/turns")).toHaveLength(1));
+    return { api, user };
+  }
+
+  it("来源三项齐全且全页不出现分数、名次数字与命中通道", async () => {
+    const { user } = await askWith(retrievedBlock);
+
+    // 摘要行在抽屉关着时就说清了"有几条依据"。
+    expect(await screen.findByRole("button", { name: /依据 2 条来源/ })).toBeInTheDocument();
+
+    const inspector = await openInspector(user);
+    // 两条来源同属一个库，所以是 getAll——库名按条重复是对的，界面不做分组合并。
+    expect(within(inspector).getAllByText("售后服务知识库")).toHaveLength(2);
+    expect(within(inspector).getByText("退货与退款操作手册 v3.docx")).toBeInTheDocument();
+    expect(within(inspector).getByText("#12")).toBeInTheDocument();
+
+    // 顺序即排名：不出现名次数字，也不出现任何分数或通道名。
+    expect(within(inspector).queryByText(/第\s*1\s*名|排名|名次/)).not.toBeInTheDocument();
+    expect(within(inspector).queryByText(/0\.9|91%|相关度/)).not.toBeInTheDocument();
+    for (const channel of ["INTENT_TARGETED", "GLOBAL_VECTOR", "KEYWORD", "命中通道"]) {
+      expect(within(inspector).queryByText(new RegExp(channel))).not.toBeInTheDocument();
+    }
+  });
+
+  it("未精排在抽屉关着时也可见且不区分成因", async () => {
+    const { user } = await askWith({
+      ...retrievedBlock,
+      rerankApplied: false,
+      degradation: "RERANK_UNAVAILABLE",
+    });
+
+    // 关键：不打开抽屉就能看到。
+    const marks = await screen.findAllByText("未精排");
+    expect(marks.length).toBeGreaterThan(0);
+    // 成因只进处理详情，不进面向用户的标记。
+    expect(screen.queryByText(/RERANK_UNAVAILABLE|无 Key|Noop/)).not.toBeInTheDocument();
+
+    const inspector = await openInspector(user);
+    expect(within(inspector).getAllByText("未精排").length).toBeGreaterThan(0);
+  });
+
+  it("部分失败点名该库、给两个动作，且重试只调重试端点", async () => {
+    const partial = {
+      ...retrievedBlock,
+      partial: true,
+      failedTargets: [
+        {
+          knowledgeBaseId: 31,
+          knowledgeBaseName: "海外仓运营手册",
+          failureCode: "RETRIEVAL_TIMEOUT",
+        },
+      ],
+    };
+    const { api, user } = await askWith(partial);
+
+    expect(await screen.findByText(/「海外仓运营手册」这个知识库本轮没有查成/)).toBeInTheDocument();
+    const retry = screen.getByRole("button", { name: "重试失败的知识库" });
+    expect(screen.getByRole("button", { name: "就现有结果继续" })).toBeInTheDocument();
+    // 归一化原因落在抽屉的失败项里，消息区那句只点名库。
+    expect(screen.queryByText("RETRIEVAL_TIMEOUT")).not.toBeInTheDocument();
+
+    await user.click(retry);
+
+    await waitFor(() => expect(api.of("POST", "/retrieval/retry")).toHaveLength(1));
+    // 重试不新建 turn。**必须用 endsWith 精确匹配**：retry 的 URL 也含 "/turns"，
+    // 用 includes 会把重试自己数成一次新提交。
+    const submits = api.calls.filter(
+      (call) => call.method === "POST" && call.url.endsWith("/api/qa/turns"),
+    );
+    expect(submits).toHaveLength(1);
+    expect(api.of("POST", "/retrieval/retry")[0]?.body).toHaveProperty("clientRequestId");
+  });
+
+  it("就现有结果继续只收起提示，不改来源区的结果不完整标记", async () => {
+    const { user } = await askWith({
+      ...retrievedBlock,
+      partial: true,
+      failedTargets: [
+        { knowledgeBaseId: 31, knowledgeBaseName: "海外仓运营手册", failureCode: "RETRIEVAL_TIMEOUT" },
+      ],
+    });
+
+    await user.click(await screen.findByRole("button", { name: "就现有结果继续" }));
+    expect(screen.queryByText(/这个知识库本轮没有查成/)).not.toBeInTheDocument();
+
+    // 服务端状态没变，标记必须还在——否则"继续"会被读成"这轮结果其实是完整的"。
+    const inspector = await openInspector(user);
+    expect(within(inspector).getAllByText("结果不完整").length).toBeGreaterThan(0);
+  });
+
+  it("无结果文案与 3A 的方向不明可区分且没有用通用知识回答的入口", async () => {
+    await askWith({ ...retrievedBlock, status: "NO_RESULT", sources: [] });
+
+    expect(await screen.findByText("没有在你的知识库里找到相关内容。")).toBeInTheDocument();
+    // 3A 的 NO_MATCH 说的是方向不明，两句不能混。
+    expect(screen.queryByText(/还不能确定应该从哪个方向查找/)).not.toBeInTheDocument();
+    expect(screen.getByText("换个说法再问一次")).toBeInTheDocument();
+    // PRD §12.3：没有这个按钮，也没有这个开关。
+    expect(screen.queryByRole("button", { name: /通用知识|直接回答|不用知识库/ })).not.toBeInTheDocument();
+    // 没有来源时不摆一个"依据 0 条"的空入口。
+    expect(screen.queryByRole("button", { name: /依据 0 条来源/ })).not.toBeInTheDocument();
+  });
+
+  it("全部失败与无结果的文案不同", async () => {
+    await askWith({
+      ...retrievedBlock,
+      status: "RETRIEVAL_FAILED",
+      sources: [],
+      partial: false,
+      failedTargets: [
+        { knowledgeBaseId: 31, knowledgeBaseName: "海外仓运营手册", failureCode: "RETRIEVAL_TIMEOUT" },
+      ],
+    });
+
+    expect(await screen.findByText(/本轮检索没有查成/)).toBeInTheDocument();
+    expect(screen.queryByText("没有在你的知识库里找到相关内容。")).not.toBeInTheDocument();
+  });
+
+  it("文档已删除时条目保留但跳转被禁用", async () => {
+    const { user } = await askWith(retrievedBlock);
+    const inspector = await openInspector(user);
+
+    expect(within(inspector).getByText("文档已删除")).toBeInTheDocument();
+    expect(within(inspector).getByText("#4")).toBeInTheDocument();
+    const disabled = within(inspector)
+      .getAllByRole("button", { name: "打开分块页" })
+      .filter((button) => (button as HTMLButtonElement).disabled);
+    expect(disabled).toHaveLength(1);
+    // 未删除的那条是真链接。
+    expect(within(inspector).getByRole("link", { name: "打开分块页" })).toHaveAttribute(
+      "href",
+      "/knowledge-bases/12/documents/517/chunks",
+    );
+  });
+
+  it("未进过 3B 的轮次不显示来源区也不显示 3B 验收措辞", async () => {
+    const { user } = await askWith(null);
+
+    expect(await screen.findByText(/当前里程碑尚未执行知识库检索或生成答案/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /依据/ })).not.toBeInTheDocument();
+
+    const inspector = await openInspector(user);
+    // 两种空态必须分开：这是"没检索过"，不是"没召回"。
+    expect(within(inspector).getByText("本轮未执行检索")).toBeInTheDocument();
+    expect(within(inspector).queryByText("本轮没有召回任何来源")).not.toBeInTheDocument();
   });
 });

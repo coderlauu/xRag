@@ -259,6 +259,48 @@ code {
 .qa-composer textarea { min-height: 58px; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; color: var(--text-h); background: var(--bg); }
 .qa-composer small { grid-column: 1 / -1; }
 
+/*
+ * 3B 增量（ui-spec §13）。抽屉拆两组，「本轮结果」在上、「处理详情」在下——用户关心前者，
+ * 验收者才关心后者。
+ */
+.qa-turn-result { display: grid; gap: 20px; align-content: start; }
+.qa-drawer-group { display: grid; gap: 10px; }
+.qa-drawer-group > h3 { margin: 0; font-size: 15px; color: var(--text-h); display: flex; align-items: center; gap: 8px; }
+
+.qa-sources { display: grid; gap: 10px; }
+.qa-sources-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qa-sources-head h4 { margin: 0; font-size: 14px; color: var(--text-h); }
+.qa-sources-marks { display: flex; gap: 6px; flex-wrap: wrap; }
+.qa-sources-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+/* 一条来源：三项事实一行、动作一行。顺序即排名，所以不加任何序号标记。 */
+.qa-source { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.qa-source-facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
+.qa-source-kb { font-weight: 600; color: var(--text-h); }
+.qa-source-doc { overflow-wrap: anywhere; }
+.qa-source-doc-deleted { color: var(--text); text-decoration: line-through; }
+.qa-source-pos { font-variant-numeric: tabular-nums; color: var(--text); }
+.qa-source-actions { display: flex; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.qa-source-preview { margin: 0; font-size: 13px; }
+
+.qa-sources-failed { padding-top: 10px; border-top: 1px solid var(--border); }
+.qa-sources-failed h5 { margin: 0 0 6px; font-size: 14px; color: var(--text-h); }
+.qa-sources-failed ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.qa-sources-failed li { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/*
+ * 消息区来源摘要行。在 C 下它是**来源的主入口**（抽屉默认关着），所以给它按钮的可点区域
+ * 而不是一行小字。
+ */
+.qa-sources-summary { align-self: center; max-width: 620px; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qa-sources-summary button { padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); font: inherit; font-size: 14px; color: var(--text-h); cursor: pointer; }
+
+/* 降级标记用边框而不是纯色块：颜色不能是状态的唯一载体（ui-spec §13.10 无障碍）。 */
+.qa-tag-warn { border-color: var(--danger); color: var(--danger); }
+
+.qa-notice-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.qa-next-steps { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 2px; }
+
 .qa-inspector-body { display: grid; gap: 12px; align-content: start; }
 .qa-inspector-body dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 14px; margin: 0; }
 .qa-inspector-body dt { font-weight: 600; color: var(--text-h); }

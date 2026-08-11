@@ -100,7 +100,63 @@ export interface TurnResult {
     options: Array<{ nodeId: QaId; label: string }>;
     allowNoneOfTheAbove: boolean;
   } | null;
+  /** turn 未进过 3B 时是 null——"没检索过"与"检索了没结果"是两件事（api.md §9）。 */
+  retrieval?: TurnRetrieval | null;
+  /** 工具区属工单 13；这里先承认字段，避免 13 改动 api 层的形状。 */
+  tools?: TurnTool[];
   retryAfterMs?: number;
+}
+
+export type RetrievalStatus = "RETRIEVING" | "RETRIEVED" | "NO_RESULT" | "RETRIEVAL_FAILED";
+
+/**
+ * 3B 检索结果块（api.md §9）。
+ *
+ * **没有任何分数字段**，顺序即排名（PRD §12.2）。`partial` 是服务端算好的显式字段，
+ * 界面不得用 `sources.length` 倒推（PRD §12.4 / ui-spec §13.6）。
+ */
+export interface TurnRetrieval {
+  status: RetrievalStatus;
+  partial: boolean;
+  rerankApplied: boolean;
+  /** `rerankApplied=false` 时非空。界面只显示"未精排"，**不区分成因**（ui-spec §13.4）。 */
+  degradation: string | null;
+  sources: TurnSource[];
+  failedTargets: TurnFailedTarget[];
+}
+
+export interface TurnSource {
+  ordinal: number;
+  chunkId: number;
+  knowledgeBaseId: number | null;
+  knowledgeBaseName: string | null;
+  documentId: number | null;
+  documentName: string | null;
+  /** 沿用知识库页的分块序号语义，不是行号、不重编号（ui-spec §13.3）。 */
+  chunkIndex: number | null;
+  /** true 时条目**保留**且禁用跳转，显示"文档已删除"。 */
+  documentDeleted: boolean;
+}
+
+export interface TurnFailedTarget {
+  knowledgeBaseId: number | null;
+  knowledgeBaseName: string | null;
+  /** 归一化闭集码值，永不是异常文本。 */
+  failureCode: string | null;
+}
+
+export interface TurnTool {
+  toolCallId: QaId;
+  ordinal: number;
+  toolName: string;
+  displayName: string | null;
+  description: string | null;
+  sideEffect: boolean;
+  status: string;
+  parameters: Array<{ name: string; value: string | null; required: boolean }>;
+  resultText: string | null;
+  failureCode: string | null;
+  latencyMs: number | null;
 }
 
 export interface IntentTreeRevision {
@@ -209,6 +265,19 @@ export function listQaMessages(
 
 export function readQaTurn(conversationId: QaId, turnId: QaId) {
   return qaRequest<TurnResult>(`/conversations/${conversationId}/turns/${turnId}`);
+}
+
+/**
+ * 只重跑失败的知识库（api.md §11）。
+ *
+ * 响应是整个 turn 结果，调用方直接替换本地状态——合并发生在服务端，前端不自己把
+ * "重试返回的那部分"并进已有来源。
+ */
+export function retryQaRetrieval(input: { clientRequestId: QaId; turnId: QaId }) {
+  return qaRequest<TurnResult>(`/turns/${input.turnId}/retrieval/retry`, {
+    method: "POST",
+    body: { clientRequestId: input.clientRequestId },
+  });
 }
 
 export function submitQaQuestion(input: {

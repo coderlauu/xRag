@@ -33,6 +33,24 @@ export function degradationLabel(code: string): string {
   return DEGRADATION_LABEL[code] ?? code;
 }
 
+/**
+ * 检索失败原因的用户文案（ui-spec §13.6：库名 + 归一化原因 + 状态，不透传异常文本）。
+ *
+ * 落在这里而不是后端：后端给的是归一化码值，措辞属于界面。未知码值原样显示——
+ * 编一句"未知错误"会掩盖掉"后端加了新码值而前端没跟上"这件事。
+ */
+const RETRIEVAL_FAILURE_LABEL: Record<string, string> = {
+  RETRIEVAL_TIMEOUT: "检索超时",
+  KNOWLEDGE_BASE_UNAVAILABLE: "知识库暂时不可用",
+};
+
+export function retrievalFailureLabel(code: string | null): string {
+  if (!code) {
+    return "原因未记录";
+  }
+  return RETRIEVAL_FAILURE_LABEL[code] ?? code;
+}
+
 export const ACTION_LABEL: Record<RetrievalActionType, string> = {
   KB_TARGETED: "定向检索知识库",
   GLOBAL_FALLBACK: "全局兜底检索",

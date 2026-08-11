@@ -17,7 +17,8 @@ const TERMINAL_NOTE: Record<string, string> = {
 export function TurnInspectorPane({ result }: { result: TurnResult | null }) {
   return (
     <div className="qa-inspector-body">
-      <p className="muted">3A 验收信息 · 这里展示规范化问题与路由结果，不是模型思维链。</p>
+      {/* `3A 验收信息` 副标签已上移到「处理详情」分组标题（ui-spec §13.2），这里不再重复。 */}
+      <p className="muted">这里展示规范化问题与路由结果，不是模型思维链。</p>
 
       {!result ? (
         <div className="qa-empty">
