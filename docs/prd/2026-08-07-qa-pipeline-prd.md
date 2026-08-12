@@ -9,7 +9,7 @@
 - `ui_decision`: 问答页 **C — Focused Chat**（2026-08-08 改判，原为 A — Conversation + Inspector）；
   意图树 C — Route Canvas（不变）
 - `current_increment`: 3C — 生成 + 流式 + 任务管控 + 排队限流（Step C）
-- `phase_plan`: [Phase 3 执行计划](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
+- `phase_plan`: [Phase 3 执行计划](../exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md)
 - `learning_checkpoint`: [Phase 3 Step A 学习检查点](../../learning/ragent-column/PHASE-3-STEP-A-CHECKPOINT.md)
 - `conversation_ui`: [问答对话页界面规格](../../tech/qa-pipeline/conversation/ui-spec.md)
 - `intent_tree_ui`: [意图树管理页界面规格](../../tech/qa-pipeline/intent-tree/ui-spec.md)
@@ -297,7 +297,7 @@ Phase 1 已能把文档转成可检索的分块和向量，Phase 2 已提供 Cha
 - 检索通道：**定向向量 + 全局向量 + BM25 关键词**三路混合。
 - MCP 工具：**含有副作用的工具**，配二次确认流。
 
-两项均由项目所有者裁决，理由与后果见 [Phase 3 计划 §8](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)。
+两项均由项目所有者裁决，理由与后果见 [Phase 3 计划 §8](../exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md)。
 
 ### 12.2 检索来源展示
 

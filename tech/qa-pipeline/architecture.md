@@ -5,7 +5,7 @@
 - `date`: 2026-08-07
 - `scope`: 3A — 记忆 + 改写 + 意图；3B — 检索 + 工具；3C — 生成 + 流式 + 任务管控 + 排队限流
 - `prd`: [Phase 3 PRD](../../docs/prd/2026-08-07-qa-pipeline-prd.md)
-- `phase_plan`: [Phase 3 执行计划](../../docs/exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
+- `phase_plan`: [Phase 3 执行计划](../../docs/exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md)
 - `data_model`: [数据模型](data-model.md)
 - `api`: [API 契约](api.md)
 - `tests`: [测试矩阵](test-matrix.md)
@@ -690,7 +690,7 @@ REQUESTED ─ 复核通过 ─┤
 ### 22.3 与并行会话的接口
 
 3B 依赖 DashScope 原生 Rerank adapter 落地（Phase 2 工单 23），但**不重复实现它**——
-X-1 核对结论与该依赖的处理见[计划 §8](../../docs/exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)。
+X-1 核对结论与该依赖的处理见[计划 §8](../../docs/exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md)。
 在它提交并闭环之前，3B 的 Step D 只能演示 Noop 降级路径；这不阻塞 Step C，也不阻塞除
 "真实精排演示"以外的任何验收项。
 

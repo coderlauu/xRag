@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 
-- `status`: implemented / validated（2026-08-12；16/16 工单 complete，等待 Phase 3 Step G 关闭）
+- `status`: completed / archived（2026-08-12；16/16 工单 complete，Phase 3 已关闭）
 - `parent`: [Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)
 - `prd`: [PRD §13](../../prd/2026-08-07-qa-pipeline-prd.md)
 - `tech`: [架构 §23~§31](../../../tech/qa-pipeline/architecture.md)、[数据模型 §18~§21](../../../tech/qa-pipeline/data-model.md)、[API §14~§19](../../../tech/qa-pipeline/api.md)

@@ -4,7 +4,7 @@
 - `date`: 2026-08-08
 - `decision_owner`: liuqiang
 - `scope`: Phase 3B 的检索通道构成、中文关键词实现、候选融合、去重截断与精排边界
-- `related`: [PRD §12](../prd/2026-08-07-qa-pipeline-prd.md)、[Phase 3 计划 §5.5](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)、[架构](../../tech/qa-pipeline/architecture.md)、[数据模型](../../tech/qa-pipeline/data-model.md)、[ADR 0007](0007-versioned-intent-tree.md)
+- `related`: [PRD §12](../prd/2026-08-07-qa-pipeline-prd.md)、[Phase 3 计划 §5.5](../exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md)、[架构](../../tech/qa-pipeline/architecture.md)、[数据模型](../../tech/qa-pipeline/data-model.md)、[ADR 0007](0007-versioned-intent-tree.md)
 
 ## Context
 

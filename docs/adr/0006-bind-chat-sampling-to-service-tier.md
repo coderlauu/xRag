@@ -4,7 +4,7 @@
 - 日期：2026-08-07
 - 相关：[ADR 0003](0003-separate-model-capability-ports.md)、
   [Phase 3 Step A 检查点](../../learning/ragent-column/PHASE-3-STEP-A-CHECKPOINT.md)、
-  [Phase 3 执行计划](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
+  [Phase 3 执行计划](../exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md)
 
 ## 背景
 

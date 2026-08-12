@@ -2,7 +2,7 @@
 
 ## 1. Metadata
 
-- `status`: Step A~F 完成；17 张工单全部 complete，Step G 产物待确认
+- `status`: completed / archived（2026-08-12；Phase 3 已关闭）
 - `created`: 2026-08-07
 - `owner`: liuqiang
 - `parent`: [Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)

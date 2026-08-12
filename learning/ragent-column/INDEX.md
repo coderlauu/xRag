@@ -27,7 +27,7 @@ Phase 3 Step A 的已确认决策、待决策问题（D-01~D-08）与不可照�
 | 03-knowledge-base AI知识库建设 | 11 | done（11/11） | 知识库/文档管理模块 |
 | 04-model-scheduling 大模型调度引擎 | 8 | done（8/8，Phase 2 Step A） | AI基础设施层/模型路由网关模块 |
 | 05-qa-pipeline AI知识问答核心链路 | 18 | done（18/18，Phase 3 Step A） | 检索增强问答（核心业务）模块 |
-| 06-evaluation RAG评测体系 | 11 | pending（Phase 4） | 评测/质量保障模块 |
+| 06-evaluation RAG评测体系 | 11 | active（Phase 4 Step A，0/11） | 评测/质量保障模块 |
 | 07-interview 面试高频考点 | 3+（持续更新） | pending（Phase 5） | 横向参考 |
 
 ## 00-overview 项目概览与学习指南（5篇）
@@ -139,7 +139,7 @@ Phase 3 Step A 的已确认决策、待决策问题（D-01~D-08）与不可照�
 | 17 | 10个人同时提问只有3个坑位 | https://t.zsxq.com/m4blA | `05-qa-pipeline/05-17-排队限流的入队与抢占.md` |
 | 18 | 抢不到许可请求该等还是该拒？ | https://t.zsxq.com/mOutN | `05-qa-pipeline/05-18-异步等待与超时拒绝.md` |
 
-## 06-evaluation RAG评测体系（11篇，pending）
+## 06-evaluation RAG评测体系（11篇，Phase 4 Step A active）
 
 | # | 原文标题 | 原文链接 |
 |---|---|---|

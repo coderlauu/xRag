@@ -3,8 +3,8 @@
 - `phase`: Phase 3 / AI 知识问答核心链路 / 3A
 - `date`: 2026-08-08
 - `status`: **已确认关闭**（2026-08-08）
-- `plan`: [Phase 3 执行计划](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
-- `lanes`: [3A 分角色任务书](../exec-plans/active/2026-08-07-qa-pipeline-3a-implementation-lanes.md)
+- `plan`: [Phase 3 执行计划](../exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md)
+- `lanes`: [3A 分角色任务书](../exec-plans/completed/2026-08-07-qa-pipeline-3a-implementation-lanes.md)
 - `matrix`: [测试矩阵](../../tech/qa-pipeline/test-matrix.md)（146 条全部回写）
 
 ## 1. 交付范围

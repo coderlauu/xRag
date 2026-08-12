@@ -56,8 +56,8 @@
 | Phase 0 基础学习与 Bootstrap | completed | 40/40 篇与环境检查点完成 |
 | Phase 1 AI 知识库建设 | completed | 已于 2026-07-28 归档；[里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md) |
 | Phase 2 大模型调度引擎 | completed | 已于 2026-08-07 关闭；工单 01~22 done，23 因缺合规 Key 带 blocked 状态一同关闭；P2-02 已解除；Embedding 真实链路的实测失败已查明为本仓库解析代码过严（非缺 Key）并修复；[里程碑状态](../../status/2026-08-07-phase-2-model-scheduling.md)与[复盘](../../retro/2026-08-07-phase-2-model-scheduling-retrospective.md) |
-| Phase 3 AI 知识问答核心链路 | active | **3A 已于 2026-08-08 关闭**（17 张工单、矩阵 146 条）；**3B 已于 2026-08-12 关闭**（17 张工单、矩阵 76 条全部 passed）；3C Step C 已确认，当前进入 Step D 第一前沿 01/02。见[Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)、[3A 里程碑](../../status/2026-08-08-phase-3a-qa-understanding.md)/[复盘](../../retro/2026-08-08-phase-3a-retrospective.md)、[3B 里程碑](../../status/2026-08-12-phase-3b-retrieval-tools.md)/[复盘](../../retro/2026-08-12-phase-3b-retrospective.md) |
-| Phase 4 RAG 评测体系 | pending | 等待 Phase 3 形成可评测链路 |
+| Phase 3 AI 知识问答核心链路 | completed | 已于 2026-08-12 关闭；3A~3C 共 50 张工单，当前门禁后端 698 项、前端 78 项全绿。见[Phase 3 执行计划](../completed/2026-08-07-qa-pipeline-phase-plan.md)、[3C 里程碑](../../status/2026-08-12-phase-3c-generation-streaming.md)与[复盘](../../retro/2026-08-12-phase-3c-retrospective.md) |
+| Phase 4 RAG 评测体系 | active / Step A | 已于 2026-08-12 启动；当前只整理 06-evaluation 的 11 篇内容、一手资料复核与对齐检查点。见[Phase 4 执行计划](2026-08-12-rag-evaluation-phase-plan.md) |
 | Phase 5 面试专题与系统说明书 | pending | 最终汇总阶段 |
 
 ### 6.1 每模块产出物闸门
@@ -150,7 +150,7 @@
 - `2026-08-03`: **Phase 2 Step D 工单 11 完成。** WebClient/Reactor Netty client 在 Servlet/Tomcat 服务端边界内打通单 deployment SSE adapter；STR-01~09、文本/工具/拒答/usage/done/error、64KiB 上限、HTTP 失败分类、断流与取消传播均已自动化。`./mvnw -B verify` 通过（294 tests，0 failures，2 skipped）；工单 12 解锁，当前 05、12、14、16、19 为 ready。
 - `2026-08-03`: **Phase 2 Step D 工单 12 完成。** 公共流端口落地单次订阅守卫、PROBING/COMMITTED/唯一终态、有界探测、六阶段超时、取消传播和完成态诊断；STR-10~13、15~27、29、30、35 已自动化，50 轮取消/完成竞态无重复结算。`./scripts/ci-validate.sh` 通过（backend 318 tests，0 failures，2 skipped）；工单 13 解锁，当前 05、13、14、16、19 为 ready。
 - `2026-08-07`: **Phase 3 执行计划获确认，3A Step B 草案进入双界面硬闸门。** 新建
-  [Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)，按 3A（记忆+改写+意图）、
+  [Phase 3 执行计划](../completed/2026-08-07-qa-pipeline-phase-plan.md)，按 3A（记忆+改写+意图）、
   3B（检索+工具）、3C（生成+流式+管控+限流）各走 A~G，三段共用已关闭 Step A。
   [Phase 3 PRD](../../prd/2026-08-07-qa-pipeline-prd.md)、问答对话页与意图树管理页的独立规格及
   两套 A/B/C 可点击原型已起草；当前等待项目所有者同时确认 PRD、两页交互方向和 7 项产品裁决，
@@ -171,7 +171,12 @@
   Rerank 改动无损合并后，全量后端 `verify` 通过（415 tests，0 failures，0 errors，5 skipped）。随后完成
   3A [架构](../../../tech/qa-pipeline/architecture.md)、[数据模型](../../../tech/qa-pipeline/data-model.md)、
   [API](../../../tech/qa-pipeline/api.md)、[ADR 0007](../../adr/0007-versioned-intent-tree.md)、138 条
-  [测试矩阵](../../../tech/qa-pipeline/test-matrix.md)、[分角色任务书](2026-08-07-qa-pipeline-3a-implementation-lanes.md)
+  [测试矩阵](../../../tech/qa-pipeline/test-matrix.md)、[分角色任务书](../completed/2026-08-07-qa-pipeline-3a-implementation-lanes.md)
   和 17 张原子工单。当前停在 Step C 产出物确认硬闸门，未开始 Phase 3 业务代码。
 - `2026-08-07`: **Phase 3A Step C 经项目所有者确认。** 技术三件套与测试矩阵转为 approved，ADR 0007
   转为 accepted；第一前沿工单 01/02/12 解锁，进入 Step D，其余工单继续按依赖图阻塞。
+- `2026-08-12`: **Phase 3 正式关闭并归档。** 3A~3C 共 50 张工单完成，3C 62/62 矩阵 passed；
+  当前工作树 `scripts/ci-validate.sh` exit=0（后端 698 项、前端 78 项）。项目所有者确认 Step E/G、
+  证据边界和递延项，阶段计划与三份任务书移入 `completed/`。
+- `2026-08-12`: **进入 Phase 4 Step A。** 新建[RAG 评测体系阶段计划](2026-08-12-rag-evaluation-phase-plan.md)，
+  当前只整理 06-evaluation 的 11 篇内容、复核一手资料并形成检查点；不提前写 PRD、技术方案或实现工单。

@@ -3,15 +3,15 @@
 ## 1. Metadata
 
 - `phase`: Phase 3 / AI 知识问答核心链路
-- `status`: active（**3A 已关闭**（`2026-08-08`）；**3B 已关闭**（`2026-08-12`，17 张工单 complete、矩阵 76 条全部 passed，见[里程碑状态](../../status/2026-08-12-phase-3b-retrieval-tools.md)）；**3C Step C 已确认，当前 Step D 第一前沿 01/02**）
+- `status`: **completed / closed**（`2026-08-12`；3A、3B、3C 全部关闭，项目所有者已确认 Step E/G）
 - `created`: 2026-08-07
 - `owner`: liuqiang
-- `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
+- `parent`: [总执行计划](../active/2026-07-24-ragent-column-learning-and-system-build.md)
 - `step_a_checkpoint`: [Phase 3 Step A 学习检查点](../../../learning/ragent-column/PHASE-3-STEP-A-CHECKPOINT.md)
 - `primary_source_review`: [Phase 3 一手资料复核](../../research/2026-08-07-qa-pipeline-primary-source-review.md)
 - `source_group`: [05-qa-pipeline](../../../learning/ragent-column/INDEX.md)（18 篇；第 1 篇总览，第 2~18 篇进入三个子里程碑）
 - `predecessor`: [Phase 2 里程碑状态](../../status/2026-08-07-phase-2-model-scheduling.md)
-- `reference_plan`: [Phase 2 执行计划](../completed/2026-07-28-model-scheduling-phase-plan.md)
+- `reference_plan`: [Phase 2 执行计划](2026-07-28-model-scheduling-phase-plan.md)
 - `delivery_shape`: 3A / 3B / 3C 三个可独立验收的子里程碑；每段各走一轮 A~G 闸门，Step A 共用已关闭的检查点且不重开
 
 ## 2. Objective
@@ -417,6 +417,9 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 
 #### Step D — 3C 垂直切片实现
 
+状态：**done（`2026-08-12`）。** 16 张工单全部 complete；Prompt、生成、SSE、持久化、停止、断连、
+排队限流与前端状态均已接入真实问答链路。证据见[3C 任务书](2026-08-12-qa-pipeline-3c-implementation-lanes.md)。
+
 - 依次闭合 Prompt 组装、非流式基线、流式 SSE、持久化终态、停止、断连和排队限流。
 - `SseEmitter.send()` 必须在专用有界执行资源上运行，不能阻塞 Reactor Netty event loop。
 - 任务终态、SSE 终态、数据库状态和许可释放必须由同一结算边界约束。
@@ -425,6 +428,9 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 
 #### Step E — 3C 测试矩阵执行
 
+状态：**done（`2026-08-12`）。** 55 条自动化 + 7 条浏览器验收全部 passed，逐项落点与证据边界见
+[测试矩阵 §35](../../../tech/qa-pipeline/test-matrix.md)。
+
 - 自动化覆盖 Prompt 注入样例、事件闭集、首包/流中失败、停止归属、取消/完成竞态、断连、
   排队公平、等待超时和许可泄漏。
 - 压力测试重复执行关键竞态；手工走查桌面/窄屏上的流式更新、停止和重连状态。
@@ -432,21 +438,31 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 
 #### Step F — 3C CI/CD 与部署配置
 
+状态：**done（`2026-08-12`）。** 8 个 generation 配置已成组登记并校验，优雅关停与计费守门已纳入
+部署契约；实现期 `scripts/ci-validate.sh` exit=0。
+
 - CI 覆盖流式假 Provider、确定性时钟/调度器和并发测试；收费真实调用仍不进入默认 CI。
 - 部署登记问答并发数、队列容量、等待预算、模型 Deadline、SSE 超时、推送执行资源和关停行为。
 - `scripts/ci-validate.sh` 完成全量前后端、文档与部署配置验证。
 
 #### Step G — 3C / Phase 3 复盘与里程碑状态
 
-- 产出 3C 复盘和里程碑状态，并汇总 3A~3C 的交付、测试证据、递延项、已知风险与 Phase 4 准入条件。
-- 项目所有者确认 Step E/G 后关闭 3C 与 Phase 3；执行计划随后移入 `docs/exec-plans/completed/`。
+状态：**done / confirmed（`2026-08-12`）。** 状态与复盘已产出，当前工作树门禁 exit=0；项目所有者
+确认关闭 3C 与 Phase 3，本计划及三份子里程碑任务书已归档到 `completed/`。
+
+- [x] 产出 [3C / Phase 3 复盘](../../retro/2026-08-12-phase-3c-retrospective.md)和
+  [里程碑状态](../../status/2026-08-12-phase-3c-generation-streaming.md)，汇总 3A~3C 的交付、测试证据、
+  递延项、已知风险与 Phase 4 准入条件。
+- [x] 当前 HEAD 的 `scripts/ci-validate.sh` 完整复核并回写状态文档（后端 698 项、前端 78 项，exit=0）。
+- [x] 项目所有者确认 Step E/G 与证据边界（`2026-08-12`）。
+- [x] 关闭 3C 与 Phase 3，执行计划移入 `docs/exec-plans/completed/`。
 
 ## 6. Validation
 
 ### 6.1 计划文档本身
 
 - `node scripts/check-doc-links.mjs`
-- `git diff --check -- docs/exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md`
+- `git diff --check -- docs/exec-plans/completed/2026-08-07-qa-pipeline-phase-plan.md`
 - 人工核对：D-01~D-08 与 Step A 检查点一致；3A/3B/3C 均有 A~G；Step A 明确共用且不重开；
   两份界面规格和两个原型都有独立路径与硬闸门；D-06 前置、D-02 ADR、D-08 安全章节和 X-1 竞态均有落点。
 
@@ -486,6 +502,16 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 
 ## 8. Decision Log
 
+- `2026-08-12` / **3C 与 Phase 3 正式关闭**：项目所有者确认 Step E/G、3C 证据边界、递延项与
+  Phase 4 准入条件；3A~3C 共 50 张工单完成，当前工作树统一门禁 exit=0。阶段计划与三份任务书
+  归档到 `completed/`，主前沿切换到 Phase 4 Step A。
+- `2026-08-12` / **进入 3C / Phase 3 Step G**：16 张工单 complete，55 条自动化与 7 条浏览器验收
+  全部 passed；产出 3C 里程碑状态与复盘，并修正 README、父计划的滞后状态。经项目所有者允许停止
+  端口 3001 的既有后端后，当前工作树 `scripts/ci-validate.sh` exit=0（后端 698 项、前端 78 项）。
+  本条记录时 Step G 处于 `awaiting owner review`；随后由上一条关闭记录完成确认与归档。
+- `2026-08-12` / **3C Step D~F 完成**：Prompt 安全、生成深模块、FIFO 许可、唯一结算、SSE、停止、
+  断连恢复和前端七态落地；62/62 矩阵回写，部署登记 8 个 generation 配置与优雅关停。实现期
+  `scripts/ci-validate.sh` exit=0；真实供应商 3C 端到端未在默认 CI 中执行，证据边界留给 Step G。
 - `2026-08-12` / **3C Step C 确认**：项目所有者确认技术三件套 §3C、ADR 0009、62 条矩阵、任务书与
   16 张工单；相关文档转 approved/accepted。只解锁第一前沿 01/02，其余 14 张继续按依赖图 blocked，
   当前进入 Step D，尚未开始实现。

@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 3 / AI 知识问答核心链路 / 3B
-- `status`: draft（2026-08-08，随 Step C 产物一并待确认）
+- `status`: completed / archived（2026-08-12；17 张工单 complete，Phase 3 已关闭）
 - `owner`: liuqiang
 - `parent`: [Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)
 - `predecessor`: [3A 分角色任务书](2026-08-07-qa-pipeline-3a-implementation-lanes.md)
