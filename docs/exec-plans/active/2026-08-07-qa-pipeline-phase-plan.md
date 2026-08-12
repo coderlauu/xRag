@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 3 / AI 知识问答核心链路
-- `status`: active（**3A 已关闭**（`2026-08-08`）；**3B 已关闭**（`2026-08-12`，17 张工单 complete、矩阵 76 条全部 passed，见[里程碑状态](../../status/2026-08-12-phase-3b-retrieval-tools.md)）；当前前沿 3C）
+- `status`: active（**3A 已关闭**（`2026-08-08`）；**3B 已关闭**（`2026-08-12`，17 张工单 complete、矩阵 76 条全部 passed，见[里程碑状态](../../status/2026-08-12-phase-3b-retrieval-tools.md)）；**当前前沿 3C Step B**）
 - `created`: 2026-08-07
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -369,7 +369,7 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 
 - [x] [3B 里程碑状态](../../status/2026-08-12-phase-3b-retrieval-tools.md)，含 3C 准入条件与递延项。
 - [x] [3B 复盘](../../retro/2026-08-12-phase-3b-retrospective.md)。
-- [ ] 经项目所有者确认后关闭 3B，才进入 3C Step B。
+- [x] 经项目所有者确认关闭 3B（`2026-08-12`），进入 3C Step B。
 
 ### 5.6 3C — 生成 + 流式 + 任务管控 + 排队限流（第 14~18 篇）
 

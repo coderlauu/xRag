@@ -1,7 +1,7 @@
 # 里程碑状态：Phase 3B 检索 + 工具
 
 - `phase`: Phase 3 AI 知识问答核心链路 / 3B 子里程碑
-- `status`: **closed**（`2026-08-12`）
+- `status`: **closed**（`2026-08-12`，经项目所有者确认）
 - `plan`: [Phase 3 执行计划](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
 - `tickets`: [3B 工单目录](../../.scratch/qa-pipeline/3b/README.md)（17 张全部 complete）
 - `matrix`: [测试矩阵](../../tech/qa-pipeline/test-matrix.md) §18~§26（76 条全部 passed）
