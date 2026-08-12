@@ -1,9 +1,9 @@
-# 测试矩阵：AI 知识问答核心链路（Phase 3A + 3B）
+# 测试矩阵：AI 知识问答核心链路（Phase 3A + 3B + 3C）
 
-- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§18~§25）**
+- `status`: 3A approved（2026-08-07）；3B approved（2026-08-08）；**3C approved（2026-08-12，§27~§35）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
-- `scope`: `3A-*` 已批准并全部回写；`3B-*` 是 Step C 草案，3C 到各自 Step C 追加
+- `scope`: `3A-*` / `3B-*` / `3C-*` 已实施并回写；3C 证据见 §35
 - `architecture`: [技术方案](architecture.md)
 - `data_model`: [数据模型](data-model.md)
 - `api`: [API 契约](api.md)
@@ -12,7 +12,7 @@
 
 | 标记 | 含义 |
 |---|---|
-| `A` | 自动化测试，必须进入普通 CI；模型使用可编程假 Chat，不收费 |
+| `A` | 自动化测试，必须进入普通 CI；优先使用真实模型对话验证，允许产生费用；无真实模型凭据时使用可编程假 Chat 覆盖确定性契约测试 |
 | `M` | 浏览器/人工走查，Step E 回写日期、环境、结果和证据 |
 | `P` | planned，尚未执行 |
 | `passed/failed/blocked` | Step E 的真实结果；没有证据不能标 passed |
@@ -349,7 +349,7 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 
 ---
 
-# 3B 分区（draft，2026-08-08）
+# 3B 分区（approved，2026-08-08）
 
 约定沿用 §1。3B 额外一条：**收费 Provider 不进普通 CI**——真实 Rerank 与真实工具端点由显式
 环境变量守门，缺变量自动 skip，不因此判 failed。
@@ -578,3 +578,164 @@ Provider 适配器。
 `/reranks` 与 `/rerank` 都返回 404 空体）。
 
 诊断记录落在 `xrag_test` schema 而不是 `public`——测试用独立 schema，查证时别找错地方。
+
+# 3C 分区（approved，2026-08-12）
+
+共 **62 条**：55 条自动化 `A`、7 条浏览器走查 `M`；均于 2026-08-12 完成并回写。
+
+## 27. 3C-CFG/PROMPT — 配置、预算与不可信输入
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-CFG-01 | A | 并发数与 generation executor 线程数不等 | 启动失败并点名两值 | passed（2026-08-12，自动化，见 §35） |
+| 3C-CFG-02 | A | SSE timeout 小于预算派生下限 | 启动失败 | passed（2026-08-12，自动化，见 §35） |
+| 3C-CFG-03 | A | first-byte ≥ model deadline | 启动失败 | passed（2026-08-12，自动化，见 §35） |
+| 3C-CFG-04 | A | queue/push 容量非法边界 | 启动失败 | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRM-01 | A | 固定一条 System + 一条 User | 消息数组稳定，只用 BALANCED | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRM-02 | A | 预算不足逐条淘汰 | 完整条目删除，不截断 | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRM-03 | A | 必选内容仍超限 | `PROMPT_BUDGET_EXCEEDED`，零模型调用 | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRM-04 | A | `</context>` / `SYSTEM:` 注入 | 编码后仍是 JSON 数据 | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRM-05 | A | 工具结果含 Markdown 图片/链接 | 不逃逸、不产生结构字段 | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRM-06 | A | promptSnippet 要求泄露 Prompt | 不进入 System，规则不可覆盖 | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRM-07 | A | NUL、控制字符、Unicode 极限 | 规范化确定且预算一致 | passed（2026-08-12，自动化，见 §35） |
+
+## 28. 3C-DB/HIST — Schema、持久化与历史
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-DB-01 | A | V11 从 V10 升级 | 新表/约束/索引存在，旧数据可读 | passed（2026-08-12，自动化，见 §35） |
+| 3C-DB-02 | A | 同 turn 重复 task/答案 | 唯一约束拒绝 | passed（2026-08-12，自动化，见 §35） |
+| 3C-DB-03 | A | 非法状态/时间/保存组合 | check constraint 拒绝 | passed（2026-08-12，自动化，见 §35） |
+| 3C-DB-04 | A | 完整回答保存成功 | task/turn/message 同事务一致 | passed（2026-08-12，自动化，见 §35） |
+| 3C-DB-05 | A | 完整回答保存失败 | task COMPLETED + saved=false，无 messageId | passed（2026-08-12，自动化，见 §35） |
+| 3C-DB-06 | A | 停止/流失败已有部分 | incomplete message 只保存一次 | passed（2026-08-12，自动化，见 §35） |
+| 3C-DB-07 | A | 零字符失败/停止 | 不创建空消息 | passed（2026-08-12，自动化，见 §35） |
+| 3C-HIST-01 | A | 部分回答进入下一轮 | 固定未完成标记包裹，不伪装完整 | passed（2026-08-12，自动化，见 §35） |
+| 3C-HIST-02 | A | 启动发现遗留活动 task | CAS 为 FAILED/SERVICE_RESTARTED | passed（2026-08-12，自动化，见 §35） |
+
+## 29. 3C-QUEUE — 公平队列、许可与超时
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-QUE-01 | A | 并发许可耗尽 | FIFO 排队，排队不订阅模型 | passed（2026-08-12，自动化，见 §35） |
+| 3C-QUE-02 | A | 释放一个许可 | 只唤醒最早有效队首 | passed（2026-08-12，自动化，见 §35） |
+| 3C-QUE-03 | A | 队首已取消/超时 | 跳过并继续唤醒，无惊群 | passed（2026-08-12，自动化，见 §35） |
+| 3C-QUE-04 | A | 等待 deadline 到达 | TIMED_OUT，零模型调用 | passed（2026-08-12，自动化，见 §35） |
+| 3C-QUE-05 | A | 超时与许可同时发生 | 单一终态，无晚订阅 | passed（2026-08-12，自动化，见 §35） |
+| 3C-QUE-06 | A | 队列满 | accepted 前 HTTP 429 + Retry-After | passed（2026-08-12，自动化，见 §35） |
+| 3C-QUE-07 | A | executor 拒绝 | INTERNAL_CAPACITY_MISMATCH，不伪装超时 | passed（2026-08-12，自动化，见 §35） |
+| 3C-QUE-08 | A | 200 任务混合取消/完成 | FIFO 有效项顺序稳定，许可回基线 | passed（2026-08-12，自动化，见 §35） |
+
+## 30. 3C-SETTLE/STOP — 唯一结算与停止归属
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-SET-01 | A | 完成先于停止 | COMPLETED；stop 返回真实已终态 | passed（2026-08-12，自动化，见 §35） |
+| 3C-SET-02 | A | 停止先于完成 | STOPPED；晚完成无副作用 | passed（2026-08-12，自动化，见 §35） |
+| 3C-SET-03 | A | 失败/容器超时/关停竞争 | CAS 首胜，终态唯一 | passed（2026-08-12，自动化，见 §35） |
+| 3C-SET-04 | A | 1000 轮三方竞态 | 最多一消息/终态，许可订阅全释放 | passed（2026-08-12，自动化，见 §35） |
+| 3C-STOP-01 | A | 排队中停止 | 从队列失效，零模型调用 | passed（2026-08-12，自动化，见 §35） |
+| 3C-STOP-02 | A | 生成中停止 | 取消订阅、保存部分、立即响应 | passed（2026-08-12，自动化，见 §35） |
+| 3C-STOP-03 | A | 归属三元组不符 | 与不存在统一 404 | passed（2026-08-12，自动化，见 §35） |
+| 3C-STOP-04 | A | 重复停止 | 幂等返回现有终态，不重复保存 | passed（2026-08-12，自动化，见 §35） |
+
+## 31. 3C-SSE — 事件协议与推送资源
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-SSE-01 | A | 正常流 | accepted 第一、sequence 递增、completed 唯一 | passed（2026-08-12，自动化，见 §35） |
+| 3C-SSE-02 | A | queued 后生成 | queued → started → delta → terminal | passed（2026-08-12，自动化，见 §35） |
+| 3C-SSE-03 | A | 空 delta/未知 AI 事件 | 空值不发；内部事件不外泄 | passed（2026-08-12，自动化，见 §35） |
+| 3C-SSE-04 | A | delta 合并边界 | 20ms/256 字符任一触发 flush | passed（2026-08-12，自动化，见 §35） |
+| 3C-SSE-05 | A | push mailbox 饱和 | PUSH_BACKPRESSURE、部分保存、资源释放 | passed（2026-08-12，自动化，见 §35） |
+| 3C-SSE-06 | A | Reactor 回调线程 | `SseEmitter.send` 不在 event loop | passed（2026-08-12，自动化，见 §35） |
+| 3C-SSE-07 | A | 拒绝路径 | 复用同 emitter/发送守卫，终态唯一 | passed（2026-08-12，自动化，见 §35） |
+| 3C-SSE-08 | A | 终态后上游又发 delta | 无新事件、无 buffer 修改 | passed（2026-08-12，自动化，见 §35） |
+
+## 32. 3C-DISC/API — 断连恢复与 HTTP 契约
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-DIS-01 | A | 客户端断开 | 只解绑 observer，模型继续 | passed（2026-08-12，自动化，见 §35） |
+| 3C-DIS-02 | A | 断连后 GET 活动态 | QUEUED/GENERATING，无未落库 buffer | passed（2026-08-12，自动化，见 §35） |
+| 3C-DIS-03 | A | 断连后 GET 终态 | 一次读取完整/部分消息 | passed（2026-08-12，自动化，见 §35） |
+| 3C-API-01 | A | accepted 前验证/保存失败 | JSON HTTP 错误，不发送 SSE | passed（2026-08-12，自动化，见 §35） |
+| 3C-API-02 | A | accepted 后模型失败 | HTTP 不变，SSE failed | passed（2026-08-12，自动化，见 §35） |
+| 3C-API-03 | A | 幂等重放活动/终态 | 409 或 GET 恢复，不重播事件 | passed（2026-08-12，自动化，见 §35） |
+| 3C-API-04 | A | 3B retrieval/tools | 逐字段保持冻结形状 | passed（2026-08-12，自动化，见 §35） |
+
+## 33. 3C-PRIV/LIFE — 隐私与生命周期
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-PRIV-01 | A | 标记串注入四类输入与答案 | 诊断表/SSE 元数据/日志无副本 | passed（2026-08-12，自动化，见 §35） |
+| 3C-PRIV-02 | A | 供应商错误含 URL/key 片段 | 只见归一化 code | passed（2026-08-12，自动化，见 §35） |
+| 3C-LIFE-01 | A | 优雅关停含队列/生成任务 | 归一化失败、部分保存、全部释放 | passed（2026-08-12，自动化，见 §35） |
+| 3C-LIFE-02 | A | 重启恢复 | 不恢复流/许可，GET 可见失败 | passed（2026-08-12，自动化，见 §35） |
+
+## 34. 3C-UI — 浏览器手工验收
+
+| ID | 类型 | 场景 | 预期 | 状态 |
+|---|---|---|---|---|
+| 3C-UI-01 | M | 排队 → 生成 → 完成 | 输入/停止/终态与规格一致 | passed（2026-08-12，Chrome 真实页面走查，见 §35） |
+| 3C-UI-02 | M | 生成中停止 | 保留部分、标已停止、无重试 | passed（2026-08-12，Chrome 真实页面走查，见 §35） |
+| 3C-UI-03 | M | 排队取消 | 立即停止、无答案 | passed（2026-08-12，Chrome 真实页面走查，见 §35） |
+| 3C-UI-04 | M | 完成但未保存 | 明示未保存，依赖 messageId 操作禁用 | passed（2026-08-12，Chrome 真实页面走查，见 §35） |
+| 3C-UI-05 | M | 生成失败 vs 等待超时 | 两类文案与重试入口可区分 | passed（2026-08-12，Chrome 真实页面走查，见 §35） |
+| 3C-UI-06 | M | 断连重连 | 不假流，最终整段出现 | passed（2026-08-12，Chrome 真实页面走查，见 §35） |
+| 3C-UI-07 | M | 375/720/1024/1440 + 键盘/读屏 | 无逐字 aria-live、焦点与 reduced-motion 正确 | passed（2026-08-12，Chrome 真实页面走查，见 §35） |
+
+## 35. 3C 完成口径
+
+### 35.1 自动化证据（55 条）
+
+以下方法均由 Maven/Vitest 默认测试发现规则收录；方法名中的范围就是对应矩阵 ID。最终门禁以
+`scripts/ci-validate.sh` 的完整结果为准。
+
+| 用例 | 可定位测试方法 |
+|---|---|
+| `3C-CFG-01~04` | `QaGenerationConfigurationTests#执行器线程数漂移时阻止启动并指出配置值与实际值`、`#时间预算必须为正且保持首包小于模型并被SSE完整包住`、`#执行资源数量必须为正且push队列不得小于任务队列` |
+| `3C-PRM-01~07` | `GenerationPromptAssemblerTests#prm01_*`、`#prm02_*`、`#prm03_*`、`#prm04到06_*`、`#prm07_*` |
+| `3C-DB-01~03` | `Qa3cSchemaMigrationTests#db01_*`、`#db02_*`、`#db03_*` |
+| `3C-DB-04~07` | `TaskSettlementIntegrationTests#db04_*`、`#db05_*`、`#db06_*`、`#db07_*` |
+| `3C-HIST-01~02` | `ConversationMemoryServiceTests#hist01_*`、`GenerationTaskRecoveryIntegrationTests#重启将排队和生成中任务原子恢复为失败且可重复执行` |
+| `3C-QUE-01~05,07~08` | `FairGenerationAdmissionQueueTests#que01和02_*`、`#que03_*`、`#que04_*`、`#que05_*`、`#que07_*`、`#que08_*` |
+| `3C-QUE-06` | `FairGenerationAdmissionQueueTests#que06_队列满在任务启动前拒绝` + `QaApiExceptionHandlerTests#generation队列满在Accepted前返回429与RetryAfter` |
+| `3C-SET-01~03` | `TaskSettlementIntegrationTests#set01到03_*` |
+| `3C-SET-04` | `TaskSettlementRaceTests#一千轮完成停止超时三方竞态最多一个终态和一次资源释放` |
+| `3C-STOP-01` | `GenerationTasksIntegrationTests#排队中停止使队列项失效且不调用模型` |
+| `3C-STOP-02` | `GenerationTasksIntegrationTests#生成中停止取消订阅并以Stopped保存部分` |
+| `3C-STOP-03~04` | `Qa3cApiIntegrationTests#stop01到04_生成中停止校验归属并保持幂等真实终态` |
+| `3C-SSE-01~03` | `SseGenerationObserverTests#sse01到03_*` |
+| `3C-SSE-04` | `SseGenerationObserverTests#sse04_*` |
+| `3C-SSE-05` | `SseGenerationObserverTests#sse05_*` |
+| `3C-SSE-06` | `SseGenerationObserverTests#sse06_*` |
+| `3C-SSE-07~08` | `SseGenerationObserverTests#sse07和08_*` |
+| `3C-DIS-01~03` | `GenerationTasksIntegrationTests#推送断连不取消后台任务且答案仍可恢复` + `Qa3cApiIntegrationTests#api01到03_流式提交返回Sse且Accepted第一终态后Get可恢复` |
+| `3C-API-01~02` | `Qa3cApiIntegrationTests#api01_Accepted前校验错误保持普通Json`、`#priv02_供应商错误的Url和Key只归一化为失败码` |
+| `3C-API-03` | `Qa3cApiIntegrationTests#api03_流式幂等重放不重播且Get读取既有终态` |
+| `3C-API-04` | `QuestionUnderstandingE2ETests#e2e_3A到3B到3C经真实Http只调用一次流式模型并可Get恢复` |
+| `3C-PRIV-01~02` | `GenerationTasksIntegrationTests#四类Prompt输入只到模型且Sse元数据诊断表和日志无副本`、`Qa3cApiIntegrationTests#priv02_*` |
+| `3C-LIFE-01~02` | `GenerationTasksIntegrationTests#停机统一清算生成中与排队任务并拒绝新提交`、`GenerationTaskRecoveryIntegrationTests#重启将排队和生成中任务原子恢复为失败且可重复执行` |
+
+### 35.2 浏览器证据（7 条 M）
+
+- 日期与环境：2026-08-12；Codex 内置 Chromium；真实 React/Vite 页面
+  `http://127.0.0.1:5173/chat`；确定性本地 HTTP/SSE 夹具 `127.0.0.1:3002`。
+- 边界：AI 代理执行点击、键盘、DOM 与截图检查，未声称人工目视签字；夹具只控制网络时序与终态，
+  页面、状态机、样式和可访问性均为生产前端代码；不把夹具结果当作真实付费模型准入。
+- 截图：本次任务浏览器记录捕获 1440×900 完成态与 375×812 生成中窄屏；以下同时保留可复核 DOM
+  事实，因此截图不是唯一证据。
+
+| 用例 | 浏览器/DOM 证据 |
+|---|---|
+| `3C-UI-01` | 先出现 `排队中…`、停止按钮且输入禁用；随后完整两行纯文本一次性落稳，输入恢复。 |
+| `3C-UI-02` | 生成中点击停止后保留已产生正文，显示 `已停止生成，以上是已经产生的部分。`，无重试入口。 |
+| `3C-UI-03` | 排队中点击停止后无 assistant body，显示 `已停止，本轮没有开始生成。`；走查发现并修正了原先误报“已有部分”的文案。 |
+| `3C-UI-04` | 正文仍在当前页，显示 `本条回答未能保存，刷新后将不可见`，输入恢复；GET 无 assistantMessage。 |
+| `3C-UI-05` | 模型失败显示 `回答服务暂时不可用，请稍后重试。`；等待超时显示 `当前排队较多，本轮未开始生成`；两者均有独立重试入口。 |
+| `3C-UI-06` | 连接断开后只显示 `这一轮仍在进行，完成后会显示在这里`、无伪 delta；轮询终态后整段答案一次出现。 |
+| `3C-UI-07` | 375/720/1024/1440 均无常驻 dialog、页面无横向溢出；375 下状态区 `flex-direction: column` 且停止按钮与状态区同宽；live answer 为 `aria-busy=true` 且无 `aria-live` 祖先，提交后焦点不跳到停止按钮；键盘抽屉焦点回归由 `ChatPage.test.tsx` 覆盖，动画仅在 `prefers-reduced-motion: no-preference` 下启用。 |
+
+真实供应商流式准入只有在显式凭据存在时才可运行，且一次调用足够，不进入默认 CI；本轮没有把
+任何失败项改成“无覆盖”来清零。
