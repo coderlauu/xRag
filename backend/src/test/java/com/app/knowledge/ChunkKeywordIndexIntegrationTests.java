@@ -1,6 +1,7 @@
 package com.app.knowledge;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.app.knowledge.keyword.ChunkKeywordRepository;
 import com.app.knowledge.search.ChunkSearchPort;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,9 @@ class ChunkKeywordIndexIntegrationTests {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private org.springframework.transaction.support.TransactionTemplate transactions;
+
     @Test
     void kw01_写向量的同一处也写关键词行且行集合一致() {
         var fixture = fixture("关键词一致性", "签收后 7 日内可发起退货，生鲜类商品除外");
@@ -47,6 +52,54 @@ class ChunkKeywordIndexIntegrationTests {
         assertThat(chunkIdsIn("document_chunk_embedding", fixture.docId()))
                 .isEqualTo(chunkIdsIn("document_chunk_keyword", fixture.docId()))
                 .containsExactly(fixture.chunkId());
+    }
+
+    /**
+     * KW-02：任一失败整批不产生半套索引。
+     *
+     * <p>两张派生表必须同增同删（架构 §20.1）。**这条不变量由调用方的事务保证**，
+     * {@code insertAll} 自己没有 {@code @Transactional}——所以要验的是"在一个事务里失败会整批
+     * 回滚"，而不是 insertAll 内部有什么补偿逻辑。
+     *
+     * <p><b>本方法不参与类级事务</b>：要验的回滚必须发生在一个真实的、独立的事务里。挂在类级
+     * 事务下用 TransactionTemplate 只会加入同一个事务，内部失败把外层一起标成 aborted，
+     * 后续断言查询全部报 25P02。种子因此真提交，用 finally 清理。
+     */
+    @Test
+    @org.springframework.transaction.annotation.Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void kw02_关键词写入失败时向量也不留下半套索引() {
+        var fixture = fixture("关键词半套索引", "退货政策说明");
+        try {
+
+        // 先占住关键词表的主键（chunk_id 是 PK），让 insertAll 的第二步必然冲突：
+        // 向量先写成功、关键词后失败，正好是"半套"的那个瞬间。
+        jdbc.update(
+                """
+                insert into document_chunk_keyword (chunk_id, kb_id, doc_id, tsv)
+                values (?, ?, ?, to_tsvector('simple', '占位'))
+                """,
+                fixture.chunkId(),
+                fixture.kbId(),
+                fixture.docId());
+
+        assertThatThrownBy(() -> transactions.executeWithoutResult(status ->
+                        vectors.insertAll(
+                                fixture.kbId(), fixture.docId(),
+                                List.of(fixture.chunkId()), List.of(vector()))))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        // 关键：向量那一步虽然执行过，但随事务一起回滚了——没有留下"有向量没关键词"的半套。
+        assertThat(chunkIdsIn("document_chunk_embedding", fixture.docId()))
+                .as("关键词失败后向量必须一起回滚，否则检索会静默少召回而且没有任何报错")
+                .isEmpty();
+        } finally {
+            jdbc.update("delete from document_chunk_keyword where kb_id = ?", fixture.kbId());
+            jdbc.update("delete from document_chunk_embedding where kb_id = ?", fixture.kbId());
+            jdbc.update("delete from document_chunk where kb_id = ?", fixture.kbId());
+            jdbc.update("delete from source_document where kb_id = ?", fixture.kbId());
+            jdbc.update("delete from knowledge_base where id = ?", fixture.kbId());
+        }
     }
 
     @Test

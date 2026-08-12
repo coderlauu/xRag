@@ -359,7 +359,7 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
 | 3B-KW-01 | A | V9 建表后 `document_chunk_keyword` 与 `document_chunk_embedding` 在同一批分块上行集合一致 | passed（`2026-08-11`） |
-| 3B-KW-02 | A | 入库写向量的同一处也写关键词行；任一失败整批不产生半套索引 | **no-coverage**（`2026-08-11`） |
+| 3B-KW-02 | A | 入库写向量的同一处也写关键词行；任一失败整批不产生半套索引 | passed（`2026-08-11`） |
 | 3B-KW-03 | A | 分块内容更新走 delete + insert 同一 `chunk_id`，不产生重复行 | passed（`2026-08-11`） |
 | 3B-KW-04 | A | 分块/文档逻辑删除或停用后关键词行被物理删除，通道查不到 | passed（`2026-08-11`） |
 | 3B-KW-05 | A | 索引期与查询期使用同一切词器实例，同一文本两次切词结果逐 token 相等 | passed（`2026-08-11`） |
@@ -377,7 +377,7 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 | 3B-CH-03 | A | **两个向量通道不同时激活**——定向存在时全局不执行任何 SQL | passed（`2026-08-11`） |
 | 3B-CH-04 | A | 关键词通道始终激活，作用域与同轮向量通道一致 | passed（`2026-08-11`） |
 | 3B-CH-05 | A | 检索用改写后的问题，不用用户原话 | passed（`2026-08-11`） |
-| 3B-CH-06 | A | 3B 只读 `ACTIONS_READY` 的动作行，不读意图分数、不回读当前树 | **no-coverage**（`2026-08-11`） |
+| 3B-CH-06 | A | 3B 只读 `ACTIONS_READY` 的动作行，不读意图分数、不回读当前树 | passed（`2026-08-11`） |
 | 3B-CH-07 | A | 通道只有一套 `priority`，排序与去重取舍用同一个值 | passed（`2026-08-11`） |
 
 ## 20. 3B-FUSE — 融合、去重与截断
@@ -390,7 +390,7 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 | 3B-FUSE-04 | A | 融合只消费排名，通道分数量纲变化不改变输出顺序 | passed（`2026-08-11`） |
 | 3B-FUSE-05 | A | 代码中不存在 `text.hashCode()` 一类去重兜底路径（静态断言） | passed（`2026-08-11`） |
 | 3B-FUSE-06 | A | 两次截断分别受 `rerank-input-size` 与 `top-n` 约束，且前者 ≤ `maxDocuments` | passed（`2026-08-11`） |
-| 3B-FUSE-07 | A | 去重失败 = 本轮检索失败；精排失败 = 降级继续（两种容错不混用） | **no-coverage**（`2026-08-11`） |
+| 3B-FUSE-07 | A | 去重失败 = 本轮检索失败；精排失败 = 降级继续（两种容错不混用） | passed（`2026-08-11`） |
 
 ## 21. 3B-RANK — 精排三态
 
@@ -432,14 +432,14 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 | 3B-TOOL-07 | A | 缺任一必填参数**不调用工具**；不存在"过滤后照常执行"的路径 | passed（`2026-08-11`） |
 | 3B-TOOL-08 | A | 参数抽取失败**绝不用默认值继续**（只读工具同样适用） | passed（`2026-08-11`） |
 | 3B-TOOL-09 | A | 有副作用工具在 `PENDING_CONFIRM` 期间零外部调用（用可观测假工具断言调用次数为 0） | passed（`2026-08-11`） |
-| 3B-TOOL-10 | A | 数据库约束拦住"无 `confirmed_at` 却处于 RUNNING"的写入 | **no-coverage**（`2026-08-11`） |
+| 3B-TOOL-10 | A | 数据库约束拦住"无 `confirmed_at` 却处于 RUNNING"的写入 | passed（`2026-08-11`） |
 | 3B-TOOL-11 | A | 重复 `CONFIRM` 用同一 `clientRequestId` 只执行一次 | passed（`2026-08-11`） |
 | 3B-TOOL-12 | A | 取消后再确认返回 409 `TOOL_CALL_NOT_PENDING` | passed（`2026-08-11`） |
 | 3B-TOOL-13 | A | 失败后重试产生新 `toolCallId`，有副作用者重新回到 `PENDING_CONFIRM` | passed（`2026-08-11`） |
 | 3B-TOOL-14 | A | 工具超时归一化为 `TOOL_EXECUTION_TIMEOUT`，不透传异常 | passed（`2026-08-11`） |
 | 3B-TOOL-15 | A | 只读工具不经确认直接执行，参数同样全程可见 | passed（`2026-08-11`） |
 | 3B-TOOL-16 | A | 工具返回按纯文本存取，含 `</data>`、HTML、Markdown 链接时不被解析 | passed（`2026-08-11`） |
-| 3B-TOOL-17 | A | `description` 来自配置；模型返回的描述性文本不进入确认卡 | **no-coverage**（`2026-08-11`） |
+| 3B-TOOL-17 | A | `description` 来自配置；模型返回的描述性文本不进入确认卡 | passed（`2026-08-11`） |
 | 3B-TOOL-18 | A | 刷新后 `PENDING_CONFIRM` 仍可裁决（状态持久化，不在前端内存） | passed（`2026-08-11`） |
 
 ## 24. 3B-CFG — 配置与启动校验
@@ -447,7 +447,7 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
 | 3B-CFG-01 | A | `max-parallelism >= maximum-pool-size` 时**启动失败**，错误打印两个实际值 | passed（`2026-08-11`，落点见 §26.1） |
-| 3B-CFG-02 | A | 池大小显式配置生效，不再落到默认 10 | **no-coverage**（`2026-08-11`） |
+| 3B-CFG-02 | A | 池大小显式配置生效，不再落到默认 10 | passed（`2026-08-11`） |
 | 3B-CFG-03 | A | `rerank-input-size > RerankProfile.maxDocuments` 时启动失败 | passed（`2026-08-11`，落点见 §26.1） |
 | 3B-CFG-04 | A | `channel-top-k < top-n` 时启动失败 | passed（`2026-08-11`，落点见 §26.1） |
 | 3B-CFG-05 | A | 并发检索峰值下未出现连接获取超时（按配置上限压测） | passed（`2026-08-11`） |
@@ -476,8 +476,8 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 
 ## 26. 3B 矩阵执行记录（工单 15，`2026-08-11`）
 
-76 条 `3B-*`：**61 条 passed，6 条 no-coverage，9 条 pending-walkthrough**。
-证据是同日的全量回归 632 tests / 0 failures（`scripts/ci-validate.sh` exit=0）。
+76 条 `3B-*`：**67 条 passed，9 条 pending-walkthrough**。
+证据是同日的全量回归 **638 tests / 0 failures**。首轮核对时有 6 条 no-coverage，已于同日补齐（§26.2）。
 
 ### 26.1 方法名不含矩阵 ID 的五条
 
@@ -491,18 +491,25 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 | `3B-CFG-06` | `QaRetrievalConfigurationTests#检索执行器有界且与意图评分执行器不共享队列` |
 | `3B-TOOL-01` | `QaToolPropertiesTests#重复工具名阻止启动并点名两处配置` |
 
-### 26.2 六条 no-coverage：确实没有自动化落点
+### 26.2 六条 no-coverage 已补齐（`2026-08-11` 同日）
 
-**不是"跑了没过"，是"压根没有对应用例"**，所以不能标 passed 也不该标 failed：
+首轮核对发现它们**压根没有对应用例**（不是跑了没过）。都是"同前缀其余都齐、独缺这一条"的
+形态——`ch01~ch05`、`ch07` 都在就差 `ch06`，`fuse01~fuse06` 都在就差 `fuse07`。已按项目所有者
+指示补齐并全部通过：
 
-| 矩阵 ID | 缺口 |
-|---|---|
-| `3B-CFG-02` | 池大小显式配置生效。测试期池大小由 `pom.xml` 的 surefire 属性设成 6，但没有用例断言"显式配置生效、不落回默认 10" |
-| `3B-CH-06` | 3B 只读 `ACTIONS_READY` 的动作行，不读意图分数、不回读当前树。`SearchChannelActivationTests` 有 ch01~ch05、ch07，独缺这条 |
-| `3B-FUSE-07` | 去重失败=本轮失败、精排失败=降级继续（两种容错不混用）。`ReciprocalRankFusionTests` 有 fuse01~fuse06 |
-| `3B-KW-02` | "任一失败整批不产生半套索引"。`kw01` 只覆盖了"同一处写两张表"的正向 |
-| `3B-TOOL-10` | 数据库约束拦住"无 `confirmed_at` 却 RUNNING"。约束本身在 V9 里（`ck_qa_tool_confirm`），但没有用例正面撞它 |
-| `3B-TOOL-17` | `description` 来自配置、模型返回的描述性文本不进确认卡。前端有断言说明文案来自服务端，后端侧没有对应用例 |
+| 矩阵 ID | 新增落点 | 补的是什么 |
+|---|---|---|
+| `3B-CFG-02` | `RetrievalOrchestratorIntegrationTests#cfg02_…` | 池大小是并行检索的硬约束（CFG-01 的边界按它算），所以"配置有没有真生效"本身要验 |
+| `3B-CH-06` | 同类 `#ch06_…` | 让动作指向不存在的意图节点、整轮无 `qa_intent_match`，检索照常工作即"不回读"的证据 |
+| `3B-FUSE-07` | 同类 `#fuse07_…` | 融合失败让本轮失败，与精排失败降级形成对照——一份被悄悄削减的来源比整轮失败更危险 |
+| `3B-KW-02` | `ChunkKeywordIndexIntegrationTests#kw02_…` | 先占住关键词表主键，制造"向量已写、关键词失败"的瞬间，验整批回滚 |
+| `3B-TOOL-10` | `Qa3bSchemaMigrationTests#tool10_…` | 正面撞 `ck_qa_tool_confirm`，含反向（未到执行阶段却带确认时间戳）与只读工具两侧 |
+| `3B-TOOL-17` | `Qa3bApiContractIntegrationTests#tool17_…` | 参数 JSON 里塞模型编造的 `description`/`displayName`，断言响应用的是配置里那句 |
+
+两条实现上值得记：`kw02` 与 `fuse07` 都要在**独立事务**里验回滚——挂在类级 `@Transactional`
+下用 `TransactionTemplate` 只会加入同一个事务，内部失败把外层一起标成 aborted，后续断言全部
+报 25P02。`fuse07` 的失败注入靠继承 `ReciprocalRankFusion`（它是具体类），与本仓库"可编程假
+实现手写"的风格一致，不引 Mockito。
 
 ### 26.3 回写过程中的一次返工，值得记下来
 

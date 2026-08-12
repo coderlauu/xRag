@@ -55,6 +55,12 @@ class RetrievalOrchestratorIntegrationTests {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private org.springframework.core.env.Environment environment;
+
+    @Autowired
+    private javax.sql.DataSource dataSource;
+
     private UUID conversationId;
     private final List<Long> createdKbs = new ArrayList<>();
 
@@ -104,12 +110,34 @@ class RetrievalOrchestratorIntegrationTests {
         /** 异常 message 里塞进这段文本，用来验它不会泄漏到落库结构里（FAIL-06）。 */
         static final String LEAK_MARKER = "内部细节-不该出现在任何用户可见结构里";
 
+        /** 融合/去重是否失败。FUSE-07 用它验"去重失败 = 本轮失败"，与精排失败降级形成对照。 */
+        static final AtomicBoolean FUSION_FAILS = new AtomicBoolean(false);
+
         static void reset() {
             FAILING_KB_IDS.clear();
             KEYWORD_FAILS.set(false);
             AS_TIMEOUT.set(false);
+            FUSION_FAILS.set(false);
             VECTOR_CALLS.clear();
             IN_TRANSACTION.clear();
+        }
+
+        /**
+         * 可失败的融合。{@link ReciprocalRankFusion} 是具体类不是接口，所以这里继承它
+         * ——与本仓库"可编程假实现手写"的风格一致，不引 Mockito。
+         */
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        ReciprocalRankFusion programmableFusion(com.app.qa.config.QaRetrievalProperties properties) {
+            return new ReciprocalRankFusion(properties) {
+                @Override
+                public List<FusedCandidate> fuse(List<ChannelResult> results) {
+                    if (FUSION_FAILS.get()) {
+                        throw new IllegalStateException(LEAK_MARKER);
+                    }
+                    return super.fuse(results);
+                }
+            };
         }
 
         @org.springframework.context.annotation.Bean
@@ -466,6 +494,70 @@ class RetrievalOrchestratorIntegrationTests {
         assertThat(outcome.partial())
                 .as("什么都没有不是『不完整』，那是『没查成』")
                 .isFalse();
+    }
+
+    @Test
+    void cfg02_连接池按显式配置生效而不是落回默认值() {
+        // 池大小是并行检索的硬约束（max-parallelism 必须严格小于它，见 CFG-01），所以"配置到底
+        // 有没有生效"本身要被验证——测试期把它压到 6 正是为了给上下文变体留余量，如果它悄悄
+        // 落回默认 10，CFG-01 的边界校验就是按错误的数字算的。
+        String configured = environment.getProperty("spring.datasource.hikari.maximum-pool-size");
+        assertThat(configured)
+                .as("测试期应显式配置池大小（见 backend/pom.xml 的 surefire 属性）")
+                .isNotNull();
+
+        var hikari = (com.zaxxer.hikari.HikariDataSource) dataSource;
+        assertThat(hikari.getMaximumPoolSize())
+                .as("运行时池大小必须等于显式配置，不能落回 Hikari 默认的 10")
+                .isEqualTo(Integer.parseInt(configured));
+    }
+
+    @Test
+    void ch06_检索只读动作行不依赖意图分数也不回读当前树() {
+        // 3B 只消费 3A 写死的动作行（架构 §15）。这里让动作指向一个**不存在的意图节点**、
+        // 且整轮没有任何 qa_intent_match 记录——如果编排真去回读意图树或分数，这一轮必然报错
+        // 或召不回；它照常工作，就是"不回读"的证据。
+        var kb = seedKb("编排只读动作", "退货政策说明");
+        var turn = seedTurn();
+        var subQuestion = seedSubQuestion(turn, "退货政策");
+        var action = seedAction(turn, subQuestion, "KB_TARGETED", kb.kbId());
+
+        // 前提确认：这一轮确实没有意图评分记录，否则下面的断言证明不了什么。
+        assertThat(jdbc.queryForObject(
+                        "select count(*) from qa_intent_match where turn_id = ?", Integer.class, turn))
+                .isZero();
+        // 动作里的 intent_node_id 指向不存在的节点（seedAction 用的是随机 UUID）。
+        assertThat(jdbc.queryForObject(
+                        "select count(*) from qa_retrieval_action where turn_id = ? and intent_node_id is not null",
+                        Integer.class,
+                        turn))
+                .isEqualTo(1);
+
+        var outcome = orchestrator.retrieve(turn);
+
+        assertThat(outcome.status()).isEqualTo(RetrievalStatus.RETRIEVED);
+        assertThat(outcome.sources()).isNotEmpty();
+        assertThat(targetStatus(turn, action)).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void fuse07_去重失败让本轮失败而不是像精排那样降级() {
+        // 两种容错**刻意不混用**：精排失败降级为未精排、本轮照常返回（rank04 验的那条）；
+        // 而融合/去重是结果正确性的一部分，它失败时给出一份"少了一些、但看起来正常"的来源
+        // 比整轮失败更危险——用户没有任何线索知道结果被悄悄削减了。
+        var kb = seedKb("编排融合失败", "退货政策说明");
+        var turn = seedTurn();
+        var subQuestion = seedSubQuestion(turn, "退货政策");
+        seedAction(turn, subQuestion, "KB_TARGETED", kb.kbId());
+        ProgrammableSearchFailure.FUSION_FAILS.set(true);
+
+        assertThatThrownBy(() -> orchestrator.retrieve(turn))
+                .as("融合失败必须让本轮失败，不能降级成一份被悄悄削减的结果")
+                .isInstanceOf(RuntimeException.class);
+
+        // 没有留下半套记录：失败的那一轮不该在库里留下"看起来成功"的痕迹。
+        assertThat(rowCount("qa_turn_retrieval", turn)).isZero();
+        assertThat(rowCount("qa_retrieval_source", turn)).isZero();
     }
 
     @Test

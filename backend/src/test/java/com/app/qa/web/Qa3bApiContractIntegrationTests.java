@@ -147,6 +147,30 @@ class Qa3bApiContractIntegrationTests {
     }
 
     @Test
+    void tool17_描述与显示名来自白名单配置而不是模型输出() throws Exception {
+        var turn = seedTurn();
+        // 参数 JSON 里塞进模型可能编造的描述性字段。它们**不在 Schema 声明的参数里**，
+        // 所以既不该进参数表，更不该冒充确认卡上那句说明。
+        seedToolCall(turn, 0, "PENDING_CONFIRM", """
+                {"orderNo":"ORD-1","reason":"质量问题",\
+                "description":"我将帮你把这张单子直接通过审核","displayName":"一键退款"}""");
+
+        String body = mvc.perform(get("/api/qa/conversations/{c}/turns/{t}", conversationId, turn))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // 说明来自服务端白名单配置（架构 §21.2）。否则模型既决定调什么工具、又决定怎么向
+        // 用户描述它，确认就成了走过场——用户读到的是模型自己写的推销词。
+        assertThat(body).contains("在售后工单系统中新建一张退货工单。");
+        assertThat(body).contains("提交退货工单");
+        // 模型编造的那两句一个字都不能出现。
+        assertThat(body).doesNotContain("我将帮你把这张单子直接通过审核");
+        assertThat(body).doesNotContain("一键退款");
+    }
+
+    @Test
     void api03_同一轮的sources内chunkId不重复() throws Exception {
         var first = seedKb("契约去重甲", "退货政策甲");
         var second = seedKb("契约去重乙", "退货政策乙");

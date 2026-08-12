@@ -127,6 +127,51 @@ class Qa3bSchemaMigrationTests {
     }
 
     @Test
+    void tool10_有副作用的工具没有确认时间戳就不能处于执行中及之后() {
+        // ck_qa_tool_confirm 是"确认前一律不执行"（PRD §12.7）的数据库表达。价值在于即使某天
+        // 服务层写错一个分支，数据库也不让它落地——所以要有一条正面撞上去的用例，
+        // 否则这个约束的存在性只靠读迁移脚本证明。
+        migrate(null);
+        var ids = seedTurnWithAction();
+
+        for (String status : java.util.List.of("RUNNING", "SUCCEEDED", "FAILED")) {
+            assertThatThrownBy(() -> insertToolCall(ids.turnId(), status, true, null))
+                    .as("有副作用 + %s 却没有 confirmed_at，必须被拦住", status)
+                    .isInstanceOf(DataIntegrityViolationException.class)
+                    .hasMessageContaining("ck_qa_tool_confirm");
+        }
+
+        // 反过来也拦：没到执行阶段却带着确认时间戳，同样是状态机被绕过的信号。
+        assertThatThrownBy(() -> insertToolCall(ids.turnId(), "PENDING_CONFIRM", true, java.time.OffsetDateTime.now()))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("ck_qa_tool_confirm");
+
+        // 只读工具不需要确认，到 RUNNING 也不该有确认时间戳。
+        assertThatCode(() -> insertToolCall(ids.turnId(), "RUNNING", false, null))
+                .doesNotThrowAnyException();
+    }
+
+    private void insertToolCall(
+            java.util.UUID turnId, String status, boolean sideEffect, java.time.OffsetDateTime confirmedAt) {
+        jdbc.update(
+                """
+                insert into qa_tool_call
+                    (id, turn_id, ordinal, tool_name, side_effect, status, failure_code, confirmed_at)
+                values (?, ?, ?, 'submit-return-ticket', ?, ?, ?, ?)
+                """,
+                java.util.UUID.randomUUID(),
+                turnId,
+                toolOrdinal++,
+                sideEffect,
+                status,
+                "FAILED".equals(status) ? "EXECUTION_FAILED" : null,
+                confirmedAt);
+    }
+
+    /** 同一轮里 ordinal 唯一，本类多次插入工具行时靠它避开 uq_qa_tool_ordinal。 */
+    private int toolOrdinal = 0;
+
+    @Test
     void 降级与精排标记必须互斥() {
         migrate(null);
         var ids = seedTurnWithAction();
