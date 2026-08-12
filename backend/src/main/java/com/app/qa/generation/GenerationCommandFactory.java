@@ -43,13 +43,15 @@ public final class GenerationCommandFactory {
                  order by ordinal
                 """, (rs, rowNum) -> new GenerationPromptAssembler.Item(
                         rs.getObject("id", UUID.class).toString(), rs.getString("result_text")), turnId);
+        // 用匹配行主键而不是 node_id：多个子问题可以命中同一个叶子（唯一约束是
+        // subquestion_id + node_id），拿 node_id 当 prompt item id 会撞唯一性校验。
         var intentHints = jdbc.query("""
-                select node_id, full_path_snapshot
+                select id, full_path_snapshot
                   from qa_intent_match
                  where turn_id = ? and deleted = false and rank = 1
                  order by subquestion_id
                 """, (rs, rowNum) -> new GenerationPromptAssembler.Item(
-                        rs.getObject("node_id", UUID.class).toString(), rs.getString("full_path_snapshot")), turnId);
+                        rs.getObject("id", UUID.class).toString(), rs.getString("full_path_snapshot")), turnId);
         return new GenerationCommand(
                 current.conversationId,
                 turnId,
