@@ -8,11 +8,19 @@
 
 工单 22 已完成 CI 与部署门禁，22 张可自主完成的工单全部关闭。
 
-**唯一剩下的 23（真实 Provider 准入）卡在外部条件**：它需要一把合规的通用计费 Key。
-现有 `EMBEDDING_API_KEY` 是火山方舟 Coding Plan 凭据，官方条款禁止直接 API 调用，
-architecture §13 明确它不得扩展到 Chat / 流式 Chat / Rerank，也不算已合规准入的 Provider。
-在拿到合规 Key 之前 23 只能保持 blocked——**不能改代码伪造支持，也不能把它算作通过**。
-诊断页的 `verifiedCapabilities` 因此恒为空数组，那是"尚未验证"而不是"不支持"。
+**工单 23（真实 Provider 准入）现为 `partially-verified`**，不再 blocked。
+
+上面这句话曾经写的是"卡在外部条件、需要一把合规的通用计费 Key"，那在 `2026-08-07` 就已经
+不成立——合规的百炼通用 `sk-` Key 已注入 `backend/.env`，Chat、流式 Chat、Rerank 都走完整
+链路实测通过（逐条见[工单 23](issues/23-real-provider-admission.md)的执行记录）。火山方舟
+Coding Plan 凭据不得扩展用途这条纪律仍然有效（architecture §13.2），它只是不再是阻塞项。
+
+`verifiedCapabilities` 也不再恒为空：`2026-08-11` 的 REAL-08 让它按 `ai_attempt` 的真实成功
+记录填充。注意它的准确语义是"**在现存诊断记录里**调通过"——诊断有保留窗口（ADR 0005），
+长期不调用的能力会自然掉出列表，它不是一份持久的准入登记表。
+
+仍未完成：REAL-05（429 观察）、REAL-07（费用告警，需项目所有者在控制台操作），以及诊断页
+尚未展示 `verifiedCapabilities`（加一列属 UI 改动，要过 ui-spec + 原型闸门）。
 
 ## 依赖图
 
