@@ -1,19 +1,21 @@
 # PRD：AI 知识问答核心链路（xrag Phase 3）
 
-- `status`: 3A approved（2026-08-07；3B/3C 增量仍须各自过 Step B）
+- `status`: 3A / 3B / 3C Step B approved
 - `owner`: liuqiang（产品决策）+ AI（起草）
 - `created`: 2026-08-07
 - `3a_approved_at`: 2026-08-07
+- `3b_approved_at`: 2026-08-08
+- `3c_step_b_approved_at`: 2026-08-12
 - `ui_decision`: 问答页 **C — Focused Chat**（2026-08-08 改判，原为 A — Conversation + Inspector）；
   意图树 C — Route Canvas（不变）
-- `current_increment`: 3A — 记忆 + 改写 + 意图（第 2~9 篇）
+- `current_increment`: 3C — 生成 + 流式 + 任务管控 + 排队限流（Step C）
 - `phase_plan`: [Phase 3 执行计划](../exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
 - `learning_checkpoint`: [Phase 3 Step A 学习检查点](../../learning/ragent-column/PHASE-3-STEP-A-CHECKPOINT.md)
 - `conversation_ui`: [问答对话页界面规格](../../tech/qa-pipeline/conversation/ui-spec.md)
 - `intent_tree_ui`: [意图树管理页界面规格](../../tech/qa-pipeline/intent-tree/ui-spec.md)
 
-> 本文件是 Phase 3 的渐进式 PRD。3A 只批准记忆、改写、意图与两套界面基线；3B/3C 必须在各自
-> Step B 增补检索/工具、生成/流式/管控的产品语义并重新过闸门。未进入当前增量的内容不是默认批准。
+> 本文件是 Phase 3 的渐进式 PRD。3A、3B 与 3C Step B 的产品语义均已确认；3C 的技术形态仍须
+> 在 Step C 单独确认。未进入当前 Step 的内容不是默认批准。
 
 ## 1. 背景与动机
 

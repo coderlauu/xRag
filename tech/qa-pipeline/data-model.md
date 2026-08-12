@@ -1,11 +1,11 @@
-# 数据模型：AI 知识问答核心链路（Phase 3A + 3B）
+# 数据模型：AI 知识问答核心链路（Phase 3A + 3B + 3C）
 
-- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§13~§17）**
+- `status`: 3A approved（2026-08-07）；3B approved（2026-08-08）；**3C approved（2026-08-12，§18~§21）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
 - `architecture`: [技术方案](architecture.md)
 - `api`: [API 契约](api.md)
-- `adr`: [ADR 0007 — 版本化意图树](../../docs/adr/0007-versioned-intent-tree.md)、[ADR 0008 — 混合检索与 RRF 融合](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)
+- `adr`: [ADR 0007 — 版本化意图树](../../docs/adr/0007-versioned-intent-tree.md)、[ADR 0008 — 混合检索与 RRF 融合](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)、[ADR 0009 — 单一结算边界](../../docs/adr/0009-single-settlement-generation-task.md)
 
 ## 1. 状态所有权
 
@@ -16,7 +16,8 @@
 | 当前意图树缓存 | JVM `AtomicReference` | 否 | 从数据库重建 |
 | 子问题评分线程与 Future | JVM 有界执行器 | 否 | 请求结束释放 |
 | 模型路由、attempt、breaker 与模型诊断 | `com.app.ai` | 按 ADR 0005 | 7 天诊断保留 |
-| 3C 的排队许可/取消 token | 尚未建设，未来 JVM 内 | 否 | 不落库轮询 |
+| 3C generation task 的业务终态 | PostgreSQL `qa_generation_task` | 是 | 随 turn 逻辑不可见 |
+| 3C 排队许可、取消 token、模型订阅 | JVM | 否 | 结算/关停时释放，不落库轮询 |
 
 问答业务表可以保存用户授权保存的正文；模型诊断表和 `qa_turn_stage` 不保存正文。两类表不能因为都叫
 “Trace”就互相复制数据。
@@ -706,3 +707,66 @@ create table qa_tool_call (
 - 若必须重做 V9，只允许在无 3B 业务数据的环境中显式 drop；生产式回滚不删已保存的来源与工具记录。
 - **换分词词典不是 migration**，是一次 `document_chunk_keyword` 全表重建。这条要进部署文档：
   换了词典却不重建，症状是关键词召回率悄悄下降，没有任何报错。
+
+# 3C — 生成任务与助手消息（approved，2026-08-12）
+
+## 18. `qa_generation_task`
+
+V11 新建任务事实表；它不保存 Prompt 或答案正文：
+
+```sql
+create table qa_generation_task (
+    id                    uuid primary key,
+    turn_id               uuid not null unique references qa_turn(id),
+    conversation_id       uuid not null references qa_conversation(id),
+    status                varchar(24) not null,
+    terminal_reason       varchar(64),
+    queued_at             timestamptz,
+    generation_started_at timestamptz,
+    completed_at          timestamptz,
+    queued_once           boolean not null default false,
+    answer_char_count     integer not null default 0,
+    assistant_message_id  uuid references qa_message(id),
+    answer_saved          boolean,
+    logical_call_id       uuid,
+    created_at            timestamptz not null default now(),
+    updated_at            timestamptz not null default now(),
+    constraint ck_qa_generation_status check (status in (
+      'QUEUED','GENERATING','COMPLETED','STOPPED','FAILED','TIMED_OUT')),
+    constraint ck_qa_generation_terminal check (
+      (status in ('QUEUED','GENERATING') and completed_at is null and terminal_reason is null)
+      or (status in ('COMPLETED','STOPPED','FAILED','TIMED_OUT') and completed_at is not null)),
+    constraint ck_qa_generation_count check (answer_char_count >= 0),
+    constraint ck_qa_generation_saved check (
+      answer_saved is null or status in ('COMPLETED','STOPPED','FAILED'))
+);
+```
+
+`answer_saved=false` 与业务终态正交：完整回答已生成但消息落库失败仍是 `COMPLETED`。数据库 CAS 使用
+`where status in ('QUEUED','GENERATING')`；只有更新到一行的结算者能继续副作用。
+
+## 19. `qa_message` 扩展
+
+V11 以向前迁移扩展既有闭集：
+
+- `message_type` 新增 `ASSISTANT_ANSWER`；
+- 新增 `incomplete boolean not null default false`；只有 `ASSISTANT_ANSWER` 可为 true；
+- 部分回答正文保存模型实际已流出的文本，不把固定“未完成”标记写入正文；历史加载时由服务端包裹。
+
+空部分不建消息。`qa_generation_task.assistant_message_id` 是任务到答案的唯一指针；同一 turn 最多一条
+`ASSISTANT_ANSWER`，以部分唯一索引保证。
+
+## 20. `qa_turn` 与阶段闭集扩展
+
+- `qa_turn.status` 新增 `QUEUED/GENERATING/COMPLETED/STOPPED/TIMED_OUT`；既有 3A/3B 终态仍可被 3C
+  原子推进，`WAITING_CLARIFICATION/REJECTED_TOO_MANY_TOPICS/FAILED` 不进入生成。
+- `qa_turn_stage.stage` 新增 `PROMPT/QUEUE/GENERATE/PERSIST`；只记耗时、计数、结果码与 logicalCallId。
+- generation task 与 turn 的业务终态在同一短事务内更新；SSE 发送在事务提交后。
+
+## 21. 恢复与 Repository 不变量
+
+- 一个 turn 最多一个 generation task、一个助手答案和一个稳定生成终态。
+- `COMPLETED + answer_saved=false` 时 message 指针为空；`answer_saved=true` 时指针非空。
+- `STOPPED/FAILED` 可有 incomplete message，也可因零字符而无 message。
+- 应用启动把遗留 `QUEUED/GENERATING` CAS 为 `FAILED/SERVICE_RESTARTED`；不恢复 JVM 许可或流。
+- V11 只向前扩展 check constraint 和新表；回退应用忽略新表，但含新 turn 状态的数据不能交给旧代码写入。

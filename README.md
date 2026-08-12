@@ -1,6 +1,6 @@
 # App
 
-前后端分离的企业级 Agentic RAG 系统：React 前端 + Java (Spring Boot) 后端。已实现知识库建设与大模型调度两个模块，知识问答核心链路与 RAG 评测体系待建。
+前后端分离的企业级 Agentic RAG 系统：React 前端 + Java (Spring Boot) 后端。已实现知识库建设、大模型调度，以及知识问答核心链路的理解、检索与工具阶段；答案生成、流式任务管控和 RAG 评测体系待建。
 
 ## Repository Layout
 

@@ -56,7 +56,7 @@
 | Phase 0 基础学习与 Bootstrap | completed | 40/40 篇与环境检查点完成 |
 | Phase 1 AI 知识库建设 | completed | 已于 2026-07-28 归档；[里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md) |
 | Phase 2 大模型调度引擎 | completed | 已于 2026-08-07 关闭；工单 01~22 done，23 因缺合规 Key 带 blocked 状态一同关闭；P2-02 已解除；Embedding 真实链路的实测失败已查明为本仓库解析代码过严（非缺 Key）并修复；[里程碑状态](../../status/2026-08-07-phase-2-model-scheduling.md)与[复盘](../../retro/2026-08-07-phase-2-model-scheduling-retrospective.md) |
-| Phase 3 AI 知识问答核心链路 | active | **3A 已于 2026-08-08 关闭**（17 张工单、矩阵 146 条）；**3B 已于 2026-08-12 关闭**（17 张工单、矩阵 76 条全部 passed）；当前前沿 3C，未启动。见[Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)、[3A 里程碑](../../status/2026-08-08-phase-3a-qa-understanding.md)/[复盘](../../retro/2026-08-08-phase-3a-retrospective.md)、[3B 里程碑](../../status/2026-08-12-phase-3b-retrieval-tools.md)/[复盘](../../retro/2026-08-12-phase-3b-retrospective.md) |
+| Phase 3 AI 知识问答核心链路 | active | **3A 已于 2026-08-08 关闭**（17 张工单、矩阵 146 条）；**3B 已于 2026-08-12 关闭**（17 张工单、矩阵 76 条全部 passed）；3C Step C 已确认，当前进入 Step D 第一前沿 01/02。见[Phase 3 执行计划](2026-08-07-qa-pipeline-phase-plan.md)、[3A 里程碑](../../status/2026-08-08-phase-3a-qa-understanding.md)/[复盘](../../retro/2026-08-08-phase-3a-retrospective.md)、[3B 里程碑](../../status/2026-08-12-phase-3b-retrieval-tools.md)/[复盘](../../retro/2026-08-12-phase-3b-retrospective.md) |
 | Phase 4 RAG 评测体系 | pending | 等待 Phase 3 形成可评测链路 |
 | Phase 5 面试专题与系统说明书 | pending | 最终汇总阶段 |
 

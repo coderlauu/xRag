@@ -1,15 +1,15 @@
-# 技术方案：AI 知识问答核心链路（Phase 3A + 3B）
+# 技术方案：AI 知识问答核心链路（Phase 3A + 3B + 3C）
 
-- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§18~§22，待 Step C 闸门确认）**
+- `status`: 3A approved（2026-08-07）；3B approved（2026-08-08）；**3C approved（2026-08-12，§23~§31）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
-- `scope`: 3A — 记忆 + 改写 + 意图；3B — 检索 + 工具（§18~§22）；3C 只冻结扩展边界
+- `scope`: 3A — 记忆 + 改写 + 意图；3B — 检索 + 工具；3C — 生成 + 流式 + 任务管控 + 排队限流
 - `prd`: [Phase 3 PRD](../../docs/prd/2026-08-07-qa-pipeline-prd.md)
 - `phase_plan`: [Phase 3 执行计划](../../docs/exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)
 - `data_model`: [数据模型](data-model.md)
 - `api`: [API 契约](api.md)
 - `tests`: [测试矩阵](test-matrix.md)
-- `related`: [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)、[ADR 0003](../../docs/adr/0003-separate-model-capability-ports.md)、[ADR 0005](../../docs/adr/0005-separate-model-runtime-state.md)、[ADR 0006](../../docs/adr/0006-bind-chat-sampling-to-service-tier.md)、[ADR 0007](../../docs/adr/0007-versioned-intent-tree.md)、[ADR 0008](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)
+- `related`: [ADR 0002](../../docs/adr/0002-knowledge-base-async-and-concurrency.md)、[ADR 0003](../../docs/adr/0003-separate-model-capability-ports.md)、[ADR 0005](../../docs/adr/0005-separate-model-runtime-state.md)、[ADR 0006](../../docs/adr/0006-bind-chat-sampling-to-service-tier.md)、[ADR 0007](../../docs/adr/0007-versioned-intent-tree.md)、[ADR 0008](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)、[ADR 0009](../../docs/adr/0009-single-settlement-generation-task.md)
 
 ## 1. 方案结论
 
@@ -423,9 +423,9 @@ app:
 
 ---
 
-# 3B — 检索 + 工具（draft，2026-08-08）
+# 3B — 检索 + 工具（approved，2026-08-08）
 
-> 本段是 Step C 草案，未经闸门确认前不写实现代码。产品语义冻结在
+> 本段已于 2026-08-08 经 Step C 确认。产品语义冻结在
 > [PRD §12](../../docs/prd/2026-08-07-qa-pipeline-prd.md)，界面表达冻结在
 > [conversation ui-spec §13](conversation/ui-spec.md)，检索选型见
 > [ADR 0008](../../docs/adr/0008-hybrid-retrieval-and-rrf-fusion.md)。
@@ -693,3 +693,162 @@ REQUESTED ─ 复核通过 ─┤
 X-1 核对结论与该依赖的处理见[计划 §8](../../docs/exec-plans/active/2026-08-07-qa-pipeline-phase-plan.md)。
 在它提交并闭环之前，3B 的 Step D 只能演示 Noop 降级路径；这不阻塞 Step C，也不阻塞除
 "真实精排演示"以外的任何验收项。
+
+# 3C — 生成 + 流式 + 任务管控 + 排队限流（approved，2026-08-12）
+
+以下章节已通过 Step C 确认；不改写 3A/3B 已冻结的理解、检索与工具响应形状。
+
+## 23. 3C 方案结论与深模块接口
+
+3C 新建 `com.app.qa.generation` 深模块。外部 seam 只暴露两项能力：
+
+```java
+interface GenerationTasks {
+    Submission submit(GenerationCommand command, GenerationObserver observer);
+    StopResult stop(OwnedTask task);
+}
+```
+
+- `submit` 接受已持久化且检索/工具准备完毕的 turn，返回 `taskId` 与是否入队；所有后续状态只经
+  `GenerationObserver` 发出问答事件。
+- `stop` 必须同时携带 `taskId + conversationId + turnId`，由模块校验归属；只知道 taskId 不够。
+- Controller 不直接操作 Semaphore、Subscription、Repository 或 `SseEmitter`。队列、取消、模型订阅、
+  持久化与许可释放由模块内部的唯一结算器 `TaskSettlement` 收口。
+- `TaskSettlement.trySettle(terminal)` 是唯一能写业务终态、保存回答、释放许可并发出终态事件的路径；
+  CAS 首胜，重复完成/停止/失败/超时只观察已定终态，不做第二次副作用。
+
+这是删除测试：若删掉该模块，终态优先级、资源释放和持久化规则会重新散到 Controller、Reactor 回调、
+超时任务和 Repository；因此这个 seam 有真实深度，不是 pass-through。
+
+## 24. 端到端流程与状态机
+
+```text
+POST /turns:stream
+  → 保存用户消息并跑 3A/3B
+  → submit generation task
+  → [QUEUED] --permit--> [GENERATING] --model complete--> [COMPLETED]
+       | stop/timeout          | stop/error/disconnect
+       v                       v
+   [STOPPED/TIMED_OUT]    [STOPPED/FAILED]
+                              |
+                         persist partial answer
+```
+
+- 理解/检索仍沿用现有同步编排，但整体从 Controller 内联调用移入任务执行资源，使断连后服务端可继续。
+- 排队不占生成许可；抢到许可后才订阅 `RoutingStreamingChatClient`。等待超时从队列移除，绝不启动模型。
+- 断连只解绑 `GenerationObserver`，不取消任务。任务继续到终态；客户端轮询现有 turn 读取接口。
+- 重启不恢复 JVM 队列或流。启动恢复把数据库中非终态的 generation task 归一化为 `FAILED / SERVICE_RESTARTED`，
+  不伪造继续生成。
+- `qwen-plus` 3C 只使用 `BALANCED`；不为不可达的 QUICK/DEEP 建枚举分支或界面状态。
+
+### 24.1 终态竞态优先级
+
+优先级不是按枚举硬编码，而是按 CAS 的真实到达顺序：**谁先成功提交结算，谁就是唯一终态**。
+
+- 停止请求先 CAS：`STOPPED`；随后模型完成被忽略。取消传播期间已经观察到的 delta 仍可追加。
+- 模型完成先 CAS：`COMPLETED`；随后停止返回 `ALREADY_TERMINAL(COMPLETED)`，前端纠正乐观停止态。
+- 等待计时器先 CAS：`TIMED_OUT`；随后许可唤醒不得再订阅模型。
+- 流失败先 CAS：`FAILED`；随后容器超时/断连只解绑观察者，不覆盖失败。
+
+## 25. Prompt 组装、预算与不可信内容隔离
+
+### 25.1 消息数组与预算
+
+生成固定使用一条 System Message + 一条 User Message，不依赖供应商未承诺的多 System 行为：
+
+1. System：版本控制内的行为规则、拒答与引用纪律；
+2. User：结构化封装的历史摘要/近期轮次、问题、意图提示、检索证据与工具结果。
+
+预算以 UTF-8 字节为确定性近似并留 20% 安全余量；启动时校验 `inputBudget + maxOutputTokens <= modelWindow`。
+装配顺序固定：系统规则 → 当前问题 → 最近历史 → 证据 → 工具结果 → 旧摘要。超限时按**完整条目**从低优先级
+尾部删除，绝不截断标签或半个 chunk；当前问题和系统规则不可删除，仍超限则 `PROMPT_BUDGET_EXCEEDED`。
+3B `top-n=8` 保留，但只有预算容纳的完整来源进入 Prompt；API 来源列表仍展示全部 3B 结果，二者不可混为一谈。
+
+### 25.2 四类不可信输入
+
+用户问题、chunk 正文、工具返回、运营 `promptSnippet` 全部先过 `UntrustedPromptCodec`：
+
+- NFKC 后移除 NUL 与非法控制字符，保留正常换行；
+- 用长度前缀 JSON 字符串值编码，禁止字符串拼接自造 XML/Markdown 闭合标签；
+- 每类带稳定 `kind/id` 元数据，正文只做数据，不具备覆盖 System 规则的身份；
+- `promptSnippet` 同样是不可信数据，只能作为“意图上下文”，不得进入 System Message；
+- 模板渲染后再扫描结构闭合与预算，任何编码失败都显式失败，不退回原文拼接。
+
+攻击测试至少覆盖伪造 `</context>`、`SYSTEM:`、Markdown 链接/图片、超长 Unicode、NUL、工具返回中的
+指令和 promptSnippet 要求泄露 Prompt。回答输出同样不可信，3C 首期只按纯文本渲染。
+
+## 26. 问答 SSE 协议与推送资源
+
+3C 使用 `POST /api/qa/turns:stream` + `fetch` 读取 `text/event-stream`，不用浏览器 `EventSource`：提交请求
+需要 JSON 正文与幂等键，而产品已明确断连不重放流，因此没有建立 GET 事件日志的理由。
+
+问答事件是封闭集合：`accepted`、`queued`、`generation_started`、`answer_delta`、`completed`、`stopped`、
+`failed`、`timed_out`。不得把 `ChatStreamEvent`、`ExecutionInfo`、Provider、tier、logicalCallId 原样投影。
+
+- 第一条必须是 `accepted`，含 conversation/turn/task 标识；每条事件含 task 内单调 `sequence`。
+- `answer_delta` 只含非空纯文本；服务端可在 20ms/256 字符上限内合并 delta，两个条件任一命中即 flush。
+- 每条流恰好一个问答终态；终态后不再发送任何事件。心跳注释不属于业务事件。
+- `SseEmitter.send()` 只在专用有界 `pushExecutor` 上执行；Reactor Netty 回调只入有界 task mailbox。
+- mailbox 满不是丢 token：以 `PUSH_BACKPRESSURE` 结算失败并保存已观察到的部分回答。
+- 拒绝、正常和停止路径复用同一个 emitter adapter 与幂等发送守卫，不为拒绝另建推送实例。
+
+## 27. 排队、公平与时间预算
+
+使用单实例 JVM FIFO 队列 + 公平许可；不引 Redis、租约或 Pub/Sub。队列项持有取消 token 和绝对等待
+deadline，不轮询数据库。释放许可只唤醒队首有效项；已取消/超时项惰性跳过并立即继续唤醒。
+
+唯一配置源：
+
+| 配置 | 默认 | 约束 |
+|---|---:|---|
+| `qa.generation.max-concurrency` | 4 | `>0`，等于 generationExecutor 核心/最大线程数 |
+| `qa.generation.queue-capacity` | 32 | `>= max-concurrency` |
+| `qa.generation.queue-wait` | 30s | `>0` |
+| `qa.generation.model-deadline` | 120s | `> first-byte-timeout` |
+| `qa.generation.first-byte-timeout` | 15s | `>0`，不是候选数倍增 |
+| `qa.generation.sse-timeout` | 165s | `>= queue-wait + model-deadline + 15s` |
+| `qa.generation.push-threads` | 4 | `>0`，独立于模型 event loop |
+| `qa.generation.push-queue-capacity` | 256 | `>= queue-capacity` |
+
+Executor 拒绝不是 `timed_out`：它是 `INTERNAL_CAPACITY_MISMATCH` 系统失败。队列满在创建 task 前返回
+HTTP `429 GENERATION_QUEUE_FULL`；已经收到 `accepted` 的任务只经 SSE 终态收敛。
+
+## 28. 持久化、部分回答与历史
+
+`qa_generation_task` 保存任务事实与唯一终态；`qa_message` 新增助手答案类型和 `incomplete/unsaved` 语义。
+
+- `STOPPED`、流中失败和断连后最终失败：已观察到非空文本就保存助手消息，`incomplete=true`。
+- 摘要与改写加载历史时，部分回答不丢弃；以固定的 `「以下回答未完成」` 服务端标记包裹后作为数据输入。
+  这样既保留用户曾读到的事实，也不会伪装成完整回答。该标记不是持久化正文的一部分。
+- 完整流出但落库失败：仍向当前连接发送 `completed(saved=false)`，不把生成结果改判为失败；task 记录
+  `COMPLETED_UNSAVED`，后续普通读取没有该消息，前端已持有的内容标“未保存”。
+- 停止且保存失败可同时成立：事件为 `stopped(saved=false)`；状态含义与持久化结果正交。
+- 空部分不创建空消息；失败原因只存归一化 code，不存异常 message。
+
+## 29. 工具与生成的接线
+
+3C 不让生成模型再次自由发起工具调用。3B 已把工具选择、白名单复核、副作用确认与结果持久化完成；3C
+只消费 `SUCCEEDED` 工具结果和检索来源。仍处于 `PENDING_CONFIRM/RUNNING` 的 turn 不准进入生成，返回
+`TOOLS_NOT_SETTLED`。工具失败作为显式上下文元数据，不把异常 message 放进 Prompt。
+
+这避免在一条 SSE 里嵌套“生成 → 工具确认 → 再生成”的第二状态机；当前产品也没有批准这种交互。
+
+## 30. 诊断、隐私与恢复
+
+- 问答任务只记录阶段、耗时、是否排队、终态 code、delta/字符计数和 `logicalCallId`；不记录 Prompt、
+  消息数组、chunk 正文、工具结果或答案正文副本。
+- 答案正文唯一业务副本仍是 `qa_message`；`qa_generation_task` 不复制正文。
+- 停止接口跨对话/跨 turn 一律 404，不泄露 task 是否存在；重复停止同归属 task 返回现有终态。
+- 应用优雅关停：停止接收新任务；队列项结算 `SERVICE_SHUTDOWN`；生成中任务在 5s 宽限内取消并保存部分；
+  结算器最终释放所有许可与订阅。
+- 启动恢复只扫描数据库非终态任务并标失败，不尝试恢复 SSE、许可或模型流。
+
+## 31. 3C Validation
+
+- 接口测试面只跨 `GenerationTasks` seam，假 StreamingChat adapter + 真数据库验证终态、消息与资源释放；
+  不要求测试直接操纵内部 Semaphore 或 Subscription。
+- 1000 轮完成/停止/超时竞态：每轮一个终态、最多一条助手消息、许可回到基线、无活动订阅。
+- 断连后任务继续并可从 GET turn 读到最终消息；断连期间无 emitter 泄漏。
+- Prompt 攻击样例与标记串扫描覆盖数据库诊断表、SSE 事件和日志。
+- Servlet 推送线程名断言不含 Reactor Netty event-loop；push mailbox 饱和路径保存部分并释放资源。
+- 配置相邻边界（相等、±1ms/±1）启动校验；收费真实流式测试继续由显式环境变量守门。

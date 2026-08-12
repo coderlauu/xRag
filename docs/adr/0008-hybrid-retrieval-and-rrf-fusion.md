@@ -1,6 +1,6 @@
 # ADR 0008：三通道混合检索与 RRF 融合
 
-- `status`: proposed
+- `status`: accepted（2026-08-08）
 - `date`: 2026-08-08
 - `decision_owner`: liuqiang
 - `scope`: Phase 3B 的检索通道构成、中文关键词实现、候选融合、去重截断与精排边界

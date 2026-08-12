@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 3 / AI 知识问答核心链路
-- `status`: active（**3A 已关闭**（`2026-08-08`）；**3B 已关闭**（`2026-08-12`，17 张工单 complete、矩阵 76 条全部 passed，见[里程碑状态](../../status/2026-08-12-phase-3b-retrieval-tools.md)）；**当前前沿 3C Step B**）
+- `status`: active（**3A 已关闭**（`2026-08-08`）；**3B 已关闭**（`2026-08-12`，17 张工单 complete、矩阵 76 条全部 passed，见[里程碑状态](../../status/2026-08-12-phase-3b-retrieval-tools.md)）；**3C Step C 已确认，当前 Step D 第一前沿 01/02**）
 - `created`: 2026-08-07
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
@@ -379,6 +379,9 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 
 #### Step B — 3C PRD 增量与界面终态
 
+状态：**complete / confirmed（2026-08-12）**。PRD §13、问答页 ui-spec §15 与七个 3C 可点击场景
+经项目所有者确认；3C 不改变意图树页面，Step B 闸门关闭，当前进入 Step C。
+
 - 冻结排队、开始生成、停止中、已停止、完成、失败、等待超时、拒绝和断连后的产品语义。
 - 冻结部分回复是否保存、重新连接后的可见性、错误是否可重试，以及用户能看到的诊断范围。
 - 更新问答对话页规格与原型至 Phase 3 完整状态；若意图树的 `promptSnippet` 安全或启停影响需新提示，
@@ -386,6 +389,9 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 - 受影响原型经项目所有者确认前，不实现 3C 前端增量。
 
 #### Step C — 3C 技术方案与执行拆分
+
+状态：**complete / approved（2026-08-12）**。技术三件套、ADR 0009、62 条测试矩阵、分角色任务书与
+16 张原子工单经项目所有者确认；01/02 解锁为 ready，进入 Step D。
 
 - 冻结 Prompt 场景、消息数组结构和预算算法；默认不依赖多条 System Message，除非真实测试先通过。
 - **单开“不可信内容隔离”章节**，逐类覆盖用户问题、chunk、工具结果和 `promptSnippet` 的边界、
@@ -395,6 +401,17 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 - 冻结公平信号量、队列顺序、等待预算、抢占/唤醒、超时拒绝和单实例失效点。
 - 确认 `qwen-plus` 服务等级范围；若只支持 `BALANCED`，契约不得预留不可达的另外两档。
 - 更新技术三件套、测试矩阵 3C 分区，创建 3C 任务书与原子工单；按需补关键 ADR。
+
+产出：
+
+- [x] [架构 §23~§31](../../../tech/qa-pipeline/architecture.md)：生成深模块、单一结算、Prompt 安全、
+  SSE、排队预算、部分回答、恢复与诊断。
+- [x] [数据模型 §18~§21](../../../tech/qa-pipeline/data-model.md)：V11、generation task、助手消息与恢复不变量。
+- [x] [API §14~§19](../../../tech/qa-pipeline/api.md)：POST SSE、事件闭集、停止归属、GET 恢复与失败码。
+- [x] [ADR 0009](../../adr/0009-single-settlement-generation-task.md)：唯一结算边界与单实例失效点。
+- [x] [测试矩阵 §27~§35](../../../tech/qa-pipeline/test-matrix.md)：62 条 `3C-*`（55 A + 7 M）。
+- [x] [3C 分角色任务书](2026-08-12-qa-pipeline-3c-implementation-lanes.md)与
+  [16 张原子工单](../../../.scratch/qa-pipeline/3c/README.md)。
 
 闸门：技术方案、安全边界、事件协议与并发/超时取舍经项目所有者确认。
 
@@ -468,6 +485,16 @@ Step A 原裁决，把 DashScope 原生 Rerank adapter 作为 3B 前置工单，
 - **文档回滚**：移动、新增或改名后立即运行链接检查；阶段计划仅在 Phase 3 关闭后移动到 completed。
 
 ## 8. Decision Log
+
+- `2026-08-12` / **3C Step C 确认**：项目所有者确认技术三件套 §3C、ADR 0009、62 条矩阵、任务书与
+  16 张工单；相关文档转 approved/accepted。只解锁第一前沿 01/02，其余 14 张继续按依赖图 blocked，
+  当前进入 Step D，尚未开始实现。
+- `2026-08-12` / **3C Step C 草案完成**：按 deep-module 原则把队列、取消、模型订阅、SSE、持久化与
+  许可释放收口到 `GenerationTasks` seam 和唯一 `TaskSettlement`；产出技术三件套 3C 章节、ADR 0009、
+  62 条矩阵、任务书与 16 张工单。当前停在 Step C 确认闸门，未写 3C 业务代码或 V11。
+- `2026-08-12` / **3C Step B 确认**：项目所有者确认 PRD §13、conversation ui-spec §15 与原型的
+  七个 3C 场景；意图树页在 3C 无界面增量。Step B 闸门关闭，当前进入 Step C；在技术方案、安全边界、
+  SSE 事件协议与并发/超时取舍确认前，不开始 3C 业务实现。
 
 - `2026-08-08`: **3B 检索通道 = 定向向量 + 全局向量 + BM25 关键词（混合检索）**。这是 Step A 笔记
   明确标为"应提交给所有者"的问题（`SearchChannelType` 的 `KEYWORD_ES`/`HYBRID` 不照抄），由项目

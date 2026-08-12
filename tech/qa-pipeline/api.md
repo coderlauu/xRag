@@ -1,6 +1,6 @@
-# API 契约：AI 知识问答核心链路（Phase 3A + 3B）
+# API 契约：AI 知识问答核心链路（Phase 3A + 3B + 3C）
 
-- `status`: 3A approved（2026-08-07）；**3B draft（2026-08-08，§9~§12）**
+- `status`: 3A approved（2026-08-07）；3B approved（2026-08-08）；**3C approved（2026-08-12，§14~§19）**
 - `approved_at`: 2026-08-07
 - `date`: 2026-08-07
 - `base_path`: `/api/qa`
@@ -667,3 +667,103 @@ HTTP 码，客户端就得从两个地方拼出同一个字段。
 - 有副作用的工具在未裁决时，任何路径都不产生外部调用；重复 `CONFIRM` 只执行一次。
 - 重试端点不改变 turn 的理解结果字段（子问题、意图、动作、歧义选择）。
 - 3A 既有响应在 turn 未进过 3B 时逐字段不变，`retrieval` 与 `tools` 为 null / 空数组。
+
+# 3C — 生成与流式任务（approved，2026-08-12）
+
+## 14. `POST /api/qa/turns:stream`
+
+请求 JSON 与 §3.1 相同，响应为 `text/event-stream;charset=UTF-8`。浏览器必须用 `fetch` 读取；不提供
+EventSource GET 或 `Last-Event-ID` 重放。相同幂等请求若 task 尚在运行，返回 `409 TURN_ALREADY_ACTIVE`；
+若已终态，客户端用 GET turn 读取，不重播旧流。
+
+在响应头提交前发生的错误仍用普通 JSON HTTP 错误。队列满为 `429 GENERATION_QUEUE_FULL`，带
+`Retry-After`；保存用户消息失败为 `503 MESSAGE_PERSISTENCE_FAILED`。一旦发送 `accepted`，后续只用
+SSE 业务终态，不再切换 HTTP 状态。
+
+## 15. SSE 事件闭集
+
+每个事件有 `event:`、递增 `id:` 和单行 JSON `data:`；通用字段为 `sequence/occurredAt`。
+
+| event | 关键字段 | 说明 |
+|---|---|---|
+| `accepted` | conversation、turn、task、userMessageId | 第一条且仅一次 |
+| `queued` | 无位置/预计时间 | 可停止 |
+| `generation_started` | `queuedOnce` | 首包等待开始 |
+| `answer_delta` | `text` | 非空纯文本 |
+| `completed` | assistantMessageId、`saved` | 唯一终态 |
+| `stopped` | assistantMessageId、`saved`、`hasPartialAnswer` | 唯一终态 |
+| `failed` | `code`、`retryable`、assistantMessageId、`saved` | 唯一终态，归一化原因 |
+| `timed_out` | `retryable=true` | 排队未启动，唯一终态 |
+
+任何事件都不得含 Prompt、Provider、model、tier、ExecutionInfo、logicalCallId、异常 message、队列位置或
+预计时间。心跳是 `:keep-alive` 注释，不占 sequence。
+
+示例：
+
+```text
+event: accepted
+id: 1
+data: {"sequence":1,"conversationId":"...","turnId":"...","taskId":"...","userMessageId":"..."}
+
+event: answer_delta
+id: 3
+data: {"sequence":3,"text":"退款通常会在"}
+
+event: completed
+id: 4
+data: {"sequence":4,"assistantMessageId":"...","saved":true}
+```
+
+## 16. `POST /api/qa/generation-tasks/{taskId}/stop`
+
+请求必须带归属，防止仅枚举 taskId 停止他人任务：
+
+```json
+{"conversationId":"...","turnId":"..."}
+```
+
+- `200`：`{"status":"STOPPED|COMPLETED|FAILED|TIMED_OUT","alreadyTerminal":false}`；
+- 重复停止或完成先赢：仍 `200`，`alreadyTerminal=true` 并返回真实终态；
+- task 不存在或归属不匹配统一 `404 GENERATION_TASK_NOT_FOUND`；
+- 停止请求不等待供应商真正断开，结算成功即可返回。
+
+## 17. GET turn 的 3C 扩展
+
+§3.4 在 3C 增加 `generation` 和助手消息；3B `retrieval/tools` 形状不变：
+
+```json
+{
+  "turn":{"turnId":"...","status":"COMPLETED"},
+  "assistantMessage":{"messageId":"...","type":"ASSISTANT_ANSWER","content":"...","incomplete":false},
+  "generation":{"taskId":"...","status":"COMPLETED","queuedOnce":true,"answerSaved":true}
+}
+```
+
+活动任务只返回 `QUEUED/GENERATING` 与 `retryAfterMs`，不返回尚未落库的流式 buffer。断连重连时前端轮询
+此端点；终态后一次性读取完整/部分消息。`answerSaved=false` 时 assistantMessage 为 null。
+
+## 18. 3C 失败码
+
+| code | 载体 | 可重试 | 含义 |
+|---|---|---:|---|
+| `GENERATION_QUEUE_FULL` | HTTP 429 | 是 | 创建 task 前队列已满 |
+| `GENERATION_WAIT_TIMEOUT` | SSE timed_out | 是 | 排队等待耗尽 |
+| `MODEL_UNAVAILABLE` | SSE failed | 是 | 无可用流式模型/候选耗尽 |
+| `FIRST_BYTE_TIMEOUT` | SSE failed | 是 | 首包等待超时 |
+| `GENERATION_TIMEOUT` | SSE failed | 是 | 模型总 deadline 耗尽 |
+| `PROMPT_BUDGET_EXCEEDED` | SSE failed | 否 | 必选内容仍超预算 |
+| `TOOLS_NOT_SETTLED` | SSE failed | 是 | 工具尚待确认/执行 |
+| `PUSH_BACKPRESSURE` | SSE failed | 是 | 有界推送 mailbox 饱和 |
+| `ANSWER_PERSISTENCE_FAILED` | completed/stopped 的 `saved=false` | 否 | 回答已显示但未保存 |
+| `SERVICE_RESTARTED` / `SERVICE_SHUTDOWN` | GET/SSE failed | 是 | 生命周期中止 |
+| `INTERNAL_CAPACITY_MISMATCH` | SSE failed | 是 | executor 拒绝，不能伪装排队超时 |
+
+用户文案由前端按 code 闭集映射，服务端不发送自由异常文本。
+
+## 19. 3C 契约验收
+
+- `accepted` 第一、终态唯一、sequence 严格递增；终态后无事件。
+- 断连不触发 stop；GET turn 最终可恢复；不支持事件重放。
+- stop 归属不匹配与不存在不可区分；完成/停止竞态返回真实唯一终态。
+- `completed(saved=false)` 仍保留客户端已收到答案，且不伪造 messageId。
+- SSE、数据库诊断与日志的标记串扫描不出现 Prompt、chunk/工具正文副本或供应商错误。

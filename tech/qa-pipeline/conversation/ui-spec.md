@@ -1,7 +1,7 @@
 # 界面规格：问答对话页（Phase 3A 基线 + 3B/3C 增量）
 
 - `status`: 3A approved（2026-08-07）；3B approved（2026-08-08，记录见 §13.12）；
-  **3C 增量 draft（2026-08-12，§15，待项目所有者确认）**
+  **3C approved（2026-08-12，§15）**
 - `route`: `/chat`（建议）
 - `prd`: [AI 知识问答核心链路 PRD](../../../docs/prd/2026-08-07-qa-pipeline-prd.md)（3B 语义见 §12、3C 见 §13，均已冻结）
 - `prototype`: [三方案可点击原型](../../../prototype/qa-pipeline/conversation/index.html)
@@ -603,7 +603,7 @@ C 方案下，`对话列表` 与 `本轮处理` 两支都是按需打开的抽�
 
 ## 15. 3C 增量：生成、流式、停止与排队（Step B，`2026-08-12`）
 
-- `increment_status`: **draft，待项目所有者确认**；确认前不写任何 3C 前端代码。
+- `increment_status`: **approved（2026-08-12）**；Step B/C 闸门均已关闭，前端实现按 3C 工单依赖推进。
 - `semantics_source`: [PRD §13](../../../docs/prd/2026-08-07-qa-pipeline-prd.md)，四项裁决已冻结。
   **本节只做界面表达，不重新发明语义**；发现冲突先回 PRD。
 - `changes_pages`: 只改问答对话页。意图树管理页在 3C 无增量（同 §13.9 的理由）。
