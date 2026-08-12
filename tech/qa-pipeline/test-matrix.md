@@ -358,118 +358,158 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-KW-01 | A | V9 建表后 `document_chunk_keyword` 与 `document_chunk_embedding` 在同一批分块上行集合一致 | P |
-| 3B-KW-02 | A | 入库写向量的同一处也写关键词行；任一失败整批不产生半套索引 | P |
-| 3B-KW-03 | A | 分块内容更新走 delete + insert 同一 `chunk_id`，不产生重复行 | P |
-| 3B-KW-04 | A | 分块/文档逻辑删除或停用后关键词行被物理删除，通道查不到 | P |
-| 3B-KW-05 | A | 索引期与查询期使用同一切词器实例，同一文本两次切词结果逐 token 相等 | P |
-| 3B-KW-06 | A | 中文长句、中英混排、纯数字型号与全角标点各自切词稳定且可复现 | P |
-| 3B-KW-07 | A | 回填批处理幂等：重复执行不改变行数，只补缺失 | P |
-| 3B-KW-08 | A | 回填未完成时关键词通道照常返回，不抛异常也不阻塞向量通道 | P |
-| 3B-KW-09 | A | 切词器版本与词典摘要出现在启动日志与配置指纹 | P |
+| 3B-KW-01 | A | V9 建表后 `document_chunk_keyword` 与 `document_chunk_embedding` 在同一批分块上行集合一致 | passed（`2026-08-11`） |
+| 3B-KW-02 | A | 入库写向量的同一处也写关键词行；任一失败整批不产生半套索引 | **no-coverage**（`2026-08-11`） |
+| 3B-KW-03 | A | 分块内容更新走 delete + insert 同一 `chunk_id`，不产生重复行 | passed（`2026-08-11`） |
+| 3B-KW-04 | A | 分块/文档逻辑删除或停用后关键词行被物理删除，通道查不到 | passed（`2026-08-11`） |
+| 3B-KW-05 | A | 索引期与查询期使用同一切词器实例，同一文本两次切词结果逐 token 相等 | passed（`2026-08-11`） |
+| 3B-KW-06 | A | 中文长句、中英混排、纯数字型号与全角标点各自切词稳定且可复现 | passed（`2026-08-11`） |
+| 3B-KW-07 | A | 回填批处理幂等：重复执行不改变行数，只补缺失 | passed（`2026-08-11`） |
+| 3B-KW-08 | A | 回填未完成时关键词通道照常返回，不抛异常也不阻塞向量通道 | passed（`2026-08-11`） |
+| 3B-KW-09 | A | 切词器版本与词典摘要出现在启动日志与配置指纹 | passed（`2026-08-11`） |
 
 ## 19. 3B-CH — 通道与激活条件
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-CH-01 | A | 子问题有 `KB_TARGETED` 时激活定向通道，作用域等于动作里的 kb 集合 | P |
-| 3B-CH-02 | A | 子问题有 `GLOBAL_FALLBACK` 时激活全局通道，且不带 kb 过滤 | P |
-| 3B-CH-03 | A | **两个向量通道不同时激活**——定向存在时全局不执行任何 SQL | P |
-| 3B-CH-04 | A | 关键词通道始终激活，作用域与同轮向量通道一致 | P |
-| 3B-CH-05 | A | 检索用改写后的问题，不用用户原话 | P |
-| 3B-CH-06 | A | 3B 只读 `ACTIONS_READY` 的动作行，不读意图分数、不回读当前树 | P |
-| 3B-CH-07 | A | 通道只有一套 `priority`，排序与去重取舍用同一个值 | P |
+| 3B-CH-01 | A | 子问题有 `KB_TARGETED` 时激活定向通道，作用域等于动作里的 kb 集合 | passed（`2026-08-11`） |
+| 3B-CH-02 | A | 子问题有 `GLOBAL_FALLBACK` 时激活全局通道，且不带 kb 过滤 | passed（`2026-08-11`） |
+| 3B-CH-03 | A | **两个向量通道不同时激活**——定向存在时全局不执行任何 SQL | passed（`2026-08-11`） |
+| 3B-CH-04 | A | 关键词通道始终激活，作用域与同轮向量通道一致 | passed（`2026-08-11`） |
+| 3B-CH-05 | A | 检索用改写后的问题，不用用户原话 | passed（`2026-08-11`） |
+| 3B-CH-06 | A | 3B 只读 `ACTIONS_READY` 的动作行，不读意图分数、不回读当前树 | **no-coverage**（`2026-08-11`） |
+| 3B-CH-07 | A | 通道只有一套 `priority`，排序与去重取舍用同一个值 | passed（`2026-08-11`） |
 
 ## 20. 3B-FUSE — 融合、去重与截断
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-FUSE-01 | A | 给定各通道排名，RRF 输出顺序确定且可复现（`k=60`） | P |
-| 3B-FUSE-02 | A | 同一 `chunk_id` 跨通道命中只出现一次，RRF 分数累加 | P |
-| 3B-FUSE-03 | A | 去重后来源归属取 `priority` 最小的通道 | P |
-| 3B-FUSE-04 | A | 融合只消费排名，通道分数量纲变化不改变输出顺序 | P |
-| 3B-FUSE-05 | A | 代码中不存在 `text.hashCode()` 一类去重兜底路径（静态断言） | P |
-| 3B-FUSE-06 | A | 两次截断分别受 `rerank-input-size` 与 `top-n` 约束，且前者 ≤ `maxDocuments` | P |
-| 3B-FUSE-07 | A | 去重失败 = 本轮检索失败；精排失败 = 降级继续（两种容错不混用） | P |
+| 3B-FUSE-01 | A | 给定各通道排名，RRF 输出顺序确定且可复现（`k=60`） | passed（`2026-08-11`） |
+| 3B-FUSE-02 | A | 同一 `chunk_id` 跨通道命中只出现一次，RRF 分数累加 | passed（`2026-08-11`） |
+| 3B-FUSE-03 | A | 去重后来源归属取 `priority` 最小的通道 | passed（`2026-08-11`） |
+| 3B-FUSE-04 | A | 融合只消费排名，通道分数量纲变化不改变输出顺序 | passed（`2026-08-11`） |
+| 3B-FUSE-05 | A | 代码中不存在 `text.hashCode()` 一类去重兜底路径（静态断言） | passed（`2026-08-11`） |
+| 3B-FUSE-06 | A | 两次截断分别受 `rerank-input-size` 与 `top-n` 约束，且前者 ≤ `maxDocuments` | passed（`2026-08-11`） |
+| 3B-FUSE-07 | A | 去重失败 = 本轮检索失败；精排失败 = 降级继续（两种容错不混用） | **no-coverage**（`2026-08-11`） |
 
 ## 21. 3B-RANK — 精排三态
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-RANK-01 | A | 假 Rerank 成功时 `rerankApplied=true`、`degradation=null` | P |
-| 3B-RANK-02 | A | Noop 降级时 `rerankApplied=false` 且携带成因，来源仍返回 | P |
-| 3B-RANK-03 | A | 目录无 RERANK deployment 时降级而非硬失败 | P |
-| 3B-RANK-04 | A | Rerank 抛异常时降级为未精排，本轮不失败 | P |
-| 3B-RANK-05 | A | **返回不足 topN 时不用原始候选补齐**，条数就是实际条数 | P |
-| 3B-RANK-06 | A | 降级结果不携带任何分数字段，API 与库里都没有 | P |
-| 3B-RANK-07 | A | 对齐用稳定 ID；输入被过滤或重排后结果不错位 | P |
-| 3B-RANK-08 | M | 真实 DashScope Rerank 走通并 `rerank_applied=t`（依赖 Phase 2 工单 23） | P |
+| 3B-RANK-01 | A | 假 Rerank 成功时 `rerankApplied=true`、`degradation=null` | passed（`2026-08-11`） |
+| 3B-RANK-02 | A | Noop 降级时 `rerankApplied=false` 且携带成因，来源仍返回 | passed（`2026-08-11`） |
+| 3B-RANK-03 | A | 目录无 RERANK deployment 时降级而非硬失败 | passed（`2026-08-11`） |
+| 3B-RANK-04 | A | Rerank 抛异常时降级为未精排，本轮不失败 | passed（`2026-08-11`） |
+| 3B-RANK-05 | A | **返回不足 topN 时不用原始候选补齐**，条数就是实际条数 | passed（`2026-08-11`） |
+| 3B-RANK-06 | A | 降级结果不携带任何分数字段，API 与库里都没有 | passed（`2026-08-11`） |
+| 3B-RANK-07 | A | 对齐用稳定 ID；输入被过滤或重排后结果不错位 | passed（`2026-08-11`） |
+| 3B-RANK-08 | M | 真实 DashScope Rerank 走通并 `rerank_applied=t`（依赖 Phase 2 工单 23） | pending-walkthrough |
 
 ## 22. 3B-FAIL — 部分失败与无结果
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-FAIL-01 | A | 单个 kb 目标失败：其余结果照常，`partial=true` 并点名该库 | P |
-| 3B-FAIL-02 | A | `partial` 来自 `qa_retrieval_target` 状态，**不由来源条数推断** | P |
-| 3B-FAIL-03 | A | 全部目标失败 → `RETRIEVAL_FAILED`，与 `NO_RESULT` 是不同状态与不同 HTTP 语义 | P |
-| 3B-FAIL-04 | A | 检索成功但零命中 → 200 + `NO_RESULT`，不是错误 | P |
-| 3B-FAIL-05 | A | 关键词通道失败不影响向量通道，也不单独提示用户 | P |
-| 3B-FAIL-06 | A | `failureCode` 是归一化闭集，扫描响应与库不出现异常 message | P |
-| 3B-FAIL-07 | A | 重试只重跑失败目标，成功目标不再查询 | P |
-| 3B-FAIL-08 | A | 重试不新建 turn、不改理解结果字段、不重问歧义 | P |
-| 3B-FAIL-09 | A | 无失败目标时重试返回 409 `NOTHING_TO_RETRY` | P |
+| 3B-FAIL-01 | A | 单个 kb 目标失败：其余结果照常，`partial=true` 并点名该库 | passed（`2026-08-11`） |
+| 3B-FAIL-02 | A | `partial` 来自 `qa_retrieval_target` 状态，**不由来源条数推断** | passed（`2026-08-11`） |
+| 3B-FAIL-03 | A | 全部目标失败 → `RETRIEVAL_FAILED`，与 `NO_RESULT` 是不同状态与不同 HTTP 语义 | passed（`2026-08-11`） |
+| 3B-FAIL-04 | A | 检索成功但零命中 → 200 + `NO_RESULT`，不是错误 | passed（`2026-08-11`） |
+| 3B-FAIL-05 | A | 关键词通道失败不影响向量通道，也不单独提示用户 | passed（`2026-08-11`） |
+| 3B-FAIL-06 | A | `failureCode` 是归一化闭集，扫描响应与库不出现异常 message | passed（`2026-08-11`） |
+| 3B-FAIL-07 | A | 重试只重跑失败目标，成功目标不再查询 | passed（`2026-08-11`） |
+| 3B-FAIL-08 | A | 重试不新建 turn、不改理解结果字段、不重问歧义 | passed（`2026-08-11`） |
+| 3B-FAIL-09 | A | 无失败目标时重试返回 409 `NOTHING_TO_RETRY` | passed（`2026-08-11`） |
 
 ## 23. 3B-TOOL — 工具白名单、复核与副作用
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-TOOL-01 | A | 重复 `name` 的工具配置**启动失败**，错误含两处配置路径 | P |
-| 3B-TOOL-02 | A | 工具清单为空时不向模型发送 `tools` 字段，也不产生"不可用"提示 | P |
-| 3B-TOOL-03 | A | 模型请求未注册工具 → `UNAVAILABLE` 且用户可见，不静默跳过 | P |
-| 3B-TOOL-04 | A | 模型编造的字段被白名单过滤，不入库也不发给工具 | P |
-| 3B-TOOL-05 | A | Schema 声明 integer 而模型给 10.5 或字符串 → `ABORTED` | P |
-| 3B-TOOL-06 | A | 字段名对但取值在 `enum` 外 → `ABORTED`，提示给允许值而非 Schema 原文 | P |
-| 3B-TOOL-07 | A | 缺任一必填参数**不调用工具**；不存在"过滤后照常执行"的路径 | P |
-| 3B-TOOL-08 | A | 参数抽取失败**绝不用默认值继续**（只读工具同样适用） | P |
-| 3B-TOOL-09 | A | 有副作用工具在 `PENDING_CONFIRM` 期间零外部调用（用可观测假工具断言调用次数为 0） | P |
-| 3B-TOOL-10 | A | 数据库约束拦住"无 `confirmed_at` 却处于 RUNNING"的写入 | P |
-| 3B-TOOL-11 | A | 重复 `CONFIRM` 用同一 `clientRequestId` 只执行一次 | P |
-| 3B-TOOL-12 | A | 取消后再确认返回 409 `TOOL_CALL_NOT_PENDING` | P |
-| 3B-TOOL-13 | A | 失败后重试产生新 `toolCallId`，有副作用者重新回到 `PENDING_CONFIRM` | P |
-| 3B-TOOL-14 | A | 工具超时归一化为 `TOOL_EXECUTION_TIMEOUT`，不透传异常 | P |
-| 3B-TOOL-15 | A | 只读工具不经确认直接执行，参数同样全程可见 | P |
-| 3B-TOOL-16 | A | 工具返回按纯文本存取，含 `</data>`、HTML、Markdown 链接时不被解析 | P |
-| 3B-TOOL-17 | A | `description` 来自配置；模型返回的描述性文本不进入确认卡 | P |
-| 3B-TOOL-18 | A | 刷新后 `PENDING_CONFIRM` 仍可裁决（状态持久化，不在前端内存） | P |
+| 3B-TOOL-01 | A | 重复 `name` 的工具配置**启动失败**，错误含两处配置路径 | passed（`2026-08-11`，落点见 §26.1） |
+| 3B-TOOL-02 | A | 工具清单为空时不向模型发送 `tools` 字段，也不产生"不可用"提示 | passed（`2026-08-11`） |
+| 3B-TOOL-03 | A | 模型请求未注册工具 → `UNAVAILABLE` 且用户可见，不静默跳过 | passed（`2026-08-11`） |
+| 3B-TOOL-04 | A | 模型编造的字段被白名单过滤，不入库也不发给工具 | passed（`2026-08-11`） |
+| 3B-TOOL-05 | A | Schema 声明 integer 而模型给 10.5 或字符串 → `ABORTED` | passed（`2026-08-11`） |
+| 3B-TOOL-06 | A | 字段名对但取值在 `enum` 外 → `ABORTED`，提示给允许值而非 Schema 原文 | passed（`2026-08-11`） |
+| 3B-TOOL-07 | A | 缺任一必填参数**不调用工具**；不存在"过滤后照常执行"的路径 | passed（`2026-08-11`） |
+| 3B-TOOL-08 | A | 参数抽取失败**绝不用默认值继续**（只读工具同样适用） | passed（`2026-08-11`） |
+| 3B-TOOL-09 | A | 有副作用工具在 `PENDING_CONFIRM` 期间零外部调用（用可观测假工具断言调用次数为 0） | passed（`2026-08-11`） |
+| 3B-TOOL-10 | A | 数据库约束拦住"无 `confirmed_at` 却处于 RUNNING"的写入 | **no-coverage**（`2026-08-11`） |
+| 3B-TOOL-11 | A | 重复 `CONFIRM` 用同一 `clientRequestId` 只执行一次 | passed（`2026-08-11`） |
+| 3B-TOOL-12 | A | 取消后再确认返回 409 `TOOL_CALL_NOT_PENDING` | passed（`2026-08-11`） |
+| 3B-TOOL-13 | A | 失败后重试产生新 `toolCallId`，有副作用者重新回到 `PENDING_CONFIRM` | passed（`2026-08-11`） |
+| 3B-TOOL-14 | A | 工具超时归一化为 `TOOL_EXECUTION_TIMEOUT`，不透传异常 | passed（`2026-08-11`） |
+| 3B-TOOL-15 | A | 只读工具不经确认直接执行，参数同样全程可见 | passed（`2026-08-11`） |
+| 3B-TOOL-16 | A | 工具返回按纯文本存取，含 `</data>`、HTML、Markdown 链接时不被解析 | passed（`2026-08-11`） |
+| 3B-TOOL-17 | A | `description` 来自配置；模型返回的描述性文本不进入确认卡 | **no-coverage**（`2026-08-11`） |
+| 3B-TOOL-18 | A | 刷新后 `PENDING_CONFIRM` 仍可裁决（状态持久化，不在前端内存） | passed（`2026-08-11`） |
 
 ## 24. 3B-CFG — 配置与启动校验
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-CFG-01 | A | `max-parallelism >= maximum-pool-size` 时**启动失败**，错误打印两个实际值 | P |
-| 3B-CFG-02 | A | 池大小显式配置生效，不再落到默认 10 | P |
-| 3B-CFG-03 | A | `rerank-input-size > RerankProfile.maxDocuments` 时启动失败 | P |
-| 3B-CFG-04 | A | `channel-top-k < top-n` 时启动失败 | P |
-| 3B-CFG-05 | A | 并发检索峰值下未出现连接获取超时（按配置上限压测） | P |
-| 3B-CFG-06 | A | 检索执行器与意图评分执行器是两个独立 Bean，不共享队列 | P |
+| 3B-CFG-01 | A | `max-parallelism >= maximum-pool-size` 时**启动失败**，错误打印两个实际值 | passed（`2026-08-11`，落点见 §26.1） |
+| 3B-CFG-02 | A | 池大小显式配置生效，不再落到默认 10 | **no-coverage**（`2026-08-11`） |
+| 3B-CFG-03 | A | `rerank-input-size > RerankProfile.maxDocuments` 时启动失败 | passed（`2026-08-11`，落点见 §26.1） |
+| 3B-CFG-04 | A | `channel-top-k < top-n` 时启动失败 | passed（`2026-08-11`，落点见 §26.1） |
+| 3B-CFG-05 | A | 并发检索峰值下未出现连接获取超时（按配置上限压测） | passed（`2026-08-11`） |
+| 3B-CFG-06 | A | 检索执行器与意图评分执行器是两个独立 Bean，不共享队列 | passed（`2026-08-11`，落点见 §26.1） |
 
 ## 25. 3B-API/UI/E2E — 契约、界面与垂直链路
 
 | ID | 类型 | 场景 / 断言 | 状态 |
 |---|:---:|---|---|
-| 3B-API-01 | A | turn 未进过 3B 时 `retrieval=null`、`tools=[]`，3A 字段逐字段不变 | P |
-| 3B-API-02 | A | 响应扫描不出现分数、chunk 正文、通道名、Schema 原文、异常 message | P |
-| 3B-API-03 | A | 同一 turn 的 `sources` 内 `chunkId` 不重复 | P |
-| 3B-API-04 | A | `documentDeleted=true` 时仍返回该来源条目，正文不返回 | P |
-| 3B-UI-01 | M | 正常来源：知识库/文档/`#位置` 三项齐全，无分数无名次 | P |
-| 3B-UI-02 | M | 未精排：摘要行与抽屉标题同时可见，抽屉关着也不丢该事实 | P |
-| 3B-UI-03 | M | 部分失败：点名失败库 + 重试/继续两个动作可用 | P |
-| 3B-UI-04 | M | 无结果文案与 3A `NO_MATCH` 可区分，无"用通用知识回答"入口 | P |
-| 3B-UI-05 | M | 工具确认卡：不抢焦点，Tab 先到取消，Esc 不等于取消 | P |
-| 3B-UI-06 | M | 工具四态在界面上依次可见；执行中输入区禁用且无中止入口 | P |
-| 3B-UI-07 | M | 1440/1024/720/375 四档：无常驻栏，关键信息全在消息区 | P |
-| 3B-UI-08 | M | 参数抽取中止：点名缺失字段与允许值，无"继续执行"入口 | P |
+| 3B-API-01 | A | turn 未进过 3B 时 `retrieval=null`、`tools=[]`，3A 字段逐字段不变 | passed（`2026-08-11`） |
+| 3B-API-02 | A | 响应扫描不出现分数、chunk 正文、通道名、Schema 原文、异常 message | passed（`2026-08-11`） |
+| 3B-API-03 | A | 同一 turn 的 `sources` 内 `chunkId` 不重复 | passed（`2026-08-11`） |
+| 3B-API-04 | A | `documentDeleted=true` 时仍返回该来源条目，正文不返回 | passed（`2026-08-11`） |
+| 3B-UI-01 | M | 正常来源：知识库/文档/`#位置` 三项齐全，无分数无名次 | pending-walkthrough |
+| 3B-UI-02 | M | 未精排：摘要行与抽屉标题同时可见，抽屉关着也不丢该事实 | pending-walkthrough |
+| 3B-UI-03 | M | 部分失败：点名失败库 + 重试/继续两个动作可用 | pending-walkthrough |
+| 3B-UI-04 | M | 无结果文案与 3A `NO_MATCH` 可区分，无"用通用知识回答"入口 | pending-walkthrough |
+| 3B-UI-05 | M | 工具确认卡：不抢焦点，Tab 先到取消，Esc 不等于取消 | pending-walkthrough |
+| 3B-UI-06 | M | 工具四态在界面上依次可见；执行中输入区禁用且无中止入口 | pending-walkthrough |
+| 3B-UI-07 | M | 1440/1024/720/375 四档：无常驻栏，关键信息全在消息区 | pending-walkthrough |
+| 3B-UI-08 | M | 参数抽取中止：点名缺失字段与允许值，无"继续执行"入口 | pending-walkthrough |
 | 3B-E2E-01 | A | 动作 → 三通道 → 融合 → 精排 → 来源落库 → API 返回全链路 | P |
 | 3B-E2E-02 | A | 一轮内同时产生来源与工具调用，两者互不阻塞 | P |
 | 3B-E2E-03 | A | 3A 的 146 条与知识库/模型调度既有测试不因 V9 与新 Bean 回归 | P |
 | 3B-E2E-04 | A | 无 Key 环境：应用启动正常，检索可用，精排降级为未精排 | P |
+
+## 26. 3B 矩阵执行记录（工单 15，`2026-08-11`）
+
+76 条 `3B-*`：**61 条 passed，6 条 no-coverage，9 条 pending-walkthrough**。
+证据是同日的全量回归 632 tests / 0 failures（`scripts/ci-validate.sh` exit=0）。
+
+### 26.1 方法名不含矩阵 ID 的五条
+
+这五条有真实落点，只是测试方法名没带 ID，逐条人工核对：
+
+| 矩阵 ID | 落点 |
+|---|---|
+| `3B-CFG-01` | `QaRetrievalConfigurationTests#并行度不小于连接池时阻止启动且错误含两个实际值` |
+| `3B-CFG-03` | `QaRetrievalConfigurationTests#rerank输入超过目录声明上限时阻止启动` |
+| `3B-CFG-04` | `QaRetrievalConfigurationTests#channelTopK小于topN时阻止启动并指出完整路径` |
+| `3B-CFG-06` | `QaRetrievalConfigurationTests#检索执行器有界且与意图评分执行器不共享队列` |
+| `3B-TOOL-01` | `QaToolPropertiesTests#重复工具名阻止启动并点名两处配置` |
+
+### 26.2 六条 no-coverage：确实没有自动化落点
+
+**不是"跑了没过"，是"压根没有对应用例"**，所以不能标 passed 也不该标 failed：
+
+| 矩阵 ID | 缺口 |
+|---|---|
+| `3B-CFG-02` | 池大小显式配置生效。测试期池大小由 `pom.xml` 的 surefire 属性设成 6，但没有用例断言"显式配置生效、不落回默认 10" |
+| `3B-CH-06` | 3B 只读 `ACTIONS_READY` 的动作行，不读意图分数、不回读当前树。`SearchChannelActivationTests` 有 ch01~ch05、ch07，独缺这条 |
+| `3B-FUSE-07` | 去重失败=本轮失败、精排失败=降级继续（两种容错不混用）。`ReciprocalRankFusionTests` 有 fuse01~fuse06 |
+| `3B-KW-02` | "任一失败整批不产生半套索引"。`kw01` 只覆盖了"同一处写两张表"的正向 |
+| `3B-TOOL-10` | 数据库约束拦住"无 `confirmed_at` 却 RUNNING"。约束本身在 V9 里（`ck_qa_tool_confirm`），但没有用例正面撞它 |
+| `3B-TOOL-17` | `description` 来自配置、模型返回的描述性文本不进确认卡。前端有断言说明文案来自服务端，后端侧没有对应用例 |
+
+### 26.3 回写过程中的一次返工，值得记下来
+
+第一版回写脚本按"矩阵 ID 短形式出现在测试方法名里"批量匹配，扫描范围误含
+`com/app/ai/`。结果 **Phase 2 模型调度的 `cfg01_合法配置生成不可变脱敏快照`（`ai-models.yml`
+的配置测试）匹配上了 `3B-CFG-01`（检索并行度配置）**——两者毫无关系。按那份结果回写，等于
+拿 Phase 2 的测试冒充 3B 的证据，正是本文件 §1 "没有证据不能标 passed"要防的事。
+
+已撤销重做：改为**按前缀限定扫描文件集合**（见工单 15 的执行记录），跨模块同名前缀不再互相
+污染。教训是矩阵回写不能靠字符串启发式——它产出的是"证据"，而证据错了比没有更糟。
