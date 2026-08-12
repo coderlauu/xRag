@@ -8,5 +8,9 @@ public enum TurnStage {
     INTENT_SCORE,
     AMBIGUITY,
     ACTION_MAP,
-    FINALIZE
+    FINALIZE,
+    PROMPT,
+    QUEUE,
+    GENERATE,
+    PERSIST
 }

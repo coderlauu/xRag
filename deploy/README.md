@@ -420,13 +420,38 @@ Provider 是否合规准入，看的是 architecture.md §13.3 的清单，不�
 配置了工具却没有对应的 `ToolExecutor` Bean 时**启动失败**：放行只会把问题推迟到用户点了
 "确认执行"之后，那时界面上和真正的工具故障看起来一模一样。
 
-### 5. Rollback
+### 5. 答案生成、SSE 与关停（Phase 3C）
 
-`V7` / `V8` 只新增 `qa_*` 表，不改动既有对象。应用回退到上一版本后这些表仍在，用户对话不会丢失，
-只是新版本才认识的列不再被写入。**意图树没有"回滚 revision"操作**：已发布的 revision 不 update，
-业务级回退要靠创建一个新 revision 实现。
+| 变量 | 默认 | 含义 |
+|---|---|---|
+| `QA_GENERATION_MAX_CONCURRENCY` | `4` | 同时订阅流式模型的任务数；必须等于 generation executor 的核心/最大线程数 |
+| `QA_GENERATION_QUEUE_CAPACITY` | `32` | JVM 内 FIFO 等待队列上限；必须不小于并发数，满时在 `accepted` 前返回 429 |
+| `QA_GENERATION_QUEUE_WAIT` | `30s` | 排队等待上限；耗尽后结算为 `TIMED_OUT`，不调用模型 |
+| `QA_GENERATION_MODEL_DEADLINE` | `120s` | 单个生成任务总时限，包含拿到首包后的流式阶段 |
+| `QA_GENERATION_FIRST_BYTE_TIMEOUT` | `15s` | 模型订阅后的首个业务事件等待上限；必须小于总生成时限 |
+| `QA_GENERATION_SSE_TIMEOUT` | `165s` | HTTP SSE 容器时限；必须至少为 queue wait + model deadline + 15s 余量 |
+| `QA_GENERATION_PUSH_THREADS` | `4` | SSE 发送专用线程数；不得借用模型 event loop |
+| `QA_GENERATION_PUSH_QUEUE_CAPACITY` | `256` | SSE 有界 mailbox；必须不小于任务等待队列容量 |
 
-### 6. 测试与真实 API 的边界（比 Embedding 那节更要小心）
+这八项由同一组启动校验约束，不能只调某一个“先试试”。调大并发会同时放大外部模型并发与按次/按
+token 费用，也要重新核对 Provider 配额、数据库连接池和宿主机线程预算。readiness/health 不发起模型
+调用；真实付费测试仅允许显式环境变量解锁，默认 CI 不注入密钥。
+
+部署容器对 API 设置 `stop_grace_period: 30s`。收到 SIGTERM 后，Spring 销毁
+`GenerationTasks` bean 时显式调用 `close()`：拒绝新提交，把 JVM 内 `QUEUED/GENERATING` 任务统一
+结算为 `FAILED/SERVICE_SHUTDOWN`，已有部分只保存一次，并释放模型订阅、许可和定时器。若进程被
+SIGKILL、主机断电或超过 grace period，来不及执行该钩子；下次启动会把数据库遗留活动任务 CAS 为
+`FAILED/SERVICE_RESTARTED`，不会恢复旧 SSE、JVM 队列或模型调用。当前队列是单实例内存队列，不能
+据此横向扩容。
+
+### 6. Rollback
+
+`V7`~`V11` 只新增 `qa_*` 表或闭集值，不删除既有对象。应用回退到上一版本后表仍在；旧版本不会识别
+3C 的生成中状态，因此回滚前必须先优雅停止新版本并确认没有 `QUEUED/GENERATING` 任务。不要手工回滚
+Flyway 或删除 V11 表。**意图树没有"回滚 revision"操作**：已发布的 revision 不 update，业务级回退
+要靠创建一个新 revision 实现。
+
+### 7. 测试与真实 API 的边界（比 Embedding 那节更要小心）
 
 `backend/.env`（已 gitignore）里的密钥会被 `application.properties` 的
 `spring.config.import=optional:file:.env[.properties]` 读进 Spring `Environment`。

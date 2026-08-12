@@ -38,7 +38,9 @@ class QaSchemaMigrationTests {
             "qa_turn_retrieval",
             "qa_retrieval_source",
             "qa_retrieval_target",
-            "qa_tool_call");
+            "qa_tool_call",
+            // V11（3C）新增；约束与 V10→V11 升级由 Qa3cSchemaMigrationTests 覆盖。
+            "qa_generation_task");
 
     private final String baseUrl = withoutQuery(System.getProperty(
             "spring.datasource.url", "jdbc:postgresql://127.0.0.1:5432/app"));

@@ -6,5 +6,10 @@ public enum TurnStatus {
     ACTIONS_READY,
     WAITING_CLARIFICATION,
     REJECTED_TOO_MANY_TOPICS,
-    FAILED
+    QUEUED,
+    GENERATING,
+    COMPLETED,
+    STOPPED,
+    FAILED,
+    TIMED_OUT
 }

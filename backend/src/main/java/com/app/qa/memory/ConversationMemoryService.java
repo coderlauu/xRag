@@ -221,14 +221,21 @@ public final class ConversationMemoryService {
         return jdbc.query("""
                 select t.id as turn_id, t.status,
                        m.id as message_id, m.sequence_no, m.role, m.message_type,
-                       m.content, m.created_at
+                       case when m.incomplete
+                            then '「以下回答未完成」' || chr(10) || m.content
+                            else m.content end as content,
+                       m.created_at
                   from qa_turn t
                   join qa_message um on um.id = t.user_message_id and um.deleted = false
                   join qa_message m on m.turn_id = t.id and m.deleted = false
                  where t.conversation_id = ? and t.deleted = false
                    and um.sequence_no > ? and um.sequence_no < ?
                    and (
-                       t.status in ('ACTIONS_READY', 'REJECTED_TOO_MANY_TOPICS')
+                       t.status in ('ACTIONS_READY', 'REJECTED_TOO_MANY_TOPICS', 'COMPLETED', 'STOPPED')
+                       or (t.status = 'FAILED' and exists (
+                           select 1 from qa_message partial
+                            where partial.turn_id = t.id and partial.deleted = false
+                              and partial.message_type = 'ASSISTANT_ANSWER'))
                        or (t.status = 'WAITING_CLARIFICATION' and exists (
                            select 1 from qa_turn resolution
                             where resolution.source_turn_id = t.id and resolution.deleted = false))

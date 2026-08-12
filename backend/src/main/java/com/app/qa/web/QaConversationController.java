@@ -4,6 +4,11 @@ import com.app.qa.conversation.ConversationBusyException;
 import com.app.qa.conversation.ConversationPersistenceService;
 import com.app.qa.retrieval.RetrievalOrchestrator;
 import com.app.qa.conversation.TurnProcessor;
+import com.app.qa.config.QaGenerationProperties;
+import com.app.qa.generation.GenerationCommandFactory;
+import com.app.qa.generation.GenerationReadService;
+import com.app.qa.generation.GenerationSseObservers;
+import com.app.qa.generation.GenerationTasks;
 import com.app.qa.model.MessageRole;
 import com.app.qa.model.MessageType;
 import com.app.qa.model.RetrievalActionType;
@@ -22,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +38,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/qa")
@@ -43,16 +50,31 @@ public final class QaConversationController {
     private final ObjectProvider<TurnProcessor> processors;
     private final TurnResultViewAssembler results;
     private final RetrievalOrchestrator retrieval;
+    private final GenerationTasks generationTasks;
+    private final GenerationCommandFactory generationCommands;
+    private final GenerationSseObservers sseObservers;
+    private final GenerationReadService generations;
+    private final QaGenerationProperties generationProperties;
 
     public QaConversationController(
             ConversationPersistenceService conversations,
             ObjectProvider<TurnProcessor> processors,
             TurnResultViewAssembler results,
-            RetrievalOrchestrator retrieval) {
+            RetrievalOrchestrator retrieval,
+            GenerationTasks generationTasks,
+            GenerationCommandFactory generationCommands,
+            GenerationSseObservers sseObservers,
+            GenerationReadService generations,
+            QaGenerationProperties generationProperties) {
         this.conversations = conversations;
         this.processors = processors;
         this.results = results;
         this.retrieval = retrieval;
+        this.generationTasks = generationTasks;
+        this.generationCommands = generationCommands;
+        this.sseObservers = sseObservers;
+        this.generations = generations;
+        this.generationProperties = generationProperties;
     }
 
     @GetMapping("/conversations")
@@ -159,10 +181,11 @@ public final class QaConversationController {
         return new TurnLookupResponse(
                 turnResponse(turn),
                 extras.inspector(),
-                extras.assistantMessage(),
+                assistantResponse(turn.turnId(), extras.assistantMessage()),
                 extras.clarification(),
                 results.retrieval(turn.turnId()),
-                results.tools(turn.turnId()));
+                results.tools(turn.turnId()),
+                generationResponse(turn.turnId()));
     }
 
     @PatchMapping("/conversations/{conversationId}")
@@ -263,6 +286,94 @@ public final class QaConversationController {
                 results.retrieval(turn.turnId()),
                 results.tools(turn.turnId()));
         return ResponseEntity.status(submission.replayed() ? HttpStatus.OK : HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping(value = "/turns:stream", produces = "text/event-stream;charset=UTF-8")
+    public SseEmitter stream(@RequestBody SubmitTurnRequest request) {
+        validateSubmission(request);
+        if (request.conversationId() != null) {
+            requireConversation(request.conversationId());
+        }
+        TurnProcessor processor = requireProcessor();
+        ConversationPersistenceService.TurnSubmission submission = persistSubmission(request);
+        if (submission.replayed()) {
+            throw new QaRequestException(
+                    HttpStatus.CONFLICT,
+                    "本轮已经存在",
+                    "TURN_ALREADY_ACTIVE",
+                    "该幂等请求已有本轮，请通过 GET 读取当前状态。");
+        }
+        try {
+            processor.process(submission);
+        } catch (RuntimeException exception) {
+            stabilizeProcessorFailure(submission, exception);
+        }
+        var turn = conversations.findTurn(submission.turnId())
+                .orElseThrow(() -> new IllegalStateException("processed turn is not readable"));
+        if (turn.status() != TurnStatus.ACTIONS_READY) {
+            throw new QaRequestException(
+                    HttpStatus.CONFLICT,
+                    "本轮不能进入生成",
+                    "TURN_NOT_GENERATABLE",
+                    "本轮需要澄清或已在理解阶段结束，请读取本轮结果。");
+        }
+
+        var emitter = new SseEmitter(generationProperties.getSseTimeout().toMillis());
+        generationTasks.submit(
+                generationCommands.create(submission.turnId()),
+                sseObservers.create(emitter));
+        return emitter;
+    }
+
+    @PostMapping("/generation-tasks/{taskId}/stop")
+    public StopGenerationResponse stopGeneration(
+            @PathVariable UUID taskId,
+            @RequestBody StopGenerationRequest request) {
+        if (request == null || request.conversationId() == null || request.turnId() == null) {
+            throw validationFailed("停止请求必须包含 conversationId 和 turnId。");
+        }
+        var result = generationTasks.stop(new GenerationTasks.OwnedTask(
+                new com.app.qa.generation.GenerationTaskId(taskId),
+                request.conversationId(),
+                request.turnId()));
+        if (!result.found()) {
+            throw new QaRequestException(
+                    HttpStatus.NOT_FOUND,
+                    "生成任务不存在",
+                    "GENERATION_TASK_NOT_FOUND",
+                    "生成任务不存在或不属于指定本轮。");
+        }
+        return new StopGenerationResponse(result.status(), result.alreadyTerminal());
+    }
+
+    private TurnProcessor requireProcessor() {
+        TurnProcessor processor = processors.getIfAvailable();
+        if (processor == null) {
+            throw new QaRequestException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "问答处理器不可用",
+                    "QA_PROCESSOR_UNAVAILABLE",
+                    "问答处理器尚未就绪，请稍后重试。");
+        }
+        return processor;
+    }
+
+    private ConversationPersistenceService.TurnSubmission persistSubmission(SubmitTurnRequest request) {
+        try {
+            return request.message().type() == TurnMessageType.QUESTION
+                    ? conversations.submitQuestion(
+                            request.conversationId(), request.clientRequestId(), request.message().text())
+                    : conversations.submitClarificationChoice(
+                            request.conversationId(), request.clientRequestId(),
+                            request.message().sourceTurnId(), request.message().selectedNodeId(),
+                            request.message().noneOfTheAbove());
+        } catch (DataAccessException exception) {
+            throw new QaRequestException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "消息保存失败",
+                    "MESSAGE_PERSISTENCE_FAILED",
+                    "消息尚未保存，请稍后重试。");
+        }
     }
 
     private void stabilizeProcessorFailure(
@@ -395,6 +506,38 @@ public final class QaConversationController {
                                 .toList(),
                         true);
         return new TurnExtras(inspectorResponse, assistant, clarification);
+    }
+
+    private AssistantMessageResponse assistantResponse(UUID turnId, MessageResponse legacyAssistant) {
+        var answer = generations.findAssistant(turnId).orElse(null);
+        if (answer != null) {
+            return new AssistantMessageResponse(
+                    answer.messageId(),
+                    turnId,
+                    MessageRole.ASSISTANT,
+                    MessageType.ASSISTANT_ANSWER,
+                    answer.content(),
+                    answer.incomplete());
+        }
+        return legacyAssistant == null
+                ? null
+                : new AssistantMessageResponse(
+                        legacyAssistant.messageId(),
+                        legacyAssistant.turnId(),
+                        legacyAssistant.role(),
+                        legacyAssistant.type(),
+                        legacyAssistant.content(),
+                        false);
+    }
+
+    private GenerationResponse generationResponse(UUID turnId) {
+        return generations.find(turnId)
+                .map(generation -> new GenerationResponse(
+                        generation.taskId().value(),
+                        generation.status(),
+                        generation.queuedOnce(),
+                        generation.answerSaved()))
+                .orElse(null);
     }
 
     private QaRequestException versionConflict(UUID conversationId, long previouslyReadVersion) {
@@ -538,10 +681,36 @@ public final class QaConversationController {
     public record TurnLookupResponse(
             TurnResponseBody turn,
             InspectorResponse inspector,
-            MessageResponse assistantMessage,
+            AssistantMessageResponse assistantMessage,
             ClarificationResponse clarification,
             TurnResultView.Retrieval retrieval,
-            List<TurnResultView.Tool> tools) {}
+            List<TurnResultView.Tool> tools,
+            GenerationResponse generation) {}
+
+    public record StopGenerationRequest(UUID conversationId, UUID turnId) {
+        @JsonAnySetter
+        public void rejectUnknownField(String name, Object value) {
+            throw new IllegalArgumentException("unknown field: " + name);
+        }
+    }
+
+    public record StopGenerationResponse(
+            com.app.qa.generation.GenerationTaskStatus status,
+            boolean alreadyTerminal) {}
+
+    public record GenerationResponse(
+            UUID taskId,
+            com.app.qa.generation.GenerationTaskStatus status,
+            boolean queuedOnce,
+            Boolean answerSaved) {}
+
+    public record AssistantMessageResponse(
+            UUID messageId,
+            UUID turnId,
+            MessageRole role,
+            MessageType type,
+            String content,
+            boolean incomplete) {}
 
     public record RetryRetrievalRequest(UUID clientRequestId) {
 

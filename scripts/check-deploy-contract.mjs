@@ -97,6 +97,16 @@ for (const variable of qaVariables) {
   }
 }
 
+// 3C 的生成资源必须真的传进 API 容器；只写 README 而 compose 丢弃变量会让生产静默使用开发默认值。
+for (const variable of [...qaVariables].filter((name) => name.startsWith("QA_GENERATION_"))) {
+  if (!compose.includes(`${variable}: \${${variable}:-`)) {
+    errors.push(`deploy compose does not pass generation variable to api: ${variable}`);
+  }
+}
+if (!/^    stop_grace_period:\s+30s$/m.test(servicesSection)) {
+  errors.push("api service must retain a 30s stop_grace_period for generation settlement");
+}
+
 /*
  * 会真实计费的测试必须由环境变量守门。
  *

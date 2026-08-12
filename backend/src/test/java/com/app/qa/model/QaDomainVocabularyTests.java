@@ -24,12 +24,17 @@ class QaDomainVocabularyTests {
     }
 
     @Test
-    void Java闭集与3A数据库契约一致且不提前加入答案() {
+    void Java闭集与3C数据库契约一致() {
         assertThat(TurnStatus.values()).extracting(Enum::name).containsExactly(
                 "SAVED", "PROCESSING", "ACTIONS_READY", "WAITING_CLARIFICATION",
-                "REJECTED_TOO_MANY_TOPICS", "FAILED");
+                "REJECTED_TOO_MANY_TOPICS", "QUEUED", "GENERATING", "COMPLETED",
+                "STOPPED", "FAILED", "TIMED_OUT");
         assertThat(MessageType.values()).extracting(Enum::name).containsExactly(
-                "USER_QUERY", "CLARIFICATION_CHOICE", "CLARIFICATION_GUIDANCE", "SYSTEM_NOTICE");
+                "USER_QUERY", "CLARIFICATION_CHOICE", "CLARIFICATION_GUIDANCE", "SYSTEM_NOTICE",
+                "ASSISTANT_ANSWER");
+        assertThat(TurnStage.values()).extracting(Enum::name).containsExactly(
+                "SAVE", "HISTORY", "SUMMARY", "REWRITE", "INTENT_SCORE", "AMBIGUITY",
+                "ACTION_MAP", "FINALIZE", "PROMPT", "QUEUE", "GENERATE", "PERSIST");
         assertThat(RetrievalActionType.values()).extracting(Enum::name).containsExactly(
                 "KB_TARGETED", "GLOBAL_FALLBACK", "SYSTEM", "NO_MATCH");
         assertThat(SystemAction.values()).extracting(Enum::name).containsExactly(

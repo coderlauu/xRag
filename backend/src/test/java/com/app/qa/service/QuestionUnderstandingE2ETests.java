@@ -3,6 +3,7 @@ package com.app.qa.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -11,6 +12,7 @@ import com.app.ai.model.ChatClient;
 import com.app.ai.model.ChatCommand;
 import com.app.ai.model.ChatFinishReason;
 import com.app.ai.model.ChatResult;
+import com.app.ai.model.ChatStreamEvent;
 import com.app.ai.model.DeploymentId;
 import com.app.ai.model.ExecutionInfo;
 import com.app.ai.model.ExecutionTarget;
@@ -19,6 +21,7 @@ import com.app.ai.model.ProviderId;
 import com.app.ai.model.RequestId;
 import com.app.ai.model.TokenUsage;
 import com.app.ai.model.SystemMessage;
+import com.app.ai.model.StreamingChatClient;
 import com.app.knowledge.FakeEmbeddingConfig;
 import com.app.qa.conversation.ConversationPersistenceService;
 import com.app.qa.model.TurnStatus;
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +45,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -71,6 +76,9 @@ class QuestionUnderstandingE2ETests {
     private DeterministicQaChat chat;
 
     @Autowired
+    private DeterministicGenerationStream generationStream;
+
+    @Autowired
     private ConversationPersistenceService conversations;
 
     private UUID revisionId;
@@ -80,6 +88,7 @@ class QuestionUnderstandingE2ETests {
     @BeforeEach
     void publishIntentTree() {
         chat.reset();
+        generationStream.reset();
         knowledgeBaseId = jdbc.queryForObject("""
                 insert into knowledge_base
                     (name, storage_alias, embedding_model, embedding_dimensions)
@@ -380,6 +389,31 @@ class QuestionUnderstandingE2ETests {
         DeterministicQaChat deterministicQaChat() {
             return new DeterministicQaChat();
         }
+
+        @Bean
+        @Primary
+        DeterministicGenerationStream deterministicGenerationStream() {
+            return new DeterministicGenerationStream();
+        }
+    }
+
+    static final class DeterministicGenerationStream implements StreamingChatClient {
+        private final AtomicInteger calls = new AtomicInteger();
+        private final AtomicReference<ChatCommand> command = new AtomicReference<>();
+
+        @Override
+        public Flux<ChatStreamEvent> stream(ChatCommand command) {
+            this.command.set(command);
+            calls.incrementAndGet();
+            return Flux.just(
+                    new ChatStreamEvent.TextDelta("退款通常三到五个工作日到账。"),
+                    new ChatStreamEvent.Completed(ChatFinishReason.STOP, new TokenUsage(2, 4, 6)));
+        }
+
+        void reset() {
+            calls.set(0);
+            command.set(null);
+        }
     }
 
     static final class DeterministicQaChat implements ChatClient {
@@ -516,6 +550,69 @@ class QuestionUnderstandingE2ETests {
             jdbc.update("delete from document_chunk_embedding where kb_id = ?", knowledgeBaseId);
             jdbc.update("delete from document_chunk where kb_id = ?", knowledgeBaseId);
             jdbc.update("delete from source_document where kb_id = ?", knowledgeBaseId);
+        }
+    }
+
+    @Test
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void e2e_3A到3B到3C经真实Http只调用一次流式模型并可Get恢复() throws Exception {
+        long docId = jdbc.queryForObject("""
+                insert into source_document (kb_id, name, source_type, storage_object_id)
+                values (?, '3C退款说明.txt', 'FILE', ?) returning id
+                """, Long.class, knowledgeBaseId, UUID.randomUUID().toString());
+        String evidence = "3C垂直链路证据：银行卡退款通常三到五个工作日到账";
+        long chunkId = jdbc.queryForObject("""
+                insert into document_chunk
+                    (kb_id, doc_id, revision, chunk_index, content, char_count, token_count, content_hash)
+                values (?, ?, 1, 9, ?, ?, 1,
+                        '1111111111111111111111111111111111111111111111111111111111111111')
+                returning id
+                """, Long.class, knowledgeBaseId, docId, evidence, evidence.length());
+        float[] vector = new float[1024];
+        vector[0] = 1.0f;
+        vectors.insertAll(knowledgeBaseId, docId, List.of(chunkId), List.of(vector));
+
+        UUID conversationId = null;
+        try {
+            var started = mvc.perform(post("/api/qa/turns:stream")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.TEXT_EVENT_STREAM)
+                            .content(questionRequest(UUID.randomUUID(), null, "退款多久到账？")))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            started.getAsyncResult(Duration.ofSeconds(10).toMillis());
+            String sse = mvc.perform(asyncDispatch(started))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+            var acceptedLine = sse.lines().filter(line -> line.startsWith("data:"))
+                    .findFirst().orElseThrow().substring(5);
+            var accepted = new com.fasterxml.jackson.databind.ObjectMapper().readTree(acceptedLine);
+            conversationId = UUID.fromString(accepted.path("conversationId").asText());
+            UUID turnId = UUID.fromString(accepted.path("turnId").asText());
+
+            assertThat(sse).contains("event:accepted", "event:answer_delta", "event:completed");
+            mvc.perform(get("/api/qa/conversations/{conversationId}/turns/{turnId}", conversationId, turnId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.turn.status").value("COMPLETED"))
+                    .andExpect(jsonPath("$.retrieval.status").value("RETRIEVED"))
+                    .andExpect(jsonPath("$.retrieval.sources[0].chunkId").value((int) chunkId))
+                    .andExpect(jsonPath("$.assistantMessage.content")
+                            .value("退款通常三到五个工作日到账。"))
+                    .andExpect(jsonPath("$.generation.status").value("COMPLETED"));
+            assertThat(generationStream.calls).hasValue(1);
+            assertThat(generationStream.command.get().toString())
+                    .contains("银行卡退款通常三到五个工作日到账");
+        } finally {
+            if (conversationId != null) {
+                jdbc.update("""
+                        delete from qa_retrieval_source
+                         where turn_id in (select id from qa_turn where conversation_id = ?)
+                        """, conversationId);
+            }
+            jdbc.update("delete from document_chunk_keyword where chunk_id = ?", chunkId);
+            jdbc.update("delete from document_chunk_embedding where chunk_id = ?", chunkId);
+            jdbc.update("delete from document_chunk where id = ?", chunkId);
+            jdbc.update("delete from source_document where id = ?", docId);
         }
     }
 }

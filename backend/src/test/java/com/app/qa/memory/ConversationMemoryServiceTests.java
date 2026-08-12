@@ -274,6 +274,35 @@ class ConversationMemoryServiceTests {
         }
     }
 
+    @Test
+    void hist01_部分回答以固定未完成标记进入下一轮且标记不写入正文() {
+        var previous = conversations.submitQuestion(null, UUID.randomUUID(), "上一问");
+        jdbc.update("""
+                update qa_turn
+                   set status = 'STOPPED', terminal_reason = 'STOP_REQUESTED', completed_at = now()
+                 where id = ?
+                """, previous.turnId());
+        jdbc.update("""
+                insert into qa_message
+                    (id, conversation_id, turn_id, sequence_no, role, message_type, content, incomplete)
+                values (?, ?, ?, 2, 'ASSISTANT', 'ASSISTANT_ANSWER', '未完成正文', true)
+                """, UUID.randomUUID(), previous.conversationId(), previous.turnId());
+        var current = conversations.submitQuestion(previous.conversationId(), UUID.randomUUID(), "当前问题");
+
+        var snapshot = memory.prepare(current.turnId());
+
+        assertThat(snapshot.recentTurns()).singleElement().satisfies(turn -> {
+            assertThat(turn.status()).isEqualTo(TurnStatus.STOPPED);
+            assertThat(turn.messages()).extracting(ConversationMemoryService.MemoryMessage::content)
+                    .containsExactly("上一问", "「以下回答未完成」\n未完成正文");
+        });
+        assertThat(jdbc.queryForObject(
+                        "select content from qa_message where turn_id = ? and message_type = 'ASSISTANT_ANSWER'",
+                        String.class,
+                        previous.turnId()))
+                .isEqualTo("未完成正文");
+    }
+
     private ConversationPersistenceService.TurnSubmission complete(
             UUID conversationId, String message, TurnStatus status) {
         var submission = conversations.submitQuestion(conversationId, UUID.randomUUID(), message);

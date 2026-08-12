@@ -5,6 +5,9 @@ import com.app.qa.conversation.IdempotencyKeyReusedException;
 import com.app.qa.conversation.InvalidClarificationChoiceException;
 import com.app.qa.intent.IntentTreeRevisionConflictException;
 import com.app.qa.intent.IntentTreeValidationException;
+import com.app.qa.generation.GenerationQueueFullException;
+import com.app.qa.generation.ToolsNotSettledException;
+import com.app.qa.prompt.PromptBudgetExceededException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.UUID;
@@ -156,6 +159,38 @@ final class QaApiExceptionHandler {
                 intentTree ? "意图树保存失败" : "问答数据读取失败",
                 intentTree ? "INTENT_TREE_PERSISTENCE_FAILED" : "QA_PERSISTENCE_FAILED",
                 "服务暂时无法完成数据操作，请稍后重试。",
+                request);
+    }
+
+    @ExceptionHandler(GenerationQueueFullException.class)
+    ResponseEntity<ProblemDetail> handleGenerationQueueFull(
+            GenerationQueueFullException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "1")
+                .body(problem(HttpStatus.TOO_MANY_REQUESTS,
+                        "生成队列已满", "GENERATION_QUEUE_FULL",
+                        "当前生成任务较多，请稍后重试。", request).getBody());
+    }
+
+    @ExceptionHandler(PromptBudgetExceededException.class)
+    ResponseEntity<ProblemDetail> handlePromptBudget(
+            PromptBudgetExceededException exception, HttpServletRequest request) {
+        return problem(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "生成上下文过长",
+                "PROMPT_BUDGET_EXCEEDED",
+                "当前问题与必要规则超过模型输入预算。",
+                request);
+    }
+
+    @ExceptionHandler(ToolsNotSettledException.class)
+    ResponseEntity<ProblemDetail> handleToolsNotSettled(
+            ToolsNotSettledException exception, HttpServletRequest request) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "工具调用尚未结束",
+                "TOOLS_NOT_SETTLED",
+                "请先完成工具确认或等待工具执行结束。",
                 request);
     }
 

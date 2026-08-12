@@ -79,7 +79,7 @@ public final class ConversationPersistenceService {
                        exists(select 1
                                 from qa_turn t
                                where t.conversation_id = c.id and t.deleted = false
-                                 and t.status in ('SAVED', 'PROCESSING')) as active_turn
+                                 and t.status in ('SAVED', 'PROCESSING', 'QUEUED', 'GENERATING')) as active_turn
                   from qa_conversation c
                  where c.id = ? and c.deleted = false
                 """, (rs, rowNum) -> conversationView(rs), conversationId)
@@ -106,7 +106,7 @@ public final class ConversationPersistenceService {
                            exists(select 1
                                     from qa_turn t
                                    where t.conversation_id = c.id and t.deleted = false
-                                     and t.status in ('SAVED', 'PROCESSING')) as active_turn
+                                     and t.status in ('SAVED', 'PROCESSING', 'QUEUED', 'GENERATING')) as active_turn
                       from qa_conversation c
                      where c.deleted = false
                      order by c.last_active_at desc, c.id desc
@@ -123,7 +123,7 @@ public final class ConversationPersistenceService {
                        exists(select 1
                                 from qa_turn t
                                where t.conversation_id = c.id and t.deleted = false
-                                 and t.status in ('SAVED', 'PROCESSING')) as active_turn
+                                 and t.status in ('SAVED', 'PROCESSING', 'QUEUED', 'GENERATING')) as active_turn
                   from qa_conversation c
                  where c.deleted = false and (c.last_active_at, c.id) < (?, ?)
                  order by c.last_active_at desc, c.id desc
@@ -190,7 +190,7 @@ public final class ConversationPersistenceService {
                   from qa_turn t
                   join qa_conversation c on c.id = t.conversation_id and c.deleted = false
                  where t.conversation_id = ? and t.deleted = false
-                   and t.status not in ('SAVED', 'PROCESSING')
+                   and t.status not in ('SAVED', 'PROCESSING', 'QUEUED', 'GENERATING')
                  order by t.created_at desc, t.id desc
                  limit 1
                 """, (rs, rowNum) -> new TurnView(
@@ -553,7 +553,8 @@ public final class ConversationPersistenceService {
 
         Integer active = jdbc.queryForObject("""
                 select count(*) from qa_turn
-                 where conversation_id = ? and deleted = false and status in ('SAVED','PROCESSING')
+                 where conversation_id = ? and deleted = false
+                   and status in ('SAVED','PROCESSING','QUEUED','GENERATING')
                 """, Integer.class, conversationId);
         if (active != null && active > 0) {
             throw new ConversationBusyException();
@@ -607,7 +608,7 @@ public final class ConversationPersistenceService {
                 select id, status
                   from qa_turn
                  where conversation_id = ? and deleted = false
-                   and status not in ('SAVED', 'PROCESSING')
+                   and status not in ('SAVED', 'PROCESSING', 'QUEUED', 'GENERATING')
                  order by created_at desc, id desc
                  limit 1
                  for update
@@ -641,7 +642,8 @@ public final class ConversationPersistenceService {
 
         Integer active = jdbc.queryForObject("""
                 select count(*) from qa_turn
-                 where conversation_id = ? and deleted = false and status in ('SAVED','PROCESSING')
+                 where conversation_id = ? and deleted = false
+                   and status in ('SAVED','PROCESSING','QUEUED','GENERATING')
                 """, Integer.class, conversationId);
         if (active != null && active > 0) {
             throw new ConversationBusyException();
@@ -710,7 +712,8 @@ public final class ConversationPersistenceService {
         }
         Integer active = jdbc.queryForObject("""
                 select count(*) from qa_turn
-                 where conversation_id = ? and deleted = false and status in ('SAVED','PROCESSING')
+                 where conversation_id = ? and deleted = false
+                   and status in ('SAVED','PROCESSING','QUEUED','GENERATING')
                 """, Integer.class, conversationId);
         if (active != null && active > 0) {
             throw new ConversationBusyException();
