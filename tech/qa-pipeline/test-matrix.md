@@ -403,7 +403,7 @@ MEM-12「摘要不可从普通 API 读取」由隐私审计的响应扫描覆盖
 | 3B-RANK-05 | A | **返回不足 topN 时不用原始候选补齐**，条数就是实际条数 | passed（`2026-08-11`） |
 | 3B-RANK-06 | A | 降级结果不携带任何分数字段，API 与库里都没有 | passed（`2026-08-11`） |
 | 3B-RANK-07 | A | 对齐用稳定 ID；输入被过滤或重排后结果不错位 | passed（`2026-08-11`） |
-| 3B-RANK-08 | M | 真实 DashScope Rerank 走通并 `rerank_applied=t`（依赖 Phase 2 工单 23） | pending-walkthrough |
+| 3B-RANK-08 | M | 真实 DashScope Rerank 走通并 `rerank_applied=t`（依赖 Phase 2 工单 23） | passed（`2026-08-12`，见 §26.5） |
 
 ## 22. 3B-FAIL — 部分失败与无结果
 
@@ -560,3 +560,21 @@ Rerank 调用，会产生费用，未执行）。
 **② 375px 下顶部导航与头部按钮文字竖排。** `知识库` 被挤成三行。这属于 3A 的布局，不在
 `3B-UI-07` 的两条断言（无常驻栏、关键信息在消息区）里，两条本身都成立，所以本条仍记 passed
 ——但这个显示效果明显不对，值得单独修。
+
+### 26.5 `3B-RANK-08` 真实 Rerank 准入（`2026-08-12`）
+
+**passed。** 一次真实的付费调用，走完整调度链路（路由 → Provider → 诊断写入），不是直接打
+Provider 适配器。
+
+| 证据 | 值 |
+|---|---|
+| 逻辑调用 | `capability=RERANK` / `outcome=SUCCEEDED` / **`rerank_applied=t`** / `document_count=2` / `top_n=2` |
+| 尝试 | `aliyun-model-studio` / `aliyun-qwen3-rerank-cn` / `SUCCEEDED` / `http_status=200` / `attempt_no=1` |
+| 请求 ID | `2bcc****3dce`（脱敏生效，未记原值） |
+| 成本 | 1 条用例、1 次调用、无循环——`RealRerankApiTests` 只有一个测试方法 |
+
+调用量刻意压到最小：这条用例本身就只调一次，没有为了"多验几遍"而重复。走的是
+`DashScopeNativeRerankProvider`（工单 23 补的原生适配器，因为百炼 compatible-mode 下
+`/reranks` 与 `/rerank` 都返回 404 空体）。
+
+诊断记录落在 `xrag_test` schema 而不是 `public`——测试用独立 schema，查证时别找错地方。
