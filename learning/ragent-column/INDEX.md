@@ -6,16 +6,18 @@
 
 全专栏共 92 个链接（1 个加群链接 + 91 篇正文），下表逐条登记原文标题、原文短链接、新分组与本地整理稿路径。**状态**：`done` = 已整理，`pending` = 待处理。
 
-截至 2026-08-07，全部正文完成 **77/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成；Phase 2 Step A（04-model-scheduling组）8/8 全部完成；Phase 3 Step A（05-qa-pipeline组）18/18 全部完成。
+截至 2026-08-12，全部正文完成 **88/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成；Phase 2 Step A（04-model-scheduling组）8/8 全部完成；Phase 3 Step A（05-qa-pipeline组）18/18 全部完成；Phase 4 Step A（06-evaluation组）11/11 已整理，待项目所有者确认检查点。
 
-- `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`、`04-01`～`04-08`、`05-01`～`05-18`
-- `pending`：`06-evaluation`（11篇）、`07-interview`（3篇+持续更新）
+- `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`、`04-01`～`04-08`、`05-01`～`05-18`、`06-01`～`06-11`
+- `pending`：`07-interview`（3篇+持续更新）
 
 Phase 0 的覆盖率、技术结论、环境验证与进入下一阶段前的待决策事项见 [Phase 0 对齐检查点](PHASE-0-CHECKPOINT.md)。
 
 Phase 2 Step A 的课程方案、xrag 当前实现对照、已收敛原则与后续待决策事项见 [Phase 2 Step A 对齐检查点](PHASE-2-STEP-A-CHECKPOINT.md)。
 
 Phase 3 Step A 的已确认决策、待决策问题（D-01~D-08）与不可照搬项汇总见 [Phase 3 Step A 学习检查点](PHASE-3-STEP-A-CHECKPOINT.md)。
+
+Phase 4 Step A 的评测身份、指标边界、RAGAS 候选结论与 D-01~D-05 待裁决项见 [Phase 4 Step A 学习检查点](PHASE-4-STEP-A-CHECKPOINT.md)。
 
 ## 处理进度总览
 
@@ -27,7 +29,7 @@ Phase 3 Step A 的已确认决策、待决策问题（D-01~D-08）与不可照�
 | 03-knowledge-base AI知识库建设 | 11 | done（11/11） | 知识库/文档管理模块 |
 | 04-model-scheduling 大模型调度引擎 | 8 | done（8/8，Phase 2 Step A） | AI基础设施层/模型路由网关模块 |
 | 05-qa-pipeline AI知识问答核心链路 | 18 | done（18/18，Phase 3 Step A） | 检索增强问答（核心业务）模块 |
-| 06-evaluation RAG评测体系 | 11 | active（Phase 4 Step A，0/11） | 评测/质量保障模块 |
+| 06-evaluation RAG评测体系 | 11 | review（Phase 4 Step A，11/11，待确认） | 评测/质量保障模块 |
 | 07-interview 面试高频考点 | 3+（持续更新） | pending（Phase 5） | 横向参考 |
 
 ## 00-overview 项目概览与学习指南（5篇）
@@ -139,21 +141,21 @@ Phase 3 Step A 的已确认决策、待决策问题（D-01~D-08）与不可照�
 | 17 | 10个人同时提问只有3个坑位 | https://t.zsxq.com/m4blA | `05-qa-pipeline/05-17-排队限流的入队与抢占.md` |
 | 18 | 抢不到许可请求该等还是该拒？ | https://t.zsxq.com/mOutN | `05-qa-pipeline/05-18-异步等待与超时拒绝.md` |
 
-## 06-evaluation RAG评测体系（11篇，Phase 4 Step A active）
+## 06-evaluation RAG评测体系（11篇，Phase 4 Step A review）
 
-| # | 原文标题 | 原文链接 |
-|---|---|---|
-| 1 | RAG 做出来了，但效果怎么衡量？ | https://t.zsxq.com/0mYZD |
-| 2 | 评估集没建好，RAG 评测都是白搭 | https://t.zsxq.com/YzTo8 |
-| 3 | 测评数据初始化 | https://t.zsxq.com/1OfHs |
-| 4 | 单次问答背后的全链路 | https://t.zsxq.com/jCALF |
-| 5 | 从意图到检索：指标拆解 | https://t.zsxq.com/txWHU |
-| 6 | 性能指标的口径选择 | https://t.zsxq.com/jrYMw |
-| 7 | RAGAS是什么与选型 | https://t.zsxq.com/nUK3K |
-| 8 | 把RAGAS跑起来 | https://t.zsxq.com/25Iqw |
-| 9 | RAGAS五个指标全解读 | https://t.zsxq.com/PaWec |
-| 10 | RAGAS的坑 | https://t.zsxq.com/8YZhT |
-| 11 | 测评报告 | https://t.zsxq.com/PrCzD |
+| # | 原文标题 | 原文链接 | 本地文件 |
+|---|---|---|---|
+| 1 | RAG 做出来了，但效果怎么衡量？ | https://t.zsxq.com/0mYZD | `06-evaluation/06-01-RAG评测体系全景.md` |
+| 2 | 评估集没建好，RAG 评测都是白搭 | https://t.zsxq.com/YzTo8 | `06-evaluation/06-02-评估集设计.md` |
+| 3 | 测评数据初始化 | https://t.zsxq.com/1OfHs | `06-evaluation/06-03-评测数据初始化.md` |
+| 4 | 单次问答背后的全链路 | https://t.zsxq.com/jCALF | `06-evaluation/06-04-单次评测录制链路.md` |
+| 5 | 从意图到检索：指标拆解 | https://t.zsxq.com/txWHU | `06-evaluation/06-05-意图与检索指标.md` |
+| 6 | 性能指标的口径选择 | https://t.zsxq.com/jrYMw | `06-evaluation/06-06-性能指标口径.md` |
+| 7 | RAGAS是什么与选型 | https://t.zsxq.com/nUK3K | `06-evaluation/06-07-RAGAS选型.md` |
+| 8 | 把RAGAS跑起来 | https://t.zsxq.com/25Iqw | `06-evaluation/06-08-RAGAS运行接入.md` |
+| 9 | RAGAS五个指标全解读 | https://t.zsxq.com/PaWec | `06-evaluation/06-09-RAGAS五指标解读.md` |
+| 10 | RAGAS的坑 | https://t.zsxq.com/8YZhT | `06-evaluation/06-10-RAGAS落地风险.md` |
+| 11 | 测评报告 | https://t.zsxq.com/PrCzD | `06-evaluation/06-11-评测报告与闭环.md` |
 
 ## 07-interview 面试高频考点（3篇+持续更新，pending）
 
