@@ -542,11 +542,33 @@ GROUP 接受 `NODE_ONLY` 或 `CONFIGURED_SUBTREE`；叶子只接受 `NODE_ONLY`�
 - **不返回命中通道或命中次数。** `origin_channel` 只进处理详情，不进这里——避免"命中两次更可信"
   的错误暗示。
 - **`partial` 是服务端算好的显式字段**，客户端不得用 `sources.length` 推断（PRD §12.4）。
+  它表达的是"用户拿到的结果不完整"，包含两种情形，见 §9.1。
 - **`rerankApplied=false` 时 `degradation` 非空**，反之亦然；与 `com.app.ai` 的 `RerankResult`
   不变量同形。客户端据此显示 `未精排`，**不区分成因**。
 - **`description` 来自服务端白名单配置，不是模型生成的**（架构 §21.2）。
 - **`parameters` 是复核通过后的参数**，模型编造的字段不出现在这里。
 - **`failureCode` 是归一化闭集**，永不透传异常 message（PRD §12.6）。
+
+### 9.1 `status` 与 `partial` 怎么算（裁决 `2026-08-11`）
+
+| 条件 | `status` | `partial` |
+|---|---|---|
+| 有来源 | `RETRIEVED` | 有目标失败过则 `true` |
+| 无来源，且有目标失败、无目标成功 | `RETRIEVAL_FAILED` | `false` |
+| 无来源，其余情况 | `NO_RESULT` | `false` |
+
+**有来源就是 `RETRIEVED`，不看目标状态。** 目标只由向量通道产生（[架构 §19.6](architecture.md)），
+而关键词通道不产生目标却能召回——无密钥部署里向量通道必然全失败，于是"全部目标失败"与
+"用户手上有结果"会同时成立。按旧算法那是 `RETRIEVAL_FAILED`，界面照 ui-spec §13.6 说
+"没查成、可重试"，而来源区里明明躺着关键词召回的内容。**这不是边缘情况，是无 Key 部署的常态。**
+
+没有来源时才回到目标状态上分辨"没查成"（可重试）与"查了但没有"（该改问法）——PRD §12.3
+要区分的这两件事在无来源这一侧仍然完整。
+
+`partial` 因此扩了一条：**有来源但目标全失败**也算结果不完整。原本它只表达"部分目标失败"。
+扩展后它统一表达"用户拿到的结果不完整"：向量全挂、关键词兜住的那一轮，用户确实拿到了结果，
+但确实少了一块。目标全失败且没有来源时**不算** `partial`——那是 `RETRIEVAL_FAILED`，
+"什么都没有"不是"不完整"。
 
 ## 10. `POST /api/qa/turns/{turnId}/tool-calls/{toolCallId}/decision`
 

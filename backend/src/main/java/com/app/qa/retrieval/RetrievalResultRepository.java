@@ -145,15 +145,18 @@ public class RetrievalResultRepository {
         int failed = countTargets(turnId, "FAILED");
         int afterRerank = jdbc.queryForObject(
                 "select count(*) from qa_retrieval_source where turn_id = ?", Integer.class, turnId);
+        // 与 RetrievalOrchestrator.statusOf / partialOf 同一套规则（裁决 2026-08-11，契约 §9.1）：
+        // 有来源就是 RETRIEVED；没有来源时才用目标状态分辨"没查成"与"查了但没有"。
+        // 两处必须一致——重放后状态跟着变一套算法，是那种只在重试路径上出现、极难复现的 bug。
         RetrievalStatus status;
-        if (succeeded == 0) {
-            status = RetrievalStatus.RETRIEVAL_FAILED;
-        } else if (afterRerank == 0) {
-            status = RetrievalStatus.NO_RESULT;
-        } else {
+        if (afterRerank > 0) {
             status = RetrievalStatus.RETRIEVED;
+        } else if (failed > 0 && succeeded == 0) {
+            status = RetrievalStatus.RETRIEVAL_FAILED;
+        } else {
+            status = RetrievalStatus.NO_RESULT;
         }
-        boolean partial = succeeded > 0 && failed > 0;
+        boolean partial = failed > 0 && (succeeded > 0 || afterRerank > 0);
 
         jdbc.update(
                 """

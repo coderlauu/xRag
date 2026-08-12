@@ -332,20 +332,17 @@ class QaNoApiKeyBehaviourTests {
             assertThat(outcome.degradation())
                     .as("rerankApplied=false 时成因必须非空（契约 §9 的不变量）")
                     .isNotNull();
-            // **实测暴露的规格缺口，如实断言而不是改成期望值**：本轮 status 是 RETRIEVAL_FAILED，
-            // 同时 sources 非空。两者都符合现有规格——目标只由向量通道定义（架构 §19.6），
-            // 向量通道全失败即"全部目标失败"；而关键词通道不产生目标、却真的召回了内容。
+            // 裁决（`2026-08-11`，契约 §9.1）：**有来源就是 RETRIEVED**，哪怕目标全失败。
             //
-            // 于是无密钥环境的**默认**状态是"检索失败但有来源"：界面会按 §13.6 显示"没查成、
-            // 可重试"，而来源区里躺着关键词召回的结果。这个组合在工单 08 写 fail03 时就被注意到
-            // 并刻意绕开了（当时用不存在的词让关键词也零命中），现在它成了无 Key 部署的常态。
-            // 规格没有为它定义表达方式，需要产品裁决——见工单 14 的遗留，不在此擅自改实现。
+            // 这个组合是无密钥部署的**常态**而非边缘情况：目标只由向量通道产生（架构 §19.6），
+            // 无密钥时向量必然全失败，而关键词通道不产生目标却真的召回了。裁决之前它是
+            // RETRIEVAL_FAILED——界面照 §13.6 说"没查成、可重试"，来源区里却躺着结果。
             assertThat(outcome.status())
-                    .as("当前实现与规格一致，但这个组合的用户表达尚未裁决")
-                    .isEqualTo(com.app.qa.retrieval.RetrievalStatus.RETRIEVAL_FAILED);
+                    .as("有来源就是 RETRIEVED；没有来源时才用目标状态分辨没查成与查了但没有")
+                    .isEqualTo(com.app.qa.retrieval.RetrievalStatus.RETRIEVED);
             assertThat(outcome.partial())
-                    .as("目标全失败时 partial 为 false——它表达的是'部分失败'，不是'全失败'")
-                    .isFalse();
+                    .as("有来源但目标全失败 → 结果不完整，界面挂『结果不完整』并给重试")
+                    .isTrue();
         } finally {
             jdbc.update("delete from qa_retrieval_source where turn_id = ?", turnId);
             jdbc.update("delete from qa_retrieval_target where turn_id = ?", turnId);

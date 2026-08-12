@@ -176,20 +176,12 @@ public class RetrievalOrchestrator {
 
         boolean anySucceeded = targets.stream().anyMatch(RetrievalOutcome.TargetOutcome::succeeded);
         boolean anyFailed = targets.stream().anyMatch(t -> !t.succeeded());
-        RetrievalStatus status;
-        if (!anySucceeded) {
-            // 全部目标失败：与"查了但没有"是两件事，文案与可做动作都不同。
-            status = RetrievalStatus.RETRIEVAL_FAILED;
-        } else if (sources.isEmpty()) {
-            status = RetrievalStatus.NO_RESULT;
-        } else {
-            status = RetrievalStatus.RETRIEVED;
-        }
+        RetrievalStatus status = statusOf(anySucceeded, anyFailed, !sources.isEmpty());
 
         var outcome = new RetrievalOutcome(
                 turnId,
                 status,
-                anySucceeded && anyFailed,
+                partialOf(anySucceeded, anyFailed, !sources.isEmpty()),
                 reranked.reranked(),
                 reranked.degradation(),
                 sources,
@@ -286,6 +278,43 @@ public class RetrievalOrchestrator {
                     classify(exception),
                     elapsedMs(startedAt));
         }
+    }
+
+    /**
+     * 由目标状态与来源有无算出本轮状态（裁决 `2026-08-11`，契约 §9.1）。
+     *
+     * <p><b>有来源就是 {@code RETRIEVED}，不管目标状态。</b>这条是裁决的核心：目标只由向量通道
+     * 产生（§19.6），而关键词通道不产生目标却能召回——无密钥环境里向量通道必然全失败，于是
+     * "全部目标失败"与"用户手上有结果"会同时成立。旧算法在那时给出 {@code RETRIEVAL_FAILED}，
+     * 界面照 ui-spec §13.6 说"没查成、可重试"，而来源区里明明躺着关键词召回的内容。
+     *
+     * <p>没有来源时才回到目标状态上分辨"没查成"（可重试）与"查了但没有"（该改问法）——
+     * 这正是 PRD §12.3 要区分的两件事，它在无来源这一侧仍然完整。
+     *
+     * <p>{@code hasTargets} 为假时（该子问题没有向量动作，只跑了关键词）零命中算
+     * {@code NO_RESULT} 而不是失败：没有目标失败过，谈不上"没查成"。
+     */
+    private static RetrievalStatus statusOf(boolean anySucceeded, boolean anyFailed, boolean hasSources) {
+        if (hasSources) {
+            return RetrievalStatus.RETRIEVED;
+        }
+        if (anyFailed && !anySucceeded) {
+            return RetrievalStatus.RETRIEVAL_FAILED;
+        }
+        return RetrievalStatus.NO_RESULT;
+    }
+
+    /**
+     * {@code partial} 的定义随裁决扩了一条：<b>有来源但目标全失败</b>也算结果不完整。
+     *
+     * <p>原本它只表达"部分目标失败"。扩展后它统一表达"用户拿到的结果不完整"——向量全挂、
+     * 关键词兜住的那一轮，用户确实拿到了结果，但确实少了一块，界面该挂 `结果不完整` 并给重试。
+     *
+     * <p>目标全失败且没有来源时**不算 partial**：那是 {@code RETRIEVAL_FAILED}，"什么都没有"
+     * 不是"不完整"。
+     */
+    private static boolean partialOf(boolean anySucceeded, boolean anyFailed, boolean hasSources) {
+        return anyFailed && (anySucceeded || hasSources);
     }
 
     /**

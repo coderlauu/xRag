@@ -426,6 +426,49 @@ class RetrievalOrchestratorIntegrationTests {
     }
 
     @Test
+    void 向量全失败但关键词有召回时是RETRIEVED且结果不完整() {
+        // 裁决（`2026-08-11`，契约 §9.1）。这是无密钥部署的常态：目标只由向量通道产生，
+        // 无密钥时向量必然全失败，而关键词通道不产生目标却真的召回了。
+        var kb = seedKb("编排关键词兜底", "退货政策说明与凭证要求");
+        var turn = seedTurn();
+        var subQuestion = seedSubQuestion(turn, "退货政策");
+        var action = seedAction(turn, subQuestion, "KB_TARGETED", kb.kbId());
+        ProgrammableSearchFailure.FAILING_KB_IDS.add(kb.kbId());
+
+        var outcome = orchestrator.retrieve(turn);
+
+        assertThat(outcome.sources())
+                .as("关键词通道不受向量失败影响，它该召回")
+                .isNotEmpty();
+        assertThat(outcome.status())
+                .as("有来源就是 RETRIEVED——用户手上有结果，说『没查成』是错的")
+                .isEqualTo(RetrievalStatus.RETRIEVED);
+        assertThat(outcome.partial())
+                .as("但确实少了一块，界面要挂『结果不完整』并给重试")
+                .isTrue();
+        assertThat(targetStatus(turn, action)).isEqualTo("FAILED");
+    }
+
+    @Test
+    void 目标全失败且没有来源时才是RETRIEVAL_FAILED() {
+        // 裁决的另一半：没有来源时仍然要分辨"没查成"（可重试）与"查了但没有"（该改问法），
+        // 这正是 PRD §12.3 的两件事。用切不出命中的问题让关键词也零命中。
+        var kb = seedKb("编排全失败无来源", "退货政策说明");
+        var turn = seedTurn();
+        var subQuestion = seedSubQuestion(turn, "zzzz不存在的词zzzz");
+        seedAction(turn, subQuestion, "KB_TARGETED", kb.kbId());
+        ProgrammableSearchFailure.FAILING_KB_IDS.add(kb.kbId());
+
+        var outcome = orchestrator.retrieve(turn);
+
+        assertThat(outcome.sources()).isEmpty();
+        assertThat(outcome.status()).isEqualTo(RetrievalStatus.RETRIEVAL_FAILED);
+        assertThat(outcome.partial())
+                .as("什么都没有不是『不完整』，那是『没查成』")
+                .isFalse();
+    }
+
+    @Test
     void 检索发生在事务外() {
         var kb = seedKb("编排事务边界", "退货政策说明");
         var turn = seedTurn();
