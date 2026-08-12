@@ -12,7 +12,12 @@ export const TURN_STATUS_LABEL: Record<TurnStatus, string> = {
   ACTIONS_READY: "已形成检索动作",
   WAITING_CLARIFICATION: "等待你选择方向",
   REJECTED_TOO_MANY_TOPICS: "主题过多，已请你拆分",
-  FAILED: "本轮理解失败",
+  QUEUED: "排队中",
+  GENERATING: "正在生成",
+  COMPLETED: "已完成",
+  STOPPED: "已停止",
+  FAILED: "本轮失败",
+  TIMED_OUT: "等待超时",
 };
 
 /**

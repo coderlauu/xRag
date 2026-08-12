@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./errors";
-import { listQaConversations, readIntentTree, toQaUserMessage } from "./qa";
+import { listQaConversations, readIntentTree, streamQaQuestion, toQaUserMessage } from "./qa";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -40,5 +40,34 @@ describe("QA API client", () => {
     expect(toQaUserMessage(unknown)).toEqual({
       title: "操作失败，请稍后重试。",
     });
+  });
+
+  it("用fetch解析跨分块SSE并在唯一终态后忽略事件", async () => {
+    const encoder = new TextEncoder();
+    const payload = [
+      `event:accepted\nid:1\ndata:{"sequence":1,"conversationId":"c1","turnId":"t1","taskId":"g1","userMessageId":"m1"}\n\n`,
+      `:keep-alive\n\nevent:answer_delta\nid:2\ndata:{"sequence":2,"text":"纯文本"}\n\n`,
+      `event:completed\nid:3\ndata:{"sequence":3,"assistantMessageId":"a1","saved":true}\n\n`,
+      `event:answer_delta\nid:4\ndata:{"sequence":4,"text":"不应出现"}\n\n`,
+    ].join("");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(payload.slice(0, 37)));
+        controller.enqueue(encoder.encode(payload.slice(37)));
+        controller.close();
+      },
+    }), { headers: { "content-type": "text/event-stream" } })));
+    const events: Array<{ event: string }> = [];
+
+    await streamQaQuestion(
+      { clientRequestId: "r1", conversationId: null, text: "问题" },
+      (event) => events.push(event),
+    );
+
+    expect(events.map((event) => event.event)).toEqual(["accepted", "answer_delta", "completed"]);
+    expect(fetch).toHaveBeenCalledWith("/api/qa/turns:stream", expect.objectContaining({
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    }));
   });
 });

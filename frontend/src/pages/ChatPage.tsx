@@ -7,8 +7,9 @@ import {
   readQaTurn,
   retryQaRetrieval,
   retryQaToolCall,
+  stopQaGeneration,
+  streamQaQuestion,
   submitQaClarification,
-  submitQaQuestion,
   toQaUserMessage,
   type ConversationDetail,
   type ConversationListItem,
@@ -35,6 +36,16 @@ const NEW_CONVERSATION = "";
 
 /** 单选组里"都不是这些"的本地标记值，不会作为 nodeId 发给服务端。 */
 const NONE_OF_THE_ABOVE = "__none_of_the_above__";
+
+type LiveGeneration = {
+  phase: "submitting" | "queued" | "generating" | "recovering" | "completed" | "stopped" | "failed" | "timed_out";
+  conversationId: string | null;
+  turnId: string | null;
+  taskId: string | null;
+  answer: string;
+  saved: boolean | null;
+  failureCode: string | null;
+};
 
 /**
  * 问答页（approved C — Focused Chat，2026-08-08 由 A 改判）。
@@ -68,6 +79,8 @@ export function ChatPage() {
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [generation, setGeneration] = useState<LiveGeneration | null>(null);
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   const [choice, setChoice] = useState<string | null>(null);
 
   const [retrying, setRetrying] = useState(false);
@@ -84,13 +97,18 @@ export function ChatPage() {
   const [panel, setPanel] = useState<"list" | "inspector" | null>(null);
 
   const pending = useRef<{ signature: string; requestId: string } | null>(null);
+  const pollVersion = useRef(0);
   const panelTrigger = useRef<HTMLButtonElement | null>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
 
   const draftKey = current?.conversationId ?? NEW_CONVERSATION;
   const draft = drafts[draftKey] ?? "";
   const status = result?.turn.status;
-  const active = submitting || status === "SAVED" || status === "PROCESSING";
+  const generationActive = generation?.phase === "submitting"
+    || generation?.phase === "queued" || generation?.phase === "generating"
+    || generation?.phase === "recovering";
+  const active = submitting || generationActive || status === "SAVED" || status === "PROCESSING"
+    || status === "QUEUED" || status === "GENERATING";
   const retrieval = result?.retrieval ?? null;
   /**
    * 失败库名拼给提示文案。**只取库名，不取 failureCode 的原始值**——消息区那句是给用户看的，
@@ -125,6 +143,7 @@ export function ChatPage() {
 
   useEffect(() => {
     void loadConversations();
+    return () => { pollVersion.current += 1; };
   }, []);
 
   /** 关闭覆盖层后把焦点还给触发它的按钮（ui-spec §10）。 */
@@ -156,20 +175,27 @@ export function ChatPage() {
     ]);
     setCurrent(detail);
     setMessages(page.items);
+    setLastQuestion([...page.items].reverse().find((message) => message.role === "USER")?.content ?? null);
     setEarlierCursor(page.previousCursor);
     return detail;
   }
 
   async function openConversation(conversationId: string) {
+    const version = ++pollVersion.current;
     setThreadError(null);
     setNotice(null);
     setChoice(null);
     setPanel(null);
     try {
       const detail = await refreshThread(conversationId);
-      setResult(
-        detail.latestTurn ? await readQaTurn(conversationId, detail.latestTurn.turnId) : null,
-      );
+      const next = detail.latestTurn ? await readQaTurn(conversationId, detail.latestTurn.turnId) : null;
+      setResult(next);
+      if (next && isActiveTurn(next.turn.status) && next.generation) {
+        setGeneration(recoveringGeneration(conversationId, next));
+        void pollGeneration(conversationId, next.turn.turnId, version, next.retryAfterMs);
+      } else {
+        setGeneration(null);
+      }
     } catch (cause) {
       setThreadError(toQaUserMessage(cause));
     }
@@ -190,6 +216,7 @@ export function ChatPage() {
   }
 
   function newConversation() {
+    pollVersion.current += 1;
     setCurrent(null);
     setMessages([]);
     setEarlierCursor(null);
@@ -197,6 +224,7 @@ export function ChatPage() {
     setThreadError(null);
     setNotice(null);
     setChoice(null);
+    setGeneration(null);
     setPanel(null);
     editor.current?.focus();
   }
@@ -285,34 +313,127 @@ export function ChatPage() {
     }
   }
 
-  async function sendQuestion() {
-    const text = draft.trim();
+  async function sendQuestion(retryText?: string) {
+    const text = (retryText ?? draft).trim();
     if (!text || active) return;
     const conversationId = current?.conversationId ?? null;
     const key = draftKey;
     setSubmitting(true);
+    setLastQuestion(text);
+    setGeneration({
+      phase: "submitting", conversationId, turnId: null, taskId: null,
+      answer: "", saved: null, failureCode: null,
+    });
     setThreadError(null);
     setNotice(null);
+    let accepted: { conversationId: string; turnId: string } | null = null;
     try {
-      const next = await submitQaQuestion({
+      await streamQaQuestion({
         clientRequestId: requestIdFor(`question|${conversationId ?? "new"}|${text}`),
         conversationId,
         text,
+      }, (event) => {
+        if (event.event === "accepted") {
+          accepted = { conversationId: event.conversationId, turnId: event.turnId };
+          setSubmitting(false);
+          setGeneration((live) => live && ({ ...live,
+            conversationId: event.conversationId, turnId: event.turnId, taskId: event.taskId,
+            phase: "generating",
+          }));
+          setMessages((previous) => previous.some((message) => message.messageId === event.userMessageId)
+            ? previous
+            : [...previous, {
+              messageId: event.userMessageId, turnId: event.turnId, sequenceNo: previous.length + 1,
+              role: "USER", type: "USER_QUERY", content: text, createdAt: new Date().toISOString(),
+            }]);
+        } else if (event.event === "queued") {
+          setGeneration((live) => live && ({ ...live, phase: "queued" }));
+        } else if (event.event === "generation_started") {
+          setGeneration((live) => live && ({ ...live, phase: "generating" }));
+        } else if (event.event === "answer_delta") {
+          setGeneration((live) => live && isLiveTerminal(live.phase)
+            ? live : live && ({ ...live, answer: live.answer + event.text }));
+        } else if (event.event === "completed" || event.event === "stopped") {
+          setGeneration((live) => live && ({ ...live, phase: event.event, saved: event.saved }));
+        } else if (event.event === "failed") {
+          setGeneration((live) => live && ({ ...live,
+            phase: "failed", saved: event.saved, failureCode: event.code,
+          }));
+        } else {
+          setGeneration((live) => live && ({ ...live, phase: "timed_out" }));
+        }
       });
       pending.current = null;
-      setResult(next);
       setChoice(null);
       setDrafts((prev) => ({ ...prev, [key]: "" }));
-      const settled = next.conversation?.conversationId ?? conversationId;
-      if (settled) {
-        await refreshThread(settled);
+      if (accepted) {
+        const finalAccepted = accepted as { conversationId: string; turnId: string };
+        const detail = await refreshThread(finalAccepted.conversationId);
+        const next = await readQaTurn(finalAccepted.conversationId, finalAccepted.turnId);
+        setResult(next);
+        setCurrent(detail);
+        setGeneration((live) => next.generation?.answerSaved === false && live?.answer
+          ? live : null);
       }
       await loadConversations();
     } catch (cause) {
-      setThreadError(toQaUserMessage(cause));
+      if (accepted) {
+        const disconnected = accepted as { conversationId: string; turnId: string };
+        const version = ++pollVersion.current;
+        setGeneration((live) => live && ({ ...live, phase: "recovering" }));
+        void pollGeneration(disconnected.conversationId, disconnected.turnId, version);
+      } else {
+        setGeneration(null);
+        setThreadError(toQaUserMessage(cause));
+      }
     } finally {
       setSubmitting(false);
       editor.current?.focus();
+    }
+  }
+
+  async function pollGeneration(
+    conversationId: string,
+    turnId: string,
+    version: number,
+    retryAfterMs = 1000,
+  ) {
+    await new Promise((resolve) => window.setTimeout(resolve, Math.max(100, retryAfterMs)));
+    if (pollVersion.current !== version) return;
+    try {
+      const next = await readQaTurn(conversationId, turnId);
+      if (pollVersion.current !== version) return;
+      setResult(next);
+      if (isActiveTurn(next.turn.status)) {
+        void pollGeneration(conversationId, turnId, version, next.retryAfterMs);
+        return;
+      }
+      setGeneration(null);
+      await refreshThread(conversationId);
+      await loadConversations();
+    } catch {
+      if (pollVersion.current === version) {
+        void pollGeneration(conversationId, turnId, version, retryAfterMs);
+      }
+    }
+  }
+
+  async function stopGeneration() {
+    if (!generation?.taskId || !generation.conversationId || !generation.turnId
+      || !generationActive) return;
+    const owned = {
+      taskId: generation.taskId,
+      conversationId: generation.conversationId,
+      turnId: generation.turnId,
+    };
+    setGeneration((live) => live && ({ ...live, phase: "stopped" }));
+    try {
+      const stopped = await stopQaGeneration({
+        taskId: owned.taskId, conversationId: owned.conversationId, turnId: owned.turnId,
+      });
+      setGeneration((live) => live && ({ ...live, phase: generationPhase(stopped.status) }));
+    } catch (cause) {
+      setThreadError(toQaUserMessage(cause));
     }
   }
 
@@ -431,7 +552,7 @@ export function ChatPage() {
           </div>
         </header>
 
-        <div className="qa-messages" aria-live="polite">
+        <div className="qa-messages">
           {earlierCursor ? (
             <button className="qa-load-earlier" type="button" onClick={() => void loadEarlier()}>
               加载更早的消息
@@ -464,10 +585,38 @@ export function ChatPage() {
             </p>
           ) : null}
 
-          {active ? (
+          {active && !generation ? (
             <p className="qa-system-notice" role="status">
               正在理解问题…
             </p>
+          ) : null}
+
+          {generation ? (
+            <article
+              className="qa-live-answer"
+              aria-busy={generationActive ? "true" : "false"}
+            >
+              <span className="qa-message-role">助手</span>
+              {generation.answer ? <p className="qa-message-body">{generation.answer}</p> : null}
+              <div className="qa-generation-status">
+                <span>{generationStatusLabel(generation.phase)}</span>
+                {generationActive && generation.taskId ? (
+                  <button type="button" onClick={() => void stopGeneration()} aria-label="停止生成">
+                    停止
+                  </button>
+                ) : null}
+              </div>
+              {generation.phase === "stopped" ? (
+                <p role="status">
+                  {generation.answer
+                    ? "已停止生成，以上是已经产生的部分。"
+                    : "已停止，本轮没有开始生成。"}
+                </p>
+              ) : null}
+              {generation.saved === false && generation.answer ? (
+                <p role="status">本条回答未能保存，刷新后将不可见</p>
+              ) : null}
+            </article>
           ) : null}
 
           {/*
@@ -611,10 +760,40 @@ export function ChatPage() {
             </p>
           ) : null}
 
-          {status === "FAILED" ? (
+          {status === "FAILED" && !result?.generation ? (
             <p className="qa-system-notice qa-notice-error">
               本轮理解失败，原问题已保存，你可以重新发送。
             </p>
+          ) : null}
+
+          {status === "FAILED" && result?.generation ? (
+            <div className="qa-system-notice qa-notice-error" role="status">
+              <p>{generationFailureLabel(result.turn.terminalReason)}</p>
+              {lastQuestion ? (
+                <div className="qa-notice-actions">
+                  <button type="button" onClick={() => void sendQuestion(lastQuestion)}>重试</button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {status === "STOPPED" && !generation ? (
+            <p className="qa-system-notice" role="status">
+              {result?.assistantMessage
+                ? "已停止生成，以上是已经产生的部分。"
+                : "已停止，本轮没有开始生成。"}
+            </p>
+          ) : null}
+
+          {status === "TIMED_OUT" ? (
+            <div className="qa-system-notice" role="status">
+              <p>当前排队较多，本轮未开始生成</p>
+              {lastQuestion ? (
+                <div className="qa-notice-actions">
+                  <button type="button" onClick={() => void sendQuestion(lastQuestion)}>重试</button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {result?.clarification ? (
@@ -735,4 +914,52 @@ export function ChatPage() {
       ) : null}
     </section>
   );
+}
+
+function isLiveTerminal(phase: LiveGeneration["phase"]) {
+  return phase === "completed" || phase === "stopped" || phase === "failed" || phase === "timed_out";
+}
+
+function generationPhase(status: "STOPPED" | "COMPLETED" | "FAILED" | "TIMED_OUT"): LiveGeneration["phase"] {
+  return status.toLowerCase() as LiveGeneration["phase"];
+}
+
+function generationStatusLabel(phase: LiveGeneration["phase"]) {
+  switch (phase) {
+    case "submitting": return "正在保存…";
+    case "queued": return "排队中…";
+    case "generating": return "正在生成…";
+    case "recovering": return "这一轮仍在进行，完成后会显示在这里";
+    case "completed": return "回答已完成";
+    case "stopped": return "已停止";
+    case "failed": return "生成失败，请重试";
+    case "timed_out": return "当前排队较多，本轮未开始生成";
+  }
+}
+
+function isActiveTurn(status: TurnResult["turn"]["status"]) {
+  return status === "QUEUED" || status === "GENERATING";
+}
+
+function recoveringGeneration(conversationId: string, result: TurnResult): LiveGeneration {
+  return {
+    phase: "recovering",
+    conversationId,
+    turnId: result.turn.turnId,
+    taskId: result.generation?.taskId ?? null,
+    answer: "",
+    saved: null,
+    failureCode: null,
+  };
+}
+
+function generationFailureLabel(reason: string | null) {
+  switch (reason) {
+    case "MODEL_UNAVAILABLE": return "回答服务暂时不可用，请稍后重试。";
+    case "FIRST_BYTE_TIMEOUT": return "回答服务响应超时，请重试。";
+    case "GENERATION_TIMEOUT": return "回答生成超时，请重试。";
+    case "SERVICE_RESTARTED":
+    case "SERVICE_SHUTDOWN": return "服务重启中断了本轮回答，请重试。";
+    default: return "回答生成失败，请重试。";
+  }
 }

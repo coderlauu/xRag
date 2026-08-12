@@ -38,6 +38,11 @@ function buildUrl(basePath: string, path: string, query?: RequestOptions["query"
   return queryString ? `${url}?${queryString}` : url;
 }
 
+/** 给需要直接消费流式响应的 API 使用，仍复用全站的 base URL 规则。 */
+export function requestUrlAt(basePath: string, path: string): string {
+  return buildUrl(basePath, path);
+}
+
 /**
  * 全站唯一的请求出口。它只负责三件事，业务语义一概不碰：
  *

@@ -247,6 +247,12 @@ code {
 .qa-message time { font-size: 12px; opacity: 0.35; }
 .qa-message:hover time, .qa-message:focus-within time { opacity: 1; }
 
+/* 3C 流式答案原地增长；纯文本保留换行，不解析 Markdown。 */
+.qa-live-answer { align-self: flex-start; display: grid; gap: 6px; width: min(78%, 720px); }
+.qa-live-answer > p { margin: 0; }
+.qa-generation-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 34px; font-size: 13px; }
+.qa-generation-status button { flex: none; }
+
 .qa-system-notice { align-self: center; max-width: 620px; padding: 10px 14px; border-radius: 8px; background: var(--social-bg); font-size: 14px; }
 .qa-notice-error { border: 1px solid var(--danger); }
 .qa-tag { display: inline-block; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; }
@@ -388,10 +394,16 @@ code {
 
 @media (max-width: 720px) {
   .qa-message { max-width: 92%; }
+  .qa-live-answer { width: min(92%, 720px); }
   .qa-clarification label { padding: 12px; }
   /* 窄屏抽屉铺满整宽（ui-spec §10）；两侧的边框此时没有意义。 */
   .qa-drawer { width: 100vw; }
   .qa-drawer-left, .qa-drawer-right { border: 0; }
+}
+
+@media (max-width: 375px) {
+  .qa-generation-status { align-items: stretch; flex-direction: column; }
+  .qa-generation-status button { width: 100%; }
 }
 
 /* ---- 意图树 C — Route Canvas ---- */

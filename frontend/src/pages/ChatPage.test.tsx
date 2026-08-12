@@ -53,6 +53,24 @@ function problem(status: number, code: string, extra: Record<string, unknown> = 
   });
 }
 
+function sse(frames: string): Response {
+  return new Response(frames, {
+    status: 200,
+    headers: { "content-type": "text/event-stream;charset=UTF-8" },
+  });
+}
+
+function completedStream(result: typeof actionsReadyResult): Response {
+  const conversationId = result.conversation?.conversationId ?? CONVERSATION_ID;
+  const turnId = result.turn.turnId;
+  return sse([
+    `event:accepted\nid:1\ndata:${JSON.stringify({ sequence: 1, conversationId, turnId, taskId: "task-1", userMessageId: result.turn.userMessageId })}`,
+    `event:generation_started\nid:2\ndata:${JSON.stringify({ sequence: 2, queuedOnce: false })}`,
+    `event:completed\nid:3\ndata:${JSON.stringify({ sequence: 3, assistantMessageId: null, saved: false })}`,
+    "",
+  ].join("\n\n"));
+}
+
 const listItem = {
   conversationId: CONVERSATION_ID,
   title: "退货要什么材料",
@@ -212,6 +230,8 @@ interface Routes {
   messages: (url: string) => Response;
   turn: () => Response;
   submit: (body: Record<string, unknown> | undefined, index: number) => Response | Promise<Response>;
+  stream?: (body: Record<string, unknown> | undefined, index: number) => Response | Promise<Response>;
+  stop: () => Response;
   rename: (body: Record<string, unknown> | undefined) => Response;
   remove: () => Response;
   retryRetrieval: (body: Record<string, unknown> | undefined) => Response;
@@ -227,6 +247,7 @@ const defaultRoutes: Routes = {
   messages: () => json({ items: [userMessage], previousCursor: null }),
   turn: () => json({ turn: actionsReadyTurn, inspector: actionsReadyInspector, assistantMessage: null, clarification: null }),
   submit: () => json(actionsReadyResult, 201),
+  stop: () => json({ status: "STOPPED", alreadyTerminal: false }),
   rename: (body) => json({ conversationId: CONVERSATION_ID, title: String(body?.title), version: 3 }),
   remove: () => json(null, 204),
   retryRetrieval: () => json(resultWith({ ...retrievedBlock, partial: false, failedTargets: [] })),
@@ -238,6 +259,7 @@ function mockApi(overrides: Partial<Routes> = {}) {
   const routes = { ...defaultRoutes, ...overrides };
   const calls: Recorded[] = [];
   let submits = 0;
+  let latestSubmitted: typeof actionsReadyResult | null = null;
 
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = String(input);
@@ -254,13 +276,21 @@ function mockApi(overrides: Partial<Routes> = {}) {
     if (method === "POST" && url.includes("/retrieval/retry")) {
       return Promise.resolve(routes.retryRetrieval(body));
     }
-    if (method === "POST" && url.endsWith("/api/qa/turns")) {
-      return Promise.resolve(routes.submit(body, submits++)).then((response) => response);
+    if (method === "POST" && url.includes("/generation-tasks/") && url.endsWith("/stop")) {
+      return Promise.resolve(routes.stop());
+    }
+    if (method === "POST" && url.endsWith("/api/qa/turns:stream")) {
+      if (routes.stream) return Promise.resolve(routes.stream(body, submits++));
+      return Promise.resolve(routes.submit(body, submits++)).then(async (response) => {
+        if (!response.ok) return response;
+        latestSubmitted = await response.clone().json() as typeof actionsReadyResult;
+        return completedStream(latestSubmitted);
+      });
     }
     if (method === "PATCH") return Promise.resolve(routes.rename(body));
     if (method === "DELETE") return Promise.resolve(routes.remove());
     if (url.includes("/messages")) return Promise.resolve(routes.messages(url));
-    if (url.includes("/turns/")) return Promise.resolve(routes.turn());
+    if (url.includes("/turns/")) return Promise.resolve(latestSubmitted ? json(latestSubmitted) : routes.turn());
     if (/\/conversations\/[^/?]+$/.test(url)) return Promise.resolve(routes.detail(url));
     if (url.includes("/conversations")) return Promise.resolve(routes.list(url));
     return Promise.reject(new Error(`未预期的请求：${method} ${url}`));
@@ -276,6 +306,237 @@ function mockApi(overrides: Partial<Routes> = {}) {
 
 beforeEach(() => {
   setTestViewport(1440, 900);
+});
+
+describe("问答 C — 3C 流式生成", () => {
+  const encoder = new TextEncoder();
+
+  function frame(event: string, sequence: number, data: Record<string, unknown> = {}) {
+    return encoder.encode(`event:${event}\nid:${sequence}\ndata:${JSON.stringify({ sequence, ...data })}\n\n`);
+  }
+
+  function accepted(controller: ReadableStreamDefaultController<Uint8Array>) {
+    controller.enqueue(frame("accepted", 1, {
+      conversationId: CONVERSATION_ID,
+      turnId: "t-stream",
+      taskId: "task-stream",
+      userMessageId: "m-stream",
+    }));
+  }
+
+  function finalResult(status: "COMPLETED" | "STOPPED", content: string | null) {
+    return {
+      ...actionsReadyResult,
+      turn: { ...actionsReadyTurn, turnId: "t-stream", userMessageId: "m-stream", status },
+      generation: {
+        taskId: "task-stream", status, queuedOnce: true,
+        answerSaved: content !== null, assistantMessageId: content === null ? null : "a-stream",
+      },
+      assistantMessage: content === null ? null : {
+        messageId: "a-stream", turnId: "t-stream", sequenceNo: 2, role: "ASSISTANT",
+        type: "ASSISTANT_ANSWER", content, createdAt: "2026-08-12T16:00:00+08:00",
+        incomplete: status === "STOPPED",
+      },
+    };
+  }
+
+  it("排队后原地生成纯文本并以服务端完成态收敛", async () => {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const completed = finalResult("COMPLETED", "第一行\n第二行");
+    mockApi({
+      list: () => json({ items: [], nextCursor: null }),
+      stream: () => new Response(new ReadableStream({ start(value) {
+        controller = value;
+        accepted(value);
+        value.enqueue(frame("queued", 2));
+      } }), { headers: { "content-type": "text/event-stream" } }),
+      turn: () => json(completed),
+      messages: () => json({ items: [userMessage, completed.assistantMessage], previousCursor: null }),
+    });
+    const user = userEvent.setup();
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "对话列表" });
+    await user.type(screen.getByLabelText("输入你的问题"), "流式回答");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(await screen.findByText("排队中…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "停止生成" })).toBeInTheDocument();
+    expect(screen.getByLabelText("输入你的问题")).toBeDisabled();
+
+    controller.enqueue(frame("generation_started", 3, { queuedOnce: true }));
+    controller.enqueue(frame("answer_delta", 4, { text: "第一行\n第二行" }));
+    const liveAnswer = await screen.findByText((_, element) => element?.textContent === "第一行\n第二行");
+    expect(liveAnswer).toBeInTheDocument();
+    expect(liveAnswer.closest("article")).toHaveAttribute("aria-busy", "true");
+
+    controller.enqueue(frame("completed", 5, { assistantMessageId: "a-stream", saved: true }));
+    controller.close();
+    await waitFor(() => expect(screen.getByLabelText("输入你的问题")).not.toBeDisabled());
+    expect(screen.queryByRole("button", { name: "停止生成" })).not.toBeInTheDocument();
+  });
+
+  it("生成中停止立即保留部分答案且忽略后到delta", async () => {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const stopped = finalResult("STOPPED", "已有部分");
+    const api = mockApi({
+      list: () => json({ items: [], nextCursor: null }),
+      stream: () => new Response(new ReadableStream({ start(value) {
+        controller = value;
+        accepted(value);
+        value.enqueue(frame("generation_started", 2, { queuedOnce: false }));
+        value.enqueue(frame("answer_delta", 3, { text: "已有部分" }));
+      } })),
+      turn: () => json(stopped),
+      messages: () => json({ items: [userMessage, stopped.assistantMessage], previousCursor: null }),
+    });
+    const user = userEvent.setup();
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "对话列表" });
+    await user.type(screen.getByLabelText("输入你的问题"), "请详细回答");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await screen.findByText("已有部分");
+
+    await user.click(screen.getByRole("button", { name: "停止生成" }));
+    expect(await screen.findByText("已停止")).toBeInTheDocument();
+    expect(screen.getByText("已停止生成，以上是已经产生的部分。")).toBeInTheDocument();
+    expect(api.of("POST", "/generation-tasks/task-stream/stop")).toHaveLength(1);
+    controller.enqueue(frame("answer_delta", 4, { text: "不应追加" }));
+    expect(screen.queryByText(/不应追加/)).not.toBeInTheDocument();
+    controller.enqueue(frame("stopped", 5, {
+      assistantMessageId: "a-stream", saved: true, hasPartialAnswer: true,
+    }));
+    controller.close();
+    await waitFor(() => expect(screen.getByLabelText("输入你的问题")).not.toBeDisabled());
+    expect(screen.queryByRole("button", { name: /重试/ })).not.toBeInTheDocument();
+  });
+
+  it("排队中也可立即停止且不伪造答案", async () => {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const stopped = finalResult("STOPPED", null);
+    mockApi({
+      list: () => json({ items: [], nextCursor: null }),
+      stream: () => new Response(new ReadableStream({ start(value) {
+        controller = value;
+        accepted(value);
+        value.enqueue(frame("queued", 2));
+      } })),
+      turn: () => json(stopped),
+      messages: () => json({ items: [userMessage], previousCursor: null }),
+    });
+    const user = userEvent.setup();
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "对话列表" });
+    await user.type(screen.getByLabelText("输入你的问题"), "排队问题");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await screen.findByText("排队中…");
+    await user.click(screen.getByRole("button", { name: "停止生成" }));
+    expect(await screen.findByText("已停止")).toBeInTheDocument();
+    expect(screen.getByText("已停止，本轮没有开始生成。")).toBeInTheDocument();
+    expect(screen.queryByText("已停止生成，以上是已经产生的部分。")).not.toBeInTheDocument();
+    expect(screen.queryByText("助手回答")).not.toBeInTheDocument();
+    controller.enqueue(frame("stopped", 3, {
+      assistantMessageId: null, saved: false, hasPartialAnswer: false,
+    }));
+    controller.close();
+  });
+
+  it.each(["COMPLETED", "STOPPED"] as const)("%s但未保存时保留屏上答案并显示独立警告", async (status) => {
+    const terminal = finalResult(status, null);
+    mockApi({
+      list: () => json({ items: [], nextCursor: null }),
+      stream: () => sse([
+        `event:accepted\nid:1\ndata:${JSON.stringify({ sequence: 1, conversationId: CONVERSATION_ID, turnId: "t-stream", taskId: "task-stream", userMessageId: "m-stream" })}`,
+        `event:generation_started\nid:2\ndata:${JSON.stringify({ sequence: 2, queuedOnce: false })}`,
+        `event:answer_delta\nid:3\ndata:${JSON.stringify({ sequence: 3, text: "只在当前页面可见" })}`,
+        `event:${status === "COMPLETED" ? "completed" : "stopped"}\nid:4\ndata:${JSON.stringify({ sequence: 4, assistantMessageId: null, saved: false, hasPartialAnswer: true })}`,
+        "",
+      ].join("\n\n")),
+      turn: () => json(terminal),
+      messages: () => json({ items: [userMessage], previousCursor: null }),
+    });
+    const user = userEvent.setup();
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "对话列表" });
+    await user.type(screen.getByLabelText("输入你的问题"), "未保存测试");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(await screen.findByText("只在当前页面可见")).toBeInTheDocument();
+    expect(await screen.findByText("本条回答未能保存，刷新后将不可见")).toBeInTheDocument();
+    if (status === "STOPPED") {
+      expect(screen.getByText("已停止生成，以上是已经产生的部分。")).toBeInTheDocument();
+    }
+    expect(screen.getByLabelText("输入你的问题")).not.toBeDisabled();
+  });
+
+  it("流断开后只显示处理中提示并轮询到完整终态而不假流", async () => {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    let reads = 0;
+    const completed = finalResult("COMPLETED", "恢复后的完整答案");
+    const activeResult = {
+      ...completed,
+      turn: { ...completed.turn, status: "GENERATING", completedAt: null },
+      assistantMessage: null,
+      generation: { ...completed.generation, status: "GENERATING", answerSaved: null, assistantMessageId: null },
+      retryAfterMs: 1,
+    };
+    mockApi({
+      list: () => json({ items: [], nextCursor: null }),
+      stream: () => new Response(new ReadableStream({ start(value) {
+        controller = value;
+        accepted(value);
+        value.enqueue(frame("generation_started", 2, { queuedOnce: false }));
+      } })),
+      turn: () => json(reads++ === 0 ? activeResult : completed),
+      messages: () => json({ items: reads > 1 ? [userMessage, completed.assistantMessage] : [userMessage], previousCursor: null }),
+    });
+    const user = userEvent.setup();
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "对话列表" });
+    await user.type(screen.getByLabelText("输入你的问题"), "断连恢复");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+    await screen.findByText("正在生成…");
+
+    controller.error(new Error("connection lost"));
+    expect(await screen.findByText("这一轮仍在进行，完成后会显示在这里")).toBeInTheDocument();
+    expect(screen.queryByText("恢复后的完整答案")).not.toBeInTheDocument();
+    expect(document.querySelector(".qa-live-answer")).toHaveAttribute("aria-busy", "true");
+    expect(document.querySelector(".qa-live-answer")?.closest("[aria-live]")).toBeNull();
+
+    expect(await screen.findByText("恢复后的完整答案", {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(screen.getByLabelText("输入你的问题")).not.toBeDisabled();
+  });
+
+  it.each([
+    ["FAILED", "MODEL_UNAVAILABLE", "回答服务暂时不可用，请稍后重试。"],
+    ["TIMED_OUT", "GENERATION_WAIT_TIMEOUT", "当前排队较多，本轮未开始生成"],
+  ])("%s终态使用独立归一化文案并提供重试", async (status, reason, message) => {
+    const failed = {
+      ...actionsReadyResult,
+      turn: { ...actionsReadyTurn, turnId: "t-stream", userMessageId: "m-stream", status, terminalReason: reason },
+      generation: {
+        taskId: "task-stream", status, queuedOnce: status === "TIMED_OUT",
+        answerSaved: status === "FAILED" ? false : null, assistantMessageId: null,
+      },
+    };
+    mockApi({
+      list: () => json({ items: [], nextCursor: null }),
+      stream: () => sse([
+        `event:accepted\nid:1\ndata:${JSON.stringify({ sequence: 1, conversationId: CONVERSATION_ID, turnId: "t-stream", taskId: "task-stream", userMessageId: "m-stream" })}`,
+        `event:${status === "FAILED" ? "failed" : "timed_out"}\nid:2\ndata:${JSON.stringify({ sequence: 2, code: reason, retryable: true, assistantMessageId: null, saved: false })}`,
+        "",
+      ].join("\n\n")),
+      turn: () => json(failed),
+      messages: () => json({ items: [userMessage], previousCursor: null }),
+    });
+    const user = userEvent.setup();
+    render(<ChatPage />);
+    await screen.findByRole("button", { name: "对话列表" });
+    await user.type(screen.getByLabelText("输入你的问题"), "失败重试");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+  });
 });
 
 afterEach(() => {
@@ -479,7 +740,7 @@ describe("问答 C — 稳定终态与歧义闭环", () => {
 
     await waitFor(() => expect(screen.getByLabelText("输入你的问题")).toBeDisabled());
     expect(screen.getByRole("button", { name: "发送中…" })).toBeDisabled();
-    expect(screen.getByText("正在理解问题…")).toBeInTheDocument();
+    expect(screen.getByText("正在保存…")).toBeInTheDocument();
   });
 
   it("失败与降级用文字说明失败点和可做动作，不只靠颜色", async () => {
@@ -798,7 +1059,7 @@ describe("问答 C — 3B 来源与降级", () => {
     // 重试不新建 turn。**必须用 endsWith 精确匹配**：retry 的 URL 也含 "/turns"，
     // 用 includes 会把重试自己数成一次新提交。
     const submits = api.calls.filter(
-      (call) => call.method === "POST" && call.url.endsWith("/api/qa/turns"),
+      (call) => call.method === "POST" && call.url.endsWith("/api/qa/turns:stream"),
     );
     expect(submits).toHaveLength(1);
     expect(api.of("POST", "/retrieval/retry")[0]?.body).toHaveProperty("clientRequestId");

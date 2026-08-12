@@ -1,5 +1,5 @@
 import { ApiError, NetworkError, type UserFacingMessage } from "./errors";
-import { requestAt, type RequestOptions } from "./client";
+import { requestAt, requestUrlAt, type RequestOptions } from "./client";
 
 export type QaId = string;
 export type IsoDateTime = string;
@@ -9,12 +9,18 @@ export type TurnStatus =
   | "ACTIONS_READY"
   | "WAITING_CLARIFICATION"
   | "REJECTED_TOO_MANY_TOPICS"
+  | "QUEUED"
+  | "GENERATING"
+  | "COMPLETED"
+  | "STOPPED"
+  | "TIMED_OUT"
   | "FAILED";
 export type MessageType =
   | "USER_QUERY"
   | "CLARIFICATION_CHOICE"
   | "CLARIFICATION_GUIDANCE"
-  | "SYSTEM_NOTICE";
+  | "SYSTEM_NOTICE"
+  | "ASSISTANT_ANSWER";
 export type IntentNodeType = "GROUP" | "KB" | "SYSTEM";
 export type RetrievalActionType = "KB_TARGETED" | "GLOBAL_FALLBACK" | "SYSTEM" | "NO_MATCH";
 
@@ -44,6 +50,15 @@ export interface QaMessage {
   type: MessageType;
   content: string;
   createdAt: IsoDateTime;
+  incomplete?: boolean;
+}
+
+export interface GenerationView {
+  taskId: QaId;
+  status: "QUEUED" | "GENERATING" | "COMPLETED" | "STOPPED" | "FAILED" | "TIMED_OUT";
+  queuedOnce: boolean;
+  answerSaved: boolean | null;
+  assistantMessageId: QaId | null;
 }
 
 export interface IntentMatch {
@@ -104,7 +119,23 @@ export interface TurnResult {
   retrieval?: TurnRetrieval | null;
   /** 工具区属工单 13；这里先承认字段，避免 13 改动 api 层的形状。 */
   tools?: TurnTool[];
+  generation?: GenerationView | null;
   retryAfterMs?: number;
+}
+
+export type GenerationEvent =
+  | { event: "accepted"; sequence: number; conversationId: QaId; turnId: QaId; taskId: QaId; userMessageId: QaId }
+  | { event: "queued"; sequence: number }
+  | { event: "generation_started"; sequence: number; queuedOnce: boolean }
+  | { event: "answer_delta"; sequence: number; text: string }
+  | { event: "completed"; sequence: number; assistantMessageId: QaId | null; saved: boolean }
+  | { event: "stopped"; sequence: number; assistantMessageId: QaId | null; saved: boolean; hasPartialAnswer: boolean }
+  | { event: "failed"; sequence: number; code: string; retryable: boolean; assistantMessageId: QaId | null; saved: boolean }
+  | { event: "timed_out"; sequence: number; retryable: true };
+
+export interface GenerationStopResult {
+  status: "STOPPED" | "COMPLETED" | "FAILED" | "TIMED_OUT";
+  alreadyTerminal: boolean;
 }
 
 export type RetrievalStatus = "RETRIEVING" | "RETRIEVED" | "NO_RESULT" | "RETRIEVAL_FAILED";
@@ -329,6 +360,81 @@ export function submitQaQuestion(input: {
       message: { type: "QUESTION", text: input.text },
     },
   });
+}
+
+/** POST + fetch 流式读取；EventSource 不支持本契约所需的请求体。 */
+export async function streamQaQuestion(
+  input: { clientRequestId: QaId; conversationId: QaId | null; text: string },
+  onEvent: (event: GenerationEvent) => void,
+  signal?: AbortSignal,
+) {
+  let response: Response;
+  try {
+    response = await fetch(requestUrlAt(QA_ROOT, "/turns:stream"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({
+        clientRequestId: input.clientRequestId,
+        conversationId: input.conversationId,
+        message: { type: "QUESTION", text: input.text },
+      }),
+      signal,
+    });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
+    throw new NetworkError(cause);
+  }
+  if (!response.ok) {
+    const body = await response.text();
+    let problem: Record<string, unknown> | null = null;
+    try { problem = JSON.parse(body) as Record<string, unknown>; } catch { /* non-JSON error */ }
+    throw ApiError.fromResponse(response.status, problem);
+  }
+  if (!response.body) throw new NetworkError(new Error("empty SSE response"));
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let terminal = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done }).replaceAll("\r\n", "\n");
+    let boundary;
+    while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+      const frame = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const event = parseGenerationFrame(frame);
+      if (!event || terminal) continue;
+      onEvent(event);
+      terminal = isGenerationTerminal(event);
+    }
+    if (done) break;
+  }
+}
+
+export function stopQaGeneration(input: { taskId: QaId; conversationId: QaId; turnId: QaId }) {
+  return qaRequest<GenerationStopResult>(`/generation-tasks/${input.taskId}/stop`, {
+    method: "POST",
+    body: { conversationId: input.conversationId, turnId: input.turnId },
+  });
+}
+
+function parseGenerationFrame(frame: string): GenerationEvent | null {
+  let name = "";
+  const data: string[] = [];
+  for (const line of frame.split("\n")) {
+    if (line.startsWith(":")) continue;
+    if (line.startsWith("event:")) name = line.slice(6).trim();
+    if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+  }
+  if (!name || data.length === 0) return null;
+  const payload = JSON.parse(data.join("\n")) as Record<string, unknown>;
+  return { ...payload, event: name } as GenerationEvent;
+}
+
+export function isGenerationTerminal(event: GenerationEvent) {
+  return event.event === "completed" || event.event === "stopped"
+    || event.event === "failed" || event.event === "timed_out";
 }
 
 export function submitQaClarification(input: {
