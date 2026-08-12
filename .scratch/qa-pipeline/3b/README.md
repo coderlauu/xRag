@@ -22,8 +22,8 @@
 | 12 | [前端来源区与降级表达](issues/12-frontend-sources.md) | 11 | complete |
 | 13 | [前端工具区与确认卡](issues/13-frontend-tools.md) | 10, 12 | complete |
 | 14 | [隐私审计、故障注入与 3B E2E](issues/14-privacy-e2e.md) | 11, 13 | complete |
-| 15 | [矩阵执行与浏览器验收](issues/15-matrix-validation.md) | 01~14 | blocked |
-| 16 | [CI、部署配置与 3B 门禁](issues/16-ci-deploy.md) | 01~15 | blocked |
+| 15 | [矩阵执行与浏览器验收](issues/15-matrix-validation.md) | 01~14 | in-progress |
+| 16 | [CI、部署配置与 3B 门禁](issues/16-ci-deploy.md) | 01~15 | complete |
 
 ## 依赖图
 
@@ -38,7 +38,8 @@
 把两者接起来——`RetrievalOrchestrator` 一直没有业务调用方，真实链路上 `retrieval` 恒为 null。
 按推进规则"发现隐藏依赖先改本图"补的这一环，它同时解锁了 3B 的全部手工走查。
 
-01~07、09、10 已完成（2026-08-08~09），08、08b、11、12、13、14 已完成（2026-08-11），解锁 **15**（矩阵执行与浏览器验收）。
+01~07、09、10 已完成（2026-08-08~09），08、08b、11~14、16 已完成（2026-08-11）。**只剩工单 15 的 9 条手工走查**——
+它们需要演示数据集与四档浏览器验收，见该工单的遗留。
 
 ## 推进规则
 
