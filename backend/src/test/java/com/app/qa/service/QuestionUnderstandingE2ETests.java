@@ -65,6 +65,9 @@ class QuestionUnderstandingE2ETests {
     private JdbcTemplate jdbc;
 
     @Autowired
+    private com.app.knowledge.vector.ChunkVectorRepository vectors;
+
+    @Autowired
     private DeterministicQaChat chat;
 
     @Autowired
@@ -72,11 +75,12 @@ class QuestionUnderstandingE2ETests {
 
     private UUID revisionId;
     private UUID nodeId;
+    private long knowledgeBaseId;
 
     @BeforeEach
     void publishIntentTree() {
         chat.reset();
-        long knowledgeBaseId = jdbc.queryForObject("""
+        knowledgeBaseId = jdbc.queryForObject("""
                 insert into knowledge_base
                     (name, storage_alias, embedding_model, embedding_dimensions)
                 values (?, ?, 'text-embedding-v3', 1024)
@@ -430,6 +434,88 @@ class QuestionUnderstandingE2ETests {
                     + "\"subQuestions\":[\"退款多久到账？\"]}");
             scoringResponse.set("[{\"id\":\"" + nodeId.get() + "\",\"score\":0.91}]");
             failSummary = false;
+        }
+    }
+
+    /**
+     * 3B-E2E-01：动作 → 三通道 → 融合 → 精排 → 来源落库 → API 返回，一条完整链路。
+     *
+     * <p><b>本方法不参与类级事务</b>：检索跑在 {@code qaRetrievalExecutor} 的其他线程上，看不见
+     * 测试事务里未提交的种子数据（工单 08 踩过这个坑，症状是所有用例都 NO_RESULT，看起来像
+     * 检索坏了）。所以种子真提交，用 finally 清理。
+     */
+    @Test
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void e2e01_3B_有内容时全链路召回并在API上返回来源() throws Exception {
+        long docId = jdbc.queryForObject("""
+                insert into source_document (kb_id, name, source_type, storage_object_id)
+                values (?, '退货与退款操作手册.txt', 'FILE', ?) returning id
+                """, Long.class, knowledgeBaseId, UUID.randomUUID().toString());
+        String content = "退款到账时间说明：银行卡退款通常三到五个工作日到账";
+        long chunkId = jdbc.queryForObject("""
+                insert into document_chunk
+                    (kb_id, doc_id, revision, chunk_index, content, char_count, token_count, content_hash)
+                values (?, ?, 1, 7, ?, ?, 1,
+                        '0000000000000000000000000000000000000000000000000000000000000000')
+                returning id
+                """, Long.class, knowledgeBaseId, docId, content, content.length());
+        float[] vector = new float[1024];
+        vector[0] = 1.0f;
+        vectors.insertAll(knowledgeBaseId, docId, java.util.List.of(chunkId), java.util.List.of(vector));
+
+        try {
+            String response = mvc.perform(post("/api/qa/turns")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "clientRequestId":"%s",
+                                      "conversationId":null,
+                                      "message":{"type":"QUESTION","text":"退款多久到账？"}
+                                    }
+                                    """.formatted(UUID.randomUUID())))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.turn.status").value("ACTIONS_READY"))
+                    .andExpect(jsonPath("$.retrieval.status").value("RETRIEVED"))
+                    .andExpect(jsonPath("$.retrieval.sources[0].chunkId").value((int) chunkId))
+                    // 展示三项齐全：库名、文档名、分块序号（沿用知识库页的序号语义，不重编号）。
+                    .andExpect(jsonPath("$.retrieval.sources[0].documentName")
+                            .value("退货与退款操作手册.txt"))
+                    .andExpect(jsonPath("$.retrieval.sources[0].chunkIndex").value(7))
+                    .andExpect(jsonPath("$.retrieval.sources[0].documentDeleted").value(false))
+                    .andReturn().getResponse().getContentAsString();
+
+            // 落库与响应一致：来源真的进了 qa_retrieval_source，不是只在响应里拼出来的。
+            String turnId = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(response).at("/turn/turnId").asText();
+            assertThat(jdbc.queryForObject(
+                    "select count(*) from qa_retrieval_source where turn_id = ?",
+                    Integer.class, UUID.fromString(turnId))).isEqualTo(1);
+            // 漏斗三个计数都落了库（架构 §22.2：课程实现里它们只存在于 log.info）。
+            assertThat(jdbc.queryForObject(
+                    "select channel_hits from qa_turn_retrieval where turn_id = ?",
+                    Integer.class, UUID.fromString(turnId))).isPositive();
+
+            // **只扫 retrieval 块**：整个响应里是有 score 的——inspector.subQuestions[].matches[].score
+            // 是 3A 的意图匹配分数，属于验收信息，ui-spec §7 明确允许它以强/中/低区间出现在
+            // 验收面板。把断言范围写成整个响应会误报这个正当字段，那种"过宽的隐私断言"迟早
+            // 被人改松，还不如一开始就画准范围。
+            String retrievalBlock = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(response).at("/retrieval").toString();
+            assertThat(retrievalBlock)
+                    .as("3B 来源不带任何分数——库里本来就不存（数据模型 §14.2），这是第二道闸")
+                    .doesNotContain("score")
+                    .doesNotContain("relevance")
+                    // 命中通道只进处理详情，避免"命中两次更可信"的错误暗示。
+                    .doesNotContain("originChannel")
+                    .doesNotContain("INTENT_TARGETED");
+        } finally {
+            jdbc.update("delete from qa_retrieval_source where turn_id in "
+                    + "(select id from qa_turn where conversation_id in "
+                    + "(select id from qa_conversation where title is not null))");
+            jdbc.update("delete from document_chunk_keyword where kb_id = ?", knowledgeBaseId);
+            jdbc.update("delete from document_chunk_embedding where kb_id = ?", knowledgeBaseId);
+            jdbc.update("delete from document_chunk where kb_id = ?", knowledgeBaseId);
+            jdbc.update("delete from source_document where kb_id = ?", knowledgeBaseId);
         }
     }
 }
