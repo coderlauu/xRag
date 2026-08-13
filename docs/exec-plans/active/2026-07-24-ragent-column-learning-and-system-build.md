@@ -57,7 +57,7 @@
 | Phase 1 AI 知识库建设 | completed | 已于 2026-07-28 归档；[里程碑状态](../../status/2026-07-28-phase-1-knowledge-base.md) |
 | Phase 2 大模型调度引擎 | completed | 已于 2026-08-07 关闭；工单 01~22 done，23 因缺合规 Key 带 blocked 状态一同关闭；P2-02 已解除；Embedding 真实链路的实测失败已查明为本仓库解析代码过严（非缺 Key）并修复；[里程碑状态](../../status/2026-08-07-phase-2-model-scheduling.md)与[复盘](../../retro/2026-08-07-phase-2-model-scheduling-retrospective.md) |
 | Phase 3 AI 知识问答核心链路 | completed | 已于 2026-08-12 关闭；3A~3C 共 50 张工单，当前门禁后端 698 项、前端 78 项全绿。见[Phase 3 执行计划](../completed/2026-08-07-qa-pipeline-phase-plan.md)、[3C 里程碑](../../status/2026-08-12-phase-3c-generation-streaming.md)与[复盘](../../retro/2026-08-12-phase-3c-retrospective.md) |
-| Phase 4 RAG 评测体系 | active / Step C | Step B 已于 2026-08-13 确认关闭；PRD approved，当前设计技术方案、测试矩阵与实施拆分。见[Phase 4 执行计划](2026-08-12-rag-evaluation-phase-plan.md) |
+| Phase 4 RAG 评测体系 | active / Step C review | 技术三件套、两条 proposed ADR、100 条矩阵、任务书与 16 张工单已完成，等待确认；尚未写生产代码。见[Phase 4 执行计划](2026-08-12-rag-evaluation-phase-plan.md) |
 | Phase 5 面试专题与系统说明书 | pending | 最终汇总阶段 |
 
 ### 6.1 每模块产出物闸门
@@ -194,3 +194,8 @@
 - `2026-08-13`: **Phase 4 Step B 经项目所有者确认。** P-02～P-07 全部采用推荐方案，PRD 转为
   approved；第一版继续不做专用页面或 slides，冻结三层数据集、中文 Judge 校准、正文保留和双 run A/B
   产品边界，进入 Step C 技术方案。
+- `2026-08-13`: **Phase 4 Step C 草案进入评审。** 产出
+  [架构](../../../tech/evaluation/architecture.md)、[数据模型](../../../tech/evaluation/data-model.md)、
+  [API](../../../tech/evaluation/api.md)、ADR 0010/0011、[100 条测试矩阵](../../../tech/evaluation/test-matrix.md)、
+  [分角色任务书](2026-08-13-rag-evaluation-implementation-lanes.md)与 16 张原子工单。采用不可变三层身份、
+  同源 turn 录制、深模块接口和框架无关 semantic seam；当前未写生产代码，全部工单保持 blocked。

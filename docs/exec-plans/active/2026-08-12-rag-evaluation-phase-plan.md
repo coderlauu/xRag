@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 4 / RAG 评测体系
-- `status`: active / Step C（`2026-08-13`）
+- `status`: active / Step C review（`2026-08-13`）
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
 - `predecessor`: [Phase 3 里程碑状态](../../status/2026-08-12-phase-3c-generation-streaming.md)
@@ -26,7 +26,7 @@ Step A/B 已关闭。当前 Step C 设计架构、数据模型、API、ADR、测
 |---|---|---|---|
 | A | 11 篇学习稿、一手资料复核、Phase 4 对齐检查点 | **complete** | 是（`2026-08-13`） |
 | B | PRD；是否需要界面的显式裁决；若需要则含 ui-spec 与可点击原型 | **complete** | 是（`2026-08-13`） |
-| C | 架构、数据模型、API、ADR、测试矩阵、分角色任务书与原子工单 | **in progress** | 是 |
+| C | 架构、数据模型、API、ADR、测试矩阵、分角色任务书与原子工单 | **review** | 是 |
 | D | 纵向切片实现 | pending | 是 |
 | E | 自动化、真实样本与人工评测矩阵执行 | pending | 是 |
 | F | CI/CD、费用守门、评测数据保留与部署配置 | pending | 否 |
@@ -85,3 +85,6 @@ Step A/B 已关闭。当前 Step C 设计架构、数据模型、API、ADR、测
   项目所有者确认 P-02～P-07，尚未进入 Step C。
 - `2026-08-13`：项目所有者确认 P-02～P-07，PRD 转为 approved；无专用页面、不做 slides、三层
   数据集、Judge 校准门禁、正文保留和双 run A/B 边界冻结，进入 Step C 技术方案。
+- `2026-08-13`：Step C 草案完成：技术三件套、ADR 0010/0011、100 条测试矩阵、分角色任务书与
+  16 张原子工单。方案采用 Spring/PostgreSQL 拥有运行事实、同源 turn 录制、深模块接口与框架无关
+  semantic seam；当前等待项目所有者确认，未写生产代码，工单全部 blocked。
