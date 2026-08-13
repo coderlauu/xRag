@@ -6,7 +6,7 @@
 
 全专栏共 92 个链接（1 个加群链接 + 91 篇正文），下表逐条登记原文标题、原文短链接、新分组与本地整理稿路径。**状态**：`done` = 已整理，`pending` = 待处理。
 
-截至 2026-08-12，全部正文完成 **88/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成；Phase 2 Step A（04-model-scheduling组）8/8 全部完成；Phase 3 Step A（05-qa-pipeline组）18/18 全部完成；Phase 4 Step A（06-evaluation组）11/11 已整理，待项目所有者确认检查点。
+截至 2026-08-13，全部正文完成 **88/91**；Phase 0（00~02组）40/40 全部完成；Phase 1（03-knowledge-base组）11/11 全部完成；Phase 2 Step A（04-model-scheduling组）8/8 全部完成；Phase 3 Step A（05-qa-pipeline组）18/18 全部完成；Phase 4 Step A（06-evaluation组）11/11 已确认。
 
 - `done`：`00-01`～`00-05`、`01-01`～`01-25`、`02-01`～`02-10`、`03-01`～`03-11`、`04-01`～`04-08`、`05-01`～`05-18`、`06-01`～`06-11`
 - `pending`：`07-interview`（3篇+持续更新）
@@ -29,7 +29,7 @@ Phase 4 Step A 的评测身份、指标边界、RAGAS 候选结论与 D-01~D-05 
 | 03-knowledge-base AI知识库建设 | 11 | done（11/11） | 知识库/文档管理模块 |
 | 04-model-scheduling 大模型调度引擎 | 8 | done（8/8，Phase 2 Step A） | AI基础设施层/模型路由网关模块 |
 | 05-qa-pipeline AI知识问答核心链路 | 18 | done（18/18，Phase 3 Step A） | 检索增强问答（核心业务）模块 |
-| 06-evaluation RAG评测体系 | 11 | review（Phase 4 Step A，11/11，待确认） | 评测/质量保障模块 |
+| 06-evaluation RAG评测体系 | 11 | done（11/11，Phase 4 Step A 已确认） | 评测/质量保障模块 |
 | 07-interview 面试高频考点 | 3+（持续更新） | pending（Phase 5） | 横向参考 |
 
 ## 00-overview 项目概览与学习指南（5篇）
@@ -141,7 +141,7 @@ Phase 4 Step A 的评测身份、指标边界、RAGAS 候选结论与 D-01~D-05 
 | 17 | 10个人同时提问只有3个坑位 | https://t.zsxq.com/m4blA | `05-qa-pipeline/05-17-排队限流的入队与抢占.md` |
 | 18 | 抢不到许可请求该等还是该拒？ | https://t.zsxq.com/mOutN | `05-qa-pipeline/05-18-异步等待与超时拒绝.md` |
 
-## 06-evaluation RAG评测体系（11篇，Phase 4 Step A review）
+## 06-evaluation RAG评测体系（11篇，done）
 
 | # | 原文标题 | 原文链接 | 本地文件 |
 |---|---|---|---|

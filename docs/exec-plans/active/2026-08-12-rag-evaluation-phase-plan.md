@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 4 / RAG 评测体系
-- `status`: active / Step A review（`2026-08-12`，待项目所有者确认）
+- `status`: active / Step B（`2026-08-13`）
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
 - `predecessor`: [Phase 3 里程碑状态](../../status/2026-08-12-phase-3c-generation-streaming.md)
@@ -17,16 +17,16 @@
 
 ## 3. 当前边界
 
-Step A 只做学习整理、一手资料复核和对齐检查点，不写 PRD、Schema、生产代码、评测框架适配器或
-实现工单。RAGAS 是否采用、是否新增评测页面、数据集如何构造、哪些指标进入第一版，都留到后续
-B/C 闸门，由项目所有者在看到 Step A 证据后裁决。
+Step A 已关闭。当前 Step B 只起草 PRD，并落实“不做专用评测页面，先报告/API”的裁决，因此本阶段
+不产出 ui-spec 或可点击原型。Schema、生产代码、评测框架适配器和实现工单仍留到后续 Step C/D；
+RAGAS 保持候选，不在 PRD 中锁定。
 
 ## 4. A~G 闸门
 
 | Step | 产出 | 当前状态 | 用户确认 |
 |---|---|---|---|
-| A | 11 篇学习稿、一手资料复核、Phase 4 对齐检查点 | **review** | 是 |
-| B | PRD；是否需要界面的显式裁决；若需要则含 ui-spec 与可点击原型 | pending | 是 |
+| A | 11 篇学习稿、一手资料复核、Phase 4 对齐检查点 | **complete** | 是（`2026-08-13`） |
+| B | PRD；是否需要界面的显式裁决；若需要则含 ui-spec 与可点击原型 | **in progress** | 是 |
 | C | 架构、数据模型、API、ADR、测试矩阵、分角色任务书与原子工单 | pending | 是 |
 | D | 纵向切片实现 | pending | 是 |
 | E | 自动化、真实样本与人工评测矩阵执行 | pending | 是 |
@@ -57,7 +57,7 @@ B/C 闸门，由项目所有者在看到 Step A 证据后裁决。
 - [x] `docs/research/` 下形成一手资料复核，事实、推断与本项目建议分开记录。
 - [x] `learning/ragent-column/PHASE-4-STEP-A-CHECKPOINT.md` 汇总术语、指标边界、冲突与待裁决问题。
 - [x] 对照 Phase 3 递延项，列明哪些进入 Phase 4、哪些继续不在范围。
-- [ ] 文档链接与格式检查通过，并由项目所有者确认 Step A 后才进入 Step B。
+- [x] 文档链接与格式检查通过，并由项目所有者确认 Step A 后才进入 Step B。
 
 ## 6. Phase 4 先行护栏
 
@@ -79,3 +79,5 @@ B/C 闸门，由项目所有者在看到 Step A 证据后裁决。
   的学习整理、一手资料复核与检查点，不提前选择 RAGAS、不创建实现工单。
 - `2026-08-12`：11 篇学习稿、一手资料复核与 Step A 检查点已形成，进入项目所有者评审。检查点建议
   第一版先做报告/API 而非专用页面，RAGAS 保持候选并须用中文人工对齐集验证；尚未进入 Step B。
+- `2026-08-13`：项目所有者确认 Step A 七条原则、递延项归属与 D-01～D-05。Step A 关闭并进入
+  Step B；第一版不做专用评测页面，所以 Step B 只产出 PRD，不产出 ui-spec 或可点击原型。
