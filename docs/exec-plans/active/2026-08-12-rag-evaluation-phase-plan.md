@@ -3,7 +3,7 @@
 ## 1. Metadata
 
 - `phase`: Phase 4 / RAG 评测体系
-- `status`: active / Step B（`2026-08-13`）
+- `status`: active / Step C（`2026-08-13`）
 - `owner`: liuqiang
 - `parent`: [总执行计划](2026-07-24-ragent-column-learning-and-system-build.md)
 - `predecessor`: [Phase 3 里程碑状态](../../status/2026-08-12-phase-3c-generation-streaming.md)
@@ -17,17 +17,16 @@
 
 ## 3. 当前边界
 
-Step A 已关闭。当前 Step B 只起草 PRD，并落实“不做专用评测页面，先报告/API”的裁决，因此本阶段
-不产出 ui-spec 或可点击原型。Schema、生产代码、评测框架适配器和实现工单仍留到后续 Step C/D；
-RAGAS 保持候选，不在 PRD 中锁定。
+Step A/B 已关闭。当前 Step C 设计架构、数据模型、API、ADR、测试矩阵、分角色任务书与原子工单；
+不写生产代码。第一版不做专用页面，RAGAS 保持候选并隔离在框架无关 seam 之后。
 
 ## 4. A~G 闸门
 
 | Step | 产出 | 当前状态 | 用户确认 |
 |---|---|---|---|
 | A | 11 篇学习稿、一手资料复核、Phase 4 对齐检查点 | **complete** | 是（`2026-08-13`） |
-| B | PRD；是否需要界面的显式裁决；若需要则含 ui-spec 与可点击原型 | **review** | 是 |
-| C | 架构、数据模型、API、ADR、测试矩阵、分角色任务书与原子工单 | pending | 是 |
+| B | PRD；是否需要界面的显式裁决；若需要则含 ui-spec 与可点击原型 | **complete** | 是（`2026-08-13`） |
+| C | 架构、数据模型、API、ADR、测试矩阵、分角色任务书与原子工单 | **in progress** | 是 |
 | D | 纵向切片实现 | pending | 是 |
 | E | 自动化、真实样本与人工评测矩阵执行 | pending | 是 |
 | F | CI/CD、费用守门、评测数据保留与部署配置 | pending | 否 |
@@ -84,3 +83,5 @@ RAGAS 保持候选，不在 PRD 中锁定。
 - `2026-08-13`：[Phase 4 PRD](../../prd/2026-08-13-rag-evaluation-prd.md)草案完成，落实受控能力夹具、
   三层评估集、同源 turn 录制、三种运行模式、分层指标、费用守门、报告/API/CLI 和人工复核；当前等待
   项目所有者确认 P-02～P-07，尚未进入 Step C。
+- `2026-08-13`：项目所有者确认 P-02～P-07，PRD 转为 approved；无专用页面、不做 slides、三层
+  数据集、Judge 校准门禁、正文保留和双 run A/B 边界冻结，进入 Step C 技术方案。

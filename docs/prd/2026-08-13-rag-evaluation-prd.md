@@ -1,8 +1,9 @@
 # PRD：RAG 评测体系（xrag Phase 4）
 
-- `status`: Step B review
+- `status`: approved（2026-08-13）
 - `owner`: liuqiang（产品决策）+ AI（起草）
 - `created`: 2026-08-13
+- `approved_at`: 2026-08-13
 - `ui_decision`: 第一版不做专用评测页面；交付版本化报告 + 受控 API/CLI（Step A 已确认）
 - `phase_plan`: [Phase 4 RAG 评测体系](../exec-plans/active/2026-08-12-rag-evaluation-phase-plan.md)
 - `learning_checkpoint`: [Phase 4 Step A 学习检查点](../../learning/ragent-column/PHASE-4-STEP-A-CHECKPOINT.md)
@@ -332,11 +333,11 @@ Markdown/CSV/JSON/JSONL 是产品要求的可消费形态，具体目录和字�
 | AC-14 | 输出报告 | manifest、机器聚合、逐样本、Markdown、failures 与 A/B diff 均可生成和互相追溯 |
 | AC-15 | 中文 Judge 校准 | 12 条双人校准集有分歧裁决、逐指标一致性与误判清单；未通过前不作硬门禁 |
 
-## 11. Step B 待确认事项
+## 11. Step B 已确认事项（`2026-08-13`）
 
-Step A 已确认 D-01（第一版无专用页面）。本 PRD 还需项目所有者确认以下产品边界：
+Step A 已确认 D-01（第一版无专用页面）。项目所有者确认 P-02～P-07 全部采用推荐方案：
 
-| # | 问题 | 推荐方案 | 接受的代价 |
+| # | 问题 | 确认结果 | 接受的代价 |
 |---|---|---|---|
 | P-02 | 首版评估集规模 | 12 条校准 + 最多 36 条主力 + 最多 12 条保留；Step E 最低完成 12+24 | 不是统计型 Benchmark，长尾覆盖需持续扩充 |
 | P-03 | 第一版业务内容 | 使用原创/授权的 xrag 能力夹具，不复制课程电商集、不默认抽线上数据 | 与未来真实业务存在分布差异，需要后续领域数据包 |
@@ -347,7 +348,7 @@ Step A 已确认 D-01（第一版无专用页面）。本 PRD 还需项目所有
 
 ## 12. Step B 完成定义
 
-- [ ] 项目所有者确认 P-02～P-07 与本 PRD 的目标、非目标和验收标准。
+- [x] 项目所有者确认 P-02～P-07 与本 PRD 的目标、非目标和验收标准（`2026-08-13`）。
 - [x] 第一版无专用页面已在 Step A 明确裁决，因此不产出 ui-spec 或可点击原型。
-- [ ] PRD 转为 `approved`，Phase 4 计划进入 Step C。
-- [ ] Step C 才设计架构、数据模型、API、框架适配边界、测试矩阵、任务书和原子工单。
+- [x] PRD 转为 `approved`，Phase 4 计划进入 Step C。
+- [ ] Step C 设计架构、数据模型、API、框架适配边界、测试矩阵、任务书和原子工单。
